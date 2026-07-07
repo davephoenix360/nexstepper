@@ -26,5 +26,15 @@ export interface ResumeTemplateMeta {
 
 export interface ResumeTemplate {
   meta: ResumeTemplateMeta;
-  Component: (props: { data: ResumeData }) => ReactNode;
+  Component: (props: {
+    data: ResumeData;
+    /**
+     * When true, the template renders interactive leaves
+     * (<EditableText> in place of plain text) so the user can edit
+     * values inside the rendered view. The idle/print render is
+     * pixel-equivalent to the read-only render — only the interactivity
+     * differs.
+     */
+    editable?: boolean;
+  }) => ReactNode;
 }
