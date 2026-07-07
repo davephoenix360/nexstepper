@@ -311,3 +311,40 @@
 [data-active-tab]:not([data-active-tab='recognition']) [data-tab='recognition'] {
   display: none;
 }
+
+/*
+  ---break---
+*/
+
+/*
+  Resume preview / print rules.
+
+  The Classic template renders inside a page-sized container that we want
+  to look like a sheet on screen and to fill a real page when the user
+  triggers Print → "Save as PDF". The two pieces that aren't expressible
+  as Tailwind utilities:
+    - `@page` — sets paper size and the OS-level margin (used by the browser
+      print engine even when CSS margins on the body are 0).
+    - `.no-print` — chrome around the preview (Back button, template label,
+      Print button) that should disappear from the printed output.
+*/
+@media print {
+  /* Strip the gray background we use to sell "paper on desk" on screen. */
+  body {
+    background: white !important;
+  }
+  /* Chrome bar on the preview route — gone in print. */
+  .no-print {
+    display: none !important;
+  }
+}
+
+@page {
+  /* US Letter — matches the `max-w-[8.5in]` width the template uses on
+     screen so the PDF matches the preview pixel-for-pixel. Phase 2 will
+     swap this for an explicit Letter/A4 selector when templates diversify. */
+  size: letter;
+  /* The template renders its own padding; we keep this thin so the page
+     edge isn't doubled. */
+  margin: 0.4in;
+}

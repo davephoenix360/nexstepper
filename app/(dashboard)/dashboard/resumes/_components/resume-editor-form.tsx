@@ -1,10 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { resumeDataSchema, type ResumeData } from '@/lib/resume-schema';
-import { SchemaForm } from '@/components/schema-form';
+import { SchemaForm, type SchemaFormProps } from '@/components/schema-form';
 
 import { saveResumeAction } from '../actions';
 import { EditorTabs } from './editor-tabs';
@@ -15,6 +18,36 @@ const EDITOR_TABS = [
   { id: 'skills', label: 'Skills' },
   { id: 'recognition', label: 'Recognition' }
 ] as const;
+
+/**
+ * Per-field layout overrides for the schema-driven form. Keys are full
+ * dotted paths into the resume shape. The `colSpan` hint gives the field
+ * 1 (default) or 2 columns inside the 2-column ObjectField grid; 2 means
+ * "break to your own row" — right shape for long-form text like Summary
+ * or full URLs.
+ *
+ * For array items, use `<array-path>.0.<leaf>` — `0` is a stand-in index
+ * that ArrayField substitutes for the real index, so the override applies
+ * uniformly to every item the user adds.
+ */
+const FIELD_OVERRIDES: NonNullable<SchemaFormProps<typeof resumeDataSchema>['fieldOverrides']> = {
+  // --- Basics (Profile tab) ---
+  'sections.basics.name': { colSpan: 1 },
+  'sections.basics.label': { colSpan: 1 },
+  'sections.basics.email': { colSpan: 1 },
+  'sections.basics.phone': { colSpan: 1 },
+  // `url` reads better as "Website" in a user-facing resume editor, while
+  // still posting the JSON Resume `url` field on save.
+  'sections.basics.url': { colSpan: 1, label: 'Website' },
+  'sections.basics.summary': { colSpan: 2, multiline: true },
+
+  // --- Location (nested inside Basics) ---
+  'sections.basics.location.address': { colSpan: 2 },
+  'sections.basics.location.city': { colSpan: 1 },
+  'sections.basics.location.postalCode': { colSpan: 1 },
+  'sections.basics.location.countryCode': { colSpan: 1 },
+  'sections.basics.location.region': { colSpan: 1 }
+};
 
 /**
  * Client wrapper around SchemaForm for the resume editor. Submits go to
@@ -56,6 +89,22 @@ export function ResumeEditorForm({
 
   return (
     <div className="space-y-4" data-active-tab={activeTab}>
+      <div className="flex items-center justify-end">
+        <Button asChild variant="outline" size="sm">
+          {/* Opens in a new tab so unsaved edits stay in the editor session.
+              The preview always reads the *last saved* revision, so save
+              first if you want to see changes. */}
+          <Link
+            href={`/dashboard/resumes/${resumeId}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="editor-preview-button"
+          >
+            <Eye className="mr-2 size-4" />
+            Preview
+          </Link>
+        </Button>
+      </div>
       <EditorTabs
         tabs={EDITOR_TABS}
         activeTab={activeTab}
@@ -73,6 +122,7 @@ export function ResumeEditorForm({
         submitLabel={pending ? 'Saving...' : 'Save'}
         submitting={pending}
         omitFields={['jobContext']}
+        fieldOverrides={FIELD_OVERRIDES}
       />
     </div>
   );
