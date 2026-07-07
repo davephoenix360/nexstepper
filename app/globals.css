@@ -289,24 +289,25 @@
   so all 100+ fields stay mounted in the form state at once: validation
   works on all tabs, switching tabs is instant, and a Save from any
   tab persists the whole shape.
+
+  Plain CSS (not in @layer utilities) so Tailwind v4 doesn't strip the
+  raw attribute selectors — we want these to apply as authored.
 */
-@layer utilities {
-  [data-active-tab='profile'] [data-tab='profile'] {
-    display: block;
-  }
-  [data-active-tab='experience'] [data-tab='experience'] {
-    display: block;
-  }
-  [data-active-tab='skills'] [data-tab='skills'] {
-    display: block;
-  }
-  [data-active-tab='recognition'] [data-tab='recognition'] {
-    display: block;
-  }
-  [data-active-tab]:not([data-active-tab='profile']) [data-tab='profile'],
-  [data-active-tab]:not([data-active-tab='experience']) [data-tab='experience'],
-  [data-active-tab]:not([data-active-tab='skills']) [data-tab='skills'],
-  [data-active-tab]:not([data-active-tab='recognition']) [data-tab='recognition'] {
-    display: none;
-  }
+[data-active-tab='profile'] [data-tab='profile'] {
+  display: block;
+}
+[data-active-tab='experience'] [data-tab='experience'] {
+  display: block;
+}
+[data-active-tab='skills'] [data-tab='skills'] {
+  display: block;
+}
+[data-active-tab='recognition'] [data-tab='recognition'] {
+  display: block;
+}
+[data-active-tab]:not([data-active-tab='profile']) [data-tab='profile'],
+[data-active-tab]:not([data-active-tab='experience']) [data-tab='experience'],
+[data-active-tab]:not([data-active-tab='skills']) [data-tab='skills'],
+[data-active-tab]:not([data-active-tab='recognition']) [data-tab='recognition'] {
+  display: none;
 }
