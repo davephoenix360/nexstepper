@@ -20,9 +20,6 @@ importers:
       '@liveblocks/react':
         specifier: ^3.21.0
         version: 3.21.0(@types/json-schema@7.0.15)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react@19.2.7)
-      '@neondatabase/serverless':
-        specifier: ^1.1.0
-        version: 1.1.0
       '@sentry/nextjs':
         specifier: ^10.63.0
         version: 10.63.0(@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.220.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.9.0(@opentelemetry/api@1.9.1))(next@16.2.10(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(webpack@5.108.4(esbuild@0.25.4)(postcss@8.5.3))
@@ -4748,7 +4745,8 @@ snapshots:
     transitivePeerDependencies:
       - '@types/json-schema'
 
-  '@neondatabase/serverless@1.1.0': {}
+  '@neondatabase/serverless@1.1.0':
+    optional: true
 
   '@next/env@16.2.10': {}
 

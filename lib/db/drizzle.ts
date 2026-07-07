@@ -1,6 +1,4 @@
-import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
-import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
-import { Pool as NeonPool } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 import dotenv from 'dotenv';
@@ -13,34 +11,20 @@ if (!url) {
 }
 
 /**
- * Driver selection:
- * - Neon in prod (serverless, works in Node + Edge runtime via WebSocket pool)
- * - postgres-js locally for fastest hot-reload
+ * Drizzle instance.
  *
- * Auto-detected by hostname; override with DATABASE_DRIVER=neon|postgres.
+ * We use `postgres-js` for both local dev and prod. It talks the standard
+ * Postgres wire protocol, so a Neon connection URL works without a separate
+ * Neon serverless driver. The neon-serverless driver is meaningfully better
+ * only for edge-runtime functions (faster cold start, HTTP-based queries)
+ * — when we need that, we'll add a second `db` exported from this file
+ * (e.g. `dbEdge`) rather than conditionally switching one driver for another
+ * (which fragments the type system and breaks downstream query typings).
  */
-function pickDriver(): 'neon' | 'postgres' {
-  const explicit = process.env.DATABASE_DRIVER?.toLowerCase();
-  if (explicit === 'neon' || explicit === 'postgres') return explicit;
-  try {
-    const host = new URL(url!).hostname;
-    if (host.endsWith('.neon.tech') || host.endsWith('.neon.build')) return 'neon';
-  } catch {
-    // fall through
-  }
-  return 'postgres';
-}
+const client = postgres(url, {
+  // Recommended for serverless deployments. Locally these are no-ops.
+  prepare: false
+});
 
-const driver = pickDriver();
-
-function makeDb() {
-  if (driver === 'neon') {
-    const pool = new NeonPool({ connectionString: url! });
-    return drizzleNeon(pool, { schema });
-  }
-  const client = postgres(url!);
-  return drizzlePostgres(client, { schema });
-}
-
-export const db = makeDb();
+export const db = drizzle(client, { schema });
 export { schema };

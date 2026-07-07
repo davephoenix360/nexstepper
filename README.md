@@ -16,7 +16,7 @@ collaboration.
 | Framework | Next.js 16.2 (App Router, Turbopack default) | ✅ |
 | Language | TypeScript 5.x strict | ✅ |
 | UI | shadcn/ui + Tailwind v4 | ✅ |
-| Database | Postgres (Neon in prod, postgres-js locally) | ✅ auto-detected |
+| Database | Postgres (any Postgres-protocol endpoint: local, Neon, RDS) | ✅ postgres-js driver |
 | ORM | Drizzle | ✅ |
 | Auth | Better Auth 1.6 + Drizzle adapter | ✅ email/password |
 | Billing | Stripe (Free + Pro $12/mo, 7-day trial) | ✅ |
@@ -81,7 +81,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 See `.env.example` for the full list. The minimum to boot:
 
-- `POSTGRES_URL` — Postgres connection string (Neon in prod)
+- `POSTGRES_URL` — Postgres connection string (local docker, Neon, or any Postgres-protocol endpoint)
 - `BETTER_AUTH_SECRET` — `openssl rand -base64 32`
 - `BETTER_AUTH_URL` — e.g. `https://nextep.app`
 - `NEXT_PUBLIC_APP_URL` — same
