@@ -233,12 +233,9 @@ export async function createMasterResume(
     const resumeId = crypto.randomUUID();
     const revisionId = crypto.randomUUID();
 
-    await tx.insert(resumeRevisions).values({
-      id: revisionId,
-      resumeId,
-      data
-    });
-
+    // Insert the parent row BEFORE the child. Postgres checks FKs
+    // immediately by default (NOT DEFERRABLE), so the resume_revisions
+    // insert trips the resume_id FK if we try it the other way around.
     const [created] = await tx
       .insert(resumes)
       .values({
@@ -254,6 +251,13 @@ export async function createMasterResume(
       .returning();
 
     if (!created) throw new Error('Failed to create master resume');
+
+    await tx.insert(resumeRevisions).values({
+      id: revisionId,
+      resumeId,
+      data
+    });
+
     return created;
   });
 }
@@ -286,12 +290,7 @@ export async function createVariant(
         : {})
     };
 
-    await tx.insert(resumeRevisions).values({
-      id: revisionId,
-      resumeId: variantId,
-      data: variantData
-    });
-
+    // Parent first, child second — same FK ordering as createMasterResume.
     const [created] = await tx
       .insert(resumes)
       .values({
@@ -307,7 +306,15 @@ export async function createVariant(
       })
       .returning();
 
-    return created ?? null;
+    if (!created) return null;
+
+    await tx.insert(resumeRevisions).values({
+      id: revisionId,
+      resumeId: variantId,
+      data: variantData
+    });
+
+    return created;
   });
 }
 
