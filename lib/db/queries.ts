@@ -57,12 +57,27 @@ export async function getSubscription(): Promise<Subscription> {
 
   if (rows[0]) return rows[0];
 
-  // Auto-create a free-tier row so downstream code can always read one
+  // Auto-create a free-tier row so downstream code can always read one.
+  // ON CONFLICT DO NOTHING keeps this safe under concurrent renders
+  // (Next.js dev double-render, layout + page Promise.all, parallel page
+  // navigation hits): whichever request loses the race re-selects the row
+  // that won, instead of throwing a unique-constraint violation.
   const [created] = await db
     .insert(subscriptions)
     .values({ id: crypto.randomUUID(), userId: u.id, plan: 'free', status: 'inactive' })
+    .onConflictDoNothing({ target: subscriptions.userId })
     .returning();
-  return created ?? makeFreeSubscription(u.id);
+
+  if (created) return created;
+
+  // A concurrent request inserted it first — fetch the row they wrote.
+  const [existing] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, u.id))
+    .limit(1);
+
+  return existing ?? makeFreeSubscription(u.id);
 }
 
 function makeFreeSubscription(userId: string): Subscription {
