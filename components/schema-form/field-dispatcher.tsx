@@ -21,6 +21,8 @@ import {
   NumberInput,
   StringInput,
   getTypeName,
+  humanize,
+  leafName,
   unwrapSchema
 } from './primitives';
 import { ObjectField } from './object-field';
@@ -39,6 +41,11 @@ export interface FieldDescriptor {
 
 /**
  * Top-level dispatcher. Decides primitive vs nested and recurses.
+ *
+ * When no explicit label is provided (most fields in the resume schema
+ * don't override), we fall back to a humanized version of the leaf
+ * segment of the field path — so `sections.basics.email` becomes
+ * `Email`, not the whole dotted path with a type suffix.
  */
 export function FieldDispatcher({
   name,
@@ -49,6 +56,7 @@ export function FieldDispatcher({
 }: FieldDescriptor) {
   const { inner, optional } = unwrapSchema(schema);
   const typeName = getTypeName(inner);
+  const effectiveLabel = label ?? humanize(leafName(name));
 
   switch (typeName) {
     case 'string':
@@ -56,7 +64,7 @@ export function FieldDispatcher({
         <StringInput
           name={name}
           schema={inner}
-          label={label}
+          label={effectiveLabel}
           placeholder={placeholder ?? (optional ? 'Optional' : undefined)}
           multiline={multiline}
         />
@@ -64,18 +72,22 @@ export function FieldDispatcher({
 
     case 'number':
       return (
-        <NumberInput name={name} label={label} placeholder={placeholder} />
+        <NumberInput
+          name={name}
+          label={effectiveLabel}
+          placeholder={placeholder}
+        />
       );
 
     case 'boolean':
-      return <BooleanInput name={name} label={label} />;
+      return <BooleanInput name={name} label={effectiveLabel} />;
 
     case 'enum':
       return (
         <EnumInput
           name={name}
           schema={inner}
-          label={label}
+          label={effectiveLabel}
           placeholder={placeholder ?? 'Select…'}
         />
       );
@@ -85,19 +97,25 @@ export function FieldDispatcher({
         <ObjectField
           name={name}
           schema={inner as unknown as z.ZodObject<z.ZodRawShape>}
-          label={label}
+          label={effectiveLabel}
         />
       );
 
     case 'array':
-      return <ArrayField name={name} schema={inner} label={label} />;
+      return (
+        <ArrayField
+          name={name}
+          schema={inner}
+          label={effectiveLabel}
+        />
+      );
 
     // null / undefined / never / unknown / etc. — render a controlled
     // text input so the field still shows in the UI. Phase 3+ will replace
     // with proper widgets (date picker, etc.) as we add them.
     default:
       return (
-        <FieldShell name={name} label={label ?? `${name} (${typeName})`}>
+        <FieldShell name={name} label={effectiveLabel}>
           <StringInput name={name} schema={inner} />
         </FieldShell>
       );

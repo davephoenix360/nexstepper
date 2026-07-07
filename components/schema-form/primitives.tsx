@@ -54,11 +54,15 @@ export function unwrapSchema(schema: z.ZodTypeAny): {
 } {
   let inner = schema;
   let optional = false;
-  // Zod 4 stores the schema kind on `_def.type` (lowercase, no 'Zod' prefix)
-  // and the wrapped schema on `_def.innerType`. Walk up to 5 layers deep
-  // through any combination of optional / nullable / default wrappers.
+// Zod 4 stores the schema kind on `_def.type` (lowercase, no 'Zod' prefix)
+// and the wrapped schema on `_def.innerType`. Walk up to 5 layers deep
+// through any combination of optional / nullable / default / union wrappers.
   for (let i = 0; i < 5; i++) {
-    const def = inner._def as { type?: string; innerType?: z.ZodTypeAny };
+    const def = inner._def as {
+      type?: string;
+      innerType?: z.ZodTypeAny;
+      options?: z.ZodTypeAny[];
+    };
     if (def.type === 'optional') {
       optional = true;
       inner = def.innerType!;
@@ -67,6 +71,11 @@ export function unwrapSchema(schema: z.ZodTypeAny): {
     } else if (def.type === 'nullable') {
       // null wrappers don't change optional-ness — they just allow null.
       inner = def.innerType!;
+    } else if (def.type === 'union' && def.options && def.options.length > 0) {
+      // The resume schema uses `z.string().or(z.literal(''))` for fields
+      // like email / url / phone that should accept an empty string. The
+      // first option is always the meaningful type; take it.
+      inner = def.options[0];
     } else {
       break;
     }
@@ -79,6 +88,33 @@ export function getTypeName(schema: z.ZodTypeAny): string {
   // Zod 4 stores the kind at `_def.type` (lowercase). The old `typeName`
   // field no longer exists, so fall back to 'Unknown' instead of crashing.
   return (schema._def as { type?: string }).type ?? 'Unknown';
+}
+
+/**
+ * Convert a camelCase / snake_case field key to a human-readable label.
+ * Examples: `firstName` → `First name`, `postalCode` → `Postal code`,
+ * `jobContext` → `Job context`, `linkedin` → `Linkedin`.
+ */
+export function humanize(key: string): string {
+  const spaced = key
+    // camelCase boundary: `aB` → `a B`
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    // snake/kebab: `_` or `-` → space
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+    .trim();
+  if (!spaced) return key;
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * Last segment of a dotted react-hook-form path. `sections.basics.email`
+ * → `email`. Useful for generating field labels from the path without
+ * showing the whole ancestor chain.
+ */
+export function leafName(dottedPath: string): string {
+  const last = dottedPath.split('.').pop();
+  return last && last.length > 0 ? last : dottedPath;
 }
 
 interface StringInputProps {
