@@ -2,10 +2,18 @@ import type { ResumeData } from '@/lib/resume-schema';
 import { cn } from '@/lib/utils';
 
 import type { ResumeTemplate } from './types';
+
+import * as React from 'react';
+import { useFieldArray, useFormContext } from 'react-hook-form';
+import { Plus, X } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import {
   EditableText,
   EditableTextarea,
-  AddWorkButton
+  AddWorkButton,
+  BulletList,
+  KeywordChips
 } from '@/components/editable';
 
 /**
@@ -17,27 +25,31 @@ import {
  *
  * Editable mode
  * ------------
- * When the `editable` prop is true, the basics header + each work entry
- * (company, location, dates, title) render via the project's <EditableText>
- * primitive instead of plain text. Hover/cursor states advertise the
- * edit affordance on screen; both vanish in print so the PDF looks
- * identical to the read-only render. The "Add a work entry" button is
- * added inside the Experience section so the user can grow their resume
- * from inside the rendered view.
+ * When the `editable` prop is true, the basics header + each work
+ * entry (company, location, dates, title), the Skills section, the
+ * Education section, the Projects section, the Volunteer section, and
+ * the Awards section render via the project's inline-editing
+ * primitives (<EditableText>, <KeywordChips>, <BulletList>,
+ * <DateRangeField>, etc.) instead of plain text. Hover/cursor states
+ * advertise the edit affordance on screen; both vanish in print so the
+ * PDF looks identical to the read-only render. Section add/remove
+ * buttons let the user grow the resume from inside the rendered view.
  *
  * Sections:
  *  - Header (name, label, contact strip, location)
  *  - Summary
- *  - Work experience (company → positions → highlights)
- *  - Projects (name, description, highlights, tech keywords)
- *  - Skills (category → keywords)
- *  - Education
- *  - Volunteer (optional)
- *  - Awards (optional)
+ *  - Work experience (company → positions → highlights) — inline-editable
+ *  - Skills (category → keywords) — inline-editable (chips)
+ *  - Education (institution, dates, degree, majors) — inline-editable
+ *  - Projects (name, dates, description, bullets, tech chips) — inline-editable
+ *  - Volunteer (org, position, dates, summary, bullets) — inline-editable
+ *  - Awards (title, awarder, date, summary) — inline-editable
  *
- * Other-side concerns (sections we don't inline-edit in v1 — Skills,
- * Projects, Education, etc.) render as static reads of `data`. They'll
- * be lifted into inline-editable in subsequent slices.
+ * Sections still surfaced by the section-edit dialogs further down the
+ * page (Certificates, Publications, Languages, Interests, References)
+ * are read-only in this template and lift to inline in subsequent
+ * slices — each is its own small chunk so the format-step stays
+ * low-risk.
  *
  * Server-component purity: this file itself stays a server component
  * (no hooks, no event handlers), so Phase 2's `renderToString` PDF
@@ -75,11 +87,15 @@ export function ClassicTemplate({
     locBits.length > 0;
   const showSummary = editable || isSet(b.summary);
   const showWork = editable || has(sections.work);
-  const showProjects = has(sections.projects);
-  const showSkills = has(sections.skills);
-  const showEducation = has(sections.education);
-  const showVolunteer = has(sections.volunteer);
-  const showAwards = has(sections.awards);
+  const showProjects = editable || has(sections.projects);
+  // Skills + Education are ALWAYS visible when editable — even with no
+  // entries yet — so the "+ Add" affordance is reachable. In read-only
+  // mode we hide them when there's nothing to show (mimic the previous
+  // behavior).
+  const showSkills = editable || has(sections.skills);
+  const showEducation = editable || has(sections.education);
+  const showVolunteer = editable || has(sections.volunteer);
+  const showAwards = editable || has(sections.awards);
 
   return (
     <article
@@ -276,137 +292,172 @@ export function ClassicTemplate({
           </Section>
         )}
 
-        {/* Projects — always static in v1 */}
+        {/* Projects */}
         {showProjects && (
           <Section title="Projects">
-            {sections.projects.map((p, i) => (
-              <div key={`proj-${i}`} className="mb-3 last:mb-0 print:break-inside-avoid">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-[12pt] font-semibold text-zinc-900">
-                    {isSet(p.name) ? p.name : 'Project'}
-                  </h3>
-                  <DateRange start={p.startDate} end={p.endDate} />
-                </div>
-                {isSet(p.description) && (
-                  <p className="mt-0.5 text-[11pt] text-zinc-700">
-                    {p.description}
-                  </p>
-                )}
-                {has(p.highlights) && (
-                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
-                    {p.highlights.map((h, k) => (
-                      <li key={`proj-${i}-h-${k}`}>{h}</li>
-                    ))}
-                  </ul>
-                )}
-                {has(p.keywords) && (
-                  <p className="mt-1 text-[10pt] text-zinc-500">
-                    {p.keywords.join(' · ')}
-                  </p>
-                )}
+            {editable ? (
+              <ProjectsInline />
+            ) : (
+              <div>
+                {sections.projects.map((p, i) => (
+                  <div key={`proj-${i}`} className="mb-3 last:mb-0 print:break-inside-avoid">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h3 className="text-[12pt] font-semibold text-zinc-900">
+                        {isSet(p.name) ? p.name : 'Project'}
+                      </h3>
+                      <DateRange start={p.startDate} end={p.endDate} />
+                    </div>
+                    {isSet(p.description) && (
+                      <p className="mt-0.5 text-[11pt] text-zinc-700">
+                        {p.description}
+                      </p>
+                    )}
+                    {has(p.highlights) && (
+                      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
+                        {p.highlights.map((h, k) => (
+                          <li key={`proj-${i}-h-${k}`}>{h}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {has(p.keywords) && (
+                      <p className="mt-1 text-[10pt] text-zinc-500">
+                        {p.keywords.join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </Section>
         )}
 
-        {/* Skills — static in v1 */}
+        {/* Skills */}
         {showSkills && (
           <Section title="Skills">
-            <div className="space-y-1">
-              {sections.skills.map((s, i) => (
-                <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
-                  <span className="font-medium text-zinc-900">
-                    {isSet(s.name) ? s.name : 'Category'}
-                  </span>
-                  {has(s.keywords) && (
-                    <span className="text-zinc-700">
-                      — {s.keywords.join(', ')}
+            {editable ? (
+              <SkillsInline />
+            ) : (
+              <div className="space-y-1">
+                {sections.skills.map((s, i) => (
+                  <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
+                    <span className="font-medium text-zinc-900">
+                      {isSet(s.name) ? s.name : 'Category'}
                     </span>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {has(s.keywords) && (
+                      <span className="text-zinc-700">
+                        — {s.keywords.join(', ')}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
         )}
 
-        {/* Education — static in v1 */}
+        {/* Education */}
         {showEducation && (
           <Section title="Education">
-            {sections.education.map((e, i) => (
-              <div key={`edu-${i}`} className="mb-3 last:mb-0 print:break-inside-avoid">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-[12pt] font-semibold text-zinc-900">
-                    {isSet(e.institution) ? e.institution : 'Institution'}
-                  </h3>
-                  <DateRange start={e.startDate} end={e.endDate} />
-                </div>
-                <p className="mt-0.5 text-[11pt] text-zinc-700">
-                  {[
-                    e.degree.degreeLevel,
-                    ...e.degree.majors,
-                    ...e.degree.minors.map((m) => `Minor: ${m}`)
-                  ]
-                    .filter(isSet)
-                    .join(', ')}
-                  {isSet(e.location) && (
-                    <span className="ml-2 text-zinc-500">— {e.location}</span>
-                  )}
-                </p>
-                {isSet(e.gpa) && (
-                  <p className="text-[10pt] text-zinc-500">GPA: {e.gpa}</p>
-                )}
-              </div>
-            ))}
+            {editable ? (
+              <EducationInline />
+            ) : (
+              <>
+                {sections.education.map((e, i) => (
+                  <div
+                    key={`edu-${i}`}
+                    className="mb-3 last:mb-0 print:break-inside-avoid"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h3 className="text-[12pt] font-semibold text-zinc-900">
+                        {isSet(e.institution) ? e.institution : 'Institution'}
+                      </h3>
+                      <DateRange start={e.startDate} end={e.endDate} />
+                    </div>
+                    <p className="mt-0.5 text-[11pt] text-zinc-700">
+                      {[
+                        e.degree.degreeLevel,
+                        ...e.degree.majors,
+                        ...e.degree.minors.map((m) => `Minor: ${m}`)
+                      ]
+                        .filter(isSet)
+                        .join(', ')}
+                      {isSet(e.location) && (
+                        <span className="ml-2 text-zinc-500">
+                          — {e.location}
+                        </span>
+                      )}
+                    </p>
+                    {isSet(e.gpa) && (
+                      <p className="text-[10pt] text-zinc-500">
+                        GPA: {e.gpa}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </Section>
         )}
 
-        {/* Volunteer — static in v1 */}
+        {/* Volunteer */}
         {showVolunteer && (
           <Section title="Volunteer">
-            {sections.volunteer.map((v, i) => (
-              <div key={`vol-${i}`} className="mb-3 last:mb-0 print:break-inside-avoid">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-[12pt] font-semibold text-zinc-900">
-                    {isSet(v.organization) ? v.organization : 'Organization'}
-                  </h3>
-                  <DateRange start={v.startDate} end={v.endDate} />
-                </div>
-                {isSet(v.position) && (
-                  <p className="mt-0.5 text-[11pt] text-zinc-700">{v.position}</p>
-                )}
-                {has(v.highlights) && (
-                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
-                    {v.highlights.map((h, k) => (
-                      <li key={`vol-${i}-h-${k}`}>{h}</li>
-                    ))}
-                  </ul>
-                )}
+            {editable ? (
+              <VolunteerInline />
+            ) : (
+              <div>
+                {sections.volunteer.map((v, i) => (
+                  <div key={`vol-${i}`} className="mb-3 last:mb-0 print:break-inside-avoid">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h3 className="text-[12pt] font-semibold text-zinc-900">
+                        {isSet(v.organization) ? v.organization : 'Organization'}
+                      </h3>
+                      <DateRange start={v.startDate} end={v.endDate} />
+                    </div>
+                    {isSet(v.position) && (
+                      <p className="mt-0.5 text-[11pt] text-zinc-700">{v.position}</p>
+                    )}
+                    {has(v.highlights) && (
+                      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
+                        {v.highlights.map((h, k) => (
+                          <li key={`vol-${i}-h-${k}`}>{h}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </Section>
         )}
 
-        {/* Awards — static in v1 */}
+        {/* Awards */}
         {showAwards && (
           <Section title="Awards">
-            {sections.awards.map((a, i) => (
-              <div key={`award-${i}`} className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-semibold text-zinc-900">
-                    {isSet(a.title) ? a.title : 'Award'}
-                  </span>
-                  {isSet(a.date) && (
-                    <span className="text-[10pt] text-zinc-500">{a.date}</span>
-                  )}
-                </div>
-                {isSet(a.awarder) && (
-                  <p className="text-zinc-700">{a.awarder}</p>
-                )}
-                {isSet(a.summary) && (
-                  <p className="text-zinc-600">{a.summary}</p>
-                )}
+            {editable ? (
+              <AwardsInline />
+            ) : (
+              <div>
+                {sections.awards.map((a, i) => (
+                  <div key={`award-${i}`} className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="font-semibold text-zinc-900">
+                        {isSet(a.title) ? a.title : 'Award'}
+                      </span>
+                      {isSet(a.date) && (
+                        <span className="text-[10pt] text-zinc-500">{a.date}</span>
+                      )}
+                    </div>
+                    {isSet(a.awarder) && (
+                      <p className="text-zinc-700">{a.awarder}</p>
+                    )}
+                    {isSet(a.summary) && (
+                      <p className="text-zinc-600">{a.summary}</p>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </Section>
         )}
       </div>
@@ -559,6 +610,494 @@ function DateRange({
 
 function isSet_(s: string | undefined | null) {
   return Boolean(s && s.trim());
+}
+
+/**
+ * Inline-editable Skills section. Renders one row per skill category
+ * with the category name as an <EditableText> and the keywords as
+ * <KeywordChips>. Includes a "+ Add a skill" button. All buttons are
+ * .no-print so the PDF reads the underlying array only.
+ *
+ * Returns nothing on render — children attach directly under the
+ * enclosing <Section title="Skills"> wrapper.
+ *
+ * Requires FormProvider context (comes from <EditableResume>).
+ */
+function SkillsInline() {
+  const { control } = useFormContext() as never;
+  // Cast through unknown — RHF's generic-inference leaves useFormContext
+  // typed as `UseFormReturn<FieldValues>`; we accept the loose shape
+  // because we never read `form` directly here.
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.skills'
+  });
+
+  function handleAdd() {
+    append({ name: '', level: '', keywords: [] });
+    // Focus the new category-name chip after paint.
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.skills.' + fields.length + '.name"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="skills-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`skill-row-${i}`}
+        >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {/* Category name — the bold label of the skill line. */}
+            <EditableText
+              path={`sections.skills.${i}.name`}
+              className="text-[11pt] font-semibold text-zinc-900"
+              placeholder="Category"
+            />
+            {/* Level — small optional "Level: Master" suffix inline. */}
+            <span className="text-[10pt] text-zinc-500">
+              <EditableText
+                path={`sections.skills.${i}.level`}
+                className="inline w-fit"
+                placeholder="Level"
+              />
+            </span>
+            <button
+              type="button"
+              aria-label={`Remove skill ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-skill-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <div className="mt-2">
+            <KeywordChips
+              path={`sections.skills.${i}.keywords`}
+              placeholder="keyword"
+            />
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-skill"
+      >
+        <Plus className="mr-1 size-3" />
+        Add a skill
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Education section. Renders one row per school with:
+ *   - Institution (the bold heading)
+ *   - Location + dates as small inline labels
+ *   - Degree level as a small editable label
+ *   - Majors as <KeywordChips>
+ *   - A ✕ button to remove the entry
+ *
+ * Minors and courses are deferred to a follow-up — they're rarely
+ * used in v1 resumes.
+ *
+ * Requires FormProvider context.
+ */
+function EducationInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.education'
+  });
+
+  function handleAdd() {
+    append({
+      institution: '',
+      url: '',
+      location: '',
+      degree: { degreeLevel: '', majors: [], minors: [] },
+      startDate: '',
+      endDate: '',
+      gpa: '',
+      courses: []
+    });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.education.' +
+          fields.length +
+          '.institution"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="education-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`edu-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            {/* Institution + (location) on the line. */}
+            <h3 className="text-[12pt] font-semibold text-zinc-900">
+              <EditableText
+                path={`sections.education.${i}.institution`}
+                className="inline"
+                placeholder="Institution"
+              />
+              <EditableText
+                path={`sections.education.${i}.location`}
+                className="ml-2 inline text-[10pt] font-normal text-zinc-500"
+                placeholder="Location"
+              />
+            </h3>
+            <DateRange
+              editable
+              startPath={`sections.education.${i}.startDate`}
+              endPath={`sections.education.${i}.endDate`}
+            />
+            <button
+              type="button"
+              aria-label={`Remove education ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-edu-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <div className="mt-1 text-[11pt] text-zinc-700">
+            <EditableText
+              path={`sections.education.${i}.degree.degreeLevel`}
+              className="inline"
+              placeholder="Degree"
+            />
+            <KeywordChips
+              path={`sections.education.${i}.degree.majors`}
+              placeholder="major"
+            />
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-education"
+      >
+        <Plus className="mr-1 size-3" />
+        Add education
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Projects section. Mirrors {@link SkillsInline} /
+ * {@link EducationInline} for projects: one row per project with
+ *   - Name (bold heading)
+ *   - Description (italic small blurb — uses EditableText single-line)
+ *   - Highlights (BulletList — `string[]`)
+ *   - Keywords (KeywordChips — tech stack)
+ *   - DateRange
+ *   - A ✕ remove button (no-print)
+ *
+ * Requires FormProvider context.
+ */
+function ProjectsInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.projects'
+  });
+
+  function handleAdd() {
+    append({
+      name: '',
+      description: '',
+      highlights: [],
+      keywords: [],
+      startDate: '',
+      endDate: '',
+      url: '',
+      roles: []
+    });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.projects.' + fields.length + '.name"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="projects-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`proj-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h3 className="text-[12pt] font-semibold text-zinc-900">
+              <EditableText
+                path={`sections.projects.${i}.name`}
+                className="inline"
+                placeholder="Project name"
+              />
+            </h3>
+            <DateRange
+              editable
+              startPath={`sections.projects.${i}.startDate`}
+              endPath={`sections.projects.${i}.endDate`}
+            />
+            <button
+              type="button"
+              aria-label={`Remove project ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-proj-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <EditableText
+            path={`sections.projects.${i}.description`}
+            className="mt-0.5 block text-[11pt] italic text-zinc-600"
+            placeholder="Short project blurb (1 sentence)."
+          />
+          <div className="mt-2">
+            <BulletList
+              path={`sections.projects.${i}.highlights`}
+              placeholder="Highlight (1–2 lines)"
+              emptyText="Add achievements, scope, what you shipped"
+            />
+          </div>
+          <div className="mt-2">
+            <KeywordChips
+              path={`sections.projects.${i}.keywords`}
+              placeholder="tech"
+            />
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-project"
+      >
+        <Plus className="mr-1 size-3" />
+        Add a project
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Volunteer section. One row per organization:
+ *   - Organization (bold heading) + position (italic, inline)
+ *   - Summary (italic small blurb)
+ *   - Highlights (BulletList — `string[]`)
+ *   - DateRange
+ *   - A ✕ remove button (no-print)
+ *
+ * Requires FormProvider context.
+ */
+function VolunteerInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.volunteer'
+  });
+
+  function handleAdd() {
+    append({
+      organization: '',
+      position: '',
+      url: '',
+      startDate: '',
+      endDate: '',
+      summary: '',
+      highlights: []
+    });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.volunteer.' +
+          fields.length +
+          '.organization"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="volunteer-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`vol-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h3 className="text-[12pt] font-semibold text-zinc-900">
+              <EditableText
+                path={`sections.volunteer.${i}.organization`}
+                className="inline"
+                placeholder="Organization"
+              />
+              <EditableText
+                path={`sections.volunteer.${i}.position`}
+                className="ml-2 inline text-[11pt] font-normal italic text-zinc-700"
+                placeholder="Role"
+              />
+            </h3>
+            <DateRange
+              editable
+              startPath={`sections.volunteer.${i}.startDate`}
+              endPath={`sections.volunteer.${i}.endDate`}
+            />
+            <button
+              type="button"
+              aria-label={`Remove volunteer ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-vol-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <EditableText
+            path={`sections.volunteer.${i}.summary`}
+            className="mt-0.5 block text-[11pt] italic text-zinc-600"
+            placeholder="Short summary (1 sentence)."
+          />
+          <div className="mt-2">
+            <BulletList
+              path={`sections.volunteer.${i}.highlights`}
+              placeholder="What you did"
+              emptyText="Add impact, scope, outcomes"
+            />
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-volunteer"
+      >
+        <Plus className="mr-1 size-3" />
+        Add a volunteer role
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Awards section. One row per award:
+ *   - Title (bold heading)
+ *   - Awarder (italic small)
+ *   - Date (DateRange — fields are start-only enums; we still feed both
+ *     paths but only `date` is used by the schema. Simpler: render the
+ *     date as a single EditableText instead, since awards usually have
+ *     one year/month and no end date.)
+ *   - Summary (small italic blurb)
+ *   - A ✕ remove button (no-print)
+ *
+ * Requires FormProvider context.
+ */
+function AwardsInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.awards'
+  });
+
+  function handleAdd() {
+    append({ title: '', date: '', awarder: '', summary: '' });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.awards.' + fields.length + '.title"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="awards-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`award-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <EditableText
+              path={`sections.awards.${i}.title`}
+              className="text-[12pt] font-semibold text-zinc-900"
+              placeholder="Award title"
+            />
+            {/* Award dates are single strings ("May 2026", "2024"), not
+                a range — render as a regular EditableText right-aligned. */}
+            <EditableText
+              path={`sections.awards.${i}.date`}
+              className="ml-auto inline w-fit text-right text-[10pt] text-zinc-500"
+              placeholder="Date"
+            />
+            <button
+              type="button"
+              aria-label={`Remove award ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-award-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <EditableText
+            path={`sections.awards.${i}.awarder`}
+            className="mt-0.5 block text-[11pt] text-zinc-700"
+            placeholder="Granted by"
+          />
+          <EditableText
+            path={`sections.awards.${i}.summary`}
+            className="mt-0.5 block text-[11pt] italic text-zinc-600"
+            placeholder="Short summary (e.g. recognition scope)."
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-award"
+      >
+        <Plus className="mr-1 size-3" />
+        Add an award
+      </Button>
+    </div>
+  );
 }
 
 export const classicTemplate = {

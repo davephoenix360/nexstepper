@@ -3,11 +3,6 @@ import { z } from 'zod';
 import {
   basicsSchema,
   workSchema,
-  skillsSchema,
-  educationSchema,
-  projectsSchema,
-  volunteerSchema,
-  awardsSchema,
   certificatesSchema,
   publicationsSchema,
   languagesSchema,
@@ -101,42 +96,20 @@ export const SECTION_DIALOGS: ReadonlyArray<SectionDialog> = [
       (currentValue as Record<string, unknown>) ?? {},
     fromItems: (data: unknown) => data
   },
+  // Experience is inline in the editor; keep a dialog escape hatch in
+  // case the user wants to do row-level surgery in a table instead of
+  // clicking rows in the rendered view.
   arraySectionWithSchema(
     'Experience',
     'sections.work',
     'One row per employer. Use positions[] inside a company for role changes.',
     workSchema
   ),
-  arraySectionWithSchema(
-    'Skills',
-    'sections.skills',
-    'Each skill is a category (name) with keywords underneath.',
-    skillsSchema
-  ),
-  arraySectionWithSchema(
-    'Education',
-    'sections.education',
-    'Institution, degree level + majors + minors, dates, GPA, courses.',
-    educationSchema
-  ),
-  arraySectionWithSchema(
-    'Projects',
-    'sections.projects',
-    'Side projects, OSS work, portfolio pieces.',
-    projectsSchema
-  ),
-  arraySectionWithSchema(
-    'Volunteer',
-    'sections.volunteer',
-    'Unpaid roles, board seats, community organizing.',
-    volunteerSchema
-  ),
-  arraySectionWithSchema(
-    'Awards',
-    'sections.awards',
-    'Awards + who gave them + a short summary.',
-    awardsSchema
-  ),
+  // Skills + Education + Projects + Volunteer + Awards are all inline
+  // (chips / bullets / EditableText fields right inside the rendered
+  // view). When the editor grows them to inline, they drop out of
+  // SECTION_DIALOGS — the table-editor escape hatch stays only for
+  // sections we still read-only.
   arraySectionWithSchema(
     'Certificates',
     'sections.certificates',
