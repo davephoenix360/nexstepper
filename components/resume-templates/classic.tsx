@@ -194,20 +194,29 @@ export function ClassicTemplate({
               ) : null}
             </div>
 
-            {/* Online profiles — single concatenated line, never editable
-                in v1 (chip input is a separate slice). */}
-            {!editable && has(b.profiles) && (
-              <p className="mt-1 text-[10pt] text-zinc-500">
-                {b.profiles
-                  .filter((p) => isSet(p.network))
-                  .map((p, i, arr) => (
-                    <span key={`${p.network}-${i}`}>
-                      {i > 0 && <span className="mx-2 text-zinc-400">·</span>}
-                      {p.network}
-                      {isSet(p.username) ? `: ${p.username}` : ''}
-                    </span>
-                  ))}
-              </p>
+            {/* Online profiles — line of "LinkedIn: dave · GitHub:
+                davephoenix360 · …". Read-only stays a flat paragraph
+                (matches the static Classic rendering). In editable
+                mode we render an inline-managed list so the user can
+                add/remove networks without leaving the editor. */}
+            {editable ? (
+              <div className="mt-1">
+                <OnlineProfilesInline />
+              </div>
+            ) : (
+              has(b.profiles) && (
+                <p className="mt-1 text-[10pt] text-zinc-500">
+                  {b.profiles
+                    .filter((p) => isSet(p.network))
+                    .map((p, i, arr) => (
+                      <span key={`${p.network}-${i}`}>
+                        {i > 0 && <span className="mx-2 text-zinc-400">·</span>}
+                        {p.network}
+                        {isSet(p.username) ? `: ${p.username}` : ''}
+                      </span>
+                    ))}
+                </p>
+              )
             )}
           </header>
         )}
@@ -307,18 +316,23 @@ export function ClassicTemplate({
                             endPath={`sections.work.${i}.positions.${j}.endDate`}
                           />
                         </div>
-                        {has(p.highlights) && (
-                          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
-                            {p.highlights.map((h, k) => (
-                              <li key={`work-${i}-pos-${j}-h-${k}`}>{h}</li>
-                            ))}
-                          </ul>
+                        {editable ? (
+                          <div className="mt-1">
+                            <BulletList
+                              path={`sections.work.${i}.positions.${j}.highlights`}
+                              placeholder="Highlight (1–2 lines)"
+                              emptyText="Add achievements for this role"
+                            />
+                          </div>
+                        ) : (
+                          has(p.highlights) && (
+                            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
+                              {p.highlights.map((h, k) => (
+                                <li key={`work-${i}-pos-${j}-h-${k}`}>{h}</li>
+                              ))}
+                            </ul>
+                          )
                         )}
-                        {/* In editable mode we could expose highlights
-                            as EditableText list items, but they're a
-                            stretch goal; the static bullets render
-                            acceptably and the user can use the dialog
-                            (section edit) for full editing. */}
                       </div>
                     ))}
                   </div>
@@ -1698,6 +1712,108 @@ function ReferencesInline() {
       >
         <Plus className="mr-1 size-3" />
         Add a reference
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Online Profiles list. Renders a `network · username`
+ * line for each profile (LinkedIn, GitHub, Twitter, etc.) directly
+ * under the basics header. The read-only render of the same data is
+ * a flat paragraph; in editable mode we swap to a row of inline
+ * inputs so the user can add/remove networks without leaving the
+ * editor surface.
+ *
+ * Visual shape: each profile renders inline with a · separator from
+ * its neighbor. ✕ remove button shows on hover. Empty list shows
+ * just "+ Add a profile".
+ *
+ * Print: the no-print buttons + ghost-style add button are stripped
+ * from the PDF, leaving the same `network: username · …` text the
+ * read-only path renders.
+ *
+ * Requires FormProvider context.
+ */
+function OnlineProfilesInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.basics.profiles'
+  });
+
+  function handleAdd() {
+    append({ network: '', username: '', url: '' });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.basics.profiles.' +
+          fields.length +
+          '.network"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  if (fields.length === 0) {
+    return (
+      <div className="mt-1" data-testid="online-profiles-inline">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleAdd}
+          className="no-print text-[10pt] text-zinc-500"
+          data-testid="add-profile"
+        >
+          <Plus className="mr-1 size-3" />
+          Add a profile (LinkedIn, GitHub, ...)
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[10pt] text-zinc-500"
+      data-testid="online-profiles-inline"
+    >
+      {fields.map((field, i, arr) => (
+        <span
+          key={field.id}
+          className="group inline-flex items-center gap-1"
+          data-testid={`profile-row-${i}`}
+        >
+          {i > 0 && <span className="text-zinc-400">·</span>}
+          <EditableText
+            path={`sections.basics.profiles.${i}.network`}
+            className="font-medium text-zinc-700"
+            placeholder="Network"
+          />
+          <EditableText
+            path={`sections.basics.profiles.${i}.username`}
+            className="text-zinc-500"
+            placeholder="username"
+          />
+          <button
+            type="button"
+            aria-label={`Remove profile ${i + 1}`}
+            onClick={() => remove(i)}
+            className="no-print ml-1 inline-flex size-4 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            data-testid={`remove-profile-${i}`}
+          >
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-profile"
+      >
+        <Plus className="size-3" />
       </Button>
     </div>
   );
