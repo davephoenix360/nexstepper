@@ -91,11 +91,42 @@ export function getTypeName(schema: z.ZodTypeAny): string {
 }
 
 /**
+ * Acronym overrides for `humanize`. JSON Resume and common app fields
+ * have a handful of well-known acronyms that read better as ALL CAPS than
+ * as our default "First char up, rest lowercase" treatment.
+ *   `url` → `URL`, `id` → `ID`, `api` → `API`, `pdf` → `PDF`, `url` → `URL`.
+ * Match is case-insensitive and matches the whole word (so "uid" stays
+ * "Uid" instead of colliding with "id"). Unknown keys fall through to
+ * the standard humanize treatment below.
+ */
+const ACRONYMS: Record<string, string> = {
+  url: 'URL',
+  id: 'ID',
+  api: 'API',
+  pdf: 'PDF',
+  ai: 'AI',
+  ui: 'UI',
+  ux: 'UX',
+  seo: 'SEO',
+  sql: 'SQL',
+  css: 'CSS',
+  html: 'HTML',
+  json: 'JSON',
+  yaml: 'YAML',
+  uuid: 'UUID'
+};
+
+/**
  * Convert a camelCase / snake_case field key to a human-readable label.
  * Examples: `firstName` → `First name`, `postalCode` → `Postal code`,
- * `jobContext` → `Job context`, `linkedin` → `Linkedin`.
+ * `jobContext` → `Job context`, `url` → `URL`, `linkedin` → `Linkedin`.
  */
 export function humanize(key: string): string {
+  // Whole-word acronym override runs first so 'url' or 'id' never get
+  // title-cased by the generic splitter.
+  const acronymKey = key.toLowerCase();
+  if (ACRONYMS[acronymKey]) return ACRONYMS[acronymKey];
+
   const spaced = key
     // camelCase boundary: `aB` → `a B`
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -149,6 +180,8 @@ interface StringInputProps {
   label?: string;
   placeholder?: string;
   multiline?: boolean;
+  /** Grid columns to span within a multi-column ObjectField (1 or 2). */
+  colSpan?: 1 | 2;
 }
 
 /**
@@ -160,17 +193,19 @@ export function StringInput({
   schema,
   label,
   placeholder,
-  multiline
+  multiline,
+  colSpan
 }: StringInputProps) {
   const { field, fieldState } = useController<FieldValues>({ name });
   const inputType = inferInputType(schema);
   const error = fieldState.error?.message;
 
   return (
-    <FieldShell name={name} label={label} error={error}>
+    <FieldShell name={name} label={label} error={error} colSpan={colSpan}>
       {multiline ? (
         <Textarea
           {...field}
+          id={name}
           value={(field.value as string) ?? ''}
           placeholder={placeholder}
           aria-invalid={Boolean(error)}
@@ -179,6 +214,7 @@ export function StringInput({
       ) : (
         <Input
           {...field}
+          id={name}
           value={(field.value as string) ?? ''}
           type={inputType}
           placeholder={placeholder}
@@ -194,15 +230,23 @@ interface NumberInputProps {
   name: string;
   label?: string;
   placeholder?: string;
+  /** Grid columns to span within a multi-column ObjectField (1 or 2). */
+  colSpan?: 1 | 2;
 }
 
-export function NumberInput({ name, label, placeholder }: NumberInputProps) {
+export function NumberInput({
+  name,
+  label,
+  placeholder,
+  colSpan
+}: NumberInputProps) {
   const { field, fieldState } = useController<FieldValues>({ name });
   const error = fieldState.error?.message;
   // react-hook-form's number fields round-trip via string. We coerce here.
   return (
-    <FieldShell name={name} label={label} error={error}>
+    <FieldShell name={name} label={label} error={error} colSpan={colSpan}>
       <Input
+        id={name}
         type="number"
         value={(field.value as number | undefined) ?? ''}
         onChange={(e) => {
@@ -223,27 +267,31 @@ export function NumberInput({ name, label, placeholder }: NumberInputProps) {
 interface BooleanInputProps {
   name: string;
   label?: string;
+  /** Grid columns to span within a multi-column ObjectField (1 or 2). */
+  colSpan?: 1 | 2;
 }
 
-export function BooleanInput({ name, label }: BooleanInputProps) {
+export function BooleanInput({ name, label, colSpan }: BooleanInputProps) {
   const { field } = useController<FieldValues>({ name });
   return (
-    <div className="flex items-center justify-between gap-4 rounded-md border p-3">
-      {label && (
-        <Label htmlFor={name} className="cursor-pointer">
-          {label}
-        </Label>
-      )}
-      <Switch
-        id={name}
-        checked={Boolean(field.value)}
-        onCheckedChange={field.onChange}
-        onBlur={field.onBlur}
-        ref={field.ref}
-        name={field.name}
-        data-testid={`field-${name}`}
-      />
-    </div>
+    <FieldShell name={name} label={label} colSpan={colSpan}>
+      <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+        {label && (
+          <Label htmlFor={name} className="cursor-pointer">
+            {label}
+          </Label>
+        )}
+        <Switch
+          id={name}
+          checked={Boolean(field.value)}
+          onCheckedChange={field.onChange}
+          onBlur={field.onBlur}
+          ref={field.ref}
+          name={field.name}
+          data-testid={`field-${name}`}
+        />
+      </div>
+    </FieldShell>
   );
 }
 
@@ -252,6 +300,8 @@ interface EnumInputProps {
   schema: z.ZodTypeAny;
   label?: string;
   placeholder?: string;
+  /** Grid columns to span within a multi-column ObjectField (1 or 2). */
+  colSpan?: 1 | 2;
 }
 
 /**
@@ -261,20 +311,27 @@ interface EnumInputProps {
  * (vs. Zod 3's `_def.values` array). Both `key` and `value` are the enum
  * string in our case, so we just need the keys.
  */
-export function EnumInput({ name, schema, label, placeholder }: EnumInputProps) {
+export function EnumInput({
+  name,
+  schema,
+  label,
+  placeholder,
+  colSpan
+}: EnumInputProps) {
   const { field, fieldState } = useController<FieldValues>({ name });
   const error = fieldState.error?.message;
   const entries = (schema._def as { entries?: Record<string, string> }).entries ?? {};
   const values = Object.keys(entries);
 
   return (
-    <FieldShell name={name} label={label} error={error}>
+    <FieldShell name={name} label={label} error={error} colSpan={colSpan}>
       <Select
         value={(field.value as string) ?? ''}
         onValueChange={(v) => field.onChange(v)}
         name={field.name}
       >
         <SelectTrigger
+          id={name}
           ref={field.ref}
           onBlur={field.onBlur}
           aria-invalid={Boolean(error)}
@@ -297,22 +354,36 @@ export function EnumInput({ name, schema, label, placeholder }: EnumInputProps) 
 /**
  * Wraps a single field with its label + error display. Kept small and
  * dependency-free so individual primitives stay composable.
+ *
+ * `colSpan` controls how many grid columns this field occupies when
+ * rendered inside a multi-column `ObjectField`. Defaults to 1. A field
+ * spanning 2 ends its own row in a 2-col layout, which is the right
+ * shape for things like a Summary textarea or a long URL.
  */
 export function FieldShell({
   name,
   label,
   error,
   children,
-  className
+  className,
+  colSpan
 }: {
   name: string;
   label?: string;
   error?: string;
   children: React.ReactNode;
   className?: string;
+  /** Grid columns to span within a multi-column ObjectField (1 or 2). */
+  colSpan?: 1 | 2;
 }) {
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div
+      className={cn(
+        'flex flex-col gap-1.5',
+        colSpan === 2 && 'md:col-span-2',
+        className
+      )}
+    >
       {label && <Label htmlFor={name}>{label}</Label>}
       {children}
       {error && (

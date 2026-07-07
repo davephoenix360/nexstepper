@@ -26,7 +26,7 @@ import type { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Button } from '@/components/ui/button';
-import { renderObjectShape } from './field-dispatcher';
+import { renderObjectShape, type FieldDescriptor } from './field-dispatcher';
 
 export interface SchemaFormProps<T extends z.ZodObject<z.ZodRawShape>> {
   schema: T;
@@ -36,11 +36,13 @@ export interface SchemaFormProps<T extends z.ZodObject<z.ZodRawShape>> {
   omitFields?: readonly string[];
   /** Submit-button label. */
   submitLabel?: string;
-  /** Override per-field UI hints. */
-  fieldOverrides?: Record<
-    string,
-    { label?: string; placeholder?: string; multiline?: boolean }
-  >;
+  /**
+   * Override per-field UI hints. Keys are full dotted paths into the form
+   * shape — `sections.basics.email` for top-level fields, nested paths
+   * for children, and `<array-path>.0.<leaf>` (with `0` being a stand-in
+   * for any item index) for items inside a Zod array.
+   */
+  fieldOverrides?: Record<string, Partial<FieldDescriptor>>;
   /** Optional custom className for the outer form. */
   className?: string;
   /** Disable the submit button while a parent mutation is in-flight. */
