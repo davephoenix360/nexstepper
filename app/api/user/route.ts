@@ -1,6 +1,7 @@
-import { getUser } from '@/lib/db/queries';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
 
 export async function GET() {
-  const user = await getUser();
-  return Response.json(user);
+  const session = await auth.api.getSession({ headers: await headers() });
+  return Response.json(session?.user ?? null);
 }

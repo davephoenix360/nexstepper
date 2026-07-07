@@ -1,49 +1,83 @@
 'use client';
 
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Lock, Trash2, Loader2 } from 'lucide-react';
-import { useActionState } from 'react';
-import { updatePassword, deleteAccount } from '@/app/(login)/actions';
-
-type PasswordState = {
-  currentPassword?: string;
-  newPassword?: string;
-  confirmPassword?: string;
-  error?: string;
-  success?: string;
-};
-
-type DeleteState = {
-  password?: string;
-  error?: string;
-  success?: string;
-};
+import { authClient } from '@/lib/auth-client';
 
 export default function SecurityPage() {
-  const [passwordState, passwordAction, isPasswordPending] = useActionState<
-    PasswordState,
-    FormData
-  >(updatePassword, {});
+  const router = useRouter();
+  const [pwdPending, startPwd] = useTransition();
+  const [delPending, startDel] = useTransition();
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
+  const [delError, setDelError] = useState<string | null>(null);
 
-  const [deleteState, deleteAction, isDeletePending] = useActionState<
-    DeleteState,
-    FormData
-  >(deleteAccount, {});
+  const changePassword = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdSuccess(null);
+    const fd = new FormData(e.currentTarget);
+    const currentPassword = String(fd.get('currentPassword') ?? '');
+    const newPassword = String(fd.get('newPassword') ?? '');
+    const confirmPassword = String(fd.get('confirmPassword') ?? '');
+
+    if (newPassword !== confirmPassword) {
+      setPwdError('New password and confirmation do not match.');
+      return;
+    }
+    if (currentPassword === newPassword) {
+      setPwdError('New password must differ from the current one.');
+      return;
+    }
+
+    startPwd(async () => {
+      const result = await authClient.changePassword({
+        currentPassword,
+        newPassword
+      });
+      if (result.error) {
+        setPwdError(result.error.message ?? 'Failed to update password.');
+        return;
+      }
+      setPwdSuccess('Password updated.');
+      (e.target as HTMLFormElement).reset();
+    });
+  };
+
+  const deleteAccount = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setDelError(null);
+    const fd = new FormData(e.currentTarget);
+    const password = String(fd.get('password') ?? '');
+
+    startDel(async () => {
+      const result = await authClient.deleteUser({ password });
+      if (result.error) {
+        setDelError(result.error.message ?? 'Account deletion failed.');
+        return;
+      }
+      router.push('/');
+      router.refresh();
+    });
+  };
 
   return (
     <section className="flex-1 p-4 lg:p-8">
-      <h1 className="text-lg lg:text-2xl font-medium bold text-gray-900 mb-6">
-        Security Settings
+      <h1 className="text-lg lg:text-2xl font-medium text-gray-900 mb-6">
+        Security
       </h1>
+
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Password</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" action={passwordAction}>
+          <form className="space-y-4" onSubmit={changePassword}>
             <div>
               <Label htmlFor="current-password" className="mb-2">
                 Current Password
@@ -56,7 +90,6 @@ export default function SecurityPage() {
                 required
                 minLength={8}
                 maxLength={100}
-                defaultValue={passwordState.currentPassword}
               />
             </div>
             <div>
@@ -71,7 +104,6 @@ export default function SecurityPage() {
                 required
                 minLength={8}
                 maxLength={100}
-                defaultValue={passwordState.newPassword}
               />
             </div>
             <div>
@@ -85,21 +117,18 @@ export default function SecurityPage() {
                 required
                 minLength={8}
                 maxLength={100}
-                defaultValue={passwordState.confirmPassword}
               />
             </div>
-            {passwordState.error && (
-              <p className="text-red-500 text-sm">{passwordState.error}</p>
-            )}
-            {passwordState.success && (
-              <p className="text-green-500 text-sm">{passwordState.success}</p>
+            {pwdError && <p className="text-red-500 text-sm">{pwdError}</p>}
+            {pwdSuccess && (
+              <p className="text-green-500 text-sm">{pwdSuccess}</p>
             )}
             <Button
               type="submit"
               className="bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={isPasswordPending}
+              disabled={pwdPending}
             >
-              {isPasswordPending ? (
+              {pwdPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Updating...
@@ -121,9 +150,9 @@ export default function SecurityPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-500 mb-4">
-            Account deletion is non-reversable. Please proceed with caution.
+            Account deletion is non-reversible. Please proceed with caution.
           </p>
-          <form action={deleteAction} className="space-y-4">
+          <form onSubmit={deleteAccount} className="space-y-4">
             <div>
               <Label htmlFor="delete-password" className="mb-2">
                 Confirm Password
@@ -135,19 +164,16 @@ export default function SecurityPage() {
                 required
                 minLength={8}
                 maxLength={100}
-                defaultValue={deleteState.password}
               />
             </div>
-            {deleteState.error && (
-              <p className="text-red-500 text-sm">{deleteState.error}</p>
-            )}
+            {delError && <p className="text-red-500 text-sm">{delError}</p>}
             <Button
               type="submit"
               variant="destructive"
               className="bg-red-600 hover:bg-red-700"
-              disabled={isDeletePending}
+              disabled={delPending}
             >
-              {isDeletePending ? (
+              {delPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...
