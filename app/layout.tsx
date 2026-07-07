@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import { getUser } from '@/lib/db/queries';
+import { PostHogProvider } from '@/components/posthog-provider';
 
 export const metadata: Metadata = {
   title: 'Nextep — AI-assisted resume builder',
@@ -29,7 +30,9 @@ export default async function RootLayout({
       lang="en"
       className={`bg-white dark:bg-gray-950 text-black dark:text-white ${manrope.className}`}
     >
-      <body className="min-h-[100dvh] bg-gray-50">{children}</body>
+      <body className="min-h-[100dvh] bg-gray-50">
+        <PostHogProvider>{children}</PostHogProvider>
+      </body>
     </html>
   );
 }
