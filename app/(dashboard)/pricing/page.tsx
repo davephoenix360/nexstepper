@@ -77,12 +77,12 @@ export default async function PricingPage() {
               key={plan.id}
               className={
                 plan.highlight
-                  ? 'border-orange-500 border-2 shadow-lg relative'
+                  ? 'border-primary border-2 shadow-lg relative'
                   : ''
               }
             >
               {plan.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-medium px-3 py-1 rounded-full">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
                   Most popular
                 </div>
               )}
@@ -109,7 +109,7 @@ export default async function PricingPage() {
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                      <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                       <span className="text-sm text-gray-700">{feature}</span>
                     </li>
                   ))}

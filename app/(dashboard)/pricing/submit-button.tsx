@@ -20,7 +20,7 @@ export function CheckoutButton({
       <Button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full bg-orange-600 hover:bg-orange-700 text-white"
+        className="w-full rounded-full"
       >
         {pending ? (
           <>
