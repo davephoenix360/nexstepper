@@ -40,7 +40,7 @@ export function ObjectField({
           </legend>
         </Label>
       )}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 2xl:grid-cols-2">
         {renderObjectShape(schema, name)}
       </div>
     </fieldset>

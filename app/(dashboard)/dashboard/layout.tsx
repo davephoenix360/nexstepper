@@ -25,7 +25,7 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="flex flex-col min-h-screen max-w-7xl mx-auto w-full">
+    <div className="flex flex-col min-h-screen w-full">
       <div className="lg:hidden flex items-center justify-between bg-background border-b border-border p-4">
         <Link
           href="/"

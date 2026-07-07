@@ -36,7 +36,7 @@ export default async function ResumeEditorPage({
   const { resume, data } = result;
 
   return (
-    <section className="flex-1 p-4 lg:p-8 space-y-6">
+    <section className="flex-1 p-4 lg:p-8 space-y-6 max-w-4xl">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <h1 className="text-lg lg:text-2xl font-medium flex items-center gap-2">
