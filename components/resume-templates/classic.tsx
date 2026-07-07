@@ -291,51 +291,35 @@ export function ClassicTemplate({
                     </p>
                   )
                 )}
-                {(has(w.positions) || editable) && (
-                  <div className="mt-2 space-y-3">
-                    {w.positions.map((p, j) => (
-                      <div key={`work-${i}-pos-${j}`}>
-                        <div className="flex items-baseline justify-between gap-3">
-                          {editable ? (
-                            <EditableText
-                              path={`sections.work.${i}.positions.${j}.title`}
-                              as="p"
-                              className="text-[11pt] font-medium text-zinc-800"
-                              placeholder="Title"
-                            />
-                          ) : (
+                {editable ? (
+                  <div className="mt-2">
+                    <WorkPositionsNested workIndex={i} />
+                  </div>
+                ) : (
+                  has(w.positions) && (
+                    <div className="mt-2 space-y-3">
+                      {w.positions.map((p, j) => (
+                        <div key={`work-${i}-pos-${j}`}>
+                          <div className="flex items-baseline justify-between gap-3">
                             <p className="text-[11pt] font-medium text-zinc-800">
                               {isSet(p.title) ? p.title : 'Position'}
                             </p>
-                          )}
-                          <DateRange
-                            start={p.startDate}
-                            end={p.endDate}
-                            editable={editable}
-                            startPath={`sections.work.${i}.positions.${j}.startDate`}
-                            endPath={`sections.work.${i}.positions.${j}.endDate`}
-                          />
-                        </div>
-                        {editable ? (
-                          <div className="mt-1">
-                            <BulletList
-                              path={`sections.work.${i}.positions.${j}.highlights`}
-                              placeholder="Highlight (1–2 lines)"
-                              emptyText="Add achievements for this role"
+                            <DateRange
+                              start={p.startDate}
+                              end={p.endDate}
                             />
                           </div>
-                        ) : (
-                          has(p.highlights) && (
+                          {has(p.highlights) && (
                             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
                               {p.highlights.map((h, k) => (
                                 <li key={`work-${i}-pos-${j}-h-${k}`}>{h}</li>
                               ))}
                             </ul>
-                          )
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
             ))}
@@ -1814,6 +1798,100 @@ function OnlineProfilesInline() {
         data-testid="add-profile"
       >
         <Plus className="size-3" />
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable per-work-entry positions list. Each `work` row
+ * owns its own `positions[]` array (a user can list multiple roles at
+ * one company, e.g. "Nextep: Founder → CTO → Coach"), so this
+ * component takes a `workIndex` and runs its own `useFieldArray`
+ * against `sections.work.${workIndex}.positions`.
+ *
+ * Renders, per position:
+ *   - Title (medium-weight editable text)
+ *   - DateRange
+ *   - ✕ remove button (no-print, hover-revealed)
+ *   - BulletList(highlights) for role achievements
+ *
+ * Plus a "+ Add a position" affordance at the end so users can grow
+ * the role list — fixes the earlier bug where clicking "Add a work
+ * entry" landed a work row with `positions: []` and no UI to add
+ * positions (and therefore no path to highlights).
+ *
+ * Requires FormProvider context.
+ */
+function WorkPositionsNested({ workIndex }: { workIndex: number }) {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: `sections.work.${workIndex}.positions`
+  });
+
+  function handleAdd() {
+    append({ title: '', startDate: '', endDate: '', highlights: [] });
+    requestAnimationFrame(() => {
+      const node = document.querySelector(
+        `[data-testid="editable-sections.work.${workIndex}.positions.${fields.length}.title"]`
+      );
+      (node as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div
+      className="space-y-3"
+      data-testid={`work-${workIndex}-positions`}
+    >
+      {fields.map((p, j) => (
+        <div
+          key={p.id}
+          className="group/work-position relative"
+          data-testid={`work-${workIndex}-position-${j}`}
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <EditableText
+              path={`sections.work.${workIndex}.positions.${j}.title`}
+              as="p"
+              className="text-[11pt] font-medium text-zinc-800"
+              placeholder="Title"
+            />
+            <DateRange
+              editable
+              startPath={`sections.work.${workIndex}.positions.${j}.startDate`}
+              endPath={`sections.work.${workIndex}.positions.${j}.endDate`}
+            />
+            <button
+              type="button"
+              aria-label={`Remove position ${j + 1}`}
+              onClick={() => remove(j)}
+              className="no-print ml-auto inline-flex size-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover/work-position:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-position-${workIndex}-${j}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <div className="mt-1">
+            <BulletList
+              path={`sections.work.${workIndex}.positions.${j}.highlights`}
+              placeholder="Highlight (1–2 lines)"
+              emptyText="Add achievements for this role"
+            />
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid={`add-position-${workIndex}`}
+      >
+        <Plus className="mr-1 size-3" />
+        Add a position
       </Button>
     </div>
   );
