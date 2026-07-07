@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -119,9 +120,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             Nextep
           </Link>
           <MarketingNavLinks />
-          <Suspense fallback={<div className="h-9 w-32" />}>
-            <UserMenu />
-          </Suspense>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <Suspense fallback={<div className="h-9 w-32" />}>
+              <UserMenu />
+            </Suspense>
+          </div>
         </div>
       </header>
       {children}
