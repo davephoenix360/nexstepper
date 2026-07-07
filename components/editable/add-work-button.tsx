@@ -36,7 +36,13 @@ export function AddWorkButton({ path }: AddWorkButtonProps) {
       location: '',
       url: '',
       description: '',
-      positions: []
+      // Auto-seed the first position so the user lands straight on the
+      // "Title" input. JSON Resume convention: most jobs (especially
+      // single-role roles) have one position per entry; users add more
+      // via "+ Add a position" inside the entry.
+      positions: [
+        { title: '', startDate: '', endDate: '', highlights: [] }
+      ]
     });
 
     // Defer scroll/focus to next paint — RHF has to render the new

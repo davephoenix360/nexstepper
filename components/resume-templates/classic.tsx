@@ -66,6 +66,17 @@ export function ClassicTemplate({
 }) {
   const { sections } = data;
 
+  // We need useFieldArray on sections.work so a per-row ✕ button can
+  // delete an entire work entry. (Positions handle their own delete
+  // inside <WorkPositionsNested>.) Other section arrays manage their
+  // own row ✕ inside their own <Inline> component, so this is the
+  // only useFieldArray we need at the template body.
+  const { control: rootControl } = useFormContext() as never;
+  const { remove: removeWork } = useFieldArray({
+    control: rootControl,
+    name: 'sections.work'
+  }) as unknown as { remove: (i: number) => void };
+
   // Light helpers — kept local so the template stays self-contained.
   const isSet = (s: string | undefined | null) => Boolean(s && s.trim());
   const has = <T,>(arr: T[] | undefined) => Boolean(arr && arr.length > 0);
@@ -249,7 +260,7 @@ export function ClassicTemplate({
             {sections.work.map((w, i) => (
               <div
                 key={`work-${i}`}
-                className="mb-4 last:mb-0 print:break-inside-avoid"
+                className="group/work-entry mb-4 last:mb-0 print:break-inside-avoid"
               >
                 <div className="flex items-baseline justify-between gap-3">
                   {editable ? (
@@ -265,11 +276,27 @@ export function ClassicTemplate({
                     </h3>
                   )}
                   {editable ? (
-                    <EditableText
-                      path={`sections.work.${i}.location`}
-                      className="text-[10pt] text-zinc-500 w-40 text-right"
-                      placeholder="Remote"
-                    />
+                    <>
+                      <EditableText
+                        path={`sections.work.${i}.location`}
+                        className="text-[10pt] text-zinc-500 w-40 text-right"
+                        placeholder="Remote"
+                      />
+                      {/*
+                        Work entry remove. Sits in the top-right corner of
+                        the row so the user can delete an entire employer
+                        without removing each position individually.
+                      */}
+                      <button
+                        type="button"
+                        aria-label={`Remove work entry ${i + 1}`}
+                        onClick={() => removeWork(i)}
+                        className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover/work-entry:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                        data-testid={`remove-work-${i}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </>
                   ) : (
                     isSet(w.location) && (
                       <span className="text-[10pt] text-zinc-500">
@@ -860,7 +887,7 @@ function SkillsInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`skill-row-${i}`}
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -882,7 +909,7 @@ function SkillsInline() {
               type="button"
               aria-label={`Remove skill ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-skill-${i}`}
             >
               <X className="size-3" />
@@ -957,7 +984,7 @@ function EducationInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`edu-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -983,7 +1010,7 @@ function EducationInline() {
               type="button"
               aria-label={`Remove education ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-edu-${i}`}
             >
               <X className="size-3" />
@@ -1060,7 +1087,7 @@ function ProjectsInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`proj-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1080,7 +1107,7 @@ function ProjectsInline() {
               type="button"
               aria-label={`Remove project ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-proj-${i}`}
             >
               <X className="size-3" />
@@ -1163,7 +1190,7 @@ function VolunteerInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`vol-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1188,7 +1215,7 @@ function VolunteerInline() {
               type="button"
               aria-label={`Remove volunteer ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-vol-${i}`}
             >
               <X className="size-3" />
@@ -1258,7 +1285,7 @@ function AwardsInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`award-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1278,7 +1305,7 @@ function AwardsInline() {
               type="button"
               aria-label={`Remove award ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-award-${i}`}
             >
               <X className="size-3" />
@@ -1346,7 +1373,7 @@ function CertificatesInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`cert-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1364,7 +1391,7 @@ function CertificatesInline() {
               type="button"
               aria-label={`Remove certificate ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-cert-${i}`}
             >
               <X className="size-3" />
@@ -1431,7 +1458,7 @@ function PublicationsInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`pub-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1449,7 +1476,7 @@ function PublicationsInline() {
               type="button"
               aria-label={`Remove publication ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-pub-${i}`}
             >
               <X className="size-3" />
@@ -1512,7 +1539,7 @@ function LanguagesInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`lang-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1530,7 +1557,7 @@ function LanguagesInline() {
               type="button"
               aria-label={`Remove language ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-lang-${i}`}
             >
               <X className="size-3" />
@@ -1586,7 +1613,7 @@ function InterestsInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`interest-row-${i}`}
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1599,7 +1626,7 @@ function InterestsInline() {
               type="button"
               aria-label={`Remove interest ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-interest-${i}`}
             >
               <X className="size-3" />
@@ -1659,7 +1686,7 @@ function ReferencesInline() {
       {fields.map((field, i) => (
         <div
           key={field.id}
-          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          className="group rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
           data-testid={`ref-row-${i}`}
         >
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -1672,7 +1699,7 @@ function ReferencesInline() {
               type="button"
               aria-label={`Remove reference ${i + 1}`}
               onClick={() => remove(i)}
-              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               data-testid={`remove-ref-${i}`}
             >
               <X className="size-3" />
@@ -1782,7 +1809,7 @@ function OnlineProfilesInline() {
             type="button"
             aria-label={`Remove profile ${i + 1}`}
             onClick={() => remove(i)}
-            className="no-print ml-1 inline-flex size-4 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            className="no-print ml-1 inline-flex size-4 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
             data-testid={`remove-profile-${i}`}
           >
             <X className="size-3" />

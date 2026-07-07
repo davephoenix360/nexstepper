@@ -112,7 +112,7 @@ export function BulletList({
               aria-label={`Remove bullet ${i + 1}`}
               // no-print: the bullet itself still serializes, but the
               // ✕ button is editor-only.
-              className="no-print ml-2 inline-flex size-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className="no-print ml-2 inline-flex size-5 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
             >
               <X className="size-3" />
             </button>

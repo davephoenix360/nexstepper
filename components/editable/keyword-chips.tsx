@@ -129,7 +129,7 @@ function Chip({
         aria-label="Remove"
         // no-print: chips-only-on-screen — the underlying array still
         // serializes, the PDF reads it via the project's render path.
-        className="no-print ml-0.5 -mr-1 inline-flex size-4 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-300 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+        className="no-print ml-0.5 -mr-1 inline-flex size-4 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-300 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
       >
         <X className="size-3" />
       </button>
