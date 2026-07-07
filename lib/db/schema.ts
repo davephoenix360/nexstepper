@@ -3,8 +3,12 @@ import {
   text,
   timestamp,
   boolean,
-  index
+  jsonb,
+  index,
+  uniqueIndex
 } from 'drizzle-orm/pg-core';
+
+import type { ResumeData } from '@/lib/resume-schema';
 
 // --- Better Auth core tables (singular, per Better Auth convention) ---
 
@@ -117,3 +121,82 @@ export const PLANS = {
 } as const;
 
 export type PlanId = keyof typeof PLANS;
+
+// --- Resume domain tables (Phase 1) ---
+
+/**
+ * A resume — either a master (the user's "source of truth" resume) or a
+ * variant (a tailored derivative, e.g. for a specific job posting).
+ *
+ * `currentRevisionId` points to the row in `resume_revisions` that should be
+ * rendered. Variants point at their master via `parentResumeId`.
+ *
+ * The full resume content (sections + envelope) lives in `resume_revisions.data`
+ * (JSONB). Queryable metadata — id, owner, family, status — stays as columns
+ * so we never need to parse JSONB for list views.
+ */
+export const resumes = pgTable(
+  'resumes',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /** Display name (shown in lists and PDF headers). */
+    name: text('name').notNull(),
+    /** Free-form note ("for FAANG", "targeting staff eng roles", etc.). */
+    note: text('note').notNull().default(''),
+    /** Lifecycle status. 'completed' gates Phase 4 features (AI Optimize etc.). */
+    status: text('status').notNull().default('draft'), // 'draft' | 'completed'
+    /** Template ID to render with. Phase 1 ships just 'classic'. */
+    template: text('template').notNull().default('classic'),
+    /** True for the user's master resume; false for a tailored variant. */
+    isMaster: boolean('is_master').notNull().default(false),
+    /** For variants: points back at the master. Null for masters. */
+    parentResumeId: text('parent_resume_id'),
+    /** The revision that should be rendered / edited. */
+    currentRevisionId: text('current_revision_id'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+  },
+  (table) => ({
+    userIdx: index('resumes_user_idx').on(table.userId),
+    parentIdx: index('resumes_parent_idx').on(table.parentResumeId)
+  })
+);
+
+/**
+ * Append-only revision history. Every save inserts a new row; `resumes.currentRevisionId`
+ * is bumped to point at the latest. This is the foundation for:
+ *   - Undo / restore previous versions
+ *   - Phase 5 real-time collab (Yjs operates on top of these snapshots)
+ *   - Audit / "who changed what when"
+ *
+ * The `data` column is JSONB (typed as `ResumeData` so queries get the right
+ * shape back). We validate with the Zod `resumeDataSchema` on every write —
+ * never trust the JSONB blob to be well-formed at read time either; if it's
+ * not, we treat the resume as corrupted and surface a recovery UI.
+ */
+export const resumeRevisions = pgTable(
+  'resume_revisions',
+  {
+    id: text('id').primaryKey(),
+    resumeId: text('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    /** Full `resumeDataSchema` shape. Validated on write. */
+    data: jsonb('data').$type<ResumeData>().notNull(),
+    /** Optional commit-message-style note ("rewrote work section for Stripe role"). */
+    message: text('message'),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => ({
+    resumeIdx: index('resume_revisions_resume_idx').on(table.resumeId, table.createdAt)
+  })
+);
+
+// --- Inferred row types ---
+export type Resume = typeof resumes.$inferSelect;
+export type NewResume = typeof resumes.$inferInsert;
+export type ResumeRevision = typeof resumeRevisions.$inferSelect;
+export type NewResumeRevision = typeof resumeRevisions.$inferInsert;
