@@ -70,6 +70,22 @@ export function ClassicTemplate({
   const isSet = (s: string | undefined | null) => Boolean(s && s.trim());
   const has = <T,>(arr: T[] | undefined) => Boolean(arr && arr.length > 0);
 
+  /**
+   * `print:hidden` if the section is empty AND we're in editable mode.
+   *
+   * Why "editable" matters: in editable mode we always render the section
+   * (even empty) so the "Add …" affordance is reachable on screen. In
+   * read-only mode empty sections aren't rendered at all, so print never
+   * sees them. But in editable mode the section IS rendered, so we need
+   * to suppress it for print or the PDF would show an empty "Projects"
+   * header band on the page.
+   *
+   * Tailwind v4 ships a `print:` variant — `print:hidden` applies only
+   * inside `@media print`, so the on-screen view is unaffected.
+   */
+  const printHiddenIf = (empty: boolean): string | undefined =>
+    editable && empty ? 'print:hidden' : undefined;
+
   const b = sections.basics;
   const contactBits = [b.email, b.phone, b.url].filter(isSet);
   const locBits = [b.location.city, b.location.region, b.location.countryCode]
@@ -96,6 +112,11 @@ export function ClassicTemplate({
   const showEducation = editable || has(sections.education);
   const showVolunteer = editable || has(sections.volunteer);
   const showAwards = editable || has(sections.awards);
+  const showCertificates = editable || has(sections.certificates);
+  const showPublications = editable || has(sections.publications);
+  const showLanguages = editable || has(sections.languages);
+  const showInterests = editable || has(sections.interests);
+  const showReferences = editable || has(sections.references);
 
   return (
     <article
@@ -107,7 +128,17 @@ export function ClassicTemplate({
     >
       <div className="px-12 py-10 print:px-0 print:py-0">
         {showHeader && (
-          <header className="mb-6 border-b border-zinc-300 pb-4">
+          <header
+            className={cn(
+              'mb-6 border-b border-zinc-300 pb-4',
+              printHiddenIf(
+                !isSet(b.name) &&
+                  !isSet(b.label) &&
+                  contactBits.length === 0 &&
+                  locBits.length === 0
+              )
+            )}
+          >
             {/* Name (h1) */}
             {editable ? (
               <EditableText
@@ -183,7 +214,10 @@ export function ClassicTemplate({
 
         {/* Summary */}
         {showSummary && (
-          <Section title="Summary">
+          <Section
+            title="Summary"
+            className={printHiddenIf(!isSet(b.summary))}
+          >
             {editable ? (
               <EditableTextarea
                 path="sections.basics.summary"
@@ -199,7 +233,10 @@ export function ClassicTemplate({
 
         {/* Experience */}
         {showWork && (
-          <Section title="Experience">
+          <Section
+            title="Experience"
+            className={printHiddenIf(!has(sections.work))}
+          >
             {sections.work.map((w, i) => (
               <div
                 key={`work-${i}`}
@@ -294,7 +331,10 @@ export function ClassicTemplate({
 
         {/* Projects */}
         {showProjects && (
-          <Section title="Projects">
+          <Section
+            title="Projects"
+            className={printHiddenIf(!has(sections.projects))}
+          >
             {editable ? (
               <ProjectsInline />
             ) : (
@@ -333,7 +373,10 @@ export function ClassicTemplate({
 
         {/* Skills */}
         {showSkills && (
-          <Section title="Skills">
+          <Section
+            title="Skills"
+            className={printHiddenIf(!has(sections.skills))}
+          >
             {editable ? (
               <SkillsInline />
             ) : (
@@ -357,7 +400,10 @@ export function ClassicTemplate({
 
         {/* Education */}
         {showEducation && (
-          <Section title="Education">
+          <Section
+            title="Education"
+            className={printHiddenIf(!has(sections.education))}
+          >
             {editable ? (
               <EducationInline />
             ) : (
@@ -401,7 +447,10 @@ export function ClassicTemplate({
 
         {/* Volunteer */}
         {showVolunteer && (
-          <Section title="Volunteer">
+          <Section
+            title="Volunteer"
+            className={printHiddenIf(!has(sections.volunteer))}
+          >
             {editable ? (
               <VolunteerInline />
             ) : (
@@ -433,7 +482,10 @@ export function ClassicTemplate({
 
         {/* Awards */}
         {showAwards && (
-          <Section title="Awards">
+          <Section
+            title="Awards"
+            className={printHiddenIf(!has(sections.awards))}
+          >
             {editable ? (
               <AwardsInline />
             ) : (
@@ -453,6 +505,161 @@ export function ClassicTemplate({
                     )}
                     {isSet(a.summary) && (
                       <p className="text-zinc-600">{a.summary}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* Certificates */}
+        {showCertificates && (
+          <Section
+            title="Certificates"
+            className={printHiddenIf(!has(sections.certificates))}
+          >
+            {editable ? (
+              <CertificatesInline />
+            ) : (
+              <div>
+                {sections.certificates.map((c, i) => (
+                  <div
+                    key={`cert-${i}`}
+                    className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="font-semibold text-zinc-900">
+                        {isSet(c.name) ? c.name : 'Certificate'}
+                      </span>
+                      {isSet(c.date) && (
+                        <span className="text-[10pt] text-zinc-500">{c.date}</span>
+                      )}
+                    </div>
+                    {isSet(c.issuer) && (
+                      <p className="text-zinc-700">{c.issuer}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* Publications */}
+        {showPublications && (
+          <Section
+            title="Publications"
+            className={printHiddenIf(!has(sections.publications))}
+          >
+            {editable ? (
+              <PublicationsInline />
+            ) : (
+              <div>
+                {sections.publications.map((p, i) => (
+                  <div
+                    key={`pub-${i}`}
+                    className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="font-semibold text-zinc-900">
+                        {isSet(p.name) ? p.name : 'Publication'}
+                      </span>
+                      {isSet(p.releaseDate) && (
+                        <span className="text-[10pt] text-zinc-500">{p.releaseDate}</span>
+                      )}
+                    </div>
+                    {isSet(p.publisher) && (
+                      <p className="italic text-zinc-700">{p.publisher}</p>
+                    )}
+                    {isSet(p.summary) && (
+                      <p className="text-zinc-600">{p.summary}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* Languages */}
+        {showLanguages && (
+          <Section
+            title="Languages"
+            className={printHiddenIf(!has(sections.languages))}
+          >
+            {editable ? (
+              <LanguagesInline />
+            ) : (
+              <div className="space-y-1">
+                {sections.languages.map((l, i) => (
+                  <div
+                    key={`lang-${i}`}
+                    className="flex gap-2 text-[11pt] print:break-inside-avoid"
+                  >
+                    <span className="font-medium text-zinc-900">
+                      {isSet(l.language) ? l.language : 'Language'}
+                    </span>
+                    {isSet(l.fluency) && (
+                      <span className="text-zinc-700">— {l.fluency}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* Interests */}
+        {showInterests && (
+          <Section
+            title="Interests"
+            className={printHiddenIf(!has(sections.interests))}
+          >
+            {editable ? (
+              <InterestsInline />
+            ) : (
+              <div className="space-y-1">
+                {sections.interests.map((it, i) => (
+                  <div
+                    key={`interest-${i}`}
+                    className="flex gap-2 text-[11pt] print:break-inside-avoid"
+                  >
+                    <span className="font-medium text-zinc-900">
+                      {isSet(it.name) ? it.name : 'Category'}
+                    </span>
+                    {has(it.keywords) && (
+                      <span className="text-zinc-700">
+                        — {it.keywords.join(', ')}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* References */}
+        {showReferences && (
+          <Section
+            title="References"
+            className={printHiddenIf(!has(sections.references))}
+          >
+            {editable ? (
+              <ReferencesInline />
+            ) : (
+              <div>
+                {sections.references.map((r, i) => (
+                  <div
+                    key={`ref-${i}`}
+                    className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid"
+                  >
+                    {isSet(r.name) && (
+                      <p className="font-semibold text-zinc-900">{r.name}</p>
+                    )}
+                    {isSet(r.reference) && (
+                      <p className="italic text-zinc-700">"{r.reference}"</p>
                     )}
                   </div>
                 ))}
@@ -531,16 +738,22 @@ function LocationLineEditable({
  * Section wrapper — small uppercase tracking-wide title with a thin rule
  * underneath. Using a custom helper (vs. a raw `<section>`) keeps the look
  * locked across the template.
+ *
+ * `className` lets callers push utilities like `print:hidden` (we use
+ * that to suppress empty sections in PDF — empty in print looks like a
+ * stray header band on the page).
  */
 function Section({
   title,
-  children
+  children,
+  className
 }: {
   title: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="mb-5 last:mb-0">
+    <section className={cn('mb-5 last:mb-0', className)}>
       <h2 className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700">
         {title}
       </h2>
@@ -1095,6 +1308,396 @@ function AwardsInline() {
       >
         <Plus className="mr-1 size-3" />
         Add an award
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Certificates section. One row per certificate:
+ *   - Name (bold heading)
+ *   - Issuer (italic small)
+ *   - URL (italic small)
+ *   - Date (right-aligned small grey)
+ *   - A ✕ remove button (no-print)
+ *
+ * Print: the entire section hides when empty (handled by the Section
+ * wrapper's `printHiddenIf`); individual rows live inside the wrapper.
+ *
+ * Requires FormProvider context.
+ */
+function CertificatesInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.certificates'
+  });
+
+  function handleAdd() {
+    append({ name: '', date: '', issuer: '', url: '' });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.certificates.' + fields.length + '.name"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="certificates-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`cert-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <EditableText
+              path={`sections.certificates.${i}.name`}
+              className="text-[12pt] font-semibold text-zinc-900"
+              placeholder="Certificate name"
+            />
+            <EditableText
+              path={`sections.certificates.${i}.date`}
+              className="ml-auto inline w-fit text-right text-[10pt] text-zinc-500"
+              placeholder="Date"
+            />
+            <button
+              type="button"
+              aria-label={`Remove certificate ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-cert-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <EditableText
+            path={`sections.certificates.${i}.issuer`}
+            className="mt-0.5 block text-[11pt] text-zinc-700"
+            placeholder="Issuer"
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-certificate"
+      >
+        <Plus className="mr-1 size-3" />
+        Add a certificate
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Publications section. One row per publication:
+ *   - Name (bold heading)
+ *   - Publisher (italic small)
+ *   - Release date (right-aligned small grey)
+ *   - URL (italic small, with `no-print` styling only the row?)
+ *   - Summary (small italic blurb)
+ *   - A ✕ remove button (no-print)
+ *
+ * Requires FormProvider context.
+ */
+function PublicationsInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.publications'
+  });
+
+  function handleAdd() {
+    append({
+      name: '',
+      publisher: '',
+      releaseDate: '',
+      url: '',
+      summary: ''
+    });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.publications.' + fields.length + '.name"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="publications-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`pub-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <EditableText
+              path={`sections.publications.${i}.name`}
+              className="text-[12pt] font-semibold text-zinc-900"
+              placeholder="Title"
+            />
+            <EditableText
+              path={`sections.publications.${i}.releaseDate`}
+              className="ml-auto inline w-fit text-right text-[10pt] text-zinc-500"
+              placeholder="Date"
+            />
+            <button
+              type="button"
+              aria-label={`Remove publication ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-pub-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <EditableText
+            path={`sections.publications.${i}.publisher`}
+            className="mt-0.5 block text-[11pt] italic text-zinc-700"
+            placeholder="Publisher / venue"
+          />
+          <EditableText
+            path={`sections.publications.${i}.summary`}
+            className="mt-1 block text-[11pt] text-zinc-600"
+            placeholder="One-line summary or abstract."
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-publication"
+      >
+        <Plus className="mr-1 size-3" />
+        Add a publication
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Languages section. Each entry is two fields:
+ *   - Language (bold heading)
+ *   - Fluency (italic small, e.g. "Native", "Fluent")
+ * Two-field layout — much simpler than the other array sections.
+ *
+ * Requires FormProvider context.
+ */
+function LanguagesInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.languages'
+  });
+
+  function handleAdd() {
+    append({ language: '', fluency: '' });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.languages.' + fields.length + '.language"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="languages-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`lang-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <EditableText
+              path={`sections.languages.${i}.language`}
+              className="text-[12pt] font-semibold text-zinc-900"
+              placeholder="Language"
+            />
+            <EditableText
+              path={`sections.languages.${i}.fluency`}
+              className="ml-2 inline text-[11pt] italic text-zinc-700"
+              placeholder="Fluency (e.g. Native)"
+            />
+            <button
+              type="button"
+              aria-label={`Remove language ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-lang-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-language"
+      >
+        <Plus className="mr-1 size-3" />
+        Add a language
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable Interests section. Each entry is a category + chips:
+ *   - Name (bold heading, e.g. "Open Source")
+ *   - Keywords (KeywordChips — the actual interest keywords)
+ *
+ * In read-only we render name + comma-separated keywords. (We could
+ * have used the same SkillsInline shape with a `level` field, but
+ * Interests have no level equivalent — just a name + tags.)
+ *
+ * Requires FormProvider context.
+ */
+function InterestsInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.interests'
+  });
+
+  function handleAdd() {
+    append({ name: '', keywords: [] });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.interests.' + fields.length + '.name"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="interests-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`interest-row-${i}`}
+        >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <EditableText
+              path={`sections.interests.${i}.name`}
+              className="text-[11pt] font-semibold text-zinc-900"
+              placeholder="Category"
+            />
+            <button
+              type="button"
+              aria-label={`Remove interest ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-interest-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <div className="mt-2">
+            <KeywordChips
+              path={`sections.interests.${i}.keywords`}
+              placeholder="keyword"
+            />
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-interest"
+      >
+        <Plus className="mr-1 size-3" />
+        Add an interest
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Inline-editable References section. Each entry is just two text fields:
+ *   - Name (bold heading, e.g. "Jane Doe — Director of Engineering, Acme")
+ *   - Reference (the actual quote / text)
+ *
+ * No DateRange / chips / bullets — simplest of the array sections.
+ *
+ * Requires FormProvider context.
+ */
+function ReferencesInline() {
+  const { control } = useFormContext() as never;
+  const { fields, append, remove } = useFieldArray({
+    control: control as never,
+    name: 'sections.references'
+  });
+
+  function handleAdd() {
+    append({ name: '', reference: '' });
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        '[data-testid="editable-sections.references.' + fields.length + '.name"]'
+      );
+      (el as HTMLElement | null)?.click();
+    });
+  }
+
+  return (
+    <div className="space-y-3" data-testid="references-inline">
+      {fields.map((field, i) => (
+        <div
+          key={field.id}
+          className="rounded-md border border-zinc-200 bg-white/60 p-3 print:border-transparent print:bg-transparent print:p-0"
+          data-testid={`ref-row-${i}`}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <EditableText
+              path={`sections.references.${i}.name`}
+              className="text-[11pt] font-semibold text-zinc-900"
+              placeholder="Reference name + title"
+            />
+            <button
+              type="button"
+              aria-label={`Remove reference ${i + 1}`}
+              onClick={() => remove(i)}
+              className="no-print ml-auto inline-flex size-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              data-testid={`remove-ref-${i}`}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <EditableTextarea
+            path={`sections.references.${i}.reference`}
+            rows={3}
+            className="mt-1 text-[11pt] italic text-zinc-600"
+            placeholder="The reference text or quote."
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleAdd}
+        className="no-print"
+        data-testid="add-reference"
+      >
+        <Plus className="mr-1 size-3" />
+        Add a reference
       </Button>
     </div>
   );

@@ -173,6 +173,10 @@ function SectionEditTriggers({
    */
   onSaved: (values: unknown) => void;
 }) {
+  // When every section is inline-editable, SECTION_DIALOGS is empty and
+  // we don't need to render the "Other sections" footer band at all —
+  // it would just be a heading with nothing under it.
+  if (SECTION_DIALOGS.length === 0) return null;
   return (
     <div className="no-print border-t pt-4">
       <p className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">

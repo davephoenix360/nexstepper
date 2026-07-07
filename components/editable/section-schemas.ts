@@ -1,14 +1,6 @@
 import { z } from 'zod';
 
-import {
-  basicsSchema,
-  workSchema,
-  certificatesSchema,
-  publicationsSchema,
-  languagesSchema,
-  interestsSchema,
-  referencesSchema
-} from '@/lib/resume-schema';
+import { basicsSchema } from '@/lib/resume-schema';
 
 /**
  * Most resume sections are ZodArray<T> (e.g. `sections.skills` is
@@ -23,6 +15,12 @@ import {
  * (no wrapping). The unified `SectionDialogSchema` is the schema
  * SchemaForm renders with — it's always a ZodObject by construction,
  * since the array case wraps in `{ items: ... }`.
+ *
+ * As of the WYSIWYG slice (basics + work + 10 array sections inline
+ * via <EditableText> / <KeywordChips> / <BulletList> primitives) this
+ * registry is empty. The footer + dialog machinery stays wired so we
+ * can re-populate it if we add an "Open JSON editor" or similar
+ * escape-hatch feature later.
  */
 
 export type SectionDialogSchema = z.ZodObject<z.ZodRawShape>;
@@ -56,7 +54,11 @@ const arraySection = (label: string, path: string, description: string) => ({
   label,
   path,
   description,
-  schema: z.object({ items: workSchema }) as never, // overwritten per-row below
+  // The schema is overwritten per-row below in `arraySectionWithSchema` —
+  // the bare `z.object({ items: ... })` here is a placeholder that
+  // types-correct thanks to the `as never` cast. Kept around for future
+  // use; no callers today (every section is inline-editable now).
+  schema: z.object({ items: z.array(z.unknown()) }) as never,
   toItems: (currentValue: unknown) => ({ items: currentValue ?? [] }),
   fromItems: (data: unknown) => (data as { items?: unknown }).items ?? []
 });
@@ -86,6 +88,16 @@ function arraySectionWithSchema(
 }
 
 export const SECTION_DIALOGS: ReadonlyArray<SectionDialog> = [
+  // The basics section has more nested state (location + profiles) than
+  // is convenient to inline. We keep the dialog as an escape hatch for
+  // users who'd rather edit a flat form than click individual fields.
+  // (The header in the rendered view is already inline-editable for
+  // the common name/label/contact fields.)
+  //
+  // Once the inline editor covers all basics fields we can drop this
+  // entry and SECTION_DIALOGS becomes empty — which is fine; the
+  // editor footer (`SectionEditTriggers`) hides itself when the list is
+  // empty.
   {
     label: 'Profile (basics)',
     path: 'sections.basics',
@@ -95,51 +107,7 @@ export const SECTION_DIALOGS: ReadonlyArray<SectionDialog> = [
     toItems: (currentValue: unknown) =>
       (currentValue as Record<string, unknown>) ?? {},
     fromItems: (data: unknown) => data
-  },
-  // Experience is inline in the editor; keep a dialog escape hatch in
-  // case the user wants to do row-level surgery in a table instead of
-  // clicking rows in the rendered view.
-  arraySectionWithSchema(
-    'Experience',
-    'sections.work',
-    'One row per employer. Use positions[] inside a company for role changes.',
-    workSchema
-  ),
-  // Skills + Education + Projects + Volunteer + Awards are all inline
-  // (chips / bullets / EditableText fields right inside the rendered
-  // view). When the editor grows them to inline, they drop out of
-  // SECTION_DIALOGS — the table-editor escape hatch stays only for
-  // sections we still read-only.
-  arraySectionWithSchema(
-    'Certificates',
-    'sections.certificates',
-    'Certifications, licenses, dates.',
-    certificatesSchema
-  ),
-  arraySectionWithSchema(
-    'Publications',
-    'sections.publications',
-    'Talks, papers, blog posts.',
-    publicationsSchema
-  ),
-  arraySectionWithSchema(
-    'Languages',
-    'sections.languages',
-    'Each language + spoken/written fluency.',
-    languagesSchema
-  ),
-  arraySectionWithSchema(
-    'Interests',
-    'sections.interests',
-    'Hobbies and outside interests.',
-    interestsSchema
-  ),
-  arraySectionWithSchema(
-    'References',
-    'sections.references',
-    'Reference contacts.',
-    referencesSchema
-  )
+  }
 ];
 
 // Re-export `arraySection` as unused-but-handy if a future contributor
