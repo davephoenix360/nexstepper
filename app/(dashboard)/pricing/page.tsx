@@ -3,8 +3,10 @@ import { Check } from 'lucide-react';
 import { getStripePrices, getStripeProducts } from '@/lib/payments/stripe';
 import { SubmitButton } from './submit-button';
 
-// Prices are fresh for one hour max
-export const revalidate = 3600;
+// Render at request time so the build doesn't depend on a live Stripe API key.
+// Phase 0: this lets Vercel deploys succeed without configuring Stripe yet.
+// Revert to ISR (`export const revalidate = 3600`) once real Stripe keys are wired.
+export const dynamic = 'force-dynamic';
 
 export default async function PricingPage() {
   const [prices, products] = await Promise.all([
