@@ -26,7 +26,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex flex-col min-h-screen w-full">
-      <div className="lg:hidden flex items-center justify-between bg-background border-b border-border p-4">
+      <div className="no-print lg:hidden flex items-center justify-between bg-background border-b border-border p-4">
         <Link
           href="/"
           className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground"
@@ -49,7 +49,7 @@ export default function DashboardLayout({
 
       <div className="flex flex-1 overflow-hidden h-full">
         <aside
-          className={`w-64 bg-background lg:bg-muted border-r border-border lg:block ${
+          className={`no-print w-64 bg-background lg:bg-muted border-r border-border lg:block ${
             isSidebarOpen ? 'block' : 'hidden'
           } lg:relative absolute inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
