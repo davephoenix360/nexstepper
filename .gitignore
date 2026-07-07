@@ -44,3 +44,9 @@ postgres_data/
 *.local.log
 dev-server.*.log
 *.tsbuildinfo
+
+# Mavis agent credentials (never commit; the .mavis-agent.md file
+# holds the test account email + password used to drive the dev server
+# for end-to-end verification).
+.mavis-agent.md
+.mavis-agent.local.md
