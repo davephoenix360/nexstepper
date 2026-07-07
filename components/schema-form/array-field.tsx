@@ -33,8 +33,7 @@ export function ArrayField({
   // Zod 4 exposes the item schema as `.element` directly on the array.
   const itemSchema = (inner as unknown as { element?: z.ZodTypeAny }).element;
   const isObject =
-    itemSchema &&
-    (itemSchema._def as { typeName?: string }).typeName === 'ZodObject';
+    itemSchema && (itemSchema._def as { type?: string }).type === 'object';
 
   if (isObject && itemSchema) {
     return (

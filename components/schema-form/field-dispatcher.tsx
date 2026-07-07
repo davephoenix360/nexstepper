@@ -3,10 +3,10 @@
 /**
  * Field dispatcher — given a Zod schema, renders the right input component.
  *
- * Walks the schema's `_def.typeName` to decide which primitive to render.
- * This is the core abstraction that lets a single component handle every
- * Zod shape. When we add a new Zod type, we add a case here and a primitive
- * in primitives.tsx.
+ * Walks the schema's `_def.type` (lowercase in Zod 4) to decide which
+ * primitive to render. This is the core abstraction that lets a single
+ * component handle every Zod shape. When we add a new Zod type, we add a
+ * case here and a primitive in primitives.tsx.
  *
  * Object and array shapes recurse via ObjectField and ArrayField.
  */
@@ -51,7 +51,7 @@ export function FieldDispatcher({
   const typeName = getTypeName(inner);
 
   switch (typeName) {
-    case 'ZodString':
+    case 'string':
       return (
         <StringInput
           name={name}
@@ -62,15 +62,15 @@ export function FieldDispatcher({
         />
       );
 
-    case 'ZodNumber':
+    case 'number':
       return (
         <NumberInput name={name} label={label} placeholder={placeholder} />
       );
 
-    case 'ZodBoolean':
+    case 'boolean':
       return <BooleanInput name={name} label={label} />;
 
-    case 'ZodEnum':
+    case 'enum':
       return (
         <EnumInput
           name={name}
@@ -80,7 +80,7 @@ export function FieldDispatcher({
         />
       );
 
-    case 'ZodObject':
+    case 'object':
       return (
         <ObjectField
           name={name}
@@ -89,10 +89,10 @@ export function FieldDispatcher({
         />
       );
 
-    case 'ZodArray':
+    case 'array':
       return <ArrayField name={name} schema={inner} label={label} />;
 
-    // ZodNull / ZodUndefined / ZodNever / ZodUnknown — render a controlled
+    // null / undefined / never / unknown / etc. — render a controlled
     // text input so the field still shows in the UI. Phase 3+ will replace
     // with proper widgets (date picker, etc.) as we add them.
     default:

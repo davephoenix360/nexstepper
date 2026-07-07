@@ -29,13 +29,20 @@ import { cn } from '@/lib/utils';
  * Inspect a Zod schema's checks to figure out the best HTML input type.
  * We only look at the most common refinements (email, url, datetime); default
  * to plain text otherwise.
+ *
+ * Zod 4 stores refinements as ZodCheck instances with the format on a nested
+ * `def.format` field — e.g. `z.string().email()` produces a check whose
+ * `def.format === 'email'`. Older code that read `check.kind` won't match.
  */
 export function inferInputType(schema: z.ZodTypeAny): string {
-  const checks = (schema._def as { checks?: Array<{ kind: string }> }).checks ?? [];
+  const checks = (schema._def as {
+    checks?: Array<{ def?: { format?: string } }>;
+  }).checks ?? [];
   for (const check of checks) {
-    if (check.kind === 'email') return 'email';
-    if (check.kind === 'url') return 'url';
-    if (check.kind === 'datetime') return 'datetime-local';
+    const format = check.def?.format;
+    if (format === 'email') return 'email';
+    if (format === 'url') return 'url';
+    if (format === 'datetime') return 'datetime-local';
   }
   return 'text';
 }
@@ -47,14 +54,18 @@ export function unwrapSchema(schema: z.ZodTypeAny): {
 } {
   let inner = schema;
   let optional = false;
-  // Zod 4 uses `._def.typeName`; walk through wrappers.
-  // Defensive: each step re-reads the typeName in case the schema swaps.
+  // Zod 4 stores the schema kind on `_def.type` (lowercase, no 'Zod' prefix)
+  // and the wrapped schema on `_def.innerType`. Walk up to 5 layers deep
+  // through any combination of optional / nullable / default wrappers.
   for (let i = 0; i < 5; i++) {
-    const def = inner._def as { typeName?: string; innerType?: z.ZodTypeAny };
-    if (def.typeName === 'ZodOptional') {
+    const def = inner._def as { type?: string; innerType?: z.ZodTypeAny };
+    if (def.type === 'optional') {
       optional = true;
       inner = def.innerType!;
-    } else if (def.typeName === 'ZodDefault') {
+    } else if (def.type === 'default') {
+      inner = def.innerType!;
+    } else if (def.type === 'nullable') {
+      // null wrappers don't change optional-ness — they just allow null.
       inner = def.innerType!;
     } else {
       break;
@@ -63,9 +74,11 @@ export function unwrapSchema(schema: z.ZodTypeAny): {
   return { inner, optional };
 }
 
-/** Get the Zod schema's "typeName" (ZodString, ZodNumber, ZodObject, etc.). */
+/** Get the Zod schema's kind (string, number, object, etc.). */
 export function getTypeName(schema: z.ZodTypeAny): string {
-  return (schema._def as { typeName?: string }).typeName ?? 'Unknown';
+  // Zod 4 stores the kind at `_def.type` (lowercase). The old `typeName`
+  // field no longer exists, so fall back to 'Unknown' instead of crashing.
+  return (schema._def as { type?: string }).type ?? 'Unknown';
 }
 
 interface StringInputProps {
@@ -181,12 +194,16 @@ interface EnumInputProps {
 
 /**
  * Enum input — renders a Select with one option per enum value.
- * For Zod 4 enums (z.enum(['draft', 'completed'])), values are at `_def.values`.
+ *
+ * Zod 4 stores enum entries on `_def.entries` as a key→value object map
+ * (vs. Zod 3's `_def.values` array). Both `key` and `value` are the enum
+ * string in our case, so we just need the keys.
  */
 export function EnumInput({ name, schema, label, placeholder }: EnumInputProps) {
   const { field, fieldState } = useController<FieldValues>({ name });
   const error = fieldState.error?.message;
-  const values = ((schema._def as { values?: readonly string[] }).values ?? []) as string[];
+  const entries = (schema._def as { entries?: Record<string, string> }).entries ?? {};
+  const values = Object.keys(entries);
 
   return (
     <FieldShell name={name} label={label} error={error}>
