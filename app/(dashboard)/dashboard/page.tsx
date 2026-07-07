@@ -25,27 +25,22 @@ export default async function DashboardHome() {
         </p>
       </div>
 
-      <Card className="mb-6 border-dashed">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-muted-foreground" />
-            Resumes
-          </CardTitle>
-          <CardDescription>
-            Resume CRUD ships in Phase 1. The foundation is in place — Drizzle,
-            Better Auth, Stripe, shadcn primitives, Tailwind v4.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Next: master-resume → tailored variant flow, schema-driven edit
-            form, job-context scoring.
-          </p>
-          <Button asChild variant="outline" disabled>
-            <Link href="/dashboard/resumes">Open resumes (coming soon)</Link>
-          </Button>
-        </CardContent>
-      </Card>
+        <Card className="mb-6 border-dashed">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              Resumes
+            </CardTitle>
+            <CardDescription>
+              Your masters and tailored variants, all in one place.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/resumes">Open resumes</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
