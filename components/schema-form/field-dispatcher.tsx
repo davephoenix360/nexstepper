@@ -20,6 +20,7 @@ import {
   FieldShell,
   NumberInput,
   StringInput,
+  getTabForField,
   getTypeName,
   humanize,
   leafName,
@@ -27,6 +28,17 @@ import {
 } from './primitives';
 import { ObjectField } from './object-field';
 import { ArrayField } from './array-field';
+
+/**
+ * Tag a primitive field with `data-tab` so CSS can hide it when its
+ * tab isn't active. Returns the children unchanged when no tab applies
+ * (envelope fields stay always-visible).
+ */
+function TabTagged({ name, children }: { name: string; children: React.ReactNode }) {
+  const tab = getTabForField(name);
+  if (!tab) return <>{children}</>;
+  return <div data-tab={tab}>{children}</div>;
+}
 
 export interface FieldDescriptor {
   /** Dot-notation path into form values (e.g. 'sections.basics.name'). */
@@ -61,53 +73,67 @@ export function FieldDispatcher({
   switch (typeName) {
     case 'string':
       return (
-        <StringInput
-          name={name}
-          schema={inner}
-          label={effectiveLabel}
-          placeholder={placeholder ?? (optional ? 'Optional' : undefined)}
-          multiline={multiline}
-        />
+        <TabTagged name={name}>
+          <StringInput
+            name={name}
+            schema={inner}
+            label={effectiveLabel}
+            placeholder={placeholder ?? (optional ? 'Optional' : undefined)}
+            multiline={multiline}
+          />
+        </TabTagged>
       );
 
     case 'number':
       return (
-        <NumberInput
-          name={name}
-          label={effectiveLabel}
-          placeholder={placeholder}
-        />
+        <TabTagged name={name}>
+          <NumberInput
+            name={name}
+            label={effectiveLabel}
+            placeholder={placeholder}
+          />
+        </TabTagged>
       );
 
     case 'boolean':
-      return <BooleanInput name={name} label={effectiveLabel} />;
+      return (
+        <TabTagged name={name}>
+          <BooleanInput name={name} label={effectiveLabel} />
+        </TabTagged>
+      );
 
     case 'enum':
       return (
-        <EnumInput
-          name={name}
-          schema={inner}
-          label={effectiveLabel}
-          placeholder={placeholder ?? 'Select…'}
-        />
+        <TabTagged name={name}>
+          <EnumInput
+            name={name}
+            schema={inner}
+            label={effectiveLabel}
+            placeholder={placeholder ?? 'Select…'}
+          />
+        </TabTagged>
       );
 
     case 'object':
       return (
-        <ObjectField
-          name={name}
-          schema={inner as unknown as z.ZodObject<z.ZodRawShape>}
-          label={effectiveLabel}
-        />
+        <TabTagged name={name}>
+          <ObjectField
+            name={name}
+            schema={inner as unknown as z.ZodObject<z.ZodRawShape>}
+            label={effectiveLabel}
+          />
+        </TabTagged>
       );
 
     case 'array':
       return (
-        <ArrayField
-          name={name}
-          schema={inner}
-          label={effectiveLabel}
-        />
+        <TabTagged name={name}>
+          <ArrayField
+            name={name}
+            schema={inner}
+            label={effectiveLabel}
+          />
+        </TabTagged>
       );
 
     // null / undefined / never / unknown / etc. — render a controlled
@@ -115,9 +141,11 @@ export function FieldDispatcher({
     // with proper widgets (date picker, etc.) as we add them.
     default:
       return (
-        <FieldShell name={name} label={effectiveLabel}>
-          <StringInput name={name} schema={inner} />
-        </FieldShell>
+        <TabTagged name={name}>
+          <FieldShell name={name} label={effectiveLabel}>
+            <StringInput name={name} schema={inner} />
+          </FieldShell>
+        </TabTagged>
       );
   }
 }
@@ -125,23 +153,32 @@ export function FieldDispatcher({
 /**
  * Iterate an object's `shape` and render one field per key.
  * Used both by ObjectField and at the top level of SchemaForm.
+ *
+ * `omitFields` accepts top-level keys to skip — used by the resume
+ * editor to hide the jobContext envelope from the Phase 1 form (it
+ * gets a proper JD-capture UI in Phase 3).
  */
 export function renderObjectShape(
   objectSchema: z.ZodObject<z.ZodRawShape>,
   parentName: string,
-  options?: { fieldOverrides?: Record<string, Partial<FieldDescriptor>> }
+  options?: {
+    fieldOverrides?: Record<string, Partial<FieldDescriptor>>;
+    omitFields?: readonly string[];
+  }
 ): React.ReactNode {
-  const entries = Object.entries(objectSchema.shape);
-  return entries.map(([key, fieldSchema]) => {
-    const fullName = parentName ? `${parentName}.${key}` : key;
-    const override = options?.fieldOverrides?.[key];
-    return (
-      <FieldDispatcher
-        key={fullName}
-        name={fullName}
-        schema={fieldSchema as z.ZodTypeAny}
-        {...override}
-      />
-    );
-  });
+  const omit = new Set(options?.omitFields ?? []);
+  return Object.entries(objectSchema.shape)
+    .filter(([key]) => !omit.has(key))
+    .map(([key, fieldSchema]) => {
+      const fullName = parentName ? `${parentName}.${key}` : key;
+      const override = options?.fieldOverrides?.[key];
+      return (
+        <FieldDispatcher
+          key={fullName}
+          name={fullName}
+          schema={fieldSchema as z.ZodTypeAny}
+          {...override}
+        />
+      );
+    });
 }

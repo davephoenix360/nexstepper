@@ -117,6 +117,32 @@ export function leafName(dottedPath: string): string {
   return last && last.length > 0 ? last : dottedPath;
 }
 
+/**
+ * Map a section's top-level path (e.g. `sections.work`) to a tab id in
+ * the editor. Returns `undefined` for envelope fields that should always
+ * be visible (name, note, status, template, jobContext).
+ *
+ * Tab ids map to the four groups in the editor: profile / experience /
+ * skills / recognition.
+ */
+export function getTabForField(dottedPath: string): string | undefined {
+  const TAB_MAP: Record<string, string> = {
+    'sections.basics': 'profile',
+    'sections.work': 'experience',
+    'sections.projects': 'experience',
+    'sections.volunteer': 'experience',
+    'sections.education': 'experience',
+    'sections.skills': 'skills',
+    'sections.languages': 'skills',
+    'sections.interests': 'skills',
+    'sections.awards': 'recognition',
+    'sections.certificates': 'recognition',
+    'sections.publications': 'recognition',
+    'sections.references': 'recognition'
+  };
+  return TAB_MAP[dottedPath];
+}
+
 interface StringInputProps {
   name: string;
   schema: z.ZodTypeAny;

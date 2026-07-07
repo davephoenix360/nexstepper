@@ -83,25 +83,23 @@ export function SchemaForm<T extends z.ZodObject<z.ZodRawShape>>({
         data-testid="schema-form"
       >
         <div className="flex flex-col gap-6">
-          {renderObjectShape(schema, '', { fieldOverrides })}
+          {renderObjectShape(schema, '', { fieldOverrides, omitFields })}
         </div>
 
-        {omitFields.length === 0 && (
-          <div className="mt-6 flex items-center justify-end gap-3">
-            {form.formState.errors.root?.message && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.root.message}
-              </p>
-            )}
-            <Button
-              type="submit"
-              disabled={submitting || form.formState.isSubmitting}
-              data-testid="schema-form-submit"
-            >
-              {submitLabel}
-            </Button>
-          </div>
-        )}
+        <div className="mt-6 flex items-center justify-end gap-3">
+          {form.formState.errors.root?.message && (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.root.message}
+            </p>
+          )}
+          <Button
+            type="submit"
+            disabled={submitting || form.formState.isSubmitting}
+            data-testid="schema-form-submit"
+          >
+            {submitLabel}
+          </Button>
+        </div>
       </form>
     </FormProvider>
   );
