@@ -4,8 +4,7 @@ import {
   timestamp,
   boolean,
   jsonb,
-  index,
-  uniqueIndex
+  index
 } from 'drizzle-orm/pg-core';
 
 import type { ResumeData } from '@/lib/resume-schema';
@@ -86,9 +85,7 @@ export const subscriptions = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
   },
-  (table) => ({
-    userIdx: index('subscriptions_user_idx').on(table.userId)
-  })
+  (table) => [index('subscriptions_user_idx').on(table.userId)]
 );
 
 // --- Inferred types ---
@@ -159,10 +156,10 @@ export const resumes = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
   },
-  (table) => ({
-    userIdx: index('resumes_user_idx').on(table.userId),
-    parentIdx: index('resumes_parent_idx').on(table.parentResumeId)
-  })
+  (table) => [
+    index('resumes_user_idx').on(table.userId),
+    index('resumes_parent_idx').on(table.parentResumeId)
+  ]
 );
 
 /**
@@ -190,9 +187,9 @@ export const resumeRevisions = pgTable(
     message: text('message'),
     createdAt: timestamp('created_at').notNull().defaultNow()
   },
-  (table) => ({
-    resumeIdx: index('resume_revisions_resume_idx').on(table.resumeId, table.createdAt)
-  })
+  (table) => [
+    index('resume_revisions_resume_idx').on(table.resumeId, table.createdAt)
+  ]
 );
 
 // --- Inferred row types ---
