@@ -48,8 +48,10 @@ export function CreateMasterResumeForm() {
         );
         return;
       }
-      // Refetch the list so the new master shows up immediately.
-      router.push('/dashboard/resumes');
+      // Land on the editor for the new master so the user can immediately
+      // start filling it in. router.refresh() re-fetches the RSC tree so
+      // the editor sees the just-created revision.
+      router.push(`/dashboard/resumes/${result.data.id}`);
       router.refresh();
     });
   }

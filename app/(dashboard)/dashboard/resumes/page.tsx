@@ -69,10 +69,8 @@ export default async function ResumesPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild variant="outline" disabled>
-                  <Link href={`/dashboard/resumes/${master.id}`}>
-                    Open (editor coming next)
-                  </Link>
+                <Button asChild variant="outline">
+                  <Link href={`/dashboard/resumes/${master.id}`}>Open editor</Link>
                 </Button>
               </CardContent>
             </Card>
