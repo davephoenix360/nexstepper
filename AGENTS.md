@@ -1,0 +1,266 @@
+# AGENTS.md — Nextep SaaS
+
+> Loaded automatically by Mavis, Cursor, Claude Code, Aider, Codex, Devin,
+> Gemini CLI, and any tool that follows the [agents.md spec](https://agents.md/).
+> This is the **single source of truth** for how to write code in this repo.
+> Keep it short, concrete, and current.
+
+## What this project is
+
+AI-assisted resume builder. Master-resume → tailored variants, ATS-style
+scoring against a parsed job description, peer reviews, sharing, real-time
+collaboration. See `README.md` for the user-facing overview and
+`NEXTEP_REBUILD_PLAN.md` for the 14-week / 6-phase plan.
+
+**Locked stack** (changing any of these needs a discussion, not a drive-by edit):
+
+| Layer | Pick |
+|---|---|
+| Framework | Next.js 16.2+ (App Router, Turbopack default, **async cookies/headers/params**) |
+| Language | TypeScript 5.x with `strict: true` |
+| UI | shadcn/ui + Tailwind v4 (no MUI, no extra CSS-in-JS libs) |
+| Database | Postgres (Neon in prod, postgres-js locally — driver auto-detected) |
+| ORM | Drizzle (no Prisma) |
+| Auth | Better Auth 1.6+ (no NextAuth, no Clerk) |
+| Billing | Stripe (Free + Pro $12/mo) |
+| AI | Vercel AI SDK 6 + Anthropic Claude Sonnet |
+| Email | Resend |
+| File storage | Vercel Blob |
+| Observability | Sentry (errors) + PostHog (analytics) |
+| Background jobs | Inngest |
+| Realtime | Liveblocks (Phase 5) |
+| Validation | Zod 4 (single source of truth for types + runtime validation) |
+| Forms | react-hook-form + `@hookform/resolvers/zod` (no Formik, no RJSF) |
+| Package mgr | pnpm 11 |
+| Deployment | Vercel |
+
+## Architectural principles (non-negotiable)
+
+### 1. Zod schemas are the single source of truth
+
+Never write `interface User { ... }` AND `const userSchema = z.object({...})` for the
+same shape. Define the Zod schema once, infer the TypeScript type via `z.infer`.
+
+```ts
+// ✅ Right
+export const resumeDataSchema = z.object({ ... });
+export type ResumeData = z.infer<typeof resumeDataSchema>;
+
+// ❌ Wrong
+export interface ResumeData { ... }
+export const resumeDataSchema = z.object({ ... });  // will drift
+```
+
+The same schema is used for: Drizzle insert types (via `drizzle-zod`), form
+validation (via `@hookform/resolvers/zod`), AI structured output (via
+`zod-to-json-schema`), and server-action input validation.
+
+### 2. Validate at every trust boundary
+
+Server Actions, API routes, webhook handlers, and Inngest functions are
+**public endpoints** regardless of where they appear in the UI. Every one of
+them:
+
+1. Validates input with a Zod schema (`safeParse` at the top, not `parse`)
+2. Checks authentication (unless intentionally public)
+3. Checks authorization (user owns the resource)
+4. Returns a discriminated union result (see below)
+
+```ts
+// ✅ Right
+export async function saveResume(input: unknown): Promise<ActionResult<Resume>> {
+  const parsed = resumeInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'Invalid input', fieldErrors: parsed.error.flatten().fieldErrors };
+  const user = await requireUser();          // throws/redirects if not signed in
+  // ... business logic ...
+  return { ok: true, data: resume };
+}
+```
+
+### 3. Server Action results use a discriminated union
+
+Every Server Action returns one of these shapes. No exceptions.
+
+```ts
+type ActionResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+```
+
+TypeScript narrows correctly on the client, so `if (result.ok) result.data.foo`
+is fully typed.
+
+### 4. No sensitive data in Server Action closures
+
+Server Actions live in `'use server'` files with **top-level exports**, never
+as inline closures inside React components. Closures get serialized and can
+leak data across requests.
+
+```ts
+// ✅ Right — top-level export in `actions.ts`
+'use server';
+export async function updateProfile(input: unknown) { ... }
+
+// ❌ Wrong — closure captures component scope
+export default function Page() {
+  async function save() { return updateDb(/* ... */); }  // don't do this
+  return <form action={save}>...</form>;
+}
+```
+
+### 5. Server Components by default, Client Components when needed
+
+Default to a Server Component. Add `'use client'` only when the component needs:
+- React hooks (`useState`, `useEffect`, `useFormStatus`, etc.)
+- Browser APIs (`window`, `localStorage`)
+- Event handlers (`onClick`, `onChange`)
+- Third-party client libraries
+
+If only a small part of a component needs client-side, extract that part
+into a `'use client'` child and keep the parent as a Server Component.
+
+### 6. Database queries go through `lib/db/queries.ts`
+
+Pages and Server Actions never call `db.select(...)` directly. They import
+named functions from `lib/db/queries.ts` (or feature-specific query files
+under `lib/<feature>/queries.ts`). This keeps Drizzle imports centralized
+and makes queries mockable for tests.
+
+### 7. Auth is checked in the action, not just the page
+
+The page might be behind auth middleware, but the Server Action is a public
+endpoint callable by anyone with the URL. Every protected action calls
+`requireUser()` (or equivalent) at the top.
+
+## Folder structure (current + planned)
+
+```
+nextep-saas/
+├── app/                       # Next.js App Router
+│   ├── (marketing)/           # Public site (landing, pricing)
+│   ├── (auth)/                # Sign in / sign up
+│   ├── (dashboard)/           # Authed app surface
+│   │   └── dashboard/
+│   │       ├── page.tsx       # Overview (Phase 0 welcome)
+│   │       ├── resumes/       # Phase 1: resume list + edit
+│   │       ├── general/       # Profile settings
+│   │       └── security/      # Password / delete account
+│   ├── api/                   # Route handlers
+│   │   ├── auth/[...all]/     # Better Auth catch-all
+│   │   ├── stripe/            # Webhooks + checkout
+│   │   ├── inngest/           # Background-job webhook
+│   │   └── user/
+│   ├── layout.tsx             # Root layout (PostHog provider, font, etc.)
+│   └── globals.css
+├── components/
+│   ├── ui/                    # shadcn primitives (Input, Button, Card, etc.)
+│   ├── schema-form/           # Phase 1: Zod-driven dynamic form
+│   ├── resume/                # Phase 1: resume-specific UI
+│   └── posthog-provider.tsx
+├── lib/
+│   ├── auth.ts                # Better Auth server instance
+│   ├── auth-client.ts         # Better Auth React client
+│   ├── resume-schema/         # Phase 1: the canonical ResumeData Zod schema
+│   ├── db/
+│   │   ├── schema.ts          # All Drizzle tables in one file
+│   │   ├── queries.ts         # Query helpers (one per table/feature)
+│   │   └── drizzle.ts         # Driver selection (Neon vs postgres-js)
+│   ├── payments/              # Stripe integration
+│   ├── email/                 # Resend wrapper
+│   ├── inngest/               # Inngest client + serve functions
+│   ├── liveblocks/            # Liveblocks server client
+│   ├── posthog/               # PostHog server + client
+│   └── utils.ts
+├── sentry.client.config.ts
+├── sentry.server.config.ts
+├── instrumentation.ts         # Next 16 instrumentation hook
+├── next.config.ts
+├── drizzle.config.ts
+└── pnpm-workspace.yaml        # pnpm 11 build-script allowlist
+```
+
+**Future (when monorepo splits):**
+```
+packages/
+├── resume-schema/             # The Zod schemas
+├── ai/                        # AI SDK config, prompt registry, scoring
+├── pdf-render/                # Playwright wrapper, template registry
+├── billing/                   # Stripe + subscription helpers
+apps/web/                      # The Next.js app (becomes current root)
+```
+
+## TypeScript conventions
+
+- **`strict: true`** is non-negotiable. Don't add `any` to escape it; refactor.
+- Prefer `import type` for type-only imports (better tree-shaking + clarity).
+- One export per file unless they're tightly coupled (e.g. schema + inferred type).
+- Domain enums use Zod's `z.enum([...])` so they're both runtime + type-safe.
+- IDs are strings (Better Auth uses UUIDs); never use `number` for primary keys.
+
+## Next.js 16 gotchas
+
+- **`cookies()`, `headers()`, `params`, `searchParams` are async.** Must be awaited:
+  ```ts
+  const cookieStore = await cookies();   // ✅
+  const session = cookieStore.get('session');
+  ```
+- **No `next lint`** — use the ESLint CLI directly. (We don't have lint scripts yet; add when needed.)
+- **`middleware.ts` is deprecated** — renamed to `proxy.ts`. We don't have one yet; add when we need route-level auth gating.
+- **Turbopack is default** for `next dev` and `next build`. Don't add `--turbopack` flags.
+- **No `experimental.ppr`** — use Cache Components (`"use cache"` directive) if needed.
+- **No `revalidate` magic numbers on ISR** unless we explicitly opt into dynamic rendering.
+
+## Better Auth gotchas
+
+- API handler lives at `app/api/auth/[...all]/route.ts` — do not duplicate.
+- Server-side session reads: `const session = await auth.api.getSession({ headers: await headers() });`
+- Client-side session: `const { data: session } = authClient.useSession();`
+- Cookies are prefixed `nextep.*` (see `lib/auth.ts` `advanced.cookiePrefix`).
+- User IDs are UUIDs (string), not numbers.
+
+## Drizzle gotchas
+
+- Import the `db` instance and `schema` from `@/lib/db/drizzle` and `@/lib/db/schema`.
+- Use `eq`, `and`, `or`, `desc`, `asc` etc. from `drizzle-orm` (not raw SQL strings).
+- JSONB columns: insert/update with typed objects. Drizzle serializes for you.
+- After schema changes, run `pnpm db:generate` then `pnpm db:migrate` (prod) or `pnpm db:push` (dev).
+
+## Naming + style
+
+- Files: `kebab-case.ts(x)` for pages/components, `kebab-case.ts` for lib.
+- React components: `PascalCase`.
+- Hooks: `useThing` (camelCase, starts with `use`).
+- Server Actions: verb-first (`saveResume`, `createVariant`, `deleteAccount`).
+- DB columns: `snake_case` in SQL, `camelCase` in TS (Drizzle handles the mapping).
+- Prefer named exports; default exports only where Next.js requires them (`page.tsx`, `layout.tsx`).
+
+## What NOT to do
+
+- ❌ Don't add new dependencies without checking the locked stack first.
+- ❌ Don't add `useEffect` for data fetching — use Server Components / `cache()` / Server Actions.
+- ❌ Don't write `try/catch` around Server Actions expecting exceptions — they return `ActionResult<T>`, they don't throw.
+- ❌ Don't capture user input in action closures.
+- ❌ Don't duplicate types + schemas. Infer the type from the schema.
+- ❌ Don't import Drizzle in pages — go through `lib/db/queries.ts`.
+- ❌ Don't add `// @ts-ignore` or `any` — fix the type.
+- ❌ Don't commit secrets (`.env`, `.env.local` — both gitignored).
+- ❌ Don't push to `origin/main` without a PR + CI green.
+
+## How to verify before committing
+
+```bash
+pnpm typecheck       # must be clean
+pnpm build           # must produce all routes
+pnpm dev             # smoke-test any new UI
+```
+
+If you add a new env var: add it to `.env.example` with a placeholder value and
+document its purpose in the comment above it.
+
+## Reference
+
+- `NEXTEP_REBUILD_PLAN.md` — full 14-week plan with rationale
+- `README.md` — user-facing overview + setup
+- Legacy `nextep/` repo — reference implementation (don't port verbatim;
+  use as ground truth for data shapes and product behavior)
+- [agents.md spec](https://agents.md/) — how this file is consumed
