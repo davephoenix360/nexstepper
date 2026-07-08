@@ -1,20 +1,22 @@
-import type { ResumeData } from '@/lib/resume-schema';
-import { cn } from '@/lib/utils';
+import type { ResumeData } from "@/lib/resume-schema";
+import { cn } from "@/lib/utils";
 
-import type { ResumeTemplate } from './types';
+import type { ResumeTemplate } from "./types";
 
-import * as React from 'react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
-import { Plus, X } from 'lucide-react';
+import * as React from "react";
+import { useFieldArray, useFormContext } from "react-hook-form";
+import { Plus, X } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   EditableText,
   EditableTextarea,
   AddWorkButton,
   BulletList,
-  KeywordChips
-} from '@/components/editable';
+  KeywordChips,
+} from "@/components/editable";
+import { DateRange } from "./date-range";
+import { ContactLineEditable, LocationLineEditable } from "./header-lines";
 
 /**
  * The "Classic" resume template.
@@ -59,7 +61,7 @@ import {
  */
 export function ClassicTemplate({
   data,
-  editable = false
+  editable = false,
 }: {
   data: ResumeData;
   editable?: boolean;
@@ -74,7 +76,7 @@ export function ClassicTemplate({
   const { control: rootControl } = useFormContext() as never;
   const { remove: removeWork } = useFieldArray({
     control: rootControl,
-    name: 'sections.work'
+    name: "sections.work",
   }) as unknown as { remove: (i: number) => void };
 
   // Light helpers — kept local so the template stays self-contained.
@@ -95,12 +97,15 @@ export function ClassicTemplate({
    * inside `@media print`, so the on-screen view is unaffected.
    */
   const printHiddenIf = (empty: boolean): string | undefined =>
-    editable && empty ? 'print:hidden' : undefined;
+    editable && empty ? "print:hidden" : undefined;
 
   const b = sections.basics;
   const contactBits = [b.email, b.phone, b.url].filter(isSet);
-  const locBits = [b.location.city, b.location.region, b.location.countryCode]
-    .filter(isSet);
+  const locBits = [
+    b.location.city,
+    b.location.region,
+    b.location.countryCode,
+  ].filter(isSet);
 
   // Section visibility. In editable mode, the Experience section is
   // always rendered — even with zero entries — so the "+ Add a work
@@ -132,8 +137,8 @@ export function ClassicTemplate({
   return (
     <article
       className={cn(
-        'mx-auto w-full max-w-[8.5in] bg-white text-zinc-900 shadow-lg ring-1 ring-zinc-200/60 print:max-w-none print:shadow-none print:ring-0',
-        'font-[Inter,sans-serif] text-[11pt] leading-[1.45] text-zinc-800'
+        "mx-auto w-full max-w-[8.5in] bg-white text-zinc-900 shadow-lg ring-1 ring-zinc-200/60 print:max-w-none print:shadow-none print:ring-0",
+        "font-[Inter,sans-serif] text-[11pt] leading-[1.45] text-zinc-800",
       )}
       data-template="classic"
     >
@@ -141,13 +146,13 @@ export function ClassicTemplate({
         {showHeader && (
           <header
             className={cn(
-              'mb-6 border-b border-zinc-300 pb-4',
+              "mb-6 border-b border-zinc-300 pb-4",
               printHiddenIf(
                 !isSet(b.name) &&
                   !isSet(b.label) &&
                   contactBits.length === 0 &&
-                  locBits.length === 0
-              )
+                  locBits.length === 0,
+              ),
             )}
           >
             {/* Name (h1) */}
@@ -182,28 +187,33 @@ export function ClassicTemplate({
               )
             )}
 
-            {/* Contact line (email · phone · url) */}
-            <div className="mt-2 text-[10pt] text-zinc-600">
-              {editable ? (
-                <ContactLineEditable contact={b} />
-              ) : contactBits.length > 0 ? (
-                contactBits.map((bit, i) => (
+            {/* Contact line (email · phone · url) — the editable
+                component owns its own wrapper + print:hidden, so it
+                can suppress the "· ·" separator row entirely from
+                the PDF when all three fields are empty. Read-only
+                still returns null on empty (no need to render the
+                wrapper at all). */}
+            {editable ? (
+              <ContactLineEditable contact={b} />
+            ) : contactBits.length > 0 ? (
+              <div className="mt-2 text-[10pt] text-zinc-600">
+                {contactBits.map((bit, i) => (
                   <span key={`${bit}-${i}`}>
                     {i > 0 && <span className="mx-2 text-zinc-400">·</span>}
                     {bit}
                   </span>
-                ))
-              ) : null}
-            </div>
+                ))}
+              </div>
+            ) : null}
 
-            {/* Location */}
-            <div className="mt-1 text-[10pt] text-zinc-500">
-              {editable ? (
-                <LocationLineEditable location={b.location} />
-              ) : locBits.length > 0 ? (
-                locBits.join(', ')
-              ) : null}
-            </div>
+            {/* Location — same pattern as the contact line. */}
+            {editable ? (
+              <LocationLineEditable location={b.location} />
+            ) : locBits.length > 0 ? (
+              <div className="mt-1 text-[10pt] text-zinc-500">
+                {locBits.join(", ")}
+              </div>
+            ) : null}
 
             {/* Online profiles — line of "LinkedIn: dave · GitHub:
                 davephoenix360 · …". Read-only stays a flat paragraph
@@ -223,7 +233,7 @@ export function ClassicTemplate({
                       <span key={`${p.network}-${i}`}>
                         {i > 0 && <span className="mx-2 text-zinc-400">·</span>}
                         {p.network}
-                        {isSet(p.username) ? `: ${p.username}` : ''}
+                        {isSet(p.username) ? `: ${p.username}` : ""}
                       </span>
                     ))}
                 </p>
@@ -234,10 +244,7 @@ export function ClassicTemplate({
 
         {/* Summary */}
         {showSummary && (
-          <Section
-            title="Summary"
-            className={printHiddenIf(!isSet(b.summary))}
-          >
+          <Section title="Summary" className={printHiddenIf(!isSet(b.summary))}>
             {editable ? (
               <EditableTextarea
                 path="sections.basics.summary"
@@ -272,7 +279,7 @@ export function ClassicTemplate({
                     />
                   ) : (
                     <h3 className="text-[12pt] font-semibold text-zinc-900">
-                      {isSet(w.company) ? w.company : 'Company'}
+                      {isSet(w.company) ? w.company : "Company"}
                     </h3>
                   )}
                   {editable ? (
@@ -329,12 +336,9 @@ export function ClassicTemplate({
                         <div key={`work-${i}-pos-${j}`}>
                           <div className="flex items-baseline justify-between gap-3">
                             <p className="text-[11pt] font-medium text-zinc-800">
-                              {isSet(p.title) ? p.title : 'Position'}
+                              {isSet(p.title) ? p.title : "Position"}
                             </p>
-                            <DateRange
-                              start={p.startDate}
-                              end={p.endDate}
-                            />
+                            <DateRange start={p.startDate} end={p.endDate} />
                           </div>
                           {has(p.highlights) && (
                             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
@@ -365,10 +369,13 @@ export function ClassicTemplate({
             ) : (
               <div>
                 {sections.projects.map((p, i) => (
-                  <div key={`proj-${i}`} className="mb-3 last:mb-0 print:break-inside-avoid">
+                  <div
+                    key={`proj-${i}`}
+                    className="mb-3 last:mb-0 print:break-inside-avoid"
+                  >
                     <div className="flex items-baseline justify-between gap-3">
                       <h3 className="text-[12pt] font-semibold text-zinc-900">
-                        {isSet(p.name) ? p.name : 'Project'}
+                        {isSet(p.name) ? p.name : "Project"}
                       </h3>
                       <DateRange start={p.startDate} end={p.endDate} />
                     </div>
@@ -386,7 +393,7 @@ export function ClassicTemplate({
                     )}
                     {has(p.keywords) && (
                       <p className="mt-1 text-[10pt] text-zinc-500">
-                        {p.keywords.join(' · ')}
+                        {p.keywords.join(" · ")}
                       </p>
                     )}
                   </div>
@@ -409,11 +416,11 @@ export function ClassicTemplate({
                 {sections.skills.map((s, i) => (
                   <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
                     <span className="font-medium text-zinc-900">
-                      {isSet(s.name) ? s.name : 'Category'}
+                      {isSet(s.name) ? s.name : "Category"}
                     </span>
                     {has(s.keywords) && (
                       <span className="text-zinc-700">
-                        — {s.keywords.join(', ')}
+                        — {s.keywords.join(", ")}
                       </span>
                     )}
                   </div>
@@ -440,7 +447,7 @@ export function ClassicTemplate({
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <h3 className="text-[12pt] font-semibold text-zinc-900">
-                        {isSet(e.institution) ? e.institution : 'Institution'}
+                        {isSet(e.institution) ? e.institution : "Institution"}
                       </h3>
                       <DateRange start={e.startDate} end={e.endDate} />
                     </div>
@@ -448,10 +455,10 @@ export function ClassicTemplate({
                       {[
                         e.degree.degreeLevel,
                         ...e.degree.majors,
-                        ...e.degree.minors.map((m) => `Minor: ${m}`)
+                        ...e.degree.minors.map((m) => `Minor: ${m}`),
                       ]
                         .filter(isSet)
-                        .join(', ')}
+                        .join(", ")}
                       {isSet(e.location) && (
                         <span className="ml-2 text-zinc-500">
                           — {e.location}
@@ -459,9 +466,7 @@ export function ClassicTemplate({
                       )}
                     </p>
                     {isSet(e.gpa) && (
-                      <p className="text-[10pt] text-zinc-500">
-                        GPA: {e.gpa}
-                      </p>
+                      <p className="text-[10pt] text-zinc-500">GPA: {e.gpa}</p>
                     )}
                   </div>
                 ))}
@@ -481,15 +486,22 @@ export function ClassicTemplate({
             ) : (
               <div>
                 {sections.volunteer.map((v, i) => (
-                  <div key={`vol-${i}`} className="mb-3 last:mb-0 print:break-inside-avoid">
+                  <div
+                    key={`vol-${i}`}
+                    className="mb-3 last:mb-0 print:break-inside-avoid"
+                  >
                     <div className="flex items-baseline justify-between gap-3">
                       <h3 className="text-[12pt] font-semibold text-zinc-900">
-                        {isSet(v.organization) ? v.organization : 'Organization'}
+                        {isSet(v.organization)
+                          ? v.organization
+                          : "Organization"}
                       </h3>
                       <DateRange start={v.startDate} end={v.endDate} />
                     </div>
                     {isSet(v.position) && (
-                      <p className="mt-0.5 text-[11pt] text-zinc-700">{v.position}</p>
+                      <p className="mt-0.5 text-[11pt] text-zinc-700">
+                        {v.position}
+                      </p>
                     )}
                     {has(v.highlights) && (
                       <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
@@ -516,13 +528,18 @@ export function ClassicTemplate({
             ) : (
               <div>
                 {sections.awards.map((a, i) => (
-                  <div key={`award-${i}`} className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid">
+                  <div
+                    key={`award-${i}`}
+                    className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid"
+                  >
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="font-semibold text-zinc-900">
-                        {isSet(a.title) ? a.title : 'Award'}
+                        {isSet(a.title) ? a.title : "Award"}
                       </span>
                       {isSet(a.date) && (
-                        <span className="text-[10pt] text-zinc-500">{a.date}</span>
+                        <span className="text-[10pt] text-zinc-500">
+                          {a.date}
+                        </span>
                       )}
                     </div>
                     {isSet(a.awarder) && (
@@ -555,10 +572,12 @@ export function ClassicTemplate({
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="font-semibold text-zinc-900">
-                        {isSet(c.name) ? c.name : 'Certificate'}
+                        {isSet(c.name) ? c.name : "Certificate"}
                       </span>
                       {isSet(c.date) && (
-                        <span className="text-[10pt] text-zinc-500">{c.date}</span>
+                        <span className="text-[10pt] text-zinc-500">
+                          {c.date}
+                        </span>
                       )}
                     </div>
                     {isSet(c.issuer) && (
@@ -588,10 +607,12 @@ export function ClassicTemplate({
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="font-semibold text-zinc-900">
-                        {isSet(p.name) ? p.name : 'Publication'}
+                        {isSet(p.name) ? p.name : "Publication"}
                       </span>
                       {isSet(p.releaseDate) && (
-                        <span className="text-[10pt] text-zinc-500">{p.releaseDate}</span>
+                        <span className="text-[10pt] text-zinc-500">
+                          {p.releaseDate}
+                        </span>
                       )}
                     </div>
                     {isSet(p.publisher) && (
@@ -623,7 +644,7 @@ export function ClassicTemplate({
                     className="flex gap-2 text-[11pt] print:break-inside-avoid"
                   >
                     <span className="font-medium text-zinc-900">
-                      {isSet(l.language) ? l.language : 'Language'}
+                      {isSet(l.language) ? l.language : "Language"}
                     </span>
                     {isSet(l.fluency) && (
                       <span className="text-zinc-700">— {l.fluency}</span>
@@ -651,11 +672,11 @@ export function ClassicTemplate({
                     className="flex gap-2 text-[11pt] print:break-inside-avoid"
                   >
                     <span className="font-medium text-zinc-900">
-                      {isSet(it.name) ? it.name : 'Category'}
+                      {isSet(it.name) ? it.name : "Category"}
                     </span>
                     {has(it.keywords) && (
                       <span className="text-zinc-700">
-                        — {it.keywords.join(', ')}
+                        — {it.keywords.join(", ")}
                       </span>
                     )}
                   </div>
@@ -698,66 +719,9 @@ export function ClassicTemplate({
 }
 
 /**
- * Editable contact line — three EditableTexts separated by " · ".
- * Renders the contact line inline so it stays one tag in the DOM (good
- * for PDF copy/paste and screen-reader a11y).
- */
-function ContactLineEditable({
-  contact
-}: {
-  contact: ResumeData['sections']['basics'];
-}) {
-  const items: Array<{ path: string; placeholder: string }> = [
-    { path: 'sections.basics.email', placeholder: 'email@example.com' },
-    { path: 'sections.basics.phone', placeholder: '+1 (555) 123-4567' },
-    { path: 'sections.basics.url', placeholder: 'website.com' }
-  ];
-  return (
-    <>
-      {items.map((item, i) => (
-        <span key={item.path}>
-          {i > 0 && <span className="mx-2 text-zinc-400">·</span>}
-          <EditableText
-            path={item.path}
-            className="inline"
-            placeholder={item.placeholder}
-          />
-        </span>
-      ))}
-    </>
-  );
-}
-
-/**
- * Editable location — three EditableTexts in the canonical "city, region,
- * country" order. Empty fields collapse visually because each EditableText
- * shows muted placeholder when empty (e.g. "City").
- */
-function LocationLineEditable({
-  location
-}: {
-  location: ResumeData['sections']['basics']['location'];
-}) {
-  return (
-    <>
-      <EditableText
-        path="sections.basics.location.city"
-        className="inline"
-        placeholder="City"
-      />
-      <EditableText
-        path="sections.basics.location.region"
-        className="inline before:content-[',_'] ml-1"
-        placeholder="Region"
-      />
-      <EditableText
-        path="sections.basics.location.countryCode"
-        className="inline before:content-[',_'] ml-1"
-        placeholder="Country"
-      />
-    </>
-  );
-}
+ * ContactLineEditable + LocationLineEditable moved to
+ * ./header-lines.tsx so they could be unit-tested in isolation.
+ * The print-hide-when-all-empty logic lives there too.
 
 /**
  * Section wrapper — small uppercase tracking-wide title with a thin rule
@@ -771,14 +735,14 @@ function LocationLineEditable({
 function Section({
   title,
   children,
-  className
+  className,
 }: {
   title: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <section className={cn('mb-5 last:mb-0', className)}>
+    <section className={cn("mb-5 last:mb-0", className)}>
       <h2 className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700">
         {title}
       </h2>
@@ -788,67 +752,10 @@ function Section({
 }
 
 /**
- * Compact date range — handles "Present" / empty trailing endDates cleanly.
- * Shows just the year part for ISO 8601 dates (`2020-01-15` → `2020`)
- * because resumes almost never care about month precision.
- *
- * Editable variant
- * ---------------
- * When `editable` is true, the start and end become two EditableTexts
- * with a separator. Empty end renders as "Present" (ResumeData
- * convention). Both fields use the same typography as the static view
- * so the on-screen + print rendering stays aligned.
+ * DateRange was moved to ./date-range.tsx so it could be unit-tested
+ * and so classic.tsx would stop being 1900+ lines. See that file
+ * for the full contract.
  */
-function DateRange({
-  start,
-  end,
-  editable = false,
-  startPath,
-  endPath
-}: {
-  start?: string;
-  end?: string;
-  editable?: boolean;
-  startPath?: string;
-  endPath?: string;
-}) {
-  const fmt = (d: string | undefined) => {
-    if (!isSet_(d)) return '';
-    const m = /^(\d{4})/.exec(d!.trim());
-    return m ? m[1] : d;
-  };
-  const s = fmt(start);
-  const e = fmt(end);
-
-  if (editable && startPath && endPath) {
-    return (
-      <span className="inline-flex items-baseline gap-1 whitespace-nowrap text-[10pt] text-zinc-500">
-        <EditableText
-          path={startPath}
-          className="inline w-12 text-right"
-          placeholder="YYYY"
-        />
-        <span>–</span>
-        <EditableText
-          path={endPath}
-          className="inline w-12"
-          placeholder="Present"
-        />
-      </span>
-    );
-  }
-
-  if (!s && !e) return null;
-  return (
-    <span className="text-[10pt] whitespace-nowrap text-zinc-500">
-      {s || '—'} – {e || 'Present'}
-    </span>
-  );
-}
-
-function isSet_(s: string | undefined | null) {
-  return Boolean(s && s.trim());
-}
 
 /**
  * Inline-editable Skills section. Renders one row per skill category
@@ -868,15 +775,15 @@ function SkillsInline() {
   // because we never read `form` directly here.
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.skills'
+    name: "sections.skills",
   });
 
   function handleAdd() {
-    append({ name: '', level: '', keywords: [] });
+    append({ name: "", level: "", keywords: [] });
     // Focus the new category-name chip after paint.
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.skills.' + fields.length + '.name"]'
+        '[data-testid="editable-sections.skills.' + fields.length + '.name"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -955,25 +862,25 @@ function EducationInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.education'
+    name: "sections.education",
   });
 
   function handleAdd() {
     append({
-      institution: '',
-      url: '',
-      location: '',
-      degree: { degreeLevel: '', majors: [], minors: [] },
-      startDate: '',
-      endDate: '',
-      gpa: '',
-      courses: []
+      institution: "",
+      url: "",
+      location: "",
+      degree: { degreeLevel: "", majors: [], minors: [] },
+      startDate: "",
+      endDate: "",
+      gpa: "",
+      courses: [],
     });
     requestAnimationFrame(() => {
       const el = document.querySelector(
         '[data-testid="editable-sections.education.' +
           fields.length +
-          '.institution"]'
+          '.institution"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1003,6 +910,13 @@ function EducationInline() {
             </h3>
             <DateRange
               editable
+              // `field` is the useFieldArray row — typed as
+              // Record<"id", string>, no section-specific fields. The
+              // shape is locked in by the Zod schema; the cast keeps
+              // the call site readable. (See the work-positions block
+              // for the full reasoning.)
+              start={(field as { startDate?: string }).startDate}
+              end={(field as { endDate?: string }).endDate}
               startPath={`sections.education.${i}.startDate`}
               endPath={`sections.education.${i}.endDate`}
             />
@@ -1060,23 +974,23 @@ function ProjectsInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.projects'
+    name: "sections.projects",
   });
 
   function handleAdd() {
     append({
-      name: '',
-      description: '',
+      name: "",
+      description: "",
       highlights: [],
       keywords: [],
-      startDate: '',
-      endDate: '',
-      url: '',
-      roles: []
+      startDate: "",
+      endDate: "",
+      url: "",
+      roles: [],
     });
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.projects.' + fields.length + '.name"]'
+        '[data-testid="editable-sections.projects.' + fields.length + '.name"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1100,6 +1014,8 @@ function ProjectsInline() {
             </h3>
             <DateRange
               editable
+              start={(field as { startDate?: string }).startDate}
+              end={(field as { endDate?: string }).endDate}
               startPath={`sections.projects.${i}.startDate`}
               endPath={`sections.projects.${i}.endDate`}
             />
@@ -1162,24 +1078,24 @@ function VolunteerInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.volunteer'
+    name: "sections.volunteer",
   });
 
   function handleAdd() {
     append({
-      organization: '',
-      position: '',
-      url: '',
-      startDate: '',
-      endDate: '',
-      summary: '',
-      highlights: []
+      organization: "",
+      position: "",
+      url: "",
+      startDate: "",
+      endDate: "",
+      summary: "",
+      highlights: [],
     });
     requestAnimationFrame(() => {
       const el = document.querySelector(
         '[data-testid="editable-sections.volunteer.' +
           fields.length +
-          '.organization"]'
+          '.organization"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1208,6 +1124,8 @@ function VolunteerInline() {
             </h3>
             <DateRange
               editable
+              start={(field as { startDate?: string }).startDate}
+              end={(field as { endDate?: string }).endDate}
               startPath={`sections.volunteer.${i}.startDate`}
               endPath={`sections.volunteer.${i}.endDate`}
             />
@@ -1267,14 +1185,14 @@ function AwardsInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.awards'
+    name: "sections.awards",
   });
 
   function handleAdd() {
-    append({ title: '', date: '', awarder: '', summary: '' });
+    append({ title: "", date: "", awarder: "", summary: "" });
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.awards.' + fields.length + '.title"]'
+        '[data-testid="editable-sections.awards.' + fields.length + '.title"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1355,14 +1273,16 @@ function CertificatesInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.certificates'
+    name: "sections.certificates",
   });
 
   function handleAdd() {
-    append({ name: '', date: '', issuer: '', url: '' });
+    append({ name: "", date: "", issuer: "", url: "" });
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.certificates.' + fields.length + '.name"]'
+        '[data-testid="editable-sections.certificates.' +
+          fields.length +
+          '.name"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1434,20 +1354,22 @@ function PublicationsInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.publications'
+    name: "sections.publications",
   });
 
   function handleAdd() {
     append({
-      name: '',
-      publisher: '',
-      releaseDate: '',
-      url: '',
-      summary: ''
+      name: "",
+      publisher: "",
+      releaseDate: "",
+      url: "",
+      summary: "",
     });
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.publications.' + fields.length + '.name"]'
+        '[data-testid="editable-sections.publications.' +
+          fields.length +
+          '.name"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1521,14 +1443,16 @@ function LanguagesInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.languages'
+    name: "sections.languages",
   });
 
   function handleAdd() {
-    append({ language: '', fluency: '' });
+    append({ language: "", fluency: "" });
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.languages.' + fields.length + '.language"]'
+        '[data-testid="editable-sections.languages.' +
+          fields.length +
+          '.language"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1595,14 +1519,16 @@ function InterestsInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.interests'
+    name: "sections.interests",
   });
 
   function handleAdd() {
-    append({ name: '', keywords: [] });
+    append({ name: "", keywords: [] });
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.interests.' + fields.length + '.name"]'
+        '[data-testid="editable-sections.interests.' +
+          fields.length +
+          '.name"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1668,14 +1594,16 @@ function ReferencesInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.references'
+    name: "sections.references",
   });
 
   function handleAdd() {
-    append({ name: '', reference: '' });
+    append({ name: "", reference: "" });
     requestAnimationFrame(() => {
       const el = document.querySelector(
-        '[data-testid="editable-sections.references.' + fields.length + '.name"]'
+        '[data-testid="editable-sections.references.' +
+          fields.length +
+          '.name"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1750,16 +1678,16 @@ function OnlineProfilesInline() {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: 'sections.basics.profiles'
+    name: "sections.basics.profiles",
   });
 
   function handleAdd() {
-    append({ network: '', username: '', url: '' });
+    append({ network: "", username: "", url: "" });
     requestAnimationFrame(() => {
       const el = document.querySelector(
         '[data-testid="editable-sections.basics.profiles.' +
           fields.length +
-          '.network"]'
+          '.network"]',
       );
       (el as HTMLElement | null)?.click();
     });
@@ -1854,24 +1782,21 @@ function WorkPositionsNested({ workIndex }: { workIndex: number }) {
   const { control } = useFormContext() as never;
   const { fields, append, remove } = useFieldArray({
     control: control as never,
-    name: `sections.work.${workIndex}.positions`
+    name: `sections.work.${workIndex}.positions`,
   });
 
   function handleAdd() {
-    append({ title: '', startDate: '', endDate: '', highlights: [] });
+    append({ title: "", startDate: "", endDate: "", highlights: [] });
     requestAnimationFrame(() => {
       const node = document.querySelector(
-        `[data-testid="editable-sections.work.${workIndex}.positions.${fields.length}.title"]`
+        `[data-testid="editable-sections.work.${workIndex}.positions.${fields.length}.title"]`,
       );
       (node as HTMLElement | null)?.click();
     });
   }
 
   return (
-    <div
-      className="space-y-3"
-      data-testid={`work-${workIndex}-positions`}
-    >
+    <div className="space-y-3" data-testid={`work-${workIndex}-positions`}>
       {fields.map((p, j) => (
         <div
           key={p.id}
@@ -1887,6 +1812,14 @@ function WorkPositionsNested({ workIndex }: { workIndex: number }) {
             />
             <DateRange
               editable
+              // `p` is the useFieldArray row — typed as Record<"id",
+              // string> & { disabled? }, no Position fields. The
+              // shape is locked in by the Zod schema at the form's
+              // root, so this cast is safe; if the schema ever drifts
+              // the work-section tests will catch the mismatch before
+              // it reaches here.
+              start={(p as { startDate?: string }).startDate}
+              end={(p as { endDate?: string }).endDate}
               startPath={`sections.work.${workIndex}.positions.${j}.startDate`}
               endPath={`sections.work.${workIndex}.positions.${j}.endDate`}
             />
@@ -1926,10 +1859,10 @@ function WorkPositionsNested({ workIndex }: { workIndex: number }) {
 
 export const classicTemplate = {
   meta: {
-    id: 'classic',
-    name: 'Classic',
-    version: '1.0.0',
-    description: 'Single-column, generous whitespace, ATS-friendly.'
+    id: "classic",
+    name: "Classic",
+    version: "1.0.0",
+    description: "Single-column, generous whitespace, ATS-friendly.",
   },
-  Component: ClassicTemplate
+  Component: ClassicTemplate,
 } as const satisfies ResumeTemplate;

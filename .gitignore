@@ -43,6 +43,7 @@ postgres_data/
 # Local dev artifacts
 *.local.log
 dev-server.*.log
+dev*.log
 *.tsbuildinfo
 
 # Mavis agent credentials (never commit; the .mavis-agent.md file

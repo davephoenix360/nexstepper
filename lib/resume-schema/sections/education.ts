@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { optionalFlexibleUrl } from '../url';
+
 /**
  * Education schema (JSON Resume v1.0.0 `education`).
  */
@@ -12,7 +14,7 @@ export const degreeSchema = z.object({
 
 export const educationEntrySchema = z.object({
   institution: z.string().default(''),
-  url: z.url().or(z.literal('')).default(''),
+  url: optionalFlexibleUrl,
   location: z.string().default(''),
   degree: degreeSchema.default({ degreeLevel: '', majors: [], minors: [] }),
   startDate: z.string().default(''),

@@ -14,6 +14,10 @@
  *            with identical typography classes plus an underline hint.
  *  - Empty:  idle renders the placeholder text in muted color so the
  *            editor never looks broken for an unfinished resume.
+ *            The placeholder is wrapped in a <span class="print:hidden">
+ *            so it disappears from the printed / Save-as-PDF output —
+ *            we don't want "Click to add" or "Job title" appearing in
+ *            the user's actual resume.
  *
  * Required:
  *  - Must be rendered inside an RHF <FormProvider> from react-hook-form
@@ -171,7 +175,22 @@ export function EditableText({
         isEmpty && 'text-muted-foreground'
       )}
     >
-      {isEmpty ? placeholder : value}
+      {isEmpty ? (
+        // `print:hidden` strips the placeholder from the printed
+        // output (and the "Save as PDF" path that goes through the
+        // browser's print engine). Without this, every empty field
+        // would render its "Click to add" / "Job title" copy on the
+        // final resume. The on-screen editor still shows it; only
+        // @media print (Tailwind's `print:` variant) is affected.
+        <span
+          className="print:hidden"
+          data-testid={`editable-${path}-placeholder`}
+        >
+          {placeholder}
+        </span>
+      ) : (
+        value
+      )}
     </Tag>
   );
 }
@@ -267,7 +286,19 @@ export function EditableTextarea({
         isEmpty && 'text-muted-foreground italic'
       )}
     >
-      {isEmpty ? placeholder : value}
+      {isEmpty ? (
+        // `print:hidden` strips the placeholder from the printed
+        // output. See EditableText for the rationale - this is the
+        // textarea sibling of that same fix.
+        <span
+          className="print:hidden"
+          data-testid={`editable-${path}-placeholder`}
+        >
+          {placeholder}
+        </span>
+      ) : (
+        value
+      )}
     </div>
   );
 }

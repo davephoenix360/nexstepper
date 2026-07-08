@@ -70,7 +70,16 @@ export function BulletList({
   if (fields.length === 0) {
     return (
       <div className="flex flex-wrap items-baseline gap-2 text-[11pt]">
-        <span className="italic text-zinc-400">{emptyText}</span>
+        {/* `print:hidden` strips the "No bullets yet" hint from the
+            printed PDF. The Add button has `.no-print` already. Both
+            are editor-only affordances and shouldn't appear on the
+            final resume. */}
+        <span
+          className="italic text-zinc-400 print:hidden"
+          data-testid={`empty-bullets-${path.replace(/\./g, '-')}`}
+        >
+          {emptyText}
+        </span>
         <Button
           type="button"
           variant="outline"

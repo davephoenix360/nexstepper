@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { optionalFlexibleUrl } from '../url';
+
 /**
  * Profile schema (JSON Resume v1.0.0 `basics`).
  * Personal info: name, label, contact, location, online profiles.
@@ -15,7 +17,7 @@ export const locationSchema = z.object({
 export const profileSchema = z.object({
   network: z.string(), // e.g. "LinkedIn", "GitHub", "Twitter"
   username: z.string().default(''),
-  url: z.url().or(z.literal('')).default('') // empty allowed so the form is forgiving
+  url: optionalFlexibleUrl // empty allowed so the form is forgiving
 });
 
 export const basicsSchema = z.object({
@@ -23,7 +25,7 @@ export const basicsSchema = z.object({
   label: z.string().default(''), // e.g. "Senior Software Engineer"
   email: z.email().or(z.literal('')).default(''),
   phone: z.string().default(''),
-  url: z.url().or(z.literal('')).default(''), // personal website
+  url: optionalFlexibleUrl, // personal website (accepts bare domains)
   summary: z.string().default(''),
   location: locationSchema.default({
     address: '',

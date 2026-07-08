@@ -57,6 +57,10 @@ export type {
   ReferenceEntry
 } from './sections';
 
+// URL helper — human-friendly URL field that accepts bare domains and
+// normalizes them to https://. See ./url.ts for the full contract.
+export { flexibleUrl, optionalFlexibleUrl } from './url';
+
 // Envelope
 export { resumeDataSchema, parseResumeData } from './resume-data';
 export type { ResumeData } from './resume-data';

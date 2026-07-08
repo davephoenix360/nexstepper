@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { optionalFlexibleUrl } from '../url';
+
 /**
  * Work-experience schema (JSON Resume v1.0.0 `work`).
  * One entry per company; each company has one or more `positions` (used when
@@ -17,7 +19,7 @@ export const positionSchema = z.object({
 export const workEntrySchema = z.object({
   company: z.string().default(''),
   location: z.string().default(''),
-  url: z.url().or(z.literal('')).default(''),
+  url: optionalFlexibleUrl,
   description: z.string().default(''), // company-level summary
   positions: z.array(positionSchema).default([])
 });

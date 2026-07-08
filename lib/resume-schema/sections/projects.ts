@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { optionalFlexibleUrl } from '../url';
+
 /**
  * Projects schema (JSON Resume v1.0.0 `projects`).
  * Side / open-source / portfolio work, separate from employment history.
@@ -12,7 +14,7 @@ export const projectEntrySchema = z.object({
   keywords: z.array(z.string()).default([]), // tech stack, e.g. ["React", "TypeScript"]
   startDate: z.string().default(''),
   endDate: z.string().default(''), // empty = ongoing
-  url: z.url().or(z.literal('')).default(''),
+  url: optionalFlexibleUrl,
   roles: z.array(z.string()).default([]) // e.g. ["Tech Lead", "Solo Developer"]
 });
 

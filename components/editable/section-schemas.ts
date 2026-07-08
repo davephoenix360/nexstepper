@@ -60,7 +60,12 @@ const arraySection = (label: string, path: string, description: string) => ({
   // use; no callers today (every section is inline-editable now).
   schema: z.object({ items: z.array(z.unknown()) }) as never,
   toItems: (currentValue: unknown) => ({ items: currentValue ?? [] }),
-  fromItems: (data: unknown) => (data as { items?: unknown }).items ?? []
+  // Optional-chained access on `data` so `null`/`undefined`/missing-input
+  // don't throw before the `?? []` fallback fires. SchemaForm never feeds
+  // us `null` in practice (it always submits a validated object), but
+  // this is the defensive floor for a function exposed as a public helper.
+  fromItems: (data: unknown) =>
+    (data as { items?: unknown } | null | undefined)?.items ?? []
 });
 
 /**
@@ -83,7 +88,8 @@ function arraySectionWithSchema(
     description,
     schema: z.object({ items: arraySchema }) as unknown as SectionDialogSchema,
     toItems: (currentValue: unknown) => ({ items: currentValue ?? [] }),
-    fromItems: (data: unknown) => (data as { items?: unknown }).items ?? []
+    fromItems: (data: unknown) =>
+      (data as { items?: unknown } | null | undefined)?.items ?? []
   };
 }
 
