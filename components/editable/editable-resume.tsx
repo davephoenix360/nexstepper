@@ -40,7 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '@/components/ui/tooltip';
-import { classicTemplate, getTemplate } from '@/components/resume-templates';
+import { getTemplate, TemplatePicker } from '@/components/resume-templates';
 import { EditSectionDialog } from './edit-section-dialog';
 import { SECTION_DIALOGS } from './section-schemas';
 import {
@@ -84,10 +84,23 @@ export function EditableResume({
     mode: 'onSubmit'
   });
 
-  const template = getTemplate(initialData.template);
-  // We're always using the Classic template here; the registry's `template`
-  // resolves to it as well, kept for the meta label + version.
-  const Template = classicTemplate.Component;
+  // Resolve the template reactively from the form value so the picker
+  // can switch templates without a page reload. The picker calls
+  // `form.setValue('template', id)` on selection, which re-renders
+  // this and swaps the rendered template.
+  //
+  // The form is typed as `never` because of the resolver cast
+  // (above); we read the template field through an `as never` cast
+  // to keep the rest of the form types loose without losing
+  // template-reactivity.
+  const watchedTemplate = (form as { watch: (n: string) => unknown }).watch(
+    'template'
+  );
+  const currentTemplateId =
+    (typeof watchedTemplate === 'string' ? watchedTemplate : null) ??
+    initialData.template;
+  const template = getTemplate(currentTemplateId);
+  const Template = template.Component;
 
   async function handleSave(values: ResumeData) {
     // Clear any prior validation banner — a successful save has no errors.
@@ -176,10 +189,14 @@ export function EditableResume({
             Hidden in print via .no-print. */}
         <div className="no-print flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              Template: <strong>{template.meta.name}</strong> v
-              {template.meta.version}
-            </span>
+            <TemplatePicker
+              disabled={pending}
+              onTemplatePicked={() => {
+                // The picker dispatches the form's own submit
+                // handler; this is just a hook for future toast /
+                // analytics calls.
+              }}
+            />
             <Button
               type="button"
               variant="outline"

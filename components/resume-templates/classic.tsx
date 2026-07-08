@@ -1,7 +1,7 @@
+"use client";
+
 import type { ResumeData } from "@/lib/resume-schema";
 import { cn } from "@/lib/utils";
-
-import type { ResumeTemplate } from "./types";
 
 import * as React from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
@@ -1856,13 +1856,3 @@ function WorkPositionsNested({ workIndex }: { workIndex: number }) {
     </div>
   );
 }
-
-export const classicTemplate = {
-  meta: {
-    id: "classic",
-    name: "Classic",
-    version: "1.0.0",
-    description: "Single-column, generous whitespace, ATS-friendly.",
-  },
-  Component: ClassicTemplate,
-} as const satisfies ResumeTemplate;
