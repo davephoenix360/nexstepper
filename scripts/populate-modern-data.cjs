@@ -34,40 +34,54 @@ const sampleData = {
       {
         company: 'Lumen Cloud',
         location: 'Remote',
-        position: 'Staff Frontend Engineer',
-        startDate: '2022-04',
-        endDate: '',
-        highlights: [
-          'Led migration of the design system from CSS-in-JS to Tailwind v4, cutting bundle size by 38%',
-          'Authored the in-house Playwright + Visual Regression pipeline used by 14 product teams',
-          'Mentored 5 engineers; 3 promoted within the same year'
-        ],
-        summary: '',
-        keywords: ['React', 'TypeScript', 'Next.js', 'Tailwind', 'Playwright']
+        positions: [
+          {
+            title: 'Staff Frontend Engineer',
+            startDate: '2022-04',
+            endDate: '',
+            highlights: [
+              'Led migration of the design system from CSS-in-JS to Tailwind v4, cutting bundle size by 38%',
+              'Authored the in-house Playwright + Visual Regression pipeline used by 14 product teams',
+              'Mentored 5 engineers; 3 promoted within the same year'
+            ],
+            summary: '',
+            keywords: []
+          }
+        ]
       },
       {
         company: 'Northbeam',
         location: 'San Francisco, CA',
-        position: 'Senior Frontend Engineer',
-        startDate: '2019-08',
-        endDate: '2022-03',
-        highlights: [
-          'Rebuilt the analytics dashboard in Next.js; time-to-interactive dropped from 4.2s to 0.9s',
-          'Owned the in-product charting library used by 90% of paying customers'
-        ],
-        summary: '',
-        keywords: ['React', 'D3.js', 'Storybook']
+        positions: [
+          {
+            title: 'Senior Frontend Engineer',
+            startDate: '2019-08',
+            endDate: '2022-03',
+            highlights: [
+              'Rebuilt the analytics dashboard in Next.js; time-to-interactive dropped from 4.2s to 0.9s',
+              'Owned the in-product charting library used by 90% of paying customers'
+            ],
+            summary: '',
+            keywords: []
+          }
+        ]
       }
     ],
     education: [
       {
         institution: 'Carnegie Mellon University',
+        url: '',
         area: 'Computer Science',
-        studyType: 'BS',
+        studyType: 'Bachelor',
         startDate: '2013-09',
         endDate: '2017-05',
         score: '3.91',
-        courses: []
+        courses: [],
+        degree: {
+          degreeLevel: 'BS',
+          majors: ['Computer Science'],
+          minors: []
+        }
       }
     ],
     skills: [

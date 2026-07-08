@@ -106,10 +106,15 @@ export function DateRange({
   // The dash only earns its place when BOTH sides have something
   // to separate. Showing " – " with empty values on either side
   // is exactly the bug we set out to fix.
-  const showDash = hasStart && hasEnd;
-  // Read-only path: if the whole range is empty, hide the
-  // component entirely so we don't reserve header space.
+  // The dash earns its place whenever there is a start (the start
+  // anchors the range). Previously we only showed the dash when
+  // BOTH sides had user-supplied values, which collapsed the common
+  // "current role" pattern "2022 – Present" into "2022Present".
+  // "Present" is still a real end value, so the dash wins whenever
+  // there's at least a start. If there's only an end (rare), we
+  // skip the dash entirely — "— – 2024" reads worse than "2024".
   const hasAny = hasStart || hasEnd;
+  const showDash = hasStart;
 
   if (!hasAny) return null;
 

@@ -14,9 +14,19 @@
  *   - Same single-column ATS-friendly layout. atsSafe: true.
  *
  * Architecture (per the meta + code split in ./meta.ts):
- *   - `meta` lives in this file as MODERN_TEMPLATE_META (data).
- *   - `Component` lives below (code). The picker / pricing / PDF
- *     cache pipeline reads only the meta; the renderer reads both.
+ *   - `meta` lives in `./meta.ts` as MODERN_TEMPLATE_META (data).
+ *   - `Component` (this file) is the render code. The picker /
+ *     pricing / PDF cache pipeline reads only the meta.
+ *
+ * Read-only / print / PDF render:
+ *   Every section renderer uses `<Field>` (and FieldArea, FieldChips,
+ *   FieldBullets) instead of `EditableText` etc. In the editor
+ *   (editable=true) Field forwards to the RHF-bound editor primitive,
+ *   which renders the click-to-edit affordances the WYSIWYG editor
+ *   expects. Outside the editor (editable=false), Field renders
+ *   plain `<span>` / `<p>` / `<ul>` from `data` directly — no form
+ *   context needed, no `X` / `+ Add` affordances leaking into print.
+ *   See `./field.tsx` for the contract.
  *
  * Why we copy the section renderers instead of extracting them:
  *   We considered pulling `SkillsInline` / `EducationInline` etc. out
@@ -27,7 +37,7 @@
  *       extracting a primitive with a `variant` prop would be more
  *       config surface than the section renderers themselves.
  *     - The duplication is bounded — about 600 lines of mostly
- *       declarative RHF reads. The next refactor (when we have 4+
+ *       declarative data reads. The next refactor (when we have 4+
  *       templates) is to extract just the data-binding shape with
  *       a `style: 'classic' | 'modern'` variant, not full component
  *       extraction.
@@ -35,22 +45,20 @@
  *   When a third template is added, this decision is revisited.
  */
 
-import * as React from "react";
-import { FormProvider, useForm } from "react-hook-form";
-import { Plus, X } from "lucide-react";
+import * as React from 'react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
+import { ContactLineEditable, LocationLineEditable } from './header-lines';
+import { DateRange } from './date-range';
 import {
-  EditableText,
-  EditableTextarea,
-  BulletList,
-  KeywordChips
-} from "@/components/editable";
-
-import { DateRange } from "./date-range";
-import { ContactLineEditable, LocationLineEditable } from "./header-lines";
-import { MODERN_TEMPLATE_META } from "./meta";
-import type { ResumeData } from "@/lib/resume-schema";
+  Field,
+  FieldArea,
+  FieldBullets,
+  FieldChips,
+  type FieldMode
+} from './field';
+import { MODERN_TEMPLATE_META } from './meta';
+import type { ResumeData } from '@/lib/resume-schema';
 
 /* -------------------------------------------------------------------------- */
 /*  Root                                                                       */
@@ -63,29 +71,10 @@ export function ModernTemplate({
   data: ResumeData;
   editable?: boolean;
 }) {
-  const template = data.template;
-  const accent = (
-    template && MODERN_TEMPLATE_META.id === template
-      ? MODERN_TEMPLATE_META
-      : MODERN_TEMPLATE_META
-  ).accent;
+  const accent = MODERN_TEMPLATE_META.accent;
+  const mode: FieldMode = { editable, data };
 
-  // In editable mode the parent (EditableResume) already provides the
-  // form context. In read-only mode (preview, print, future PDF render)
-  // we spin up a static FormProvider seeded from `data` so the
-  // Editable* children below can keep reading their values via
-  // useFormContext / useController without each call site needing to
-  // be rewritten. The form is writeable but no consumers fire onChange
-  // here, so it stays in sync with `data`.
-  const readonlyForm = useForm({ defaultValues: data as never });
-  const wrap = (children: React.ReactNode) =>
-    editable ? (
-      children
-    ) : (
-      <FormProvider {...readonlyForm}>{children}</FormProvider>
-    );
-
-  return wrap(
+  return (
     <div
       data-template="modern"
       data-accent={accent}
@@ -95,8 +84,8 @@ export function ModernTemplate({
       className="mx-auto w-full max-w-[8.5in] bg-white text-zinc-900 shadow-lg ring-1 ring-zinc-200/60 print:max-w-none print:shadow-none print:ring-0"
     >
       <div className="px-12 py-10 print:px-0 print:py-0">
-        <ModernHeader data={data} editable={editable} accent={accent} />
-        <ModernBody data={data} editable={editable} accent={accent} />
+        <ModernHeader mode={mode} accent={accent} />
+        <ModernBody mode={mode} />
       </div>
     </div>
   );
@@ -107,81 +96,80 @@ export function ModernTemplate({
 /* -------------------------------------------------------------------------- */
 
 function ModernHeader({
-  data,
-  editable,
+  mode,
   accent
 }: {
-  data: ResumeData;
-  editable: boolean;
+  mode: FieldMode;
   accent: string;
 }) {
-  const b = data.sections.basics;
   return (
     <header className="mb-6 border-b-2 border-zinc-900 pb-4">
       {/* Name + label */}
       <div className="mb-3">
         <h1 className="text-[32pt] font-bold leading-none tracking-tight text-zinc-900">
-          {editable ? (
-            <EditableText
-              path="sections.basics.name"
-              className="inline"
-              placeholder="Your name"
-            />
-          ) : isSet(b.name) ? (
-            b.name
-          ) : null}
+          <Field
+            mode={mode}
+            path="sections.basics.name"
+            as="span"
+            className="inline"
+            placeholder="Your name"
+          />
         </h1>
-        {editable ? (
-          <p className="mt-1 text-[12pt] font-medium uppercase tracking-wider text-zinc-600">
-            <EditableText
-              path="sections.basics.label"
-              className="inline"
-              placeholder="Senior Software Engineer"
-            />
-          </p>
-        ) : isSet(b.label) ? (
-          <p className="mt-1 text-[12pt] font-medium uppercase tracking-wider text-zinc-600">
-            {b.label}
-          </p>
-        ) : null}
+        <p className="mt-1 text-[12pt] font-medium uppercase tracking-wider text-zinc-600">
+          <Field
+            mode={mode}
+            path="sections.basics.label"
+            as="span"
+            className="inline"
+            placeholder="Senior Software Engineer"
+          />
+        </p>
       </div>
 
-      {/* Contact + location (same EditableText-backed components as Classic) */}
-      {editable ? (
-        <>
-          <ContactLineEditable contact={b} />
-          <LocationLineEditable location={b.location} />
-        </>
+      {/* Contact + location. In editable mode the editor-specific
+          components give us hover/focus affordances + per-field
+          path binding; in read-only mode we read directly from data
+          via our own component, no editor chrome. */}
+      {mode.editable ? (
+        <ContactLineScope mode={mode} />
       ) : (
-        <ModernContactReadonly basics={b} />
+        <ReadonlyContactScope mode={mode} />
       )}
 
       {/* Accent line — the visual signature */}
       <div
         aria-hidden="true"
         className="mt-3 h-1 w-16 rounded-full"
-        style={{ backgroundColor: "var(--modern-accent, #4f46e5)" }}
+        style={{ backgroundColor: 'var(--modern-accent, #4f46e5)' }}
         data-accent-bar={accent}
       />
     </header>
   );
 }
 
-function isSet(s: string | undefined | null): boolean {
-  return Boolean(s && s.trim());
+/**
+ * Thin adapters so the header stays a single element. The editor's
+ * `<ContactLineEditable>` / `<LocationLineEditable>` already pull
+ * values via useController from the form context — we only use them
+ * inside the editor's FormProvider.
+ */
+function ContactLineScope({ mode }: { mode: FieldMode }) {
+  const basics = mode.data.sections.basics;
+  return (
+    <>
+      <ContactLineEditable contact={basics} />
+      <LocationLineEditable location={basics.location} />
+    </>
+  );
 }
 
-function ModernContactReadonly({
-  basics
-}: {
-  basics: ResumeData["sections"]["basics"];
-}) {
-  const contactBits = [basics.email, basics.phone, basics.url].filter(isSet);
-  const locBits = [
-    basics.location.city,
-    basics.location.region,
-    basics.location.countryCode
-  ].filter(isSet);
+function ReadonlyContactScope({ mode }: { mode: FieldMode }) {
+  const b = mode.data.sections.basics;
+  const isSet = (s: string | undefined | null) => Boolean(s && s.trim());
+  const contactBits = [b.email, b.phone, b.url].filter(isSet);
+  const locBits = [b.location.city, b.location.region, b.location.countryCode].filter(
+    isSet
+  );
 
   if (!contactBits.length && !locBits.length) return null;
 
@@ -198,7 +186,7 @@ function ModernContactReadonly({
         </div>
       )}
       {locBits.length > 0 && (
-        <div className="mt-1 text-zinc-500">{locBits.join(", ")}</div>
+        <div className="mt-1 text-zinc-500">{locBits.join(', ')}</div>
       )}
     </div>
   );
@@ -208,44 +196,34 @@ function ModernContactReadonly({
 /*  Body                                                                       */
 /* -------------------------------------------------------------------------- */
 
-function ModernBody({
-  data,
-  editable,
-  accent: _accent
-}: {
-  data: ResumeData;
-  editable: boolean;
-  accent: string;
-}) {
+function ModernBody({ mode }: { mode: FieldMode }) {
+  const summary = mode.data.sections.basics.summary;
+  const hasSummary = Boolean(summary && summary.trim());
   return (
     <main className="space-y-5">
-      {isSet(data.sections.basics.summary) && (
-        <ModernSection title="Summary" editable={editable}>
-          {editable ? (
-            <EditableTextarea
-              path="sections.basics.summary"
-              className="block w-full text-[11pt] leading-relaxed"
-              placeholder="A couple of lines summarizing who you are and what you're looking for."
-            />
-          ) : (
-            <p className="text-[11pt] leading-relaxed text-zinc-700">
-              {data.sections.basics.summary}
-            </p>
-          )}
+      {hasSummary && (
+        <ModernSection title="Summary">
+          <FieldArea
+            mode={mode}
+            path="sections.basics.summary"
+            className="block w-full text-[11pt] leading-relaxed"
+            placeholder="A couple of lines summarizing who you are and what you're looking for."
+            readOnlyAs="p"
+          />
         </ModernSection>
       )}
 
-      <ModernExperience data={data} editable={editable} />
-      <ModernProjects data={data} editable={editable} />
-      <ModernEducation data={data} editable={editable} />
-      <ModernSkills data={data} editable={editable} />
-      <ModernVolunteer data={data} editable={editable} />
-      <ModernAwards data={data} editable={editable} />
-      <ModernCertificates data={data} editable={editable} />
-      <ModernPublications data={data} editable={editable} />
-      <ModernLanguages data={data} editable={editable} />
-      <ModernInterests data={data} editable={editable} />
-      <ModernReferences data={data} editable={editable} />
+      <ModernExperience mode={mode} />
+      <ModernProjects mode={mode} />
+      <ModernEducation mode={mode} />
+      <ModernSkills mode={mode} />
+      <ModernVolunteer mode={mode} />
+      <ModernAwards mode={mode} />
+      <ModernCertificates mode={mode} />
+      <ModernPublications mode={mode} />
+      <ModernLanguages mode={mode} />
+      <ModernInterests mode={mode} />
+      <ModernReferences mode={mode} />
     </main>
   );
 }
@@ -256,11 +234,9 @@ function ModernBody({
 
 function ModernSection({
   title,
-  editable: _editable,
   children
 }: {
   title: string;
-  editable: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -278,27 +254,20 @@ function ModernSection({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Per-section renderers (mirror classic's data flow, modern chrome)         */
+/*  Per-section renderers — all drive off `mode` (editable + data).            */
 /* -------------------------------------------------------------------------- */
 
-function ModernExperience({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.work?.length) return null;
+function has<T>(arr: T[] | undefined | null): arr is T[] {
+  return Array.isArray(arr) && arr.length > 0;
+}
+
+function ModernExperience({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.work)) return null;
   return (
-    <ModernSection title="Experience" editable={editable}>
+    <ModernSection title="Experience">
       <div className="space-y-4">
-        {data.sections.work.map((w, i) => (
-          <ModernWorkEntry
-            key={`w-${i}`}
-            index={i}
-            data={data}
-            editable={editable}
-          />
+        {mode.data.sections.work.map((_, i) => (
+          <ModernWorkEntry key={`w-${i}`} mode={mode} index={i} />
         ))}
       </div>
     </ModernSection>
@@ -306,29 +275,31 @@ function ModernExperience({
 }
 
 function ModernWorkEntry({
-  index,
-  data,
-  editable
+  mode,
+  index
 }: {
+  mode: FieldMode;
   index: number;
-  data: ResumeData;
-  editable: boolean;
 }) {
-  const w = data.sections.work[index];
+  const w = mode.data.sections.work[index];
   if (!w) return null;
   return (
     <div>
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3">
         <h3 className="text-[12pt] font-semibold text-zinc-900">
-          <EditableText
+          <Field
+            mode={mode}
             path={`sections.work.${index}.company`}
+            as="span"
             className="inline"
             placeholder="Company"
           />
         </h3>
         <span className="text-[10pt] text-zinc-500">
-          <EditableText
+          <Field
+            mode={mode}
             path={`sections.work.${index}.location`}
+            as="span"
             className="inline"
             placeholder="Remote"
           />
@@ -336,13 +307,12 @@ function ModernWorkEntry({
       </div>
       {has(w.positions) ? (
         <div className="space-y-3 pl-3">
-          {w.positions.map((p, j) => (
+          {w.positions.map((_, j) => (
             <ModernWorkPosition
               key={`p-${j}`}
+              mode={mode}
               workIndex={index}
               positionIndex={j}
-              data={data}
-              editable={editable}
             />
           ))}
         </div>
@@ -352,128 +322,124 @@ function ModernWorkEntry({
 }
 
 function ModernWorkPosition({
+  mode,
   workIndex,
-  positionIndex,
-  data,
-  editable
+  positionIndex
 }: {
+  mode: FieldMode;
   workIndex: number;
   positionIndex: number;
-  data: ResumeData;
-  editable: boolean;
 }) {
-  const p = data.sections.work[workIndex]?.positions?.[positionIndex];
+  const p = mode.data.sections.work[workIndex]?.positions?.[positionIndex];
   if (!p) return null;
+  const start = p.startDate;
+  const end = p.endDate;
   return (
     <div>
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3">
         <p className="text-[11pt] font-medium text-zinc-800">
-          <EditableText
+          <Field
+            mode={mode}
             path={`sections.work.${workIndex}.positions.${positionIndex}.title`}
+            as="span"
             className="inline"
             placeholder="Title"
           />
         </p>
         <DateRange
-          editable={editable}
-          start={p.startDate}
-          end={p.endDate}
+          editable={mode.editable}
+          start={start}
+          end={end}
           startPath={`sections.work.${workIndex}.positions.${positionIndex}.startDate`}
           endPath={`sections.work.${workIndex}.positions.${positionIndex}.endDate`}
         />
       </div>
-      {has(p.highlights) && (
-        <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
-          {p.highlights.map((h, k) => (
-            <li key={`h-${k}`}>{h}</li>
-          ))}
-        </ul>
-      )}
+      <FieldBullets
+        mode={mode}
+        path={`sections.work.${workIndex}.positions.${positionIndex}.highlights`}
+        placeholder="A concrete, quantified accomplishment."
+        itemClassName="text-[11pt] marker:text-zinc-400"
+        className="mt-1 list-disc space-y-0.5 pl-5"
+      />
     </div>
   );
 }
 
-function ModernProjects({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.projects?.length) return null;
+function ModernProjects({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.projects)) return null;
   return (
-    <ModernSection title="Projects" editable={editable}>
+    <ModernSection title="Projects">
       <div className="space-y-3">
-        {data.sections.projects.map((p, i) => (
-          <div key={`p-${i}`}>
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <h3 className="text-[12pt] font-semibold text-zinc-900">
-                <EditableText
-                  path={`sections.projects.${i}.name`}
-                  className="inline"
-                  placeholder="Project name"
+        {mode.data.sections.projects.map((p, i) => {
+          const hasKeywords = has(p.keywords);
+          return (
+            <div key={`p-${i}`}>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <h3 className="text-[12pt] font-semibold text-zinc-900">
+                  <Field
+                    mode={mode}
+                    path={`sections.projects.${i}.name`}
+                    as="span"
+                    className="inline"
+                    placeholder="Project name"
+                  />
+                </h3>
+                <DateRange
+                  editable={mode.editable}
+                  start={p.startDate}
+                  end={p.endDate}
+                  startPath={`sections.projects.${i}.startDate`}
+                  endPath={`sections.projects.${i}.endDate`}
                 />
-              </h3>
-              <DateRange
-                editable={editable}
-                start={p.startDate}
-                end={p.endDate}
-                startPath={`sections.projects.${i}.startDate`}
-                endPath={`sections.projects.${i}.endDate`}
-              />
-            </div>
-            {isSet(p.description) && (
-              <p className="mt-0.5 text-[11pt] text-zinc-700">{p.description}</p>
-            )}
-            {has(p.highlights) && (
-              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
-                {p.highlights.map((h, k) => (
-                  <li key={`h-${k}`}>{h}</li>
-                ))}
-              </ul>
-            )}
-            {has(p.keywords) && (
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {p.keywords.map((k, idx) => (
-                  <span
-                    key={idx}
-                    className="rounded border border-zinc-300 px-1.5 py-0.5 text-[9pt] text-zinc-600"
-                  >
-                    {k}
-                  </span>
-                ))}
               </div>
-            )}
-          </div>
-        ))}
+              <Field
+                mode={mode}
+                path={`sections.projects.${i}.description`}
+                as="p"
+                className="mt-0.5 text-[11pt] text-zinc-700"
+                placeholder=""
+              />
+              <FieldBullets
+                mode={mode}
+                path={`sections.projects.${i}.highlights`}
+                itemClassName="text-[11pt] marker:text-zinc-400"
+                className="mt-1 list-disc space-y-0.5 pl-5"
+              />
+              {hasKeywords && (
+                <FieldChips
+                  mode={mode}
+                  path={`sections.projects.${i}.keywords`}
+                  className="mt-1"
+                  chipClassName="text-[9pt]"
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </ModernSection>
   );
 }
 
-function ModernEducation({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.education?.length) return null;
+function ModernEducation({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.education)) return null;
   return (
-    <ModernSection title="Education" editable={editable}>
+    <ModernSection title="Education">
       <div className="space-y-3">
-        {data.sections.education.map((e, i) => (
+        {mode.data.sections.education.map((e, i) => (
           <div key={`e-${i}`}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
               <h3 className="text-[12pt] font-semibold text-zinc-900">
-                <EditableText
+                <Field
+                  mode={mode}
                   path={`sections.education.${i}.institution`}
+                  as="span"
                   className="inline"
                   placeholder="Institution"
                 />
               </h3>
               <DateRange
-                editable={editable}
+                editable={mode.editable}
                 start={e.startDate}
                 end={e.endDate}
                 startPath={`sections.education.${i}.startDate`}
@@ -481,17 +447,20 @@ function ModernEducation({
               />
             </div>
             <p className="text-[11pt] text-zinc-700">
-              <EditableText
+              <Field
+                mode={mode}
                 path={`sections.education.${i}.degree.degreeLevel`}
+                as="span"
                 className="inline"
                 placeholder="Degree"
               />
               {has(e.degree.majors) && (
                 <span className="text-zinc-500">
-                  {" "}
-                  ·{" "}
-                  <EditableText
+                  {' · '}
+                  <Field
+                    mode={mode}
                     path={`sections.education.${i}.degree.majors.0`}
+                    as="span"
                     className="inline"
                     placeholder="major"
                   />
@@ -505,28 +474,28 @@ function ModernEducation({
   );
 }
 
-function ModernSkills({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.skills?.length) return null;
+function ModernSkills({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.skills)) return null;
   return (
-    <ModernSection title="Skills" editable={editable}>
+    <ModernSection title="Skills">
       <div className="space-y-2">
-        {data.sections.skills.map((s, i) => (
-          <div key={`s-${i}`} className="flex flex-wrap gap-x-3 text-[11pt]">
+        {mode.data.sections.skills.map((_, i) => (
+          <div
+            key={`s-${i}`}
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11pt]"
+          >
             <span className="min-w-[140px] font-semibold text-zinc-900">
-              <EditableText
+              <Field
+                mode={mode}
                 path={`sections.skills.${i}.name`}
+                as="span"
                 className="inline"
                 placeholder="Category"
               />
             </span>
             <span className="flex-1 text-zinc-700">
-              <KeywordChips
+              <FieldChips
+                mode={mode}
                 path={`sections.skills.${i}.keywords`}
                 placeholder="keyword"
               />
@@ -538,42 +507,44 @@ function ModernSkills({
   );
 }
 
-function ModernVolunteer({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.volunteer?.length) return null;
+function ModernVolunteer({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.volunteer)) return null;
   return (
-    <ModernSection title="Volunteer" editable={editable}>
+    <ModernSection title="Volunteer">
       <div className="space-y-3">
-        {data.sections.volunteer.map((v, i) => (
+        {mode.data.sections.volunteer.map((v, i) => (
           <div key={`v-${i}`}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
               <h3 className="text-[12pt] font-semibold text-zinc-900">
-                <EditableText
+                <Field
+                  mode={mode}
                   path={`sections.volunteer.${i}.organization`}
+                  as="span"
                   className="inline"
                   placeholder="Organization"
                 />
               </h3>
               <DateRange
-                editable={editable}
+                editable={mode.editable}
                 start={v.startDate}
                 end={v.endDate}
                 startPath={`sections.volunteer.${i}.startDate`}
                 endPath={`sections.volunteer.${i}.endDate`}
               />
             </div>
-            <p className="text-[11pt] text-zinc-700">
-              <EditableText
-                path={`sections.volunteer.${i}.position`}
-                className="inline"
-                placeholder="Role"
-              />
-            </p>
+            <Field
+              mode={mode}
+              path={`sections.volunteer.${i}.position`}
+              as="p"
+              className="text-[11pt] text-zinc-700"
+              placeholder="Role"
+            />
+            <FieldBullets
+              mode={mode}
+              path={`sections.volunteer.${i}.highlights`}
+              itemClassName="text-[11pt] marker:text-zinc-400"
+              className="mt-1 list-disc space-y-0.5 pl-5"
+            />
           </div>
         ))}
       </div>
@@ -581,34 +552,41 @@ function ModernVolunteer({
   );
 }
 
-function ModernAwards({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.awards?.length) return null;
+function ModernAwards({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.awards)) return null;
   return (
-    <ModernSection title="Awards" editable={editable}>
+    <ModernSection title="Awards">
       <div className="space-y-2">
-        {data.sections.awards.map((a, i) => (
-            <div key={`a-${i}`} className="flex flex-wrap items-baseline justify-between gap-x-3">
+        {mode.data.sections.awards.map((a, i) => (
+          <div
+            key={`a-${i}`}
+            className="flex flex-wrap items-baseline justify-between gap-x-3"
+          >
             <div>
               <h3 className="text-[11pt] font-semibold text-zinc-900">
-                <EditableText
+                <Field
+                  mode={mode}
                   path={`sections.awards.${i}.title`}
+                  as="span"
                   className="inline"
                   placeholder="Award title"
                 />
               </h3>
-              {isSet(a.awarder) && (
-                <p className="text-[10pt] text-zinc-500">{a.awarder}</p>
-              )}
+              <Field
+                mode={mode}
+                path={`sections.awards.${i}.awarder`}
+                as="p"
+                className="text-[10pt] text-zinc-500"
+                placeholder=""
+              />
             </div>
-            {isSet(a.date) && (
-              <span className="text-[10pt] text-zinc-500">{a.date}</span>
-            )}
+            <Field
+              mode={mode}
+              path={`sections.awards.${i}.date`}
+              as="span"
+              className="text-[10pt] text-zinc-500"
+              placeholder=""
+            />
           </div>
         ))}
       </div>
@@ -616,34 +594,41 @@ function ModernAwards({
   );
 }
 
-function ModernCertificates({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.certificates?.length) return null;
+function ModernCertificates({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.certificates)) return null;
   return (
-    <ModernSection title="Certificates" editable={editable}>
+    <ModernSection title="Certificates">
       <div className="space-y-2">
-        {data.sections.certificates.map((c, i) => (
-            <div key={`c-${i}`} className="flex flex-wrap items-baseline justify-between gap-x-3">
+        {mode.data.sections.certificates.map((c, i) => (
+          <div
+            key={`c-${i}`}
+            className="flex flex-wrap items-baseline justify-between gap-x-3"
+          >
             <div>
               <h3 className="text-[11pt] font-semibold text-zinc-900">
-                <EditableText
+                <Field
+                  mode={mode}
                   path={`sections.certificates.${i}.name`}
+                  as="span"
                   className="inline"
                   placeholder="Certificate name"
                 />
               </h3>
-              {isSet(c.issuer) && (
-                <p className="text-[10pt] text-zinc-500">{c.issuer}</p>
-              )}
+              <Field
+                mode={mode}
+                path={`sections.certificates.${i}.issuer`}
+                as="p"
+                className="text-[10pt] text-zinc-500"
+                placeholder=""
+              />
             </div>
-            {isSet(c.date) && (
-              <span className="text-[10pt] text-zinc-500">{c.date}</span>
-            )}
+            <Field
+              mode={mode}
+              path={`sections.certificates.${i}.date`}
+              as="span"
+              className="text-[10pt] text-zinc-500"
+              placeholder=""
+            />
           </div>
         ))}
       </div>
@@ -651,32 +636,29 @@ function ModernCertificates({
   );
 }
 
-function ModernPublications({
-  data,
-  editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.publications?.length) return null;
+function ModernPublications({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.publications)) return null;
   return (
-    <ModernSection title="Publications" editable={editable}>
+    <ModernSection title="Publications">
       <div className="space-y-2">
-        {data.sections.publications.map((p, i) => (
+        {mode.data.sections.publications.map((_, i) => (
           <div key={`p-${i}`}>
             <h3 className="text-[11pt] font-semibold text-zinc-900">
-              <EditableText
+              <Field
+                mode={mode}
                 path={`sections.publications.${i}.name`}
+                as="span"
                 className="inline"
                 placeholder="Title"
               />
             </h3>
-            {isSet(p.publisher) && (
-              <p className="text-[10pt] text-zinc-500">
-                {p.publisher}
-                {isSet(p.releaseDate) && ` · ${p.releaseDate}`}
-              </p>
-            )}
+            <Field
+              mode={mode}
+              path={`sections.publications.${i}.publisher`}
+              as="span"
+              className="text-[10pt] text-zinc-500"
+              placeholder=""
+            />
           </div>
         ))}
       </div>
@@ -684,23 +666,27 @@ function ModernPublications({
   );
 }
 
-function ModernLanguages({
-  data,
-  editable: _editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.languages?.length) return null;
+function ModernLanguages({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.languages)) return null;
   return (
-    <ModernSection title="Languages" editable={_editable}>
-      <div className="flex flex-wrap gap-x-4 text-[11pt]">
-        {data.sections.languages.map((l, i) => (
-          <span key={`l-${i}`}>
-            <span className="font-semibold text-zinc-900">{l.language}</span>
-            {isSet(l.fluency) && (
-              <span className="ml-1 text-zinc-500">· {l.fluency}</span>
-            )}
+    <ModernSection title="Languages">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11pt]">
+        {mode.data.sections.languages.map((_, i) => (
+          <span key={`l-${i}`} className="flex items-center gap-1">
+            <Field
+              mode={mode}
+              path={`sections.languages.${i}.language`}
+              as="span"
+              className="font-semibold text-zinc-900"
+              placeholder="Language"
+            />
+            <Field
+              mode={mode}
+              path={`sections.languages.${i}.fluency`}
+              as="span"
+              className="text-zinc-500"
+              placeholder=""
+            />
           </span>
         ))}
       </div>
@@ -708,58 +694,53 @@ function ModernLanguages({
   );
 }
 
-function ModernInterests({
-  data,
-  editable: _editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.interests?.length) return null;
+function ModernInterests({ mode }: { mode: FieldMode }) {
+  // Interests are stored as `[{ name, keywords?: string[] }, ...]`.
+  // We render the joined keywords as a single line — same shape
+  // classic uses — and use Field at the entry boundary so the data
+  // contract stays one place.
+  if (!has(mode.data.sections.interests)) return null;
+  const keywords = mode.data.sections.interests
+    .flatMap((it) => it.keywords ?? [])
+    .filter(Boolean);
+  const preview = keywords.join(' · ');
   return (
-    <ModernSection title="Interests" editable={_editable}>
-      <p className="text-[11pt] text-zinc-700">
-        {data.sections.interests
-          .flatMap((i) => i.keywords ?? [])
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
+    <ModernSection title="Interests">
+      {preview ? (
+        <p className="text-[11pt] text-zinc-700">{preview}</p>
+      ) : (
+        <p className="text-[11pt] italic text-zinc-400">
+          No interests added yet.
+        </p>
+      )}
     </ModernSection>
   );
 }
 
-function ModernReferences({
-  data,
-  editable: _editable
-}: {
-  data: ResumeData;
-  editable: boolean;
-}) {
-  if (!data.sections.references?.length) return null;
+function ModernReferences({ mode }: { mode: FieldMode }) {
+  if (!has(mode.data.sections.references)) return null;
   return (
-    <ModernSection title="References" editable={_editable}>
+    <ModernSection title="References">
       <div className="space-y-2">
-        {data.sections.references.map((r, i) => (
+        {mode.data.sections.references.map((r, i) => (
           <div key={`r-${i}`}>
-            <p className="text-[11pt] font-semibold text-zinc-900">
-              {r.name}
-            </p>
-            {isSet(r.reference) && (
-              <p className="text-[11pt] italic text-zinc-600">
-                {r.reference}
-              </p>
-            )}
+            <Field
+              mode={mode}
+              path={`sections.references.${i}.name`}
+              as="p"
+              className="text-[11pt] font-semibold text-zinc-900"
+              placeholder="Reference name"
+            />
+            <Field
+              mode={mode}
+              path={`sections.references.${i}.reference`}
+              as="p"
+              className="text-[11pt] italic text-zinc-600"
+              placeholder=""
+            />
           </div>
         ))}
       </div>
     </ModernSection>
   );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Registry export                                                            */
-/* -------------------------------------------------------------------------- */
-
-function has<T>(arr: T[] | undefined | null): arr is T[] {
-  return Array.isArray(arr) && arr.length > 0;
 }

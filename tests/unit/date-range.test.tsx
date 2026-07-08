@@ -70,15 +70,17 @@ describe('DateRange — read-only', () => {
     expect(html).toBe('');
   });
 
-  it('shows only the start (no dash) when end is empty', () => {
+  it('shows the start + en-dash + "Present" when end is empty (current role)', () => {
+    // "I'm still here" is the implicit message of every range whose
+    // end is the current moment — i.e. a current role. The previous
+    // behavior dropped the dash when end was empty, producing
+    // "2022Present" which reads as a single mashed token. The fix
+    // shows the en-dash + "Present" so the range stays unambiguous
+    // in print.
     const html = renderToStaticMarkup(<DateRange start="Jan 2025" />);
     expect(html).toContain('Jan 2025');
-    // Falls back to "Present" for the empty trailing end so the
-    // range is unambiguous - "I'm still here" is the implicit
-    // message of every range whose end is the current moment.
+    expect(html).toContain(EN_DASH);
     expect(html).toContain('Present');
-    // But the dash must NOT appear - the start is alone.
-    expect(html).not.toContain(EN_DASH);
   });
 
   it('shows only the end with "—" fallback when start is empty', () => {
