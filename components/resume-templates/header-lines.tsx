@@ -4,9 +4,9 @@
  * Header contact / location lines — the two rows under the user's
  * name in the resume header.
  *
- * Two print bugs to fix in the same family:
+ * Three print bugs to defend against:
  *
- *  1. The `·` separator spans (contact line) and the `, `
+ *  1. The `·` separator spans (contact line) and the `,`
  *     separator spans (location line) used to print even when
  *     every value was empty. Each EditableText placeholder was
  *     correctly `print:hidden`, but the separators live in the
@@ -14,16 +14,19 @@
  *     "· ·" and ", ," floating alone.
  *
  *  2. With only ONE field filled, the trailing separators still
- *     rendered — "email · ·" or "Denver , ,". The fix is to
- *     condition each separator on BOTH the fields it sits
- *     between being non-empty.
+ *     rendered — "email · ·" or "Denver ,". Fix: condition each
+ *     separator on BOTH the fields it sits between being
+ *     non-empty, using cumulative "already seen a non-empty
+ *     value" tracking. Without the cumulative bit, a mid-array
+ *     gap (email + url but no phone) dropped the separator
+ *     entirely and the line read as "alex@example.comalex.dev"
+ *     — mashed without a visual break.
  *
- * The fix: each component reads the live form values via
- * `useController` and:
- *   - hides the whole wrapper with `print:hidden` when all
- *     three values are empty (no stray "· ·" row in the PDF);
- *   - suppresses each individual separator when either
- *     adjacent field is empty (no trailing "value · ·").
+ *  3. With all three filled, no separator between two of the
+ *     values (e.g. phone + url with no preceding email — first
+ *     field is empty) doesn't show a leading separator either.
+ *     The same cumulative-seen-non-empty tracker handles both
+ *     cases uniformly.
  *
  * Why own the wrapper <div> instead of relying on the parent?
  * Because the parent has to be a server component for the
@@ -47,9 +50,16 @@ import type { ResumeData } from '@/lib/resume-schema';
  * Editable contact line — email · phone · url separated by " · ".
  *
  * `print:hidden` is applied to the wrapper when all three values
- * are empty. Each `·` separator is additionally conditional on
- * both adjacent fields being filled, so a partial fill renders
- * as "email" or "email · phone" — never "email · ·".
+ * are empty. Each `·` separator shows when the *following* field
+ * has content AND at least one *previous* field has content.
+ * Strict pairwise adjacency (email && phone, phone && url) is
+ * correct for the first separator (between email and phone — they
+ * are adjacent) but breaks the second separator's mid-array gap
+ * case: when phone is empty but email and url are both filled,
+ * the original `phone && url` check returned false and the two
+ * rendered values ran together as "alex@example.comalex.dev".
+ * The fix for the *second* separator is to allow either preceding
+ * value to count — `(phone || email) && url`.
  */
 export function ContactLineEditable({
   contact: _contact
@@ -94,7 +104,7 @@ export function ContactLineEditable({
         className="inline"
         placeholder="+1 (555) 123-4567"
       />
-      {phone && url && (
+      {(phone || email) && url && (
         <span className="mx-2 text-zinc-400" aria-hidden="true">
           ·
         </span>
@@ -112,9 +122,10 @@ export function ContactLineEditable({
  * Editable location line — city, region, countryCode in the
  * canonical JSON Resume order.
  *
- * Same `print:hidden`-when-all-empty + per-separator logic as
- * the contact line. Each `, ` separator is conditional on both
- * adjacent fields being filled.
+ * Same fix as {@link ContactLineEditable}: the second separator
+ * (region→country) now allows either preceding value to count so
+ * a filled city + empty region + filled country still renders as
+ * "SF, US" rather than "SFUS".
  */
 export function LocationLineEditable({
   location: _location
@@ -158,7 +169,7 @@ export function LocationLineEditable({
         className="inline ml-1"
         placeholder="Region"
       />
-      {region && country && (
+      {(region || city) && country && (
         <span className="ml-1" aria-hidden="true">
           ,
         </span>

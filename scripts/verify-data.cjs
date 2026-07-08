@@ -5,4 +5,9 @@ sql`SELECT data FROM resume_revisions WHERE id = 'a777f6fc-7f92-4511-a0ef-e2224a
     console.log('typeof data:', typeof r.data);
     console.log('data:', JSON.stringify(r.data).slice(0, 500));
     sql.end();
+  })
+  .catch((err) => {
+    console.error('verify-data: query failed:', err);
+    sql.end();
+    process.exitCode = 1;
   });

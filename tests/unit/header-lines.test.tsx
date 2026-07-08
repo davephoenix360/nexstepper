@@ -163,6 +163,53 @@ describe('ContactLineEditable — print:hidden when all empty', () => {
     ).length;
     expect(separatorCount).toBe(1);
   });
+
+  it('shows a separator between email and url when the middle (phone) is empty', () => {
+    // The mid-array gap regression (CodeRabbit finding): when
+    // phone is empty but email + url are both filled, the OLD
+    // `phone && url` check on the trailing separator returned
+    // false and the two rendered values ran together as
+    // "alex@example.comalex.dev" with no visual break. The fix
+    // uses cumulative-tracking: `(phone || email) && url`.
+    const partial = {
+      ...emptyContact,
+      email: 'alex@example.com',
+      url: 'alex.dev'
+    };
+    const html = renderToStaticMarkup(
+      withForm({ sections: { basics: partial } }, () => (
+        <ContactLineEditable contact={partial} />
+      ))
+    );
+
+    expect(html).toContain('alex@example.com');
+    expect(html).toContain('alex.dev');
+    // Exactly one separator — between email and url (the gap
+    // case). The placeholder text for phone still renders on
+    // screen (it's part of the always-there EditableText), but
+    // only one `·` should print.
+    const separatorCount = (
+      html.match(/class="[^"]*mx-2[^"]*text-zinc-400[^"]*"/g) ?? []
+    ).length;
+    expect(separatorCount).toBe(1);
+  });
+
+  it('shows a separator when ONLY url is filled (cumulative, leads-correct)', () => {
+    // url alone → "alex.dev" with no separators. Used to be
+    // correct under the old strict-pairwise logic; the new
+    // cumulative logic must preserve it. (Defensive test.)
+    const partial = { ...emptyContact, url: 'alex.dev' };
+    const html = renderToStaticMarkup(
+      withForm({ sections: { basics: partial } }, () => (
+        <ContactLineEditable contact={partial} />
+      ))
+    );
+    expect(html).toContain('alex.dev');
+    const separatorCount = (
+      html.match(/class="[^"]*mx-2[^"]*text-zinc-400[^"]*"/g) ?? []
+    ).length;
+    expect(separatorCount).toBe(0);
+  });
 });
 
 describe('LocationLineEditable — print:hidden when all empty', () => {
@@ -344,6 +391,47 @@ describe('LocationLineEditable — print:hidden when all empty', () => {
       )
     );
 
+    const separatorCommas = (
+      html.match(/<span[^>]*aria-hidden="true"[^>]*>\s*,\s*<\/span>/g) ?? []
+    ).length;
+    expect(separatorCommas).toBe(1);
+  });
+
+  it('shows a separator between city and country when region is empty', () => {
+    // Mirrors the contact-line mid-gap regression: city +
+    // country filled, region empty, must read "SF, US" not
+    // "SFUS".
+    const html = renderToStaticMarkup(
+      withForm(
+        {
+          sections: {
+            basics: {
+              location: {
+                address: '',
+                postalCode: '',
+                city: 'SF',
+                region: '',
+                countryCode: 'US'
+              }
+            }
+          }
+        },
+        () => (
+          <LocationLineEditable
+            location={{
+              address: '',
+              postalCode: '',
+              city: 'SF',
+              region: '',
+              countryCode: 'US'
+            }}
+          />
+        )
+      )
+    );
+
+    expect(html).toContain('SF');
+    expect(html).toContain('US');
     const separatorCommas = (
       html.match(/<span[^>]*aria-hidden="true"[^>]*>\s*,\s*<\/span>/g) ?? []
     ).length;
