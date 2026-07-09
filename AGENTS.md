@@ -252,15 +252,57 @@ apps/web/                      # The Next.js app (becomes current root)
 pnpm typecheck       # must be clean
 pnpm build           # must produce all routes
 pnpm dev             # smoke-test any new UI
+pnpm test            # 236+ unit tests must stay green
 ```
 
 If you add a new env var: add it to `.env.example` with a placeholder value and
 document its purpose in the comment above it.
 
+## CodeRabbit review after each commit
+
+CodeRabbit is installed inside WSL at
+`/home/diepreye/.local/bin/coderabbit` (the official Linux CLI
+binary — there's no native Windows build, and the unsupported
+Sukarth port is brittle on Win 11 / msys2). The review process
+is driven from PowerShell via `scripts/coderabbit-review.ps1`
+because the cross-shell hop (msys2 bash → wsl.exe →
+coderabbit) is fragile for an automatic Git hook on Windows.
+
+**Trigger surface** — Mavis runs the launcher after every
+commit it makes. Manual invocation:
+
+```powershell
+scripts/coderabbit-review.ps1                  # last commit, light, plain
+scripts/coderabbit-review.ps1 -Base main       # all commits since main
+scripts/coderabbit-review.ps1 -Plain:$false    # agent-mode structured output
+```
+
+`--light` keeps the review under ~5 minutes (vs the default
+7-30 min). `--plain` emits human-readable text; pass
+`-Plain:$false` for structured JSON. Output streams to stdout
+in real time.
+
+**CodeRabbit auto-trial** — the `cr auth status` currently
+reads `Plan: Pro+`. That's the auto-trial that CodeRabbit
+grants on first signup; it ends ~14 days later and the account
+falls back to the Free tier (rate-limited: 200 files/hr,
+4 PRs/hr; no persistent learnings). After downgrade, the
+launcher still works; the only behavior change is that
+context-aware reviews with team learnings are disabled.
+Don't be alarmed when the plan flips.
+
+**Why no Git hook** — a `.git/hooks/post-commit` was attempted
+on 2026-07-08 and abandoned. The cross-shell detachment chain
+(msys2 `nohup` + `disown` → wsl.exe → coderabbit) was unreliable;
+the WSL child process often died with the parent bash, leaving
+no log trail. The PowerShell launcher is simpler, debuggable,
+and version-controlled.
+
 ## Reference
 
 - `NEXTEP_REBUILD_PLAN.md` — full 14-week plan with rationale
 - `README.md` — user-facing overview + setup
+- `scripts/coderabbit-review.ps1` — the CodeRabbit entry point
 - Legacy `nextep/` repo — reference implementation (don't port verbatim;
   use as ground truth for data shapes and product behavior)
 - [agents.md spec](https://agents.md/) — how this file is consumed
