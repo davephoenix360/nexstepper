@@ -260,21 +260,24 @@ document its purpose in the comment above it.
 
 ## CodeRabbit review after each commit
 
-CodeRabbit is installed inside WSL at
-`/home/diepreye/.local/bin/coderabbit` (the official Linux CLI
-binary — there's no native Windows build, and the unsupported
-Sukarth port is brittle on Win 11 / msys2). The review process
-is driven from PowerShell via `scripts/coderabbit-review.ps1`
-because the cross-shell hop (msys2 bash → wsl.exe →
-coderabbit) is fragile for an automatic Git hook on Windows.
+CodeRabbit is installed inside WSL — the official CLI is the
+Linux/macOS binary at whatever path `command -v coderabbit`
+returns there (typically `~/.local/bin/coderabbit` for the
+official install script). There's no native Windows build;
+the unsupported Sukarth port was brittle under Win 11 /
+msys2. The review process is driven from PowerShell via
+`scripts/coderabbit-review.ps1` because the cross-shell hop
+(msys2 bash → wsl.exe → coderabbit) is fragile for an
+automatic Git hook on Windows.
 
 **Trigger surface** — Mavis runs the launcher after every
 commit it makes. Manual invocation:
 
 ```powershell
-scripts/coderabbit-review.ps1                  # last commit, light, plain
-scripts/coderabbit-review.ps1 -Base main       # all commits since main
-scripts/coderabbit-review.ps1 -Plain:$false    # agent-mode structured output
+scripts/coderabbit-review.ps1                              # last commit, light, plain
+scripts/coderabbit-review.ps1 -Base main                   # all commits since main
+scripts/coderabbit-review.ps1 -Plain:$false                # agent-mode structured output
+scripts/coderabbit-review.ps1 -CrBinPath '~/bin/coderabbit'  # custom WSL install location
 ```
 
 `--light` keeps the review under ~5 minutes (vs the default
@@ -297,6 +300,14 @@ on 2026-07-08 and abandoned. The cross-shell detachment chain
 the WSL child process often died with the parent bash, leaving
 no log trail. The PowerShell launcher is simpler, debuggable,
 and version-controlled.
+
+**Path portability** — the launcher does NOT hardcode a
+WSL-home path. It discovers the binary via `wsl bash -lc
+'command -v coderabbit'` at runtime and falls back to
+`-CrBinPath` if the discovery returns empty. AGENTS.md
+references (and the launcher's own banner output) intentionally
+avoid mentioning `/home/<user>/` paths so this doc reads for
+any collaborator.
 
 ## Reference
 

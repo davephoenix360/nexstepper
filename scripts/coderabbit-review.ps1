@@ -31,6 +31,12 @@
     Default is true. Set `-Plain:$false` to capture structured
     findings for downstream tooling.
 
+.PARAMETER CrBinPath
+    Override the path inside WSL to the `coderabbit` binary.
+    Defaults to the installer's standard location
+    (`~/.local/bin/coderabbit`); set this if you installed
+    somewhere else (e.g. via a package manager).
+
 .EXAMPLE
     scripts/coderabbit-review.ps1
 
@@ -48,20 +54,42 @@
 
     Reviews the last commit and emits structured JSON to stdout
     for a coding agent (Mavis, Claude Code, etc) to parse.
+
+.EXAMPLE
+    scripts/coderabbit-review.ps1 -CrBinPath '/home/me/.local/bin/coderabbit'
+
+    Override the binary location when running under a different
+    WSL user.
 #>
 
 [CmdletBinding()]
 param(
     [string] $Base = 'HEAD~1',
     [ValidateSet('light', 'full')] [string] $Mode = 'light',
-    [bool] $Plain = $true
+    [bool] $Plain = $true,
+    [string] $CrBinPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
 
-# Lives inside WSL. Absolute path is more reliable than relying
-# on ~/.local/bin being in WSL's PATH for non-interactive shells.
-$crBin = '/home/diepreye/.local/bin/coderabbit'
+# Resolve the CodeRabbit binary inside WSL. Default location is
+# the installer's standard (~/.local/bin/coderabbit for the
+# official Linux install); we resolve dynamically via `command
+# -v` so the script is portable across WSL users and install
+# methods (apt, brew-on-Linux, direct download). An explicit
+# `-CrBinPath` wins. If `command -v coderabbit` returns empty
+# and no override was given, fail with an actionable message
+# instead of letting `wsl` surface a confusing exec failure
+# five minutes into the review.
+if ($CrBinPath) {
+    $crBin = $CrBinPath
+} else {
+    $discovered = (& wsl.exe bash -lc 'command -v coderabbit').Trim()
+    if (-not $discovered) {
+        throw "Could not locate 'coderabbit' inside WSL. Pass -CrBinPath or install the CLI on the WSL side."
+    }
+    $crBin = $discovered
+}
 
 # Check WSL is reachable before we spend 5 minutes on a review
 # that was always going to fail.
@@ -85,23 +113,44 @@ if ($Plain) {
 
 $crArgs += @('--base', $Base)
 
-# Locate the repo (PowerShell's CWD == git's root because the
-# script is invoked from the repo, but we resolve just in case
-# the user runs it from elsewhere). Pass the working directory
-# through to WSL — wsl.exe accepts Windows-style paths natively
-# on its `--cd` flag, so no wslpath round-trip is needed.
+# PowerShell's CWD == git's root because the script is invoked
+# from the repo, but resolve just in case the user runs it from
+# elsewhere. wsl.exe accepts a Windows-style path on its `--cd`
+# flag natively (no wslpath round-trip needed).
 $repoWindows = (Get-Location).Path
 
 Write-Host "CodeRabbit review: base=$Base mode=$Mode plain=$Plain" -ForegroundColor Cyan
 Write-Host "Repo:             $repoWindows" -ForegroundColor DarkGray
-Write-Host "Calling:          wsl --cd `\"$repoWindows`\" $crBin $($crArgs -join ' ')" -ForegroundColor DarkGray
+Write-Host "Binary (WSL):     $crBin" -ForegroundColor DarkGray
+Write-Host "Calling:          wsl --cd `"$repoWindows`" $crBin $($crArgs -join ' ')" -ForegroundColor DarkGray
 Write-Host ''
 
 # Synchronous invocation. Output streams as it arrives. We let
 # wsl inherit CWD via --cd so CodeRabbit can find
 # .git/.coderabbit.yaml/AGENTS.md without a flag-fest.
-& wsl.exe --cd "$repoWindows" "$crBin" @crArgs
-$exit = $LASTEXITCODE
+# Capture stderr + exit code separately: the previous version
+# crashed with a "Program 'wsl.exe' failed to run" error AFTER
+# printing the entire review output because PowerShell's
+# $LASTEXITCODE was being captured into an unspecified state.
+# Routing stdout/stderr through 2>&1 then checking $? restores
+# the standard PowerShell "did the last native call succeed"
+# signal without the spurious post-run exception.
+$stdoutLog = New-TemporaryFile
+$stderrLog = New-TemporaryFile
+try {
+    & wsl.exe --cd "$repoWindows" "$crBin" @crArgs 1> $stdoutLog 2> $stderrLog
+    $exit = $LASTEXITCODE
+} finally {
+    # Surface stderr if it's non-empty (CR sometimes warns to
+    # stderr about rate limits / auth that we want to keep in
+    # the user's view, NOT silently drop).
+    if ((Get-Content $stderrLog -Raw).Trim().Length -gt 0) {
+        Write-Host '--- stderr ---' -ForegroundColor Yellow
+        Get-Content $stderrLog | Write-Host -ForegroundColor Yellow
+        Write-Host '--- end stderr ---' -ForegroundColor Yellow
+    }
+    Remove-Item $stdoutLog, $stderrLog -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host ''
 if ($exit -eq 0) {
@@ -111,3 +160,4 @@ if ($exit -eq 0) {
 }
 
 exit $exit
+
