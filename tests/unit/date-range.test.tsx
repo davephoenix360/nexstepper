@@ -172,9 +172,12 @@ describe('DateRange — editable', () => {
 
   it('hides the dash in editable mode when only start is filled', () => {
     // "Jan 2025 – " with nothing after the dash would be the
-    // wrong output. If start is filled and end isn't, the user
-    // is mid-typing the end - no dash yet, "Present" placeholder
-    // visible so they know what to type.
+    // The editable child now mirrors the read-only path on Line
+    // 117 (showDash = hasStart). A current role with empty
+    // `endDate` renders "Jan 2025 – Present" while the user is
+    // mid-edit; previously the editor said "Jan 2025Present"
+    // (no separator) while the printed PDF said "Jan 2025 –
+    // Present" — same data, two different shapes.
     const html = renderToStaticMarkup(
       withForm(
         { sections: { work: { positions: [{ startDate: 'Jan 2025', endDate: '' }] } } },
@@ -192,7 +195,7 @@ describe('DateRange — editable', () => {
 
     expect(html).toContain('Jan 2025');
     expect(html).toContain('Present');
-    expect(html).not.toContain(EN_DASH);
+    expect(html).toContain(EN_DASH);
   });
 
   it('hides the dash in editable mode when only end is filled', () => {

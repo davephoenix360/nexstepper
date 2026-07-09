@@ -53,11 +53,16 @@ import { ContactLineEditable, LocationLineEditable } from "./header-lines";
  * slices — each is its own small chunk so the format-step stays
  * low-risk.
  *
- * Server-component purity: this file itself stays a server component
- * (no hooks, no event handlers), so Phase 2's `renderToString` PDF
- * step keeps working without changes. The EditableText children are
- * client components, which Next.js handles transparently at the
- * server/client boundary.
+ * Server-component purity note: this file IS itself a client
+ * component (see the `"use client"` directive at the top of the
+ * file). It uses `useFieldArray` / `useFormContext` for the inline
+ * section add/remove controls in editable mode, which forces the
+ * `use client` boundary. Print/PDF fidelity is preserved by
+ * rendering `<ClassicTemplate>` with `editable={false}` for the
+ * Phase 2.5 `renderToString` path — the inline editor primitives
+ * are wrapped behind that prop and collapse to plain DOM at the
+ * server boundary, so the PDF still reads as a one-column
+ * print-clean resume.
  */
 export function ClassicTemplate({
   data,

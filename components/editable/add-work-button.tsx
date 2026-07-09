@@ -45,17 +45,23 @@ export function AddWorkButton({ path }: AddWorkButtonProps) {
       ]
     });
 
-    // Defer scroll/focus to next paint — RHF has to render the new
-    // item into the DOM first, and useFieldArray's id only exists once
-    // the new field is registered. setTimeout(0) is the cheapest way to
-    // yield a tick; we also retry slightly in case RHF hasn't finished.
-    requestAnimationFrame(() => {
-      const node = document.querySelector(
-        `[data-testid="editable-${path}.${indexAfter}.company"]`
-      );
-      node?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      (node as HTMLElement | null)?.click();
-    });
+    // Defer scroll/focus to next paint, then retry once if the
+    // node isn't in the DOM yet. RHF has to render the new item
+    // first, and `useFieldArray`'s id only exists once the new
+    // field is registered — sometimes that registration lands on
+    // a frame after the requestAnimationFrame callback runs, so
+    // we re-attempt on the next frame. The bound (max 1 retry) is
+    // cheap insurance against the silent no-op the old single-rAF
+    // version would hit when that race went the wrong way.
+    const selector = `[data-testid="editable-${path}.${indexAfter}.company"]`;
+    const focusNode = () => {
+      const node = document.querySelector<HTMLElement>(selector);
+      if (!node) return false;
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      node.click();
+      return true;
+    };
+    if (!focusNode()) requestAnimationFrame(focusNode);
   }
 
   return (

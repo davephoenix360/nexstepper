@@ -191,10 +191,17 @@ export function EditableResume({
           <div className="flex items-center gap-2">
             <TemplatePicker
               disabled={pending}
+              // The picker needs the parent-owned save trigger so
+              // it doesn't have to reach into the DOM for the form
+              // (which would be ambiguous once portals/mount).
+              // Reusing the same `submit` as the Save button +
+              // Ctrl+S means validation + onSave pipeline stays
+              // identical to the rest of the editor.
+              requestSave={submit}
               onTemplatePicked={() => {
-                // The picker dispatches the form's own submit
-                // handler; this is just a hook for future toast /
-                // analytics calls.
+                // Hook for future toast / analytics calls. The
+                // actual save fires synchronously via requestSave()
+                // inside the picker.
               }}
             />
             <Button

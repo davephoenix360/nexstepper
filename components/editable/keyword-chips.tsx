@@ -84,7 +84,13 @@ export function KeywordChips({
       <Button
         type="button"
         variant="outline"
-        size={size === 'sm' ? 'sm' : 'sm'}
+        // Add-button is always rendered as 'sm'. The prop
+        // accepts `'xs' | 'sm'` to size the surrounding row via
+        // the parent's `size={size}` prop on line 87; the button
+        // itself does not scale between sizes. (Old code had
+        // `size={size === 'sm' ? 'sm' : 'sm'}` which silently
+        // always resolved to 'sm' anyway.)
+        size="sm"
         onClick={handleAdd}
         className="no-print"
         data-testid={`add-chip-${path.replace(/\./g, '-')}`}

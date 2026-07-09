@@ -274,7 +274,10 @@ interface BooleanInputProps {
 export function BooleanInput({ name, label, colSpan }: BooleanInputProps) {
   const { field } = useController<FieldValues>({ name });
   return (
-    <FieldShell name={name} label={label} colSpan={colSpan}>
+    // FieldShell below the label would render `label` a second
+    // time, so we deliberately don't pass `label` down — this
+    // row layout owns its own label + switch.
+    <FieldShell name={name} colSpan={colSpan}>
       <div className="flex items-center justify-between gap-4 rounded-md border p-3">
         {label && (
           <Label htmlFor={name} className="cursor-pointer">

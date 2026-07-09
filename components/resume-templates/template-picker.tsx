@@ -59,12 +59,28 @@ interface TemplatePickerProps {
    * toast in Phase 2.5. Optional — leave undefined to ignore.
    */
   onTemplatePicked?: (templateId: string) => void;
+  /**
+   * Parent-owned save trigger. The picker can't reach into the
+   * DOM to find the form (any <form> on the page — including a
+   * portal-rendered EditableSectionDialog — would shadow it),
+   * so the parent supplies the trigger that already knows the
+   * right handleSubmit path.
+   *
+   * Example from `editable-resume.tsx`:
+   *
+   *   <TemplatePicker
+   *     requestSave={() => formRef.current?.requestSubmit()}
+   *     onTemplatePicked={(id) => toast.success(`Template: ${id}`)}
+   *   />
+   */
+  requestSave: () => void;
   /** Disable the picker (e.g. while a save is in flight). */
   disabled?: boolean;
 }
 
 export function TemplatePicker({
   onTemplatePicked,
+  requestSave,
   disabled = false
 }: TemplatePickerProps) {
   const form = useFormContext<ResumeData>();
@@ -80,14 +96,10 @@ export function TemplatePicker({
       shouldValidate: false
     });
     onTemplatePicked?.(t.meta.id);
-    // The form's handleSubmit is the parent-driven save. Trigger it
-    // via the hidden submit button the parent owns. We dispatch
-    // the native submit on the closest <form> so the existing
-    // validation + onValid/onInvalid pipeline runs unchanged.
-    const formEl = document.querySelector("form");
-    if (formEl instanceof HTMLFormElement) {
-      formEl.requestSubmit();
-    }
+    // Parent's save trigger; we deliberately do NOT call
+    // `document.querySelector('form').requestSubmit()` — that's
+    // ambiguous (any <form> rendered via portal shadows it).
+    requestSave();
   }
 
   if (!current) return null;

@@ -162,7 +162,13 @@ function DateRangeEditable({
   const e = formatDate(endCtrl.field.value as string | undefined);
   const hasStart = s.length > 0;
   const hasEnd = e.length > 0;
-  const showDash = hasStart && hasEnd;
+  // Mirror the read-only path on Line 117 (showDash = hasStart).
+  // The dash earns its place whenever there is a start — the
+  // start anchors the range, and an empty end falls back to
+  // "Present" so the user gets "2022 – Present" while editing
+  // an ongoing role, matching what they'll see in the printed
+  // PDF after they leave edit mode.
+  const showDash = hasStart;
 
   return (
     <span className="text-[10pt] whitespace-nowrap text-zinc-500">

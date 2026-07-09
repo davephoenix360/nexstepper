@@ -39,7 +39,13 @@ export function ObjectField({
   /** Caller can override the initial open state (e.g. Section always-open). */
   defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = React.useState(defaultOpen);
+  const [open, setOpen] = React.useState(
+    // Without a label there is no toggle button (Line 53) to flip
+    // us back open, so `defaultOpen={false}` would render an
+    // empty, permanently-hidden section. Force open when the
+    // label is missing.
+    label ? defaultOpen : true
+  );
   const contentId = `object-${name}-content`;
 
   return (

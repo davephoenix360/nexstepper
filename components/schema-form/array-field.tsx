@@ -91,7 +91,20 @@ function useCollapsedItems(
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>(
     () => {
       const init: Record<string, boolean> = {};
-      for (const id of itemIds) init[id] = !(id in defaults ? defaults[id] : true);
+      // Semantics: `collapsed[id] === true` means the row is
+      // visibly collapsed (the field-level clicks on Line 189
+      // toggle it). `defaults` is the caller's per-id override;
+      // if an id is absent, default to `false` (open) so it
+      // matches the effect below (which sets new ids to false).
+      // The old expression `(id in defaults ? defaults[id] : true)`
+      // was dead-equivalent to `: true` because callers never
+      // pass `defaults`, AND the outer `!` negation read the
+      // boolean backwards from the variable name — using the
+      // value directly fixes both issues in one go.
+      for (const id of itemIds) {
+        if (id in defaults) init[id] = defaults[id];
+        else init[id] = false;
+      }
       return init;
     }
   );
