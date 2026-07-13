@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { getResume, getUser } from '@/lib/db/queries';
 import { getTemplate } from '@/components/resume-templates';
 
+import { AutoPrintOnLoad } from './auto-print';
 import { PrintButton } from './print-button';
 
 /**
@@ -24,11 +25,15 @@ import { PrintButton } from './print-button';
  * Non-owners hit notFound() so we don't leak resume existence.
  */
 export default async function ResumePreviewPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ print?: string }>;
 }) {
   const { id } = await params;
+  const { print } = await searchParams;
+  const autoPrint = print === '1';
 
   const user = await getUser();
   if (!user) redirect('/sign-in');
@@ -42,33 +47,39 @@ export default async function ResumePreviewPage({
   const Template = template.Component;
 
   return (
-    <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0">
-      <div className="mx-auto max-w-[8.5in] px-4 print:max-w-none print:px-0">
-        {/* Chrome bar — hidden in print via @media print (`no-print`). */}
-        <div className="no-print mb-4 flex items-center justify-between gap-3 rounded-lg border bg-white px-4 py-2 shadow-sm">
-          <Button asChild variant="ghost" size="sm">
-            <Link href={`/dashboard/resumes/${id}`}>
-              <ArrowLeft className="mr-2 size-4" />
-              Back to editor
-            </Link>
-          </Button>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">
-              Template:{' '}
-              <span className="font-medium text-foreground">
-                {template.meta.name}
-              </span>{' '}
-              <span className="text-xs text-muted-foreground">
-                v{template.meta.version}
+    <>
+      {/* Client component that triggers window.print() once on mount
+          when the URL has `?print=1`. Renders nothing — it's a side
+          effect only. See auto-print.tsx for the guard. */}
+      <AutoPrintOnLoad enabled={autoPrint} />
+      <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0">
+        <div className="mx-auto max-w-[8.5in] px-4 print:max-w-none print:px-0">
+          {/* Chrome bar — hidden in print via @media print (`no-print`). */}
+          <div className="no-print mb-4 flex items-center justify-between gap-3 rounded-lg border bg-white px-4 py-2 shadow-sm">
+            <Button asChild variant="ghost" size="sm">
+              <Link href={`/dashboard/resumes/${id}`}>
+                <ArrowLeft className="mr-2 size-4" />
+                Back to editor
+              </Link>
+            </Button>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-muted-foreground">
+                Template:{' '}
+                <span className="font-medium text-foreground">
+                  {template.meta.name}
+                </span>{' '}
+                <span className="text-xs text-muted-foreground">
+                  v{template.meta.version}
+                </span>
               </span>
-            </span>
-            <PrintButton />
+              <PrintButton />
+            </div>
           </div>
-        </div>
 
-        {/* The actual resume. */}
-        <Template data={result.data} />
+          {/* The actual resume. */}
+          <Template data={result.data} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

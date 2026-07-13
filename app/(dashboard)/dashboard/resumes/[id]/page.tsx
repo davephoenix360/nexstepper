@@ -7,6 +7,7 @@ import { getUser, getResume } from '@/lib/db/queries';
 import { EditableResume } from '@/components/editable';
 
 import { CreateVariantButton } from '../_components/create-variant-button';
+import { DownloadPdfButton } from './download-pdf-button';
 
 /**
  * Resume editor page — RSC.
@@ -73,6 +74,9 @@ export default async function ResumeEditorPage({
         {resume.isMaster ? (
           <CreateVariantButton masterId={resume.id} />
         ) : null}
+        <div className="flex items-center gap-2">
+          <DownloadPdfButton resumeId={resume.id} />
+        </div>
       </header>
 
       <EditableResume
