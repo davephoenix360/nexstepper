@@ -7,6 +7,8 @@ import * as React from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { Plus, X } from "lucide-react";
 
+import { ClassicReadOnly } from "./classic-readonly";
+
 import { Button } from "@/components/ui/button";
 import {
   EditableText,
@@ -70,6 +72,31 @@ export function ClassicTemplate({
 }: {
   data: ResumeData;
   editable?: boolean;
+}) {
+  // Dispatch: editor → form-bound view, anywhere else → server-renderable
+  // read-only view. The split is necessary because ClassicWithForm
+  // calls useFormContext / useFieldArray at the top, which throw when
+  // no FormProvider is in the tree. The preview page, the future PDF
+  // render path, and any other non-editor context get ClassicReadOnly.
+  if (editable) {
+    return <ClassicWithForm data={data} editable={true} />;
+  }
+  return <ClassicReadOnly data={data} />;
+}
+
+/**
+ * Editor view — the same code that used to be ClassicTemplate's body.
+ * Calls useFormContext / useFieldArray at the top, requires a
+ * FormProvider in the tree. Rendered by the editor's
+ * <EditableResume>; never render this directly in a non-editor
+ * context — use the dispatcher above.
+ */
+function ClassicWithForm({
+  data,
+  editable,
+}: {
+  data: ResumeData;
+  editable: boolean;
 }) {
   const { sections } = data;
 
