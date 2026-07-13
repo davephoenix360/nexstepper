@@ -18,15 +18,15 @@ import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 import { hashInput } from './hash';
-import type { RenderInput } from './types';
+import type { ProviderName, RenderInput } from './types';
 
 /** Read-through PDF cache. Implementations may be no-ops in prod (Vercel
  *  serverless) without breaking the contract. */
 export interface PdfCache {
   /** Returns the cached PDF Buffer or null. */
-  get(input: RenderInput): Promise<Buffer | null>;
+  get(input: RenderInput, provider: ProviderName): Promise<Buffer | null>;
   /** Stores a PDF Buffer. Throws only on programming errors, not I/O. */
-  put(input: RenderInput, pdf: Buffer): Promise<void>;
+  put(input: RenderInput, pdf: Buffer, provider: ProviderName): Promise<void>;
   /** Used by tests to clear the cache between cases. No-op in prod. */
   clear(): Promise<void>;
 }
@@ -41,14 +41,16 @@ const FILE_EXT = '.pdf';
 export class FileSystemCache implements PdfCache {
   constructor(private readonly baseDir: string) {}
 
-  private pathFor(input: RenderInput): string {
-    // hashInput is collision-resistant; we don't namespace by anything else
-    // because the (html, options) pair is the natural key.
-    return join(this.baseDir, `${hashInput(input)}${FILE_EXT}`);
+  private pathFor(input: RenderInput, provider: ProviderName): string {
+    // hashInput is collision-resistant. The provider is part of the key
+    // so a cache populated by `stub` (deterministic fake) doesn't get
+    // served as a cache hit when the user switches to `browserless` —
+    // a bug we hit and fixed during the Phase 2.2 smoke test.
+    return join(this.baseDir, `${provider}--${hashInput(input)}${FILE_EXT}`);
   }
 
-  async get(input: RenderInput): Promise<Buffer | null> {
-    const path = this.pathFor(input);
+  async get(input: RenderInput, provider: ProviderName): Promise<Buffer | null> {
+    const path = this.pathFor(input, provider);
     try {
       return await readFile(path);
     } catch (err) {
@@ -59,8 +61,8 @@ export class FileSystemCache implements PdfCache {
     }
   }
 
-  async put(input: RenderInput, pdf: Buffer): Promise<void> {
-    const finalPath = this.pathFor(input);
+  async put(input: RenderInput, pdf: Buffer, provider: ProviderName): Promise<void> {
+    const finalPath = this.pathFor(input, provider);
     // Per-call-unique tmp filename. Two concurrent put() calls for the
     // same input would otherwise write to the same `.tmp` path; the
     // winner of `writeFile` could interleave/truncate the loser's
@@ -105,10 +107,10 @@ export class FileSystemCache implements PdfCache {
  * runtime.
  */
 export class NullCache implements PdfCache {
-  async get(_input: RenderInput): Promise<Buffer | null> {
+  async get(_input: RenderInput, _provider: ProviderName): Promise<Buffer | null> {
     return null;
   }
-  async put(_input: RenderInput, _pdf: Buffer): Promise<void> {
+  async put(_input: RenderInput, _pdf: Buffer, _provider: ProviderName): Promise<void> {
     // no-op
   }
   async clear(): Promise<void> {

@@ -16,18 +16,19 @@ afterEach(async () => {
 });
 
 const input = { html: '<h1>hi</h1>' };
+const provider = 'stub' as const;
 
 describe('FileSystemCache', () => {
   it('returns null on miss', async () => {
     const cache = new FileSystemCache(tempDir);
-    expect(await cache.get(input)).toBeNull();
+    expect(await cache.get(input, provider)).toBeNull();
   });
 
   it('returns the stored bytes on hit', async () => {
     const cache = new FileSystemCache(tempDir);
     const pdf = Buffer.from('%PDF-1.4 fake');
-    await cache.put(input, pdf);
-    const got = await cache.get(input);
+    await cache.put(input, pdf, provider);
+    const got = await cache.get(input, provider);
     expect(got?.equals(pdf)).toBe(true);
   });
 
@@ -35,32 +36,46 @@ describe('FileSystemCache', () => {
     const cache = new FileSystemCache(tempDir);
     const a = Buffer.from('A');
     const b = Buffer.from('B');
-    await cache.put({ html: '<a/>' }, a);
-    await cache.put({ html: '<b/>' }, b);
-    expect((await cache.get({ html: '<a/>' }))?.equals(a)).toBe(true);
-    expect((await cache.get({ html: '<b/>' }))?.equals(b)).toBe(true);
+    await cache.put({ html: '<a/>' }, a, provider);
+    await cache.put({ html: '<b/>' }, b, provider);
+    expect((await cache.get({ html: '<a/>' }, provider))?.equals(a)).toBe(true);
+    expect((await cache.get({ html: '<b/>' }, provider))?.equals(b)).toBe(true);
+  });
+
+  it('isolates entries by provider (stub hit does not satisfy browserless lookup)', async () => {
+    // A real bug we hit during smoke testing: a cache populated by the
+    // stub provider (deterministic fake) was being returned as a hit
+    // after the user switched to browserless — same input, different
+    // provider, completely different output. The cache key now includes
+    // the provider so this can't happen.
+    const cache = new FileSystemCache(tempDir);
+    const stub = Buffer.from('STUB_OUTPUT');
+    await cache.put(input, stub, 'stub');
+    const stubHit = await cache.get(input, 'stub');
+    expect(stubHit?.equals(stub)).toBe(true);
+    expect(await cache.get(input, 'browserless')).toBeNull();
   });
 
   it('clear() empties the cache directory', async () => {
     const cache = new FileSystemCache(tempDir);
-    await cache.put({ html: '<a/>' }, Buffer.from('A'));
-    await cache.put({ html: '<b/>' }, Buffer.from('B'));
+    await cache.put({ html: '<a/>' }, Buffer.from('A'), provider);
+    await cache.put({ html: '<b/>' }, Buffer.from('B'), provider);
     await cache.clear();
-    expect(await cache.get({ html: '<a/>' })).toBeNull();
-    expect(await cache.get({ html: '<b/>' })).toBeNull();
+    expect(await cache.get({ html: '<a/>' }, provider)).toBeNull();
+    expect(await cache.get({ html: '<b/>' }, provider)).toBeNull();
   });
 });
 
 describe('NullCache', () => {
   it('always misses', async () => {
     const cache = new NullCache();
-    expect(await cache.get(input)).toBeNull();
+    expect(await cache.get(input, provider)).toBeNull();
   });
 
   it('put is a no-op (no throw, no state)', async () => {
     const cache = new NullCache();
-    await cache.put(input, Buffer.from('whatever'));
-    expect(await cache.get(input)).toBeNull();
+    await cache.put(input, Buffer.from('whatever'), provider);
+    expect(await cache.get(input, provider)).toBeNull();
   });
 
   it('clear is a no-op', async () => {

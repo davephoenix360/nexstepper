@@ -101,7 +101,9 @@ class Renderer {
     }
 
     // ── Cache lookup ────────────────────────────────────────────────────
-    const cached = await this.safeGet(stack.cache, input);
+    // Provider is part of the cache key so a switch (stub → browserless)
+    // can't return a stub from cache as if it were a real render.
+    const cached = await this.safeGet(stack.cache, input, stack.providerName);
     if (cached) {
       return {
         ok: true,
@@ -126,7 +128,7 @@ class Renderer {
     }
 
     // ── Store in cache (best effort) ────────────────────────────────────
-    await this.safePut(stack.cache, input, result.pdf);
+    await this.safePut(stack.cache, input, result.pdf, stack.providerName);
 
     return {
       ok: true,
@@ -158,9 +160,13 @@ class Renderer {
 
   // ─── helpers ──────────────────────────────────────────────────────────
 
-  private async safeGet(cache: PdfCache, input: RenderInput): Promise<Buffer | null> {
+  private async safeGet(
+    cache: PdfCache,
+    input: RenderInput,
+    provider: ProviderName
+  ): Promise<Buffer | null> {
     try {
-      return await cache.get(input);
+      return await cache.get(input, provider);
     } catch (err) {
       // Cache failures must not fail the render. Log and continue.
       console.warn(
@@ -171,9 +177,14 @@ class Renderer {
     }
   }
 
-  private async safePut(cache: PdfCache, input: RenderInput, pdf: Buffer): Promise<void> {
+  private async safePut(
+    cache: PdfCache,
+    input: RenderInput,
+    pdf: Buffer,
+    provider: ProviderName
+  ): Promise<void> {
     try {
-      await cache.put(input, pdf);
+      await cache.put(input, pdf, provider);
     } catch (err) {
       // Symmetric with safeGet. Cache put failures are already swallowed
       // inside FileSystemCache.put; this is belt-and-suspenders.
