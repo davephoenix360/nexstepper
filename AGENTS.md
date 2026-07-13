@@ -309,6 +309,64 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
+## Phase handoff (close-out 2026-07-13)
+
+Session ends with the rebuild at the **Phase 2.2 → 2.3 boundary**.
+A fresh session is expected to pick this up cold.
+
+### Landed this session (2026-07-13)
+- **PDF render adapter scaffold** in `lib/pdf-render/` (10 files):
+  - `index.ts` public API, `types.ts` shared types
+  - `renderer.ts` orchestrator (validate → cache → provider → emit → return)
+  - `provider.ts` `PdfProvider` interface + `BrowserlessProvider` impl
+  - `stub-provider.ts` deterministic fake for tests
+  - `cache.ts` `PdfCache` interface + `FileSystemCache` + `NullCache`
+  - `html-shell.ts` `wrapHtml()` + `DEFAULT_PRINT_CSS`
+  - `hash.ts` canonical-JSON + SHA-256 content hash
+  - `env.ts` Zod-validated `PDF_PROVIDER` + `BROWSERLESS_TOKEN` etc.
+  - `telemetry.ts` `logPdfRender()` — PostHog event, fire-and-forget
+- Smoke-test API route at `app/api/pdf/render/route.ts` (auth-gated)
+- 35 new unit tests in `tests/unit/pdf-render/` + `tests/stubs/server-only.ts`
+- Vendor: **Browserless** locked in (with full switch-when matrix in
+  `provider.ts` for Cloudflare / DocRaptor / Gotenberg / PDF4.dev)
+- `.env.example` + `.gitignore` updated; `vitest.config.ts` aliases
+  `server-only` to a stub so the orchestrator's `import 'server-only'`
+  works under vitest
+
+### State
+- `pnpm test`: **274/274 green** (was 239)
+- Typecheck: clean
+- Browserless is the default; tests use stub provider (no network)
+- Telemetry: PostHog event `pdf_rendered` emitted per render from the
+  route handler (with userId, resumeId, templateId, resultStatus,
+  cacheHit, durationMs, pdfBytes, errorCode)
+- DB table for billing/quota is **deferred to Phase 3** — stub comment
+  in `lib/db/queries.ts` (TODO marker)
+- One outstanding truncated finding from round-3 re-run still open;
+  user triages with: `.\scripts\coderabbit-review.ps1 -Base HEAD~2`
+
+### Queued for next session (Phase 2.3)
+**Template → HTML → PDF render path.** The current scaffold accepts
+raw HTML; Phase 2.3 adds a higher-level entry point that takes
+`{ resumeId, templateId, data }`, walks through the template registry
+(`components/resume-templates/`), and produces the HTML on the server
+side. The open sub-problems are:
+- **Tailwind in PDF**: the templates use Tailwind utility classes.
+  Three options to decide: (a) bundle precompiled Tailwind into the
+  HTML shell, (b) Tailwind v4 CLI at scaffold time → static CSS →
+  inline in shell, (c) rewrite templates to inline styles / scoped
+  CSS modules. The decision lives in a follow-up commit; the
+  `html-shell.ts` seam (`cssText: string` param) is already in place
+  to absorb whichever path we pick.
+- **Client-component templates**: the current `ClassicTemplate` /
+  `ModernTemplate` files are `'use client'` and call react-hook-form
+  hooks at the top. `renderToStaticMarkup` from a server context
+  can't run them. Options: split each into `{ Template, ReadOnlyTemplate }`,
+  or use a thin server-side mirror. To be decided alongside the
+  Tailwind question.
+- **Vercel prod cache**: `FileSystemCache` no-ops on Vercel (ephemeral
+  FS). Real caching waits for Vercel KV / Upstash Redis in Phase 3.
+
 ## Reference
 
 - `NEXTEP_REBUILD_PLAN.md` — full 14-week plan with rationale
