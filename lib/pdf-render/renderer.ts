@@ -139,7 +139,14 @@ class Renderer {
   }
 
   getProviderName(): ProviderName {
-    return this.ensureStack().providerName;
+    // Diagnostics endpoint — must not throw if env is broken. Surface
+    // 'unknown' so the caller can render "PDF render: misconfigured"
+    // instead of crashing the route.
+    try {
+      return this.ensureStack().providerName;
+    } catch {
+      return 'unknown';
+    }
   }
 
   /** Test-only: drop memoized provider + cache. */

@@ -61,7 +61,13 @@ export class FileSystemCache implements PdfCache {
 
   async put(input: RenderInput, pdf: Buffer): Promise<void> {
     const finalPath = this.pathFor(input);
-    const tmpPath = `${finalPath}.tmp`;
+    // Per-call-unique tmp filename. Two concurrent put() calls for the
+    // same input would otherwise write to the same `.tmp` path; the
+    // winner of `writeFile` could interleave/truncate the loser's
+    // bytes, then `rename` could promote a corrupted partial file into
+    // the final cache slot. (pid + timestamp → effectively zero
+    // collision window in any realistic concurrent-render scenario.)
+    const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.tmp`;
     try {
       await mkdir(dirname(finalPath), { recursive: true });
       await writeFile(tmpPath, pdf);

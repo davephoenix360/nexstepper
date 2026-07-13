@@ -8,8 +8,10 @@
  */
 
 /** Provider names known to the orchestrator. Add a new one here + in
- *  `provider.ts` when adopting a new vendor. */
-export type ProviderName = 'stub' | 'browserless';
+ *  `provider.ts` when adopting a new vendor. `'unknown'` is a defensive
+ *  sentinel returned by `getProviderName()` when env parsing fails —
+ *  callers should treat it as "env is misconfigured, render disabled". */
+export type ProviderName = 'stub' | 'browserless' | 'unknown';
 
 /** Options that affect the rendered PDF output. These are forwarded to the
  *  provider's API; not all providers honor every option (Browserless maps

@@ -38,6 +38,23 @@ describe('renderPdf', () => {
     expect(getActiveProvider()).toBe('stub');
   });
 
+  it('getActiveProvider() returns "unknown" when env parsing fails', () => {
+    // Force the env to a state that crosses the cross-field check
+    // (browserless without a token). renderPdf() catches and returns
+    // a typed error; getActiveProvider() should also be defensive so
+    // diagnostics endpoints don't crash.
+    const original = process.env.PDF_PROVIDER;
+    process.env.PDF_PROVIDER = 'browserless';
+    delete process.env.BROWSERLESS_TOKEN;
+    _resetForTests();
+    try {
+      expect(getActiveProvider()).toBe('unknown');
+    } finally {
+      process.env.PDF_PROVIDER = original ?? 'stub';
+      _resetForTests();
+    }
+  });
+
   it('returns the PDF Buffer on success', async () => {
     const result = await renderPdf({ html: '<h1>hi</h1>' });
     expect(result.ok).toBe(true);
