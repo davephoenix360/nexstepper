@@ -57,6 +57,16 @@ lib/pdf-render/print.css
 # when invoked with -OutFile. Safe to regenerate any time.)
 .cr-review.txt
 
+# Dev server logs (transient — written by background `pnpm dev`)
+*.dev-server.log
+
+# Playwright CLI browser cache (transient — recreated on every open)
+.playwright-cli/
+
+# Output artifacts (PDFs, PNGs, screenshots, etc. — never commit
+# generated deliverables, only the source scripts that produce them)
+output/
+
 # Mavis agent credentials (never commit; the .mavis-agent.md file
 # holds the test account email + password used to drive the dev server
 # for end-to-end verification).
