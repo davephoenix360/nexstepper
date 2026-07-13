@@ -128,17 +128,16 @@ Write-Host ''
 # Synchronous invocation. Output streams as it arrives. We let
 # wsl inherit CWD via --cd so CodeRabbit can find
 # .git/.coderabbit.yaml/AGENTS.md without a flag-fest.
-# Capture stderr + exit code separately: the previous version
-# crashed with a "Program 'wsl.exe' failed to run" error AFTER
-# printing the entire review output because PowerShell's
-# $LASTEXITCODE was being captured into an unspecified state.
-# Routing stdout/stderr through 2>&1 then checking $? restores
-# the standard PowerShell "did the last native call succeed"
-# signal without the spurious post-run exception.
-$stdoutLog = New-TemporaryFile
+# Capture stderr separately so we can surface rate-limit / auth
+# warnings distinctly from the review body, but let stdout
+# stream through to the host — that's where the actual review
+# lives. (Previous version captured stdout to a temp file and
+# silently dropped it; round-3 reviews were "truncated" because
+# the review body never made it past the launcher. This is the
+# fix.)
 $stderrLog = New-TemporaryFile
 try {
-    & wsl.exe --cd "$repoWindows" "$crBin" @crArgs 1> $stdoutLog 2> $stderrLog
+    & wsl.exe --cd "$repoWindows" "$crBin" @crArgs 2> $stderrLog
     $exit = $LASTEXITCODE
 } finally {
     # Surface stderr if it's non-empty (CR sometimes warns to
@@ -149,7 +148,7 @@ try {
         Get-Content $stderrLog | Write-Host -ForegroundColor Yellow
         Write-Host '--- end stderr ---' -ForegroundColor Yellow
     }
-    Remove-Item $stdoutLog, $stderrLog -Force -ErrorAction SilentlyContinue
+    Remove-Item $stderrLog -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host ''
