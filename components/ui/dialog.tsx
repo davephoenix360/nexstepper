@@ -68,11 +68,20 @@ export function Dialog({
   // Esc closes — browsers handle this automatically for <dialog>, but
   // we listen so the React state stays in sync (native close events
   // bubble to the dialog element so onClose is enough).
+  // Stable IDs for aria-labelledby / aria-describedby. Wired only
+  // when the corresponding prop is provided, so screen readers
+  // announce title and description as the dialog's accessible
+  // name and description.
+  const titleId = title ? 'dialog-title' : undefined;
+  const descriptionId = description ? 'dialog-description' : undefined;
+
   return (
     <dialog
       ref={ref}
       onClose={() => onOpenChange(false)}
       onClick={handleClick}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
       className={cn(
         // Reset user-agent stylesheet, then dress up. We render the
         // backdrop via @media (max-width: 0) trick? No — <dialog>'s
@@ -102,12 +111,14 @@ export function Dialog({
           <X className="size-4" />
         </button>
         {title && (
-          <h2 className="mb-1 pr-8 text-base font-semibold tracking-tight">
+          <h2 id="dialog-title" className="mb-1 pr-8 text-base font-semibold tracking-tight">
             {title}
           </h2>
         )}
         {description && (
-          <p className="mb-4 text-sm text-muted-foreground">{description}</p>
+          <p id="dialog-description" className="mb-4 text-sm text-muted-foreground">
+            {description}
+          </p>
         )}
         {children}
       </div>

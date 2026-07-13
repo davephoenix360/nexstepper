@@ -41,9 +41,12 @@ export const flexibleUrl = z
           return false;
         }
       }
-      // Bare domain — at least one dot, TLD 2+ chars, optional path/query/fragment.
-      // First label can't start with a hyphen (real hostnames can't).
-      return /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(\/.*)?$/i.test(s);
+      // Bare domain — at least one dot, TLD 2+ chars, optional path /
+      // query / fragment. First label can't start with a hyphen
+      // (real hostnames can't). The [/?#] (instead of just /) accepts
+      // bare-domain query strings (example.com?ref=1) and fragments
+      // (example.com#section) as the documented contract promises.
+      return /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:[/?#].*)?$/i.test(s);
     },
     {
       message:

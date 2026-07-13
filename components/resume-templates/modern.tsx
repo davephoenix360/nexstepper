@@ -79,8 +79,8 @@ export function ModernTemplate({
       data-template="modern"
       data-accent={accent}
       data-editable={editable || undefined}
-      data-max-pages="auto"
-      data-page-size="letter"
+      data-max-pages={MODERN_TEMPLATE_META.maxPages}
+      data-page-size={MODERN_TEMPLATE_META.pageSize}
       className="mx-auto w-full max-w-[8.5in] bg-white text-zinc-900 shadow-lg ring-1 ring-zinc-200/60 print:max-w-none print:shadow-none print:ring-0"
     >
       <div className="px-12 py-10 print:px-0 print:py-0">
