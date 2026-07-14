@@ -4,7 +4,8 @@ import {
   timestamp,
   boolean,
   jsonb,
-  index
+  index,
+  integer
 } from 'drizzle-orm/pg-core';
 
 import type { ResumeData } from '@/lib/resume-schema';
@@ -197,3 +198,110 @@ export type Resume = typeof resumes.$inferSelect;
 export type NewResume = typeof resumes.$inferInsert;
 export type ResumeRevision = typeof resumeRevisions.$inferSelect;
 export type NewResumeRevision = typeof resumeRevisions.$inferInsert;
+
+// --- Application domain tables (Phase 2.4a) ---
+
+/**
+ * Application — one JD the user is (or was) applying to.
+ *
+ * The raw JD lives in `jdText` (immutable, never edited by the AI — it's the
+ * user's source of truth). The structured parsed shape lives in `jdParsed`
+ * (jsonb, produced by the JD parser; can be re-parsed on demand).
+ *
+ * `sourceBoard` is the platform the JD came from ('linkedin', 'greenhouse',
+ * 'lever', 'workday', 'ashby', 'manual', 'extension', etc.). The browser
+ * extension populates this when it captures a JD from a job board. The
+ * `sourceUrl` is the canonical job-posting URL (handy for "open the original
+ * posting" + analytics later).
+ *
+ * `status` is a free-text enum — we don't strictly enforce it at the DB
+ * level (cheaper to evolve the lifecycle in code than to ship a migration
+ * every time we add a state). The Zod input schema validates it.
+ */
+export const applications = pgTable(
+  'applications',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /** Job title (e.g. "Senior Software Engineer"). Required. */
+    jobTitle: text('job_title').notNull(),
+    /** Company name. Nullable — some JDs don't surface a company. */
+    company: text('company'),
+    /** The raw JD the user pasted. Never edited; the source of truth. */
+    jdText: text('jd_text').notNull(),
+    /**
+     * The structured Zod-validated parsed shape. Nullable: the parser runs
+     * on-demand (during creation) and the row can be re-parsed later if the
+     * schema evolves. We re-validate on read (see queries.ts).
+     */
+    jdParsed: jsonb('jd_parsed').$type<unknown>(),
+    /** Where the JD came from (e.g. a LinkedIn job URL). Nullable. */
+    sourceUrl: text('source_url'),
+    /** Job-board identifier (e.g. 'linkedin', 'greenhouse', 'manual'). */
+    sourceBoard: text('source_board'),
+    /** Lifecycle. 'draft' (just created) → 'applied' → ... */
+    status: text('status').notNull().default('draft'),
+    /** When the user marked this application as submitted. Nullable. */
+    appliedAt: timestamp('applied_at'),
+    /** User notes — phone screen dates, recruiter name, follow-ups, etc. */
+    notes: text('notes').notNull().default(''),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+  },
+  (table) => [
+    index('applications_user_created_idx').on(
+      table.userId,
+      table.createdAt
+    ),
+    index('applications_user_status_idx').on(table.userId, table.status)
+  ]
+);
+
+/**
+ * Resume variant (Application-tailored) — the join between an Application
+ * and the resume row that was tailored for it, plus the match score.
+ *
+ * The tailored resume data itself lives in `resumes` + `resume_revisions`
+ * (a variant is just a regular resume with `isMaster = false` and
+ * `parentResumeId` set to the master). This table is the "this resume
+ * was tailored for this Application" link + the score.
+ *
+ * `matchScore` is a 0-100 single number (the headline). `matchBreakdown`
+ * is the structured Zod-validated breakdown (skills / experience / keyword
+ * subscores) so the UI can show a detail panel.
+ */
+export const resumeVariants = pgTable(
+  'resume_variants',
+  {
+    id: text('id').primaryKey(),
+    applicationId: text('application_id')
+      .notNull()
+      .references(() => applications.id, { onDelete: 'cascade' }),
+    /** The resume row that was tailored (isMaster = false, parentResumeId = master). */
+    resumeId: text('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    /** Headline 0-100 match percentage. */
+    matchScore: integer('match_score').notNull(),
+    /** Structured breakdown: skills / experience / keyword subscores. */
+    matchBreakdown: jsonb('match_breakdown').$type<unknown>(),
+    /** AI-generated summary of what was changed + why. UI surfaces this. */
+    tailoringNotes: text('tailoring_notes').notNull().default(''),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [
+    index('resume_variants_application_idx').on(
+      table.applicationId,
+      table.createdAt
+    ),
+    index('resume_variants_resume_idx').on(table.resumeId)
+  ]
+);
+
+// --- Inferred row types ---
+export type Application = typeof applications.$inferSelect;
+export type NewApplication = typeof applications.$inferInsert;
+export type ResumeVariant = typeof resumeVariants.$inferSelect;
+export type NewResumeVariant = typeof resumeVariants.$inferInsert;

@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.85",
     "@hookform/resolvers": "^5.4.0",
     "@liveblocks/client": "^3.21.0",
     "@liveblocks/node": "^3.21.0",
@@ -25,6 +26,7 @@
     "@types/node": "^22.15.18",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "ai": "^6.0.224",
     "autoprefixer": "^10.4.21",
     "better-auth": "^1.6.23",
     "class-variance-authority": "^0.7.1",

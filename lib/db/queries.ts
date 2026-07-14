@@ -2,12 +2,16 @@ import { headers } from 'next/headers';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from './drizzle';
 import {
+  applications,
   resumes,
   resumeRevisions,
+  resumeVariants,
   subscriptions,
   user,
+  type Application,
   type Resume,
   type ResumeRevision,
+  type ResumeVariant,
   type Subscription,
   type User
 } from './schema';
@@ -17,6 +21,7 @@ import {
   resumeDataSchema,
   type ResumeData
 } from '@/lib/resume-schema';
+import { parsedJdSchema, type ParsedJd } from '@/lib/jd-parser';
 
 /**
  * Get the current user from the Better Auth session, joined with the user row.
@@ -482,4 +487,275 @@ export async function countMasterResumes(userId: string): Promise<number> {
     .from(resumes)
     .where(and(eq(resumes.userId, userId), eq(resumes.isMaster, true)));
   return result?.count ?? 0;
+}
+
+// ─── Application queries (Phase 2.4a) ───────────────────────────────────────
+
+/**
+ * A single Application + its validated ParsedJd shape.
+ *
+ * `jdParsed` is re-validated on every read (the JSONB could be stale
+ * from a prior schema version). If validation fails we log + return
+ * null so the caller can surface a "re-parse this application" UI
+ * instead of crashing.
+ */
+export type ApplicationWithParsed = {
+  application: Application;
+  jdParsed: ParsedJd;
+};
+
+/**
+ * List a user's applications, most recent first. Excludes the heavy
+ * jdText + jdParsed columns for the list view — caller fetches the
+ * detail row when it needs the full JD.
+ */
+export async function listApplications(
+  userId: string
+): Promise<Array<Omit<Application, 'jdText' | 'jdParsed'>>> {
+  return db
+    .select({
+      id: applications.id,
+      userId: applications.userId,
+      jobTitle: applications.jobTitle,
+      company: applications.company,
+      sourceUrl: applications.sourceUrl,
+      sourceBoard: applications.sourceBoard,
+      status: applications.status,
+      appliedAt: applications.appliedAt,
+      notes: applications.notes,
+      createdAt: applications.createdAt,
+      updatedAt: applications.updatedAt
+    })
+    .from(applications)
+    .where(eq(applications.userId, userId))
+    .orderBy(desc(applications.createdAt));
+}
+
+/**
+ * Get a single application + its validated parsed shape. Returns null
+ * if the application doesn't exist OR isn't owned by the given user
+ * (don't leak existence to non-owners).
+ */
+export async function getApplication(
+  applicationId: string,
+  userId: string
+): Promise<ApplicationWithParsed | null> {
+  const [row] = await db
+    .select()
+    .from(applications)
+    .where(
+      and(
+        eq(applications.id, applicationId),
+        eq(applications.userId, userId)
+      )
+    )
+    .limit(1);
+
+  if (!row) return null;
+
+  // Re-validate the parsed shape (defense in depth — a prior schema
+  // version may have stored an incompatible shape).
+  const parsed = parsedJdSchema.safeParse(row.jdParsed);
+  if (!parsed.success) {
+    console.error(
+      `[applications] row ${row.id} jd_parsed failed validation:`,
+      parsed.error.flatten()
+    );
+    return null;
+  }
+
+  return { application: row, jdParsed: parsed.data };
+}
+
+/**
+ * Create an Application row. The caller is responsible for parsing
+ * the JD first (via `parseJd()`) and passing the validated shape in.
+ *
+ * Returns the new row id. Throws on DB failure (the caller's
+ * Server Action should catch + surface as `ai_failure` or similar).
+ */
+export async function createApplication(
+  userId: string,
+  input: {
+    jobTitle: string;
+    company?: string | null;
+    jdText: string;
+    jdParsed: ParsedJd;
+    sourceUrl?: string | null;
+    sourceBoard?: string | null;
+    notes?: string;
+  }
+): Promise<{ id: string }> {
+  const id = crypto.randomUUID();
+  await db.insert(applications).values({
+    id,
+    userId,
+    jobTitle: input.jobTitle,
+    company: input.company ?? null,
+    jdText: input.jdText,
+    jdParsed: input.jdParsed,
+    sourceUrl: input.sourceUrl ?? null,
+    sourceBoard: input.sourceBoard ?? null,
+    notes: input.notes ?? ''
+  });
+  return { id };
+}
+
+/**
+ * Update an Application. All fields are optional (PATCH semantics);
+ * `status` and `appliedAt` get special handling — when status moves
+ * to 'applied' we auto-set appliedAt unless the caller passes one.
+ *
+ * Returns true on success, false if the row didn't exist or wasn't
+ * owned by the user.
+ */
+export async function updateApplication(
+  applicationId: string,
+  userId: string,
+  patch: {
+    jobTitle?: string;
+    company?: string | null;
+    jdText?: string;
+    jdParsed?: ParsedJd;
+    sourceUrl?: string | null;
+    sourceBoard?: string | null;
+    status?: string;
+    appliedAt?: Date | null;
+    notes?: string;
+  }
+): Promise<boolean> {
+  // Ownership check + read the current row in one query.
+  const [existing] = await db
+    .select({
+      id: applications.id,
+      status: applications.status,
+      appliedAt: applications.appliedAt
+    })
+    .from(applications)
+    .where(
+      and(
+        eq(applications.id, applicationId),
+        eq(applications.userId, userId)
+      )
+    )
+    .limit(1);
+  if (!existing) return false;
+
+  // Build the update payload, dropping undefined fields so Drizzle
+  // doesn't try to set columns to undefined.
+  const updates: Partial<typeof applications.$inferInsert> = {
+    updatedAt: new Date()
+  };
+  if (patch.jobTitle !== undefined) updates.jobTitle = patch.jobTitle;
+  if (patch.company !== undefined) updates.company = patch.company;
+  if (patch.jdText !== undefined) updates.jdText = patch.jdText;
+  if (patch.jdParsed !== undefined) updates.jdParsed = patch.jdParsed;
+  if (patch.sourceUrl !== undefined) updates.sourceUrl = patch.sourceUrl;
+  if (patch.sourceBoard !== undefined)
+    updates.sourceBoard = patch.sourceBoard;
+  if (patch.notes !== undefined) updates.notes = patch.notes;
+  if (patch.status !== undefined) {
+    updates.status = patch.status;
+    // Auto-set appliedAt the first time status moves to 'applied'.
+    if (patch.status === 'applied' && !existing.appliedAt) {
+      updates.appliedAt = patch.appliedAt ?? new Date();
+    }
+  }
+  if (patch.appliedAt !== undefined) updates.appliedAt = patch.appliedAt;
+
+  await db
+    .update(applications)
+    .set(updates)
+    .where(
+      and(
+        eq(applications.id, applicationId),
+        eq(applications.userId, userId)
+      )
+    );
+
+  return true;
+}
+
+/**
+ * Hard-delete an Application. Cascades to resumeVariants (the variants
+ * aren't useful without the JD they were tailored for).
+ *
+ * Returns true on success, false if the row didn't exist or wasn't owned.
+ */
+export async function deleteApplication(
+  applicationId: string,
+  userId: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: applications.id })
+    .from(applications)
+    .where(
+      and(
+        eq(applications.id, applicationId),
+        eq(applications.userId, userId)
+      )
+    )
+    .limit(1);
+  if (!row) return false;
+
+  // resumeVariants cascades via FK. So one delete is enough.
+  await db.delete(applications).where(eq(applications.id, applicationId));
+  return true;
+}
+
+// ─── Resume-variant queries (Phase 2.4a) ────────────────────────────────────
+
+/**
+ * The structured breakdown of an Optimize score. The full score
+ * (0-100 headline) lives on `matchScore`; this is the per-axis
+ * breakdown the UI shows when the user clicks for details.
+ *
+ * Mirrors the contract `lib/optimize/` will write when it runs. We
+ * keep the breakdown shape loose here (`unknown` JSONB) so the
+ * Optimize tool can evolve the axes without a migration.
+ */
+export type MatchBreakdown = unknown;
+
+/**
+ * List the resume variants for an Application, most recent first.
+ * Variants are the tailored resume snapshots the AI produced for
+ * this JD. The UI uses this for the Application detail page's
+ * "Variants" tab.
+ *
+ * Ownership: caller must have already checked the Application
+ * belongs to the user; the resume_variants table has no userId
+ * column (ownership is via the Application).
+ */
+export async function listResumeVariants(
+  applicationId: string
+): Promise<ResumeVariant[]> {
+  return db
+    .select()
+    .from(resumeVariants)
+    .where(eq(resumeVariants.applicationId, applicationId))
+    .orderBy(desc(resumeVariants.createdAt));
+}
+
+/**
+ * Create a resume variant (Application × tailored resume link + score).
+ * The actual tailored resume data lives in `resumes` + `resume_revisions`
+ * — this is just the join + the score.
+ */
+export async function createResumeVariant(
+  applicationId: string,
+  resumeId: string,
+  score: number,
+  breakdown: MatchBreakdown,
+  tailoringNotes = ''
+): Promise<{ id: string }> {
+  const id = crypto.randomUUID();
+  await db.insert(resumeVariants).values({
+    id,
+    applicationId,
+    resumeId,
+    matchScore: score,
+    matchBreakdown: breakdown,
+    tailoringNotes
+  });
+  return { id };
 }

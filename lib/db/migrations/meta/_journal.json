@@ -15,6 +15,13 @@
       "when": 1783396147636,
       "tag": "0001_same_adam_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783994310901,
+      "tag": "0002_careful_valeria_richards",
+      "breakpoints": true
     }
   ]
 }
