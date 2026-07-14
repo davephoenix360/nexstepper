@@ -754,6 +754,7 @@ function ClassicWithForm({
  * ContactLineEditable + LocationLineEditable moved to
  * ./header-lines.tsx so they could be unit-tested in isolation.
  * The print-hide-when-all-empty logic lives there too.
+ */
 
 /**
  * Section wrapper — small uppercase tracking-wide title with a thin rule

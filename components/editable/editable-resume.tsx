@@ -30,7 +30,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, FormProvider, useFormState } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, Printer } from 'lucide-react';
 
@@ -306,18 +306,12 @@ function SaveTooltipBody({
  * errors that blocked the most recent Save attempt. Renders nothing
  * when there are no errors, so it's safe to mount unconditionally.
  *
- * Re-subscribes to formState via `useFormState` so individual
- * EditableText components can clear their errors as the user fixes
- * them — when the array empties, the panel disappears.
+ * The `errors` prop is the flattened result of the most recent
+ * server-side validation. It updates on the next Save attempt;
+ * we deliberately don't re-render on every keystroke (the user
+ * clicks Save to re-validate, which is the natural feedback loop).
  */
 function ValidationSummary({ errors }: { errors: FlatFormError[] }) {
-  // Subscribe to formState to trigger re-renders when errors
-  // change (e.g. the user fixes a field and the error clears).
-  // We don't read anything from the state here — the `errors`
-  // prop is the source of truth — but subscribing ensures we
-  // re-render in sync with RHF.
-  useFormState();
-
   if (errors.length === 0) return null;
 
   return (

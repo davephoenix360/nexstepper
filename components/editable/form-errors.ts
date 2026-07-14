@@ -49,11 +49,15 @@ export function flattenFormErrors(
 
     // Leaf shape: { message: string, type: string, ... }
     if (typeof val === 'object' && 'message' in val) {
+      // A `message` property means this is a leaf — don't recurse
+      // into its other fields (type, ref, etc. are scalar/handle,
+      // not nested error subtrees). Emit if the message is usable;
+      // otherwise skip silently.
       const m = (val as { message?: unknown }).message;
       if (typeof m === 'string' && m.length > 0) {
         out.push({ path, message: m });
-        continue;
       }
+      continue;
     }
 
     // RHF multi-error wrapper: { types: { typeName: 'msg' } }
@@ -62,14 +66,17 @@ export function flattenFormErrors(
       'types' in val &&
       typeof (val as { types?: unknown }).types === 'object'
     ) {
+      // A `types` property means this is a leaf too — same
+      // "don't recurse" rule as above. Pick the first string
+      // message; if none, skip silently.
       const types = (val as { types: Record<string, unknown> }).types;
       const firstMsg = Object.values(types).find(
         (v) => typeof v === 'string'
       );
       if (typeof firstMsg === 'string') {
         out.push({ path, message: firstMsg });
-        continue;
       }
+      continue;
     }
 
     // Otherwise it's a nested subtree — recurse.

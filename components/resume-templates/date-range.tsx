@@ -6,26 +6,32 @@
  *
  * Three things to know about this component:
  *
- *  1. The dash is conditional. The en-dash separator ONLY renders
- *     when BOTH the start and end are filled. Showing a dangling
- *     " – " with no values on either side is the kind of detail
- *     recruiters notice. Empty start → just the end. Empty end →
- *     just the start. Both empty → no dash (and the read-only
- *     path returns null entirely so we don't reserve header space).
+ *  1. The dash is anchored by the start. The en-dash separator
+ *     renders whenever there IS a start date — the start anchors
+ *     the range. The end falls back to the placeholder "Present"
+ *     when empty, so a current role reads as "2022 – Present"
+ *     (never "2022Present" mashed together). The dash is
+ *     suppressed only when the start is empty, in which case
+ *     the em-dash "—" placeholder shows in its place so the
+ *     reader knows the start was intentionally left blank. Both
+ *     empty → the read-only path returns null entirely so the
+ *     header doesn't reserve space for a phantom date.
  *
  *  2. Typographic en-dash, not hyphen-minus. Resumes use the same
  *     en-dash convention as the rest of professional typography:
  *     "Jan 2025 – Aug 2025", never "Jan 2025 - Aug 2025". The
  *     difference is visible at print resolution.
  *
- *  3. Whitespace matters. The two halves of the range are separated
- *     by `mx-1.5` (6px on each side = 12px around the dash). The
- *     earlier flex-with-gap-1 layout crammed the dash against the
- *     first date because the start field was `w-12 text-right` —
- *     the dash then sat at the right edge of a 48px box that the
- *     text overflowed, ending up glued to the last digit. We
- *     dropped the fixed width; the fields now grow to fit their
- *     content and the gap is honest.
+ *  3. Whitespace matters. Both the en-dash separator AND the
+ *     em-dash fallback carry `mx-1.5 text-zinc-400` (6px on each
+ *     side + the lighter placeholder color) so they don't touch
+ *     the surrounding dates. The earlier flex-with-gap-1 layout
+ *     crammed the dash against the first date because the start
+ *     field was `w-12 text-right` — the dash then sat at the
+ *     right edge of a 48px box that the text overflowed, ending
+ *     up glued to the last digit. We dropped the fixed width;
+ *     the fields now grow to fit their content and the gap is
+ *     honest.
  *
  * Editable variant
  * ---------------
@@ -103,9 +109,6 @@ export function DateRange({
   const e = formatDate(end);
   const hasStart = s.length > 0;
   const hasEnd = e.length > 0;
-  // The dash only earns its place when BOTH sides have something
-  // to separate. Showing " – " with empty values on either side
-  // is exactly the bug we set out to fix.
   // The dash earns its place whenever there is a start (the start
   // anchors the range). Previously we only showed the dash when
   // BOTH sides had user-supplied values, which collapsed the common
@@ -120,7 +123,9 @@ export function DateRange({
 
   return (
     <span className="text-[10pt] whitespace-nowrap text-zinc-500">
-      <span>{s || '—'}</span>
+      <span className={hasStart ? '' : 'mx-1.5 text-zinc-400'}>
+        {s || '—'}
+      </span>
       {showDash && (
         <span
           aria-hidden="true"

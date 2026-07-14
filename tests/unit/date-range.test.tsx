@@ -13,11 +13,16 @@ import { DateRange } from '@/components/resume-templates/date-range';
  *   1. The en-dash used to be a literal "-" touching the first
  *      date in the editable flex layout. Now it's an en-dash with
  *      `mx-1.5` on either side. The shape assertion checks both
- *      the character and the spacing class.
+ *      the character and the spacing class. The em-dash "—"
+ *      placeholder (shown when the start is empty) carries the
+ *      same `mx-1.5` so it doesn't glue against the end date.
  *
  *   2. The dash used to render even when BOTH start and end were
  *      empty (leaving " – " floating alone in the PDF). The new
- *      rule: dash only when BOTH are filled, otherwise no dash.
+ *      rule: dash only when the start is filled (the start
+ *      anchors the range; the end falls back to "Present" when
+ *      empty). Both empty → the read-only path returns null so
+ *      the header doesn't reserve space for a phantom date.
  *
  * SSR (no jsdom) is enough because we only care about markup
  * shape. Real visual verification (font, pixel spacing) happens
