@@ -409,8 +409,11 @@ fixed** across two commits this session:
 - `925510f` — 6 remaining (`date-range.tsx` ×2, `classic.tsx`,
   `editable-resume.tsx`, `form-errors.ts`, `inspect-revisions.cjs`)
 
-Round-3 is fully closed. Re-run the next session to confirm and
-to start on whatever round-4 surfaces.
+Round-3 is fully closed. Round-4 (re-run of the browser-print
+migration) found 6 issues: 2 fixed in `1a2b3c4` (auto-print
+strict-mode bug; missing `print-color-adjust` in globals.css),
+4 pre-existing in `lib/payments/stripe.ts` + `.env.example`
+queued for the next session.
 
 ### Queued for next session (Phase 2.4)
 

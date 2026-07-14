@@ -329,6 +329,18 @@
       Print button) that should disappear from the printed output.
 */
 @media print {
+  /* Lock in background-color preservation. Modern Chrome preserves
+     `background-color` in print by default for elements with the
+     `appearance: auto` reset, but the `print-color-adjust: exact`
+     rule is the documented way to guarantee it for backgrounds,
+     borders, and `box-shadow` fills across Chromium / Firefox /
+     WebKit. Templates use indigo section accents + chip backgrounds
+     + a `border-b` rule under each section heading; without this,
+     Chromium will silently drop them in the PDF. */
+  html {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
   /* Strip the gray background we use to sell "paper on desk" on screen. */
   body {
     background: white !important;
