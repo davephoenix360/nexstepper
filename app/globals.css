@@ -348,3 +348,14 @@
      edge isn't doubled. */
   margin: 0.4in;
 }
+
+/*
+  Page-break utility classes — templates can put these on wrapper
+  elements to control where the browser breaks the page when the
+  user prints. Available in all modes (screen and print); they're
+  no-ops on screen since the content fits, and only matter at
+  print time.
+*/
+.page-break-before { break-before: page; }
+.page-break-after  { break-after: page; }
+.avoid-break       { break-inside: avoid; }

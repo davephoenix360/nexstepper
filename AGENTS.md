@@ -311,61 +311,137 @@ any collaborator.
 
 ## Phase handoff (close-out 2026-07-13)
 
-Session ends with the rebuild at the **Phase 2.2 → 2.3 boundary**.
-A fresh session is expected to pick this up cold.
+Session ends with **PDF download shipped** via the browser's native
+print-to-PDF. **Mid-session pivot** from a managed-API strategy
+(Browserless) to zero-dependency browser print. A fresh session is
+expected to pick up at the **Phase 2.4 boundary**.
 
-### Landed this session (2026-07-13)
-- **PDF render adapter scaffold** in `lib/pdf-render/` (10 files):
-  - `index.ts` public API, `types.ts` shared types
-  - `renderer.ts` orchestrator (validate → cache → provider → emit → return)
-  - `provider.ts` `PdfProvider` interface + `BrowserlessProvider` impl
-  - `stub-provider.ts` deterministic fake for tests
-  - `cache.ts` `PdfCache` interface + `FileSystemCache` + `NullCache`
-  - `html-shell.ts` `wrapHtml()` + `DEFAULT_PRINT_CSS`
-  - `hash.ts` canonical-JSON + SHA-256 content hash
-  - `env.ts` Zod-validated `PDF_PROVIDER` + `BROWSERLESS_TOKEN` etc.
-  - `telemetry.ts` `logPdfRender()` — PostHog event, fire-and-forget
-- Smoke-test API route at `app/api/pdf/render/route.ts` (auth-gated)
-- 35 new unit tests in `tests/unit/pdf-render/` + `tests/stubs/server-only.ts`
-- Vendor: **Browserless** locked in (with full switch-when matrix in
-  `provider.ts` for Cloudflare / DocRaptor / Gotenberg / PDF4.dev)
-- `.env.example` + `.gitignore` updated; `vitest.config.ts` aliases
-  `server-only` to a stub so the orchestrator's `import 'server-only'`
-  works under vitest
+### Strategy: browser print-to-PDF (no managed API, no third-party)
+
+The "Download PDF" affordance is a button that opens
+`/dashboard/resumes/[id]/preview?print=1` in a new tab. The preview
+page auto-runs `window.print()` once on mount; the user picks
+"Save as PDF" in the browser's native dialog. Two clicks total.
+
+**Why browser print, not a managed PDF API:**
+- **$0 forever.** No Browserless / DocRaptor / Cloudflare bill, no
+  free-tier cliff to design around.
+- **No paywall on a core feature.** Every user exports PDFs
+  forever; gating it behind Pro would be hostile.
+- **Pixel-identical to the on-screen preview.** The PDF is the
+  same Chromium engine rendering the same `app/globals.css` — no
+  pipeline drift, no "looks different than what I saw" surprises.
+- **Privacy-friendly.** Resume data is PII. Browser print keeps it
+  on the user's machine; nothing leaves our servers.
+- **No env vars, no API keys, no third-party auth surface.**
+
+**The 3 UX concerns, verified end-to-end with Playwright:**
+1. **Button UX** — chrome bar above the preview shows the help text
+   "Destination: **Save as PDF** in the print dialog" inline, so
+   the user knows what to do before the dialog snaps in. Hidden in
+   print via `.no-print` (`@media print` in `globals.css`).
+2. **Filename** — `generateMetadata()` sets `document.title` to
+   `"${resumeName} — Resume"`, which Chromium uses as the default
+   `Content-Disposition: filename` in the Save dialog.
+3. **Background colors** — `print-color-adjust: exact` in
+   `globals.css` keeps the indigo section accents, chip backgrounds,
+   and divider rules visible in the PDF. Verified visually with
+   `output/playwright/12-print-color-check.png` and a real 64 KB PDF
+   in `output/playwright/13-print-pipeline.pdf`.
+
+### Code map
+
+- **Editor "Download PDF" button** —
+  `app/(dashboard)/dashboard/resumes/[id]/download-pdf-button.tsx`.
+  `window.open('/preview?print=1', '_blank', 'noopener,noreferrer')`.
+  New tab so the editor stays usable while the print dialog is up.
+- **Preview route** —
+  `app/(dashboard)/dashboard/resumes/[id]/preview/page.tsx`.
+  Server Component, owns `generateMetadata` for the filename, owns
+  the chrome bar (Back to editor / help text / template tag / Print
+  button). Renders the saved revision via the template registry.
+- **Auto-print client component** —
+  `app/(dashboard)/dashboard/resumes/[id]/preview/auto-print.tsx`.
+  `useEffect` + `useRef` double-mount guard + 100 ms delay so the
+  resume paints before the dialog opens. Opt-in via `?print=1`
+  (preview is also useful for just looking).
+- **Print button** — `print-button.tsx` (existing) repointed to
+  `window.print()` (it was already that — just label/icon polish:
+  Download icon + "Save as PDF").
+- **Print CSS** — `app/globals.css` `@media print` + `@page` rules
+  (page size, margins, `print-color-adjust: exact`, `.no-print`
+  utility, `.page-break-before` / `.page-break-after` / `.avoid-break`
+  utilities). No separate `app/print.css`; one source of truth.
 
 ### State
-- `pnpm test`: **274/274 green** (was 239)
+- `pnpm test`: **239/239 green** (was 274 before the pivot; the 35
+  pdf-render tests came out with the code)
 - Typecheck: clean
-- Browserless is the default; tests use stub provider (no network)
-- Telemetry: PostHog event `pdf_rendered` emitted per render from the
-  route handler (with userId, resumeId, templateId, resultStatus,
-  cacheHit, durationMs, pdfBytes, errorCode)
-- DB table for billing/quota is **deferred to Phase 3** — stub comment
-  in `lib/db/queries.ts` (TODO marker)
-- One outstanding truncated finding from round-3 re-run still open;
-  user triages with: `.\scripts\coderabbit-review.ps1 -Base HEAD~2`
+- 0 managed-API dependencies; 0 env vars; 0 API keys
+- CI: `.github/workflows/ci.yml` runs `pnpm install --frozen-lockfile
+  && pnpm typecheck && pnpm test` on push and PR (added this session)
 
-### Queued for next session (Phase 2.3)
-**Template → HTML → PDF render path.** The current scaffold accepts
-raw HTML; Phase 2.3 adds a higher-level entry point that takes
-`{ resumeId, templateId, data }`, walks through the template registry
-(`components/resume-templates/`), and produces the HTML on the server
-side. The open sub-problems are:
-- **Tailwind in PDF**: the templates use Tailwind utility classes.
-  Three options to decide: (a) bundle precompiled Tailwind into the
-  HTML shell, (b) Tailwind v4 CLI at scaffold time → static CSS →
-  inline in shell, (c) rewrite templates to inline styles / scoped
-  CSS modules. The decision lives in a follow-up commit; the
-  `html-shell.ts` seam (`cssText: string` param) is already in place
-  to absorb whichever path we pick.
-- **Client-component templates**: the current `ClassicTemplate` /
-  `ModernTemplate` files are `'use client'` and call react-hook-form
-  hooks at the top. `renderToStaticMarkup` from a server context
-  can't run them. Options: split each into `{ Template, ReadOnlyTemplate }`,
-  or use a thin server-side mirror. To be decided alongside the
-  Tailwind question.
-- **Vercel prod cache**: `FileSystemCache` no-ops on Vercel (ephemeral
-  FS). Real caching waits for Vercel KV / Upstash Redis in Phase 3.
+### Mid-session pivot (Option A: clean cut)
+
+Started the session with a full `lib/pdf-render/` adapter
+(Browserless + stub provider + cache + telemetry, ~3000 lines across
+10 files), a Tailwind-compile pipeline (`app/print.css` +
+`pdf:css:build` script), and a smoke-test API route. Verified it
+worked end-to-end (real 47 KB PDF from Browserless, real 64 KB PDF
+from a local Playwright pipeline).
+
+Pivoted to browser print after a "let's just verify the native
+flow first" thought experiment. The verification passed all three
+UX concerns. **All `lib/pdf-render/` code, the API routes, the
+Tailwind compile pipeline, the smoke-test scripts, and the pdf-render
+test files were removed in this session** — clean cut, no orphans
+(verified: `lib/pdf-render/` and `app/api/pdf/` directories no
+longer exist; no stale imports). `package.json`, `pnpm-lock.yaml`,
+`vitest.config.ts`, `.env.example`, and `.gitignore` updated to drop
+the dead config.
+
+### Pre-existing CodeRabbit findings — triage
+
+Round-3 review found 11 issues in pre-existing code. This session
+fixed 5 (one-line to small):
+- `components/ui/label.tsx` — stray `;;`
+- `lib/resume-schema/url.ts` — bare-domain regex
+- `components/ui/dialog.tsx` — missing `aria-labelledby`/`describedby`
+- `components/resume-templates/modern.tsx` — hardcoded `data-max-pages`
+- `app/layout.tsx` — `next/script` strategy + cleanup
+
+6 still queued (not blocking the PDF work, but worth a sweep):
+- `components/resume-templates/date-range.tsx` ×2 (JSDoc drift, em-dash glue)
+- `components/resume-templates/classic.tsx` (unclosed JSDoc block)
+- `components/editable/editable-resume.tsx` (useFormState destructure)
+- `components/editable/form-errors.ts` (leaf errors fall through)
+- `scripts/inspect-revisions.cjs` (query limits to first row)
+
+Triage with: `.\scripts\coderabbit-review.ps1 -Base HEAD~6`.
+
+### Queued for next session (Phase 2.4)
+
+- **6 pre-existing CR findings** above (mostly 5-15 min fixes).
+- **Liveblocks collab** (Phase 5 in the rebuild plan) — the editor
+  surface is ready; collab is a session model + cursor presence
+  on top of the existing component tree.
+- **Optimize tool** (Pro-only AI tailoring against a parsed JD) —
+  needs the JD parser + a prompt template + a Vercel AI SDK 6
+  call. The "tier gating" decision (Free vs Pro) lands here.
+
+### Future server-side rendering — decision deferred
+
+If we ever need server-generated PDFs (anonymous share links, email
+attachments, bulk export), the right shape is a **separate worker
+process** that owns the template registry + a headless renderer —
+NOT `react-dom/server` inside a Next.js app route (Next.js 16
+reserves that module for its own RSC pipeline). The
+`DownloadPdfButton` JSDoc documents the seam so the constraint is
+captured without baking the complexity in.
+
+None of the above are in the launch roadmap. The core use case
+(edit → download → attach to application) is fully served by the
+browser-print path.
 
 ## Reference
 

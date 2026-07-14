@@ -13,10 +13,7 @@
     "db:push": "drizzle-kit push",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "pdf:css:build": "tailwindcss -i ./app/print.css -o ./lib/pdf-render/print.css --minify",
-    "pdf:css:watch": "tailwindcss -i ./app/print.css -o ./lib/pdf-render/print.css --watch",
-    "postinstall": "pnpm pdf:css:build"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -58,7 +55,6 @@
   },
   "packageManager": "pnpm@11.10.0+sha512.0b7f8b98060031904c017e3a41eb187a16d40eeb829b95c4f8cb03681761fc4ab53dd219115b9b447f4dce1a05a214764461e7d3703392a9f32f9511ce8c86c8",
   "devDependencies": {
-    "@tailwindcss/cli": "4.1.7",
     "@vitest/coverage-v8": "^2.1.9",
     "vitest": "^2.1.9"
   }

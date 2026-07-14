@@ -18,12 +18,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './'),
-      // The `server-only` package throws when imported outside a Server
-      // Component context. In vitest's Node environment we alias it to
-      // an empty stub so the import succeeds; runtime behavior is
-      // unchanged (it has no exports).
-      'server-only': path.resolve(__dirname, './tests/stubs/server-only.ts')
+      '@': path.resolve(__dirname, './')
     }
   }
 });
