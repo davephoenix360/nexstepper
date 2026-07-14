@@ -402,26 +402,18 @@ the dead config.
 
 ### Pre-existing CodeRabbit findings — triage
 
-Round-3 review found 11 issues in pre-existing code. This session
-fixed 5 (one-line to small):
-- `components/ui/label.tsx` — stray `;;`
-- `lib/resume-schema/url.ts` — bare-domain regex
-- `components/ui/dialog.tsx` — missing `aria-labelledby`/`describedby`
-- `components/resume-templates/modern.tsx` — hardcoded `data-max-pages`
-- `app/layout.tsx` — `next/script` strategy + cleanup
+Round-3 review found 11 issues in pre-existing code. **All 11
+fixed** across two commits this session:
+- `1096a60` — 5 quick wins (`label.tsx`, `url.ts`, `dialog.tsx`,
+  `modern.tsx`, `layout.tsx`)
+- `925510f` — 6 remaining (`date-range.tsx` ×2, `classic.tsx`,
+  `editable-resume.tsx`, `form-errors.ts`, `inspect-revisions.cjs`)
 
-6 still queued (not blocking the PDF work, but worth a sweep):
-- `components/resume-templates/date-range.tsx` ×2 (JSDoc drift, em-dash glue)
-- `components/resume-templates/classic.tsx` (unclosed JSDoc block)
-- `components/editable/editable-resume.tsx` (useFormState destructure)
-- `components/editable/form-errors.ts` (leaf errors fall through)
-- `scripts/inspect-revisions.cjs` (query limits to first row)
-
-Triage with: `.\scripts\coderabbit-review.ps1 -Base HEAD~6`.
+Round-3 is fully closed. Re-run the next session to confirm and
+to start on whatever round-4 surfaces.
 
 ### Queued for next session (Phase 2.4)
 
-- **6 pre-existing CR findings** above (mostly 5-15 min fixes).
 - **Liveblocks collab** (Phase 5 in the rebuild plan) — the editor
   surface is ready; collab is a session model + cursor presence
   on top of the existing component tree.
