@@ -170,6 +170,7 @@ nextep-saas/
 │   ├── inngest/               # Inngest client + serve functions
 │   ├── liveblocks/            # Liveblocks server client
 │   ├── posthog/               # PostHog server + client
+│   ├── resume-parser/         # PDF/DOCX/TXT → AI-parsed ResumeSections
 │   └── utils.ts
 ├── sentry.client.config.ts
 ├── sentry.server.config.ts
@@ -309,12 +310,15 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13)
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01)
 
-Session ends with **PDF download shipped** via the browser's native
-print-to-PDF. **Mid-session pivot** from a managed-API strategy
-(Browserless) to zero-dependency browser print. A fresh session is
-expected to pick up at the **Phase 2.4 boundary**.
+Session ends with **PDF download shipped** (2026-07-13) plus a
+**resume import flow** (2026-09-01). The import lets a user bootstrap
+a Master resume from an existing PDF / DOCX / plain-text file —
+extracted server-side, parsed with Anthropic Claude, and seeded into
+the editor as the first revision. A fresh session is expected to
+pick up at the **Phase 2.4 boundary** (Optimize tool / Liveblocks
+collab).
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
 
@@ -423,6 +427,65 @@ queued for the next session.
 - **Optimize tool** (Pro-only AI tailoring against a parsed JD) —
   needs the JD parser + a prompt template + a Vercel AI SDK 6
   call. The "tier gating" decision (Free vs Pro) lands here.
+
+### Resume import flow (shipped 2026-09-01)
+
+The create form (`CreateMasterResumeForm` at
+`app/(dashboard)/dashboard/resumes/_components/create-master-form.tsx`)
+ships with two modes: **Start from scratch** (existing behavior) and
+**Import from file** (new). The import mode accepts PDF, DOCX, or
+pasted text.
+
+- **UI** — `EditorTabs` segmented control switches modes. The
+  Import tab has its own sub-toggle: "Upload file" (drag-and-drop
+  area + file picker) or "Paste text" (textarea). Both share one
+  name field and one submit button ("Import & create").
+- **Server Action** — `importResumeAction(formData)` in
+  `app/(dashboard)/dashboard/resumes/actions.ts`. Validates session,
+  file size (10 MB cap), file type, runs extraction + AI parse,
+  creates the master with the parsed `ResumeSections` in the first
+  revision. Returns a discriminated union with 12 typed error codes
+  (`not_signed_in`, `no_api_key`, `ai_failure`, `pdf_parse_failed`,
+  etc.) so the UI surfaces specific guidance instead of a generic
+  toast.
+- **Parser module** — `lib/resume-parser/` with three files:
+  - `extract-file-text.ts` — `unpdf` for PDF, `mammoth` for DOCX,
+    UTF-8 decode for TXT. Discriminated-union result with
+    `pdf_parse_failed` / `docx_parse_failed` / `text_too_short` /
+    `empty_file` / `unsupported_type` codes.
+  - `parse-resume.ts` — Vercel AI SDK 6 `generateObject` with
+    `resumeSectionsSchema` as the output contract. The model can't
+    return a non-conforming object. Returns `no_api_key` /
+    `ai_failure` / `validation_failed` / `resume_too_short` codes.
+  - `prompts.ts` — system prompt that mirrors the JD parser's
+    structure: role + output contract + rules of thumb + anti-
+    hallucination discipline.
+- **Why not the legacy's 12-parallel-call pattern?** Vercel AI SDK
+  6's structured output handles the whole `resumeSectionsSchema` in
+  one call. Single call = single round trip = cheaper + faster + no
+  cross-call consistency issues. The legacy needed 12 calls because
+  it was using a non-structured Mistral call with manual retries.
+- **Privacy** — File bytes are read into memory only for the
+  request duration. The text is sent to Anthropic Claude. The
+  original file is **not** stored in Vercel Blob or anywhere else.
+  A one-line disclosure is shown under the upload area.
+- **Next.js body size** — `next.config.ts` sets
+  `experimental.serverActions.bodySizeLimit: '10mb'`. The parser
+  also has a `MAX_FILE_BYTES` cap (defense in depth).
+- **Tests** — 18 new unit tests in `tests/unit/resume-parser/`
+  covering the file extractor (PDF / DOCX / TXT / size guards /
+  error mapping) and the AI parser (mocked `generateObject`,
+  same shape as the JD parser tests).
+
+### Privacy stance for AI features
+
+Both AI features (JD parse in `lib/jd-parser/` and resume parse in
+`lib/resume-parser/`) send the user's text to Anthropic Claude. This
+is documented in each parser's JSDoc. The UI shows a one-line
+disclosure in the relevant form. The file-PDF-to-text path keeps
+bytes in memory only — no third-party upload, no Vercel Blob
+storage. Consistent with the PDF-print decision: keep PII handling
+visible and minimal.
 
 ### Future server-side rendering — decision deferred
 
