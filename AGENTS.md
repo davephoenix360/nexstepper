@@ -171,6 +171,7 @@ nextep-saas/
 │   ├── liveblocks/            # Liveblocks server client
 │   ├── posthog/               # PostHog server + client
 │   ├── resume-parser/         # PDF/DOCX/TXT → AI-parsed ResumeSections
+│   ├── share/                 # public-link tokens (gen, hash, URL build)
 │   └── utils.ts
 ├── sentry.client.config.ts
 ├── sentry.server.config.ts
@@ -312,13 +313,12 @@ any collaborator.
 
 ## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01)
 
-Session ends with **PDF download shipped** (2026-07-13) plus a
-**resume import flow** (2026-09-01). The import lets a user bootstrap
-a Master resume from an existing PDF / DOCX / plain-text file —
-extracted server-side, parsed with Anthropic Claude, and seeded into
-the editor as the first revision. A fresh session is expected to
-pick up at the **Phase 2.4 boundary** (Optimize tool / Liveblocks
-collab).
+Session ends with **PDF download shipped** (2026-07-13), a
+**resume import flow** (2026-09-01), and a **public share-link
+flow** (2026-09-01, same session). The share link lets an owner
+generate a read-only `/r/{token}` URL anyone can view without a
+Nextep account. A fresh session is expected to pick up at the
+**Phase 2.4 boundary** (Optimize tool / Liveblocks collab).
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
 
@@ -486,6 +486,62 @@ disclosure in the relevant form. The file-PDF-to-text path keeps
 bytes in memory only — no third-party upload, no Vercel Blob
 storage. Consistent with the PDF-print decision: keep PII handling
 visible and minimal.
+
+### Public share-link flow (shipped 2026-09-01)
+
+Owners can flip a switch in the editor header → generate a
+`/r/{token}` URL → share with recruiters/mentors without forcing
+them to sign up.
+
+- **URL shape** — `/r/{token}`. Short, magic-link style. NOT
+  `/share/{token}` (tells crawlers the page is meant to be shared;
+  we want it quiet).
+- **Token format** — 21 chars of CSPRNG entropy (nanoid with a
+  custom URL-safe alphabet; excludes `0/O/1/l/I` to avoid
+  ambiguity). 126 bits — collision odds are zero at any realistic
+  scale. Picked over UUIDv4 for URL brevity (21 vs 36 chars) and
+  over signed JWT for instant revocation (no denylist needed).
+- **Hash, don't store** — the DB column `resumes.share_token_hash`
+  is the **SHA-256 hex digest** of the token. A DB leak does not
+  leak shareable URLs. The unhashed token lives in the URL only.
+- **Revocation** — three modes:
+  1. Disable (`share_enabled = false`): existing URL returns 404
+     instantly. Token hash kept on the row.
+  2. Rotate: new hash, new URL, old URL dies immediately.
+     `share_view_count` preserved (lifetime stat).
+  3. Delete the resume: cascade wipes everything (including
+     `share_token_hash`) via the existing FK on cascade.
+- **Schema** — migration `0003_common_blizzard.sql`. Five new
+  columns on `resumes` + a btree index on `share_token_hash` for
+  the O(1) public lookup. No joins; no new tables.
+- **Owner UI** — `ShareButton` client component, next to the
+  Download PDF button in the editor header. State machine:
+  `disabled → enabled → rotated`. URL is shown only after a fresh
+  enable/rotate (never displays a stale URL).
+- **Public route** — `app/r/[token]/page.tsx`. Server component, no
+  auth, no chrome. `notFound()` for both unknown-token and
+  disabled-share (no information leak between the two). Increments
+  `share_view_count` fire-and-forget.
+- **SEO** — `noindex, nofollow, nocache` on every share-page
+  render. PII should never be indexed. Resume data is PII.
+- **Module layout** —
+  - `lib/share/token.ts` — generate / hash / build-URL
+  - `lib/share/index.ts` — barrel
+  - `lib/db/queries.ts` — 6 new functions (getShareStatus,
+    enableShare, disableShare, rotateShareToken,
+    getResumeByShareToken, recordShareView)
+  - `app/(dashboard)/dashboard/resumes/actions.ts` — 3 new
+    actions (enableShareAction, disableShareAction,
+    rotateShareTokenAction) sharing the
+    `ShareActionErrorCode` discriminated union
+  - `app/r/[token]/page.tsx` — public render
+  - `app/(dashboard)/dashboard/resumes/[id]/share-button.tsx` —
+    owner dialog
+- **Tests** — 15 unit tests in `tests/unit/share/token.test.ts`
+  (token format, hash determinism, URL building edge cases). The
+  DB-touching functions are exercised via the integration with the
+  editor page; mock-based unit tests for them would be testing
+  Drizzle, not our code.
 
 ### Future server-side rendering — decision deferred
 
