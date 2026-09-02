@@ -19,7 +19,8 @@ import { auth } from '@/lib/auth';
 import {
   blankResumeData,
   resumeDataSchema,
-  type ResumeData
+  type ResumeData,
+  type ResumeSections
 } from '@/lib/resume-schema';
 import { parsedJdSchema, type ParsedJd } from '@/lib/jd-parser';
 
@@ -225,14 +226,22 @@ export async function getCurrentRevisionData(
  *
  * Always creates a `draft` master. Variants are created separately via
  * `createVariant` so we never accidentally produce an orphan variant.
+ *
+ * Pass `sections` to seed the first revision with imported / AI-parsed
+ * content (used by the resume import flow). Without `sections` the
+ * first revision is a `blankResumeData()` envelope — the create-from-
+ * scratch path.
  */
 export async function createMasterResume(
   userId: string,
-  name: string
+  name: string,
+  sections?: ResumeSections
 ): Promise<Resume> {
   const data = blankResumeData();
   // Honor the requested name; otherwise keep the blank default.
   if (name.trim()) data.name = name.trim();
+  // Seed the first revision with caller-provided sections when given.
+  if (sections) data.sections = sections;
 
   return db.transaction(async (tx) => {
     const resumeId = crypto.randomUUID();
