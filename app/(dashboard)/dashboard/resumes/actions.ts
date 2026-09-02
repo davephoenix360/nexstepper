@@ -17,6 +17,17 @@ import {
   MAX_FILE_BYTES,
   type SupportedFileType
 } from '@/lib/resume-parser';
+import {
+  enableShare as enableShareQuery,
+  disableShare as disableShareQuery,
+  getShareStatus,
+  rotateShareToken as rotateShareTokenQuery
+} from '@/lib/db/queries';
+import {
+  buildShareUrl,
+  generateShareTokenRaw,
+  hashShareToken
+} from '@/lib/share';
 
 /**
  * Discriminated union for Server Action results — see AGENTS.md §3.
@@ -338,4 +349,196 @@ export async function createVariantAction(
 
 const createVariantSchema = z.object({
   masterId: z.string().min(1, 'Master resume id is required')
+});
+
+// ─── Share actions (Phase 2.5) ──────────────────────────────────────────────
+
+/**
+ * Discriminated union for the share actions. Mirrors the resume
+ * import shape so the editor share dialog can surface specific
+ * guidance per failure mode.
+ */
+export type ShareActionErrorCode =
+  | 'not_signed_in'
+  | 'not_found'
+  | 'db_failure';
+
+export type ShareActionResult =
+  | {
+      ok: true;
+      data: {
+        /** The full public URL. Send back to the client exactly once. */
+        url: string;
+        viewCount: number;
+        createdAt: Date | null;
+      };
+    }
+  | { ok: false; code: ShareActionErrorCode; error: string };
+
+/**
+ * Enable public sharing for a resume. Generates a fresh 21-char
+ * CSPRNG token, stores the SHA-256 hash in the DB, and returns the
+ * raw token (in the URL) to the caller.
+ *
+ * The raw token is NEVER persisted in plaintext — only the hash is
+ * in `resumes.shareTokenHash`. A DB leak therefore doesn't leak
+ * shareable URLs.
+ */
+export async function enableShareAction(
+  input: unknown
+): Promise<ShareActionResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, code: 'not_signed_in', error: 'Not signed in' };
+  }
+
+  const parsed = enableShareSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: 'not_found', error: 'Invalid resume id' };
+  }
+
+  // Ownership check + get the current viewCount so the UI can show
+  // the running total without a second round-trip.
+  const status = await getShareStatus(parsed.data.id, session.user.id);
+  if (!status) {
+    return { ok: false, code: 'not_found', error: 'Resume not found' };
+  }
+
+  const token = generateShareTokenRaw();
+  const tokenHash = hashShareToken(token);
+
+  try {
+    const ok = await enableShareQuery(
+      parsed.data.id,
+      session.user.id,
+      tokenHash
+    );
+    if (!ok) {
+      return { ok: false, code: 'not_found', error: 'Resume not found' };
+    }
+  } catch (err) {
+    console.error('[enableShareAction] DB failure:', err);
+    return { ok: false, code: 'db_failure', error: 'Could not enable sharing' };
+  }
+
+  return {
+    ok: true,
+    data: {
+      url: buildShareUrl(token),
+      viewCount: status.viewCount,
+      createdAt: new Date()
+    }
+  };
+}
+
+/**
+ * Disable public sharing. The existing URL immediately stops working
+ * (the lookup query requires `shareEnabled = true`). We keep the
+ * token hash around so a future re-enable starts from a known state.
+ */
+export async function disableShareAction(
+  input: unknown
+): Promise<ShareActionResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, code: 'not_signed_in', error: 'Not signed in' };
+  }
+
+  const parsed = enableShareSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: 'not_found', error: 'Invalid resume id' };
+  }
+
+  try {
+    const ok = await disableShareQuery(parsed.data.id, session.user.id);
+    if (!ok) {
+      return { ok: false, code: 'not_found', error: 'Resume not found' };
+    }
+  } catch (err) {
+    console.error('[disableShareAction] DB failure:', err);
+    return {
+      ok: false,
+      code: 'db_failure',
+      error: 'Could not stop sharing'
+    };
+  }
+
+  // No URL on disable — the client just closes the dialog.
+  return {
+    ok: true,
+    data: { url: '', viewCount: 0, createdAt: null }
+  };
+}
+
+/**
+ * Rotate the share token. The old URL immediately stops working; the
+ * new one is returned. Useful when the user suspects the link has
+ * leaked (e.g. recruiter-forwarded email went sideways).
+ *
+ * Requires `shareEnabled = true` — rotation of a disabled link is a
+ * no-op (call `enableShareAction` instead, which generates a fresh
+ * token from scratch).
+ */
+export async function rotateShareTokenAction(
+  input: unknown
+): Promise<ShareActionResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, code: 'not_signed_in', error: 'Not signed in' };
+  }
+
+  const parsed = enableShareSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: 'not_found', error: 'Invalid resume id' };
+  }
+
+  const status = await getShareStatus(parsed.data.id, session.user.id);
+  if (!status) {
+    return { ok: false, code: 'not_found', error: 'Resume not found' };
+  }
+  if (!status.enabled) {
+    return {
+      ok: false,
+      code: 'not_found',
+      error: 'Sharing is not enabled on this resume'
+    };
+  }
+
+  const token = generateShareTokenRaw();
+  const tokenHash = hashShareToken(token);
+
+  try {
+    const ok = await rotateShareTokenQuery(
+      parsed.data.id,
+      session.user.id,
+      tokenHash
+    );
+    if (!ok) {
+      return {
+        ok: false,
+        code: 'not_found',
+        error: 'Could not rotate — sharing may be disabled'
+      };
+    }
+  } catch (err) {
+    console.error('[rotateShareTokenAction] DB failure:', err);
+    return {
+      ok: false,
+      code: 'db_failure',
+      error: 'Could not rotate the share link'
+    };
+  }
+
+  return {
+    ok: true,
+    data: {
+      url: buildShareUrl(token),
+      viewCount: status.viewCount,
+      createdAt: new Date()
+    }
+  };
+}
+
+const enableShareSchema = z.object({
+  id: z.string().min(1, 'Resume id is required')
 });
