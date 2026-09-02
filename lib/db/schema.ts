@@ -154,12 +154,33 @@ export const resumes = pgTable(
     parentResumeId: text('parent_resume_id'),
     /** The revision that should be rendered / edited. */
     currentRevisionId: text('current_revision_id'),
+
+    // ─── Public sharing (Phase 2.5) ────────────────────────────────
+    /**
+     * SHA-256 hex digest of the share token. We never store the raw
+     * token — it's sent in the URL, hashed on the way in, and compared
+     * to this column. This means a DB leak doesn't leak shareable
+     * URLs. Nullable: only set when the owner has enabled sharing.
+     */
+    shareTokenHash: text('share_token_hash'),
+    /** Master switch for public access. False = link returns 404. */
+    shareEnabled: boolean('share_enabled').notNull().default(false),
+    /** Increments on every successful public render. */
+    shareViewCount: integer('share_view_count').notNull().default(0),
+    /** Last time someone hit the public route. */
+    shareLastViewedAt: timestamp('share_last_viewed_at'),
+    /** When sharing was first enabled — for the "shared X days ago" UI. */
+    shareCreatedAt: timestamp('share_created_at'),
+
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
   },
   (table) => [
     index('resumes_user_idx').on(table.userId),
-    index('resumes_parent_idx').on(table.parentResumeId)
+    index('resumes_parent_idx').on(table.parentResumeId),
+    // Lookup-by-token: a single btree index on the hash column
+    // (B-Tree supports equality, which is all we need).
+    index('resumes_share_token_idx').on(table.shareTokenHash)
   ]
 );
 

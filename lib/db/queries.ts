@@ -482,6 +482,202 @@ export async function deleteResume(
   });
 }
 
+// ─── Share-link queries (Phase 2.5) ─────────────────────────────────────────
+
+/**
+ * A shareable-link summary — the bits the owner UI needs to show
+ * "Sharing is on, X views" / "Generate new link" / "Stop sharing".
+ *
+ * Deliberately omits the token hash (it would be useless to the
+ * client) and the raw token (only the action ever sees that).
+ */
+export type ShareStatus = {
+  enabled: boolean;
+  viewCount: number;
+  lastViewedAt: Date | null;
+  createdAt: Date | null;
+  /** The token hash. The client should never need this, but the
+   *  action uses it to build the public URL after generation. */
+  tokenHash: string | null;
+};
+
+/**
+ * Read the share status for a resume. Ownership-checked. Returns
+ * null if the resume doesn't exist OR isn't owned by this user
+ * (don't leak existence to non-owners).
+ */
+export async function getShareStatus(
+  resumeId: string,
+  userId: string
+): Promise<ShareStatus | null> {
+  const [row] = await db
+    .select({
+      shareEnabled: resumes.shareEnabled,
+      shareViewCount: resumes.shareViewCount,
+      shareLastViewedAt: resumes.shareLastViewedAt,
+      shareCreatedAt: resumes.shareCreatedAt,
+      shareTokenHash: resumes.shareTokenHash
+    })
+    .from(resumes)
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .limit(1);
+
+  if (!row) return null;
+
+  return {
+    enabled: row.shareEnabled,
+    viewCount: row.shareViewCount,
+    lastViewedAt: row.shareLastViewedAt,
+    createdAt: row.shareCreatedAt,
+    tokenHash: row.shareTokenHash
+  };
+}
+
+/**
+ * Enable sharing on a resume. Stores the (already-hashed) token +
+ * flips `shareEnabled` to true + stamps `shareCreatedAt`. The caller
+ * (Server Action) generates the raw token, gives it to the user,
+ * and passes the hash here.
+ *
+ * Returns true on success, false if the resume doesn't exist or
+ * isn't owned by this user.
+ */
+export async function enableShare(
+  resumeId: string,
+  userId: string,
+  tokenHash: string
+): Promise<boolean> {
+  const result = await db
+    .update(resumes)
+    .set({
+      shareTokenHash: tokenHash,
+      shareEnabled: true,
+      // First-time enable. We deliberately don't reset viewCount —
+      // re-enable after a disable preserves the running total so the
+      // owner can see how popular the resume has been over time.
+      shareCreatedAt: new Date(),
+      shareLastViewedAt: null,
+      updatedAt: new Date()
+    })
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .returning({ id: resumes.id });
+
+  return result.length > 0;
+}
+
+/**
+ * Disable sharing on a resume. Anyone with the existing URL gets
+ * 404 from now on. We KEEP the token hash so rotation can reuse the
+ * same row state; if the user re-enables we generate a fresh token
+ * anyway (the old one is dead).
+ *
+ * Returns true on success, false if not found / not owned.
+ */
+export async function disableShare(
+  resumeId: string,
+  userId: string
+): Promise<boolean> {
+  const result = await db
+    .update(resumes)
+    .set({
+      shareEnabled: false,
+      updatedAt: new Date()
+    })
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .returning({ id: resumes.id });
+
+  return result.length > 0;
+}
+
+/**
+ * Rotate the share token. Generates a new hash, replaces the old,
+ * keeps `shareEnabled = true` and the existing viewCount. The old
+ * URL immediately stops working.
+ */
+export async function rotateShareToken(
+  resumeId: string,
+  userId: string,
+  newTokenHash: string
+): Promise<boolean> {
+  const result = await db
+    .update(resumes)
+    .set({
+      shareTokenHash: newTokenHash,
+      // New URL = reset the "first shared" timestamp so the UI shows
+      // the new creation date. viewCount is preserved (lifetime stat).
+      shareCreatedAt: new Date(),
+      shareLastViewedAt: null,
+      updatedAt: new Date()
+    })
+    .where(
+      and(
+        eq(resumes.id, resumeId),
+        eq(resumes.userId, userId),
+        eq(resumes.shareEnabled, true)
+      )
+    )
+    .returning({ id: resumes.id });
+
+  return result.length > 0;
+}
+
+/**
+ * Look up a resume by its share token. No auth — the URL is the
+ * capability. Returns null if:
+ *   - The token doesn't match any hash
+ *   - Sharing is disabled (shareEnabled = false)
+ *
+ * Does NOT validate the JSONB revision data here — the route handler
+ * does that as a defense-in-depth check before rendering.
+ */
+export async function getResumeByShareToken(tokenHash: string): Promise<{
+  resume: Resume;
+  data: ResumeData;
+} | null> {
+  const [row] = await db
+    .select()
+    .from(resumes)
+    .where(
+      and(
+        eq(resumes.shareTokenHash, tokenHash),
+        eq(resumes.shareEnabled, true)
+      )
+    )
+    .limit(1);
+
+  if (!row) return null;
+
+  const data = await getCurrentRevisionData(row);
+  if (!data) return null;
+
+  return { resume: row, data };
+}
+
+/**
+ * Increment the view counter + stamp the last-viewed timestamp. Best-
+ * effort — we don't fail the render if the increment fails. The
+ * `fire-and-forget` semantics are intentional: the public route
+ * already returned the HTML by the time this runs.
+ *
+ * Race conditions are fine — two concurrent viewers incrementing to
+ * the same value is a non-event (the counter is a stat, not a
+ * billing signal).
+ */
+export async function recordShareView(resumeId: string): Promise<void> {
+  try {
+    await db
+      .update(resumes)
+      .set({
+        shareViewCount: sql`${resumes.shareViewCount} + 1`,
+        shareLastViewedAt: new Date()
+      })
+      .where(eq(resumes.id, resumeId));
+  } catch (err) {
+    // Log + swallow. The public render already succeeded.
+    console.error('[recordShareView] failed:', err);
+  }
+}
+
 /**
  * Count a user's master resumes. Used to enforce a "one master per user" rule
  * (or, more permissively, to surface a "you already have a master" warning).
