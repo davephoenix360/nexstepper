@@ -3,11 +3,12 @@ import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, GitBranch } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { getUser, getResume } from '@/lib/db/queries';
+import { getUser, getResume, getShareStatus } from '@/lib/db/queries';
 import { EditableResume } from '@/components/editable';
 
 import { CreateVariantButton } from '../_components/create-variant-button';
 import { DownloadPdfButton } from './download-pdf-button';
+import { ShareButton } from './share-button';
 
 /**
  * Resume editor page — RSC.
@@ -49,6 +50,22 @@ export default async function ResumeEditorPage({
 
   const { resume, data } = result;
 
+  // Server-render the share status so the dialog opens with the right
+  // state (no extra round-trip). We never expose the raw token in
+  // the page — only the actions return that, and only after the user
+  // explicitly enables / rotates.
+  const shareStatus = await getShareStatus(resume.id, user.id);
+  const shareStatusView = {
+    enabled: shareStatus?.enabled ?? false,
+    viewCount: shareStatus?.viewCount ?? 0,
+    lastViewedAt: shareStatus?.lastViewedAt
+      ? shareStatus.lastViewedAt.toISOString()
+      : null,
+    createdAt: shareStatus?.createdAt
+      ? shareStatus.createdAt.toISOString()
+      : null
+  };
+
   return (
     <section className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
       <header className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -75,6 +92,7 @@ export default async function ResumeEditorPage({
           <CreateVariantButton masterId={resume.id} />
         ) : null}
         <div className="flex items-center gap-2">
+          <ShareButton resumeId={resume.id} initialStatus={shareStatusView} />
           <DownloadPdfButton resumeId={resume.id} />
         </div>
       </header>
