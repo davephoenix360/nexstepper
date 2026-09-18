@@ -82,12 +82,20 @@ export async function parseResumeText(
   }
 
   try {
+    // 30s cap. Typical Gemini Flash response is 1-2s for our input
+    // sizes; 30s is generous enough to absorb cold starts, queue
+    // waits, and Gemini rate-limit retries, while preventing an
+    // indefinite hang if the Gateway or upstream provider is
+    // unreachable. The AbortError thrown by this surfaces in the
+    // catch as `ai_failure` with the message "This operation was
+    // aborted".
     const result = await generateObject({
       model: getModel(RESUME_PARSER_MODEL),
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
       schema: resumeSectionsSchema,
-      temperature: 0
+      temperature: 0,
+      abortSignal: AbortSignal.timeout(30_000)
     });
 
     return {
