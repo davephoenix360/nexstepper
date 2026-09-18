@@ -12,11 +12,15 @@ import { auth } from '@/lib/auth';
  *  - Aligns with the rest of the app's Server Action conventions.
  *
  * The action redirects to `/sign-in?reset=1` on success, which
- * Next.js implements as a `NEXT_REDIRECT` thrown error. We let
- * that propagate (don't catch it).
+ * Next.js implements as a `NEXT_REDIRECT` thrown error. We MUST
+ * re-throw that error from our catch — it's the framework's
+ * mechanism for triggering the redirect, and swallowing it would
+ * surface "NEXT_REDIRECT" as a user-facing error message (which
+ * is what happened before this fix).
  *
- * On error, we return a discriminated union so the client can
- * show a specific message (expired token, weak password, etc.).
+ * On a real error (network, expired token, weak password, etc.)
+ * we return a discriminated union so the client can show a
+ * specific message.
  */
 export type ResetPasswordState = {
   status: 'idle' | 'error';
@@ -64,6 +68,18 @@ export async function resetPasswordAction(
     // to use their new password.
     redirect('/sign-in?reset=1');
   } catch (err) {
+    // CRITICAL: re-throw Next.js's redirect signal. The redirect()
+    // call above works by throwing a NEXT_REDIRECT error that the
+    // framework catches. If we swallow it here, the user sees
+    // "NEXT_REDIRECT" as a red error string instead of being
+    // redirected.
+    //
+    // Next.js < 15.1 exported `isRedirectError` from
+    // `next/navigation`; in newer versions we detect by message
+    // (the digest field is set too, but the message is the public
+    // contract and is stable).
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
+
     const message = err instanceof Error ? err.message : String(err);
     return {
       status: 'error',
