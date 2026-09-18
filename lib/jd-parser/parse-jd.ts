@@ -7,6 +7,7 @@ import {
 } from './prompts';
 import { PARSER_MODEL, PARSE_FALLBACKS } from '@/lib/ai/providers';
 import { generateObjectWithFallbacks } from '@/lib/ai/fallback';
+import { aiStrict } from '@/lib/ai/ai-strict-schema';
 
 /**
  * Discriminated union for the parser result — same shape the rest of the
@@ -78,7 +79,10 @@ export async function parseJd(jdText: string): Promise<ParseJdResult> {
       models: [PARSER_MODEL, ...PARSE_FALLBACKS],
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
-      schema: parsedJdSchema,
+      // `aiStrict()` peels every `.default(...)` wrapper so OpenAI's
+      // strict JSON-schema mode accepts the schema. See
+      // `lib/ai/ai-strict-schema.ts` for the production error this fixes.
+      schema: aiStrict(parsedJdSchema),
       // generateObject already retries once on validation failure (it'll
       // re-prompt the model with the schema errors). We don't need to
       // wrap that in our own retry loop.
