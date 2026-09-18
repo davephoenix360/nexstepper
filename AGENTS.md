@@ -313,20 +313,25 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18)
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped))
 
 Session ends with **PDF download shipped** (2026-07-13), a
 **resume import flow** (2026-09-01), a **public share-link
 flow** (2026-09-01), an **AI Gateway migration** (2026-09-18),
-and a **password reset flow** (2026-09-18). The reset flow
-closes the long-standing "email + password only, no recovery"
-gap. Both parsers (JD + resume) now route through Vercel AI
-Gateway instead of calling `@ai-sdk/anthropic` directly. The
-Gateway gives us free observability, automatic cross-provider
-failover, 0% markup on tokens, and a single `AI_GATEWAY_API_KEY`
-env var. The share link lets an owner generate a read-only
-`/r/{token}` URL anyone can view without a Nextep account. A fresh session is expected to pick up at the
-**Phase 2.4 boundary** (Optimize tool / Liveblocks collab).
+a **password reset flow** (2026-09-18), and the
+**Optimize tool v0** (2026-09-18, basics.summary rewrite
+against a pasted JD). The reset flow closes the long-standing
+"email + password only, no recovery" gap. Optimize is the
+first end-user feature that consumes the AI Gateway; it goes
+through the same `openai/gpt-4o-mini` + 3-model fallback chain
+as the parsers. Both parsers (JD + resume) now route through
+Vercel AI Gateway instead of calling `@ai-sdk/anthropic`
+directly. The Gateway gives us free observability, automatic
+cross-provider failover, 0% markup on tokens, and a single
+`AI_GATEWAY_API_KEY` env var. The share link lets an owner
+generate a read-only `/r/{token}` URL anyone can view without
+a Nextep account. A fresh session is expected to pick up at the
+**Phase 2.6 boundary** (Liveblocks collab + Optimize tier gate).
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
 
@@ -427,14 +432,18 @@ strict-mode bug; missing `print-color-adjust` in globals.css),
 4 pre-existing in `lib/payments/stripe.ts` + `.env.example`
 queued for the next session.
 
-### Queued for next session (Phase 2.4)
+### Queued for next session (Phase 2.6)
 
 - **Liveblocks collab** (Phase 5 in the rebuild plan) — the editor
   surface is ready; collab is a session model + cursor presence
   on top of the existing component tree.
-- **Optimize tool** (Pro-only AI tailoring against a parsed JD) —
-  needs the JD parser + a prompt template + a Vercel AI SDK 6
-  call. The "tier gating" decision (Free vs Pro) lands here.
+- **Optimize tier gate** — Optimize v0 ships ungated (anyone can
+  use it). The Phase 3 plan has it as Pro-only; the gate is a small
+  follow-up that adds an entitlement check (Stripe subscription
+  status) at the top of `runOptimizeSummaryAction`.
+- **Optimize work highlights** — the second section type. The
+  `buildWorkHighlightsUserPrompt` prompt builder is already stubbed
+  in `lib/optimize/prompts.ts`; wiring the action + UI is one PR.
 
 ### Resume import flow (shipped 2026-09-01)
 
@@ -569,6 +578,93 @@ Vercel AI Gateway (`@ai-sdk/gateway@3`) instead of calling
   lock in the model string conventions and the `getModel` shape.
   Both parser test files swap the mocked `@ai-sdk/anthropic` for
   a mocked `@ai-sdk/gateway`.
+
+### Optimize tool v0 (shipped 2026-09-18)
+
+The first end-user feature built on the AI Gateway. Rewrites a
+specific resume section against a pasted job description —
+the section is shown side-by-side with the original so the
+candidate can accept or dismiss the suggestion.
+
+**V0 scope:** `basics.summary` only. Plumbing (server action,
+UI, fallback chain, save-as-revision) is section-type-agnostic
+so the next section type is one PR away. The `work[*].highlights`
+prompt builder is already stubbed at
+`buildWorkHighlightsUserPrompt` in `lib/optimize/prompts.ts`.
+
+**UX flow:**
+1. Click "Optimize" in the editor header → `/dashboard/resumes/[id]/optimize`.
+2. Paste the JD (min 200 chars). Click "Optimize summary" (3-8s).
+3. Side-by-side view: Current vs Optimized (emerald accent +
+   "AI suggestion" badge). Accept & save creates a new revision;
+   Dismiss drops the suggestion.
+4. On accept → `revalidatePath` → editor shows the new summary.
+
+**Hard anti-hallucination discipline.** The system prompt
+explicitly forbids inventing facts, changing identifying data,
+adding metrics, or replacing the candidate's voice. The summary
+prompt asks for a section that surfaces keywords the candidate
+*already* claims elsewhere in their resume — never new ones.
+
+**No tier gate in v0.** Anyone can use Optimize. Pro gating is
+a small follow-up that adds an entitlement check (Stripe
+subscription status) at the top of `runOptimizeSummaryAction`.
+The Phase 3 plan has Optimize as Pro-only; we ship ungated first
+to validate the UX.
+
+**Code map:**
+- `lib/optimize/prompts.ts` — `OPTIMIZER_SYSTEM_PROMPT` (the
+  no-invent, no-fluff discipline) + `buildSummaryUserPrompt` +
+  stub `buildWorkHighlightsUserPrompt`.
+- `lib/optimize/optimize-resume.ts` — `optimizeSummarySection()`
+  (calls `generateObjectWithFallbacks` with the same 4-model
+  chain as the parsers; strict Zod output schema; 90s abort
+  signal; `MAX_JD_CHARS` 8K + `MAX_SUMMARY_CHARS` 2K caps),
+  `extractSummaryFromResumeData`, `applyOptimizedSummary`
+  (pure, structural-sharing immutability).
+- `app/(dashboard)/dashboard/resumes/[id]/optimize-actions.ts`
+  — `runOptimizeSummaryAction` (auth + Zod input + ownership via
+  `getResume()` + AI call + return `{ original, optimized,
+  modelUsed }`) and `applyOptimizeSummaryAction` (auth + Zod +
+  ownership + `applyOptimizedSummary` + `saveResumeRevision` +
+  `revalidatePath`).
+- `app/(dashboard)/dashboard/resumes/[id]/optimize/page.tsx` —
+  Server Component, auth redirect + `getResume()` ownership check
+  + `extractSummaryFromResumeData()` to seed the client.
+- `app/(dashboard)/dashboard/resumes/[id]/optimize/optimize-client.tsx`
+  — staged UX (idle → running → done → error), useTransition
+  pattern from the password-reset fix, side-by-side result view.
+- `app/(dashboard)/dashboard/resumes/[id]/optimize-button.tsx` —
+  tiny client component linking to the Optimize page.
+- Editor header wiring — `<OptimizeButton resumeId={resume.id} />`
+  added next to `<ShareButton>` and `<DownloadPdfButton>`.
+
+**Persistence pattern.** Optimize creates a new `resume_revisions`
+row on accept (same path as `saveResumeAction`). The original
+summary stays in revision history. Reversible for free.
+
+**Privacy.** Text is sent to OpenAI/etc via Vercel AI Gateway
+for the rewrite. Never persisted outside the user's own
+revisions. One-line UI disclosure on the Optimize page:
+"Minimum 200 characters. Your text is sent to the AI provider
+via Vercel AI Gateway and is not stored."
+
+**Tests** — 38 new unit tests in `tests/unit/optimize/`:
+- `prompts.test.ts` (17 tests): system-prompt discipline,
+  prompt shape, empty/whitespace handling, no-HTML-escape (LLM
+  is the consumer), bullet numbering for the future work
+  highlights path.
+- `optimize-resume.test.ts` (21 tests): `jd_too_short` (incl.
+  length in msg), `no_api_key`, success path (whitespace
+  trimmed), `validation_failed` on empty output, `ai_failure`
+  walks all 4 models in the chain, empty-summary passthrough,
+  `MAX_JD_CHARS` truncation, schema + temperature + abortSignal
+  wiring, pure-helper immutability + structural sharing.
+
+Total: **379 tests across 24 files, all green**. Typecheck
+clean. **End-to-end requires `AI_GATEWAY_API_KEY`** in
+`.env.local`; without it, the action returns `no_api_key`
+and the UI shows a setup hint.
 
 ### DB migrations: `db:push` vs `db:generate` + `db:migrate` (learned the hard way)
 
