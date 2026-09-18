@@ -172,6 +172,7 @@ nextep-saas/
 │   ├── posthog/               # PostHog server + client
 │   ├── resume-parser/         # PDF/DOCX/TXT → AI-parsed ResumeSections
 │   ├── share/                 # public-link tokens (gen, hash, URL build)
+│   ├── ai/                    # Vercel AI Gateway providers + model constants
 │   └── utils.ts
 ├── sentry.client.config.ts
 ├── sentry.server.config.ts
@@ -311,11 +312,16 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01)
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18)
 
 Session ends with **PDF download shipped** (2026-07-13), a
-**resume import flow** (2026-09-01), and a **public share-link
-flow** (2026-09-01, same session). The share link lets an owner
+**resume import flow** (2026-09-01), a **public share-link
+flow** (2026-09-01, same session), and an **AI Gateway
+migration** (2026-09-18). Both parsers (JD + resume) now route
+through Vercel AI Gateway instead of calling `@ai-sdk/anthropic`
+directly. The Gateway gives us free observability, automatic
+cross-provider failover, 0% markup on tokens, and a single
+`AI_GATEWAY_API_KEY` env var. The share link lets an owner
 generate a read-only `/r/{token}` URL anyone can view without a
 Nextep account. A fresh session is expected to pick up at the
 **Phase 2.4 boundary** (Optimize tool / Liveblocks collab).
@@ -480,12 +486,46 @@ pasted text.
 ### Privacy stance for AI features
 
 Both AI features (JD parse in `lib/jd-parser/` and resume parse in
-`lib/resume-parser/`) send the user's text to Anthropic Claude. This
-is documented in each parser's JSDoc. The UI shows a one-line
-disclosure in the relevant form. The file-PDF-to-text path keeps
-bytes in memory only — no third-party upload, no Vercel Blob
-storage. Consistent with the PDF-print decision: keep PII handling
-visible and minimal.
+`lib/resume-parser/`) send the user's text to Anthropic Claude via
+Vercel AI Gateway. This is documented in each parser's JSDoc. The
+UI shows a one-line disclosure in the relevant form. The
+file-PDF-to-text path keeps bytes in memory only — no third-party
+upload, no Vercel Blob storage. Consistent with the PDF-print
+decision: keep PII handling visible and minimal.
+
+### AI Gateway migration (shipped 2026-09-18)
+
+Both parsers and (when built) the Optimize tool route through
+Vercel AI Gateway (`@ai-sdk/gateway@3`) instead of calling
+`@ai-sdk/anthropic` directly.
+
+- **Why** — Single `AI_GATEWAY_API_KEY` env var gives us access
+  to 275+ models across Anthropic, OpenAI, Google, Mistral,
+  DeepSeek, etc. with 0% markup, automatic cross-provider
+  failover, and free spend / latency observability in the Vercel
+  dashboard. The free tier covers our current usage ($5/mo credit,
+  no card).
+- **Where** — `lib/ai/providers.ts` holds the model constants
+  (`JD_PARSER_MODEL`, `RESUME_PARSER_MODEL`, `OPTIMIZE_MODEL`)
+  and the `getModel(modelId)` resolver. The parsers import the
+  constants and never touch `@ai-sdk/gateway` directly.
+- **Pinned versions** — `@ai-sdk/gateway@3` is the bridge
+  version that works with the current `ai@6.x`. `@ai-sdk/gateway@4`
+  is for AI SDK 7 only (returns `LanguageModelV4`, which AI SDK 6
+  rejects). When we upgrade to AI SDK 7 (recommended, see
+  `output/deep-research/20260901_222225_ai-integration-options/`),
+  we'll bump both `ai` and `@ai-sdk/gateway` to v7/v4 together.
+- **Switching providers** — Change `JD_PARSER_MODEL` /
+  `RESUME_PARSER_MODEL` to a different model string (e.g.
+  `'google/gemini-2.5-flash'`). The Gateway supports them all.
+- **Optimize tool planning** — `OPTIMIZE_MODEL` is pre-set to
+  `claude-haiku-4.5` so the Optimize action can `import { OPTIMIZE_MODEL }`
+  from day one; we'll add a `fallback: 'anthropic/claude-sonnet-5'`
+  chain when Optimize ships.
+- **Tests** — 8 new unit tests in `tests/unit/ai/providers.test.ts`
+  lock in the model string conventions and the `getModel` shape.
+  Both parser test files swap the mocked `@ai-sdk/anthropic` for
+  a mocked `@ai-sdk/gateway`.
 
 ### Public share-link flow (shipped 2026-09-01)
 
