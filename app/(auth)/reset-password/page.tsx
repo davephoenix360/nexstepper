@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useState, useTransition } from 'react';
+import { Suspense, useActionState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -15,79 +15,35 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { authClient } from '@/lib/auth-client';
+
+import {
+  resetPasswordAction,
+  type ResetPasswordState
+} from './actions';
+
+const INITIAL_STATE: ResetPasswordState = { status: 'idle' };
 
 /**
  * "Reset your password" — the second half of the reset flow.
  *
- * The user lands here after clicking the link in the password-reset
- * email. The token comes in via `?token=…` query param.
+ * Uses a Server Action (`resetPasswordAction`) via `useActionState`
+ * so the form works even before React hydrates. On success the
+ * Server Action redirects to `/sign-in?reset=1` (which we don't
+ * return from — Next.js implements redirect as a thrown
+ * NEXT_REDIRECT error).
  *
- * On submit, we call `authClient.resetPassword({ token, newPassword })`,
- * which (server-side, in Better Auth):
- *   1. Validates the token (expiry + single-use)
- *   2. Hashes the new password (scrypt)
- *   3. Writes it to the `account` row for the matching user
- *   4. Returns success
- *
- * We then redirect to `/sign-in` so the user can sign in with the
- * new password. We do NOT auto-sign-in — that's the safer default;
- * an attacker who somehow got the token would have to also know
- * the new password to get in.
+ * We do NOT auto-sign-in — that's the safer default. An attacker
+ * with the token would still need to know the new password to get
+ * in.
  */
 function ResetPasswordFormInner() {
-  const router = useRouter();
   const params = useSearchParams();
-  const token = params.get('token');
+  const token = params.get('token') ?? '';
 
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    if (!token) {
-      setError(
-        'This reset link is missing its token. Please request a new one.'
-      );
-      return;
-    }
-
-    const formData = new FormData(e.currentTarget);
-    const newPassword = String(formData.get('newPassword') ?? '');
-    const confirmPassword = String(formData.get('confirmPassword') ?? '');
-
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await authClient.resetPassword({
-        newPassword,
-        token
-      });
-
-      if (result.error) {
-        setError(
-          result.error.message ??
-            'Could not reset the password. The link may have expired — please request a new one.'
-        );
-        return;
-      }
-
-      // Redirect to sign-in so the user can authenticate with the
-      // new password. The sign-in page can show a "password reset"
-      // banner if we add one later.
-      router.push('/sign-in?reset=1');
-      router.refresh();
-    });
-  }
+  const [state, formAction, pending] = useActionState(
+    resetPasswordAction,
+    INITIAL_STATE
+  );
 
   // No token in the URL → don't even show the form. Two cases:
   //   1. User opened the page directly (no flow initiated)
@@ -119,7 +75,11 @@ function ResetPasswordFormInner() {
       </CardHeader>
 
       <CardContent>
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-4" action={formAction}>
+          {/* Hidden token field — comes from the URL, sent in the
+              form body so the Server Action can read it. */}
+          <input type="hidden" name="token" value={token} />
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="newPassword">New password</Label>
             <Input
@@ -148,9 +108,9 @@ function ResetPasswordFormInner() {
             />
           </div>
 
-          {error && (
+          {state.status === 'error' && state.message && (
             <p className="text-sm text-destructive" role="alert">
-              {error}
+              {state.message}
             </p>
           )}
 
