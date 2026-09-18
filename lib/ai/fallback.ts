@@ -106,12 +106,15 @@ export async function generateObjectWithFallbacks<T>({
       // usually truncation from the default 4K strict-mode cap,
       // and falling back to a smaller-context model won't help.)
       if (isValidationFailure(err)) {
-        const rawText = readRawResponseText(err);
+        // Dump everything we can pull off the error so we can see
+        // exactly what gpt-4o-mini (or the Gateway) sent back. The
+        // AI SDK 6 attaches the raw text in different places across
+        // failure modes (`error.text`, `error.cause.text`, the
+        // `error.response.body` JSON, etc.), and we'd rather print
+        // too much than too little.
+        const debug = debugError(err);
         console.warn(
-          `[ai] ${modelName} failed schema validation, not falling back: ${message}` +
-            (rawText
-              ? `\n[ai] --- raw response (first 500 chars) ---\n${rawText.slice(0, 500)}\n[ai] --- end raw response ---`
-              : '')
+          `[ai] ${modelName} failed schema validation, not falling back: ${message}\n${debug}`
         );
         throw err;
       }
@@ -143,18 +146,58 @@ function isValidationFailure(err: unknown): boolean {
 /**
  * Pull the offending raw response text off the SDK error so we
  * can log it without rebuilding the call. The AI SDK 6 attaches
- * the raw text to the error as `text` and/or inside the `cause`.
- * We look in both — schema-dependent on the SDK version.
+ * the raw text in different places across failure modes; we
+ * probe every spot we know about, then dump the full error as
+ * JSON if nothing text-shaped surfaces.
  */
-function readRawResponseText(err: unknown): string | undefined {
-  if (!err || typeof err !== 'object') return undefined;
-  const e = err as { text?: unknown; cause?: unknown };
-  if (typeof e.text === 'string') return e.text;
-  if (e.cause && typeof e.cause === 'object') {
-    const c = (e.cause as { text?: unknown }).text;
-    if (typeof c === 'string') return c;
+function debugError(err: unknown): string {
+  const lines: string[] = [];
+
+  function tryRead(value: unknown): string | undefined {
+    if (typeof value === 'string' && value.length > 0) return value;
+    return undefined;
   }
-  return undefined;
+
+  // Pull from likely places on the error object.
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    const text = tryRead(e.text);
+    if (text) {
+      lines.push(`[ai] --- raw response (first 500 chars) ---`);
+      lines.push(text.slice(0, 500));
+      lines.push(`[ai] --- end raw response ---`);
+    }
+    const cause = e.cause as Record<string, unknown> | undefined;
+    if (cause && typeof cause === 'object') {
+      const causeText = tryRead(cause.text);
+      if (causeText && causeText !== text) {
+        lines.push(`[ai] --- cause.text (first 500 chars) ---`);
+        lines.push(causeText.slice(0, 500));
+        lines.push(`[ai] --- end cause.text ---`);
+      }
+      if (cause.message && typeof cause.message === 'string') {
+        lines.push(`[ai] cause.message: ${cause.message}`);
+      }
+      if (cause.name && typeof cause.name === 'string') {
+        lines.push(`[ai] cause.name: ${cause.name}`);
+      }
+    }
+    if (e.response && typeof e.response === 'object') {
+      const r = e.response as { body?: unknown };
+      if (r.body !== undefined) {
+        lines.push(`[ai] response.body: ${JSON.stringify(r.body).slice(0, 800)}`);
+      }
+    }
+    if (e.finishReason) {
+      lines.push(`[ai] finishReason: ${JSON.stringify(e.finishReason)}`);
+    }
+    if (e.usage) {
+      lines.push(`[ai] usage: ${JSON.stringify(e.usage)}`);
+    }
+    lines.push(`[ai] full error JSON: ${JSON.stringify(err, Object.getOwnPropertyNames(err as object)).slice(0, 1500)}`);
+  }
+
+  return lines.join('\n');
 }
 
 // Lazy import of the providers module to avoid a circular dep -
