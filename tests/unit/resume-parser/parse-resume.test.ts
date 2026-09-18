@@ -116,6 +116,8 @@ describe('parseResumeText', () => {
 
   it('returns ai_failure when the SDK throws', async () => {
     process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
+    // Reject on every call so the fallback chain (3 models) can't
+    // accidentally succeed via an un-mocked call.
     mockedGenerateObject.mockRejectedValue(new Error('rate limited'));
 
     const result = await parseResumeText('A'.repeat(200));
@@ -124,6 +126,7 @@ describe('parseResumeText', () => {
       expect(result.code).toBe('ai_failure');
       expect(result.error).toContain('rate limited');
     }
+    expect(mockedGenerateObject.mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 
   it('passes the structured output schema to generateObject with temperature 0', async () => {

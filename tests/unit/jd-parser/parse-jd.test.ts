@@ -88,6 +88,9 @@ describe('parseJd', () => {
 
   it('returns ai_failure when the SDK throws', async () => {
     process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
+    // Reject on every call so the fallback chain (3 models) can't
+    // accidentally succeed via an un-mocked call. This mirrors a
+    // real "all providers down" scenario.
     mockedGenerateObject.mockRejectedValue(new Error('rate limited'));
 
     const result = await parseJd('A'.repeat(100));
@@ -96,6 +99,8 @@ describe('parseJd', () => {
       expect(result.code).toBe('ai_failure');
       expect(result.error).toContain('rate limited');
     }
+    // Should have tried all 3 models in the chain.
+    expect(mockedGenerateObject.mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 
   it('passes the structured output schema to generateObject', async () => {
