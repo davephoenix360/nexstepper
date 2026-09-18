@@ -173,6 +173,7 @@ nextep-saas/
 │   ├── resume-parser/         # PDF/DOCX/TXT → AI-parsed ResumeSections
 │   ├── share/                 # public-link tokens (gen, hash, URL build)
 │   ├── ai/                    # Vercel AI Gateway providers + model constants
+│   ├── email/                 # Resend wrapper + password-reset template
 │   └── utils.ts
 ├── sentry.client.config.ts
 ├── sentry.server.config.ts
@@ -492,6 +493,47 @@ UI shows a one-line disclosure in the relevant form. The
 file-PDF-to-text path keeps bytes in memory only — no third-party
 upload, no Vercel Blob storage. Consistent with the PDF-print
 decision: keep PII handling visible and minimal.
+
+### Password reset flow (shipped 2026-09-18)
+
+Closes the long-standing "email + password only, no recovery"
+gap. Two UI pages + a server-side email hook, all on Better Auth's
+existing token machinery.
+
+- **Server config** — `lib/auth.ts` wires up
+  `emailAndPassword.sendResetPassword`, sets
+  `resetPasswordTokenExpiresIn: 60 * 60` (1 hour), and points
+  `resetPasswordURL` at `/reset-password`. Better Auth generates
+  the single-use token, stores it in the `verification` table, and
+  invokes our callback with `{ user, url }`.
+- **Email send** — `lib/email/reset-password.ts` builds a clean
+  HTML + text template and sends via the existing Resend wrapper.
+  When `RESEND_API_KEY` is unset (dev mode), the URL is logged to
+  the server console so the developer can copy it manually. The
+  constant `EXPIRY_MINUTES_DEFAULT` is exported so tests can
+  assert the value stays in sync with the auth config.
+- **Forgot password page** — `/forgot-password`. Calls
+  `authClient.requestPasswordReset({ email, redirectTo: '/reset-password' })`.
+  Returns a generic success state whether or not the email is
+  registered (no enumeration leak).
+- **Reset password page** — `/reset-password`. Reads `?token=…`,
+  calls `authClient.resetPassword({ newPassword, token })`,
+  redirects to `/sign-in?reset=1` on success. If the token is
+  missing, it routes the user back to the request flow instead of
+  showing a confusing form. Does NOT auto-sign-in (safer default —
+  an attacker with the token would still need the new password).
+- **Sign-in polish** — "Forgot password?" link under the password
+  field (signin mode only). Reset-success banner shows when
+  redirected from the reset flow.
+- **Privacy** — the email body never contains the password, only a
+  single-use URL with a 1h expiry token. The template HTML-escapes
+  the user's name and the URL when interpolating (defense in depth
+  against weird-but-not-malicious input).
+- **Tests** — 20 unit tests in `tests/unit/email/reset-password.test.ts`
+  covering: URL in href + plain-text fallback, name greeting +
+  fallbacks (null / undefined / whitespace), HTML escaping of name
+  and URL, expiry wording + custom override, footer text, doctype
+  validity, and the `EXPIRY_MINUTES_DEFAULT` constant.
 
 ### AI Gateway migration (shipped 2026-09-18)
 
