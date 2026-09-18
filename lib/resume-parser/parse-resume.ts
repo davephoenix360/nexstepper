@@ -1,12 +1,15 @@
 import 'server-only';
 
-import { generateObject } from 'ai';
-
 import {
   resumeSectionsSchema,
   type ResumeSections
 } from '@/lib/resume-schema';
-import { RESUME_PARSER_MODEL, getModel } from '@/lib/ai/providers';
+import {
+  PARSER_MODEL,
+  PARSE_FALLBACKS,
+  getModel
+} from '@/lib/ai/providers';
+import { generateObjectWithFallbacks } from '@/lib/ai/fallback';
 
 import {
   PARSER_SYSTEM_PROMPT,
@@ -82,19 +85,14 @@ export async function parseResumeText(
   }
 
   try {
-    // 90s cap. Typical Gemini Flash response is 1-2s for our input
-    // sizes; 90s is generous enough to absorb cold starts, queue
-    // waits, and Gemini rate-limit retries while preventing an
-    // indefinite hang if the Gateway or upstream provider is
-    // unreachable. The AbortError thrown by this surfaces in the
-    // catch as `ai_failure` with the message "This operation was
-    // aborted".
-    //
-    // Tuned up from 30s after we observed real-world Vercel Gateway
-    // Gemini calls completing in 30-60s on cold start / rate limit
-    // retry. 90s is still well under any UX-acceptable threshold.
-    const result = await generateObject({
-      model: getModel(RESUME_PARSER_MODEL),
+    // 90s cap per model in the chain. The fallback function tries
+    // each model in order, so total wall time could be up to
+    // N * 90s in the worst case (all models timing out). For our
+    // 2-3 model chain, that's 180-270s ceiling — well within
+    // reasonable UX for a parse that we're confident will succeed
+    // on at least one of the models.
+    const result = await generateObjectWithFallbacks<ResumeSections>({
+      models: [PARSER_MODEL, ...PARSE_FALLBACKS],
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
       schema: resumeSectionsSchema,
@@ -104,11 +102,8 @@ export async function parseResumeText(
 
     return {
       ok: true,
-      data: result.object,
-      usage: {
-        inputTokens: result.usage.inputTokens ?? 0,
-        outputTokens: result.usage.outputTokens ?? 0
-      }
+      data: result.data,
+      usage: result.usage
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

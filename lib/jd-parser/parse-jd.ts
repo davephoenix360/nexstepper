@@ -1,13 +1,12 @@
 import 'server-only';
 
-import { generateObject } from 'ai';
-
 import { parsedJdSchema, type ParsedJd } from './schema';
 import {
   PARSER_SYSTEM_PROMPT,
   buildParseUserPrompt
 } from './prompts';
-import { JD_PARSER_MODEL, getModel } from '@/lib/ai/providers';
+import { PARSER_MODEL, PARSE_FALLBACKS } from '@/lib/ai/providers';
+import { generateObjectWithFallbacks } from '@/lib/ai/fallback';
 
 /**
  * Discriminated union for the parser result — same shape the rest of the
@@ -73,9 +72,10 @@ export async function parseJd(jdText: string): Promise<ParseJdResult> {
   }
 
   try {
-    // 90s cap. See resume-parser/parse-resume.ts for rationale.
-    const result = await generateObject({
-      model: getModel(JD_PARSER_MODEL),
+    // 90s cap per model in the chain. See resume-parser/parse-resume.ts
+    // for the rationale on per-model timeouts + the fallback chain.
+    const result = await generateObjectWithFallbacks<ParsedJd>({
+      models: [PARSER_MODEL, ...PARSE_FALLBACKS],
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
       schema: parsedJdSchema,
@@ -88,11 +88,8 @@ export async function parseJd(jdText: string): Promise<ParseJdResult> {
 
     return {
       ok: true,
-      data: result.object,
-      usage: {
-        inputTokens: result.usage.inputTokens ?? 0,
-        outputTokens: result.usage.outputTokens ?? 0
-      }
+      data: result.data,
+      usage: result.usage
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
