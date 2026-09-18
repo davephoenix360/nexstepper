@@ -576,10 +576,10 @@ Drizzle-kit has **two mutually-exclusive dev workflows** and mixing them gets yo
 
 | Command | What it does | Audit trail? |
 |---|---|---|
-| `pnpm db:push` | Syncs schema → DB directly. No files, no history. | **No.** Don't use in prod. |
+| ~~`pnpm db:push`~~ (**removed**) | Syncs schema → DB directly. No files, no history. | **No.** Don't use. The script was deleted from `package.json` to prevent accidental use. |
 | `pnpm db:generate` + `pnpm db:migrate` | Generates numbered `.sql` files in `lib/db/migrations/`, applies them in order, tracks them in `__drizzle_migrations`. | **Yes.** Replayable, version-controlled. |
 
-The codebase was using `db:push` historically; when I added the share columns I generated a `0003_*.sql` file but never applied it. The columns were in `schema.ts` but not in the live DB, so the `resumes` queries crashed with `column "share_token_hash" does not exist`.
+**`db:push` was deliberately removed** from `package.json` on 2026-09-18 after we hit the drift problem below. If you ever feel tempted to call `pnpm exec drizzle-kit push` directly, that's the same foot-gun — use `db:generate` + `db:migrate` instead.
 
 **The fix that worked** — `scripts/sync-pending-migrations.mjs`:
 1. Creates `__drizzle_migrations` if missing.
