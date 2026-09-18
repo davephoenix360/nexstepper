@@ -18,27 +18,33 @@ import {
 const mockedGateway = vi.mocked(gateway);
 
 describe('model constants', () => {
-  it('uses Anthropic Sonnet for the JD parser (quality-critical structured extraction)', () => {
-    expect(JD_PARSER_MODEL).toMatch(/^anthropic\/claude-sonnet-/);
+  it('uses Gemini 2.5 Flash for the JD parser (free-tier on Vercel AI Gateway)', () => {
+    // Pinning to the free-tier model so dev works without credits.
+    // Swap to Sonnet when AI Gateway credits are added.
+    expect(JD_PARSER_MODEL).toBe('google/gemini-2.5-flash');
   });
 
-  it('uses Anthropic Sonnet for the resume parser (quality-critical structured extraction)', () => {
-    expect(RESUME_PARSER_MODEL).toMatch(/^anthropic\/claude-sonnet-/);
+  it('uses Gemini 2.5 Flash for the resume parser (free-tier on Vercel AI Gateway)', () => {
+    expect(RESUME_PARSER_MODEL).toBe('google/gemini-2.5-flash');
   });
 
-  it('uses Haiku 4.5 for the Optimize tool (3-5x cheaper, same quality for rewrites)', () => {
-    // This constant is a placeholder; it ships with the constant
-    // pinned to Haiku 4.5 so the Optimize action can `import
-    // { OPTIMIZE_MODEL }` from day one without a code change.
-    expect(OPTIMIZE_MODEL).toMatch(/^anthropic\/claude-haiku-/);
+  it('uses Gemini 2.5 Flash for the Optimize tool placeholder (free-tier until credits)', () => {
+    // Will swap to Haiku 4.5 + Sonnet fallback when Optimize ships.
+    expect(OPTIMIZE_MODEL).toBe('google/gemini-2.5-flash');
   });
 
   it('model strings are prefixed with the provider slug (Gateway convention)', () => {
     for (const id of [JD_PARSER_MODEL, RESUME_PARSER_MODEL, OPTIMIZE_MODEL]) {
       expect(id).toContain('/');
-      // Provider slugs we currently use.
-      expect(id.startsWith('anthropic/')).toBe(true);
     }
+  });
+
+  it('all three model strings currently point at the same free-tier model', () => {
+    // During dev, we use the free-tier model for everything. When
+    // the user adds credits, the parser constants can diverge from
+    // OPTIMIZE_MODEL.
+    expect(JD_PARSER_MODEL).toBe(RESUME_PARSER_MODEL);
+    expect(RESUME_PARSER_MODEL).toBe(OPTIMIZE_MODEL);
   });
 
   it('no model string contains whitespace or accidental whitespace', () => {

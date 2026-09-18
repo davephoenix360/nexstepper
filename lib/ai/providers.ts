@@ -46,34 +46,54 @@ import { gateway } from '@ai-sdk/gateway';
  *
  * ## Switching providers
  *
- * To use Google's Gemini 2.5 Flash for local dev (free tier, no
- * card), swap `JD_PARSER_MODEL` and `RESUME_PARSER_MODEL` to
- * `'google/gemini-2.5-flash'`. The gateway supports it natively
- * and the API surface is identical.
+ * To swap to a paid model (e.g. Claude Sonnet 4.5 for higher
+ * quality once you've added Vercel credits), change the model
+ * string in this file. The call sites never need to change.
+ *
+ * To swap to a different free-tier model, see the live filter at
+ * https://vercel.com/ai-gateway/models?freeTier=true. Candidates:
+ *   - `'google/gemini-2.5-flash'`     — best structured extraction
+ *   - `'zai/glm-5.3-flash'`           — cheap, 50% off through 2026
+ *   - `'google/gemma-4-31b-it'`        — open model, true free tier
  */
 
 /**
- * Model string for the JD parser. Quality-critical structured
- * extraction — keep on Sonnet until we have head-to-head data.
+ * Model string for the JD parser.
+ *
+ * Currently `google/gemini-2.5-flash` because it's in Vercel AI
+ * Gateway's free tier (the $5/mo credit works for it). Claude
+ * Sonnet/Haiku require paid credits — Vercel returns "Free tier
+ * users do not have access to this model" if you try.
+ *
+ * Tradeoffs vs Sonnet 4.5:
+ *   - Slightly lower quality on nuanced JSON-Schema extraction
+ *     (Gemini Flash is good but Sonnet is the gold standard)
+ *   - Way cheaper — covers thousands of parses within the free tier
+ *   - Fast — typically <2s for our input sizes
+ *
+ * Swap path: when you add credits (minimum $5 top-up at
+ * vercel.com/dashboard → AI Gateway → Credits), change this to
+ * `'anthropic/claude-sonnet-4.5'`. The codebase uses this
+ * constant everywhere; no call-site changes needed.
  */
-export const JD_PARSER_MODEL = 'anthropic/claude-sonnet-4.5';
+export const JD_PARSER_MODEL = 'google/gemini-2.5-flash';
 
 /**
- * Model string for the resume parser. Quality-critical structured
- * extraction — same rationale as JD_PARSER_MODEL.
+ * Model string for the resume parser. Same rationale as
+ * JD_PARSER_MODEL.
  */
-export const RESUME_PARSER_MODEL = 'anthropic/claude-sonnet-4.5';
+export const RESUME_PARSER_MODEL = 'google/gemini-2.5-flash';
 
 /**
  * Placeholder model for the Optimize tool (Phase 3, not built yet).
- * When the action lands, swap this to a two-model fallback chain
- * — `gateway('anthropic/claude-haiku-4.5', { fallback: 'anthropic/claude-sonnet-5' })`.
+ * When the action lands, this should be Anthropic Haiku 4.5 with
+ * a Sonnet fallback — 3-5x cheaper than Sonnet for the per-section
+ * rewrite, similar quality for text transformations.
  *
- * Keeping the constant in place means the Optimize action can
- * `import { OPTIMIZE_MODEL } from '@/lib/ai/providers'` from day
- * one; we change the constant, not the call site.
+ * NOTE: Haiku 4.5 is paid-only on Vercel AI Gateway. Use Gemini
+ * 2.5 Flash for early dev; swap when credits are available.
  */
-export const OPTIMIZE_MODEL = 'anthropic/claude-haiku-4.5';
+export const OPTIMIZE_MODEL = 'google/gemini-2.5-flash';
 
 /**
  * Resolve a model string into a gateway-backed `LanguageModelV1`
