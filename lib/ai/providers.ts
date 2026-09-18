@@ -29,22 +29,30 @@ import { gateway } from '@ai-sdk/gateway';
  * Reference: `NEXTEP_REBUILD_PLAN.md` + the 2026 AI landscape
  * research in `output/deep-research/20260901_222225_ai-integration-options/`.
  *
- * ## Why openai/gpt-4o-mini as primary
+ * ## Why mistral/mistral-nemo as primary (changed 2026-09-18)
  *
- * After multiple attempts at free-tier models (inclusionai /
- * poolside showed in the CLI as free but errored at runtime with
- * "Free tier users do not have access", and Google / Z.AI had
- * other problems), we switched to a cheap paid tier that's known
- * to work.
+ * After extensive model churn (Claude → Gemini Flash → Z.AI →
+ * inclusionai / poolside → openai/gpt-4o-mini), we landed on
+ * Mistral. The trigger was a `max_output_tokens` cap on
+ * `openai/gpt-4o-mini` via Vercel AI Gateway that produced
+ * empty `text: ""` responses with `finishReason: length` even
+ * with `max_output_tokens: 12000` set in the request — the
+ * strict `response_format: json_schema` mode appears to
+ * override the per-call cap with a free-tier lower limit.
+ * Mistral's structured-output path doesn't have this trap.
  *
- * `openai/gpt-4o-mini` is the sweet spot for our use case:
- *   1. Best-in-class structured JSON output (OpenAI's JSON mode is
- *      the most mature in the industry)
- *   2. 0.8s typical latency — fast enough for an interactive import
- *   3. $0.15/$0.60 per M tokens — at our volume (10K calls/month),
- *      total cost is ~$0.60. Essentially free.
- *   4. Cross-provider diversification (different from anything we'd
- *      use for chat or future Optimize work)
+ * `mistral/mistral-nemo` is the new sweet spot:
+ *   1. JSON mode handles large structured schemas reliably
+ *      (the resume parser is one of the largest in the app)
+ *   2. Cross-provider diversification: Mistral isn't used
+ *      anywhere else in the app, so a Mistral outage is
+ *      independent of OpenAI / Anthropic incidents
+ *   3. Even cheaper than GPT-4o-mini: ~$0.02 / $0.03 per M tokens
+ *   4. ~0.3s typical latency — fast enough for interactive use
+ *
+ * `openai/gpt-4o-mini` is now the LAST fallback (not the
+ * primary) — when Vercel gives us credits and lifts the
+ * output cap, we can swap it back as primary.
  *
  * ## What we've tried and why we moved away
  *
@@ -66,15 +74,21 @@ import { gateway } from '@ai-sdk/gateway';
  *     per-account restriction (new accounts, team policies) — only
  *     the user's actual test can confirm.
  *
+ * - `openai/gpt-4o-mini` (was primary until 2026-09-18): Hit a
+ *     `max_output_tokens` cap during strict `response_format:
+ *     json_schema` calls that produced empty text responses even
+ *     when `maxOutputTokens: 12000` was set in the request. The
+ *     Gateway appears to override the cap with a free-tier limit.
+ *
  * ## The fallback chain (PARSE_FALLBACKS)
  *
  * Our fallback (see `lib/ai/fallback.ts`) walks the chain when the
  * primary fails. Every fallback is from a DIFFERENT provider so
  * we don't share a single infrastructure failure mode:
  *
- *   1. `mistral/mistral-nemo`     — $0.02/$0.03, Mistral, 0.3s
- *   2. `meta/llama-3.1-8b`        — $0.02/$0.05, Meta, 0.2s
- *   3. `amazon/nova-micro`        — $0.04/$0.14, Amazon, 0.4s (EU)
+ *   1. `meta/llama-3.1-8b`        — $0.02/$0.05, Meta, 0.2s
+ *   2. `amazon/nova-micro`        — $0.04/$0.14, Amazon, 0.4s (EU)
+ *   3. `openai/gpt-4o-mini`      — $0.15/$0.60, OpenAI (capped)
  *
  * If all four fail, we surface it as `ai_failure`.
  *
@@ -88,22 +102,21 @@ import { gateway } from '@ai-sdk/gateway';
  * Primary model for both parsers. Quality-critical structured
  * extraction. See the doc comment above for the rationale.
  */
-export const PARSER_MODEL = 'openai/gpt-4o-mini';
+export const PARSER_MODEL = 'mistral/mistral-nemo';
 
 /**
  * Fallback chain for parser calls. The gateway tries each in
  * order when the previous model fails or times out.
  *
- * Each fallback is from a DIFFERENT provider (OpenAI, Mistral,
- * Meta, Amazon) so we get independent infrastructure failure
- * modes. They're all in the cheap-tier (under $0.20/M input)
- * so the fallback chain costs essentially nothing even if
- * exercised heavily.
+ * Each fallback is from a DIFFERENT provider so we get
+ * independent infrastructure failure modes. They're all in
+ * the cheap-tier (under $0.20/M input) so the fallback chain
+ * costs essentially nothing even if exercised heavily.
  */
 export const PARSE_FALLBACKS: readonly string[] = [
-  'mistral/mistral-nemo',
   'meta/llama-3.1-8b',
-  'amazon/nova-micro'
+  'amazon/nova-micro',
+  'openai/gpt-4o-mini'
 ] as const;
 
 /**

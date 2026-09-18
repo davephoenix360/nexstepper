@@ -20,11 +20,13 @@ import {
 const mockedGateway = vi.mocked(gateway);
 
 describe('model constants', () => {
-  it('uses openai/gpt-4o-mini as primary (best structured-output support, cheap)', () => {
-    // Paid tier — confirmed working after free-tier inclusionai
-    // models returned "Free tier users do not have access" at
-    // runtime. ~$0.60 per 10K calls.
-    expect(PARSER_MODEL).toBe('openai/gpt-4o-mini');
+  it('uses mistral/mistral-nemo as primary (handles large structured JSON without the gateway output cap that hit openai/gpt-4o-mini on 2026-09-18)', () => {
+    // Switched from openai/gpt-4o-mini on 2026-09-18 after the
+    // parser hit an unmovable `max_output_tokens` cap during
+    // strict `response_format: json_schema` calls. Mistral's
+    // structured-output path doesn't have that trap. ~$0.02/$0.03
+    // per M tokens - cheaper than OpenAI.
+    expect(PARSER_MODEL).toBe('mistral/mistral-nemo');
   });
 
   it('declares both parsers as using PARSER_MODEL (single source of truth)', () => {
