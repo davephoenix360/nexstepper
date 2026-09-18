@@ -317,14 +317,15 @@ any collaborator.
 
 Session ends with **PDF download shipped** (2026-07-13), a
 **resume import flow** (2026-09-01), a **public share-link
-flow** (2026-09-01, same session), and an **AI Gateway
-migration** (2026-09-18). Both parsers (JD + resume) now route
-through Vercel AI Gateway instead of calling `@ai-sdk/anthropic`
-directly. The Gateway gives us free observability, automatic
-cross-provider failover, 0% markup on tokens, and a single
-`AI_GATEWAY_API_KEY` env var. The share link lets an owner
-generate a read-only `/r/{token}` URL anyone can view without a
-Nextep account. A fresh session is expected to pick up at the
+flow** (2026-09-01), an **AI Gateway migration** (2026-09-18),
+and a **password reset flow** (2026-09-18). The reset flow
+closes the long-standing "email + password only, no recovery"
+gap. Both parsers (JD + resume) now route through Vercel AI
+Gateway instead of calling `@ai-sdk/anthropic` directly. The
+Gateway gives us free observability, automatic cross-provider
+failover, 0% markup on tokens, and a single `AI_GATEWAY_API_KEY`
+env var. The share link lets an owner generate a read-only
+`/r/{token}` URL anyone can view without a Nextep account. A fresh session is expected to pick up at the
 **Phase 2.4 boundary** (Optimize tool / Liveblocks collab).
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
