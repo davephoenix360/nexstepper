@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,12 @@ import { authClient } from '@/lib/auth-client';
 
 export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // When redirected from the reset-password flow, show a small
+  // success banner. We strip the query so it doesn't persist if
+  // the user navigates within the page.
+  const justReset = searchParams.get('reset') === '1';
+
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +71,15 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
           </CardHeader>
 
           <CardContent>
+            {justReset && (
+              <p
+                className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+                role="status"
+              >
+                Password reset — sign in with your new password.
+              </p>
+            )}
+
             <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
               <input type="hidden" name="redirect" id="redirect-input" />
 
@@ -82,7 +97,17 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {mode === 'signin' && (
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  )}
+                </div>
                 <Input
                   id="password"
                   name="password"
