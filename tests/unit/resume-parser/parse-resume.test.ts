@@ -6,8 +6,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 vi.mock('ai', () => ({
   generateObject: vi.fn()
 }));
-vi.mock('@ai-sdk/anthropic', () => ({
-  anthropic: vi.fn(() => 'mock-model')
+vi.mock('@ai-sdk/gateway', () => ({
+  gateway: vi.fn(() => 'mock-model')
 }));
 
 import { generateObject } from 'ai';
@@ -66,7 +66,7 @@ const validResumeSections = {
 
 describe('parseResumeText', () => {
   beforeEach(() => {
-    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.AI_GATEWAY_API_KEY;
     mockedGenerateObject.mockReset();
   });
 
@@ -87,7 +87,7 @@ describe('parseResumeText', () => {
     }
   });
 
-  it('returns no_api_key when ANTHROPIC_API_KEY is not set', async () => {
+  it('returns no_api_key when AI_GATEWAY_API_KEY is not set', async () => {
     const result = await parseResumeText('A'.repeat(200));
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -97,7 +97,7 @@ describe('parseResumeText', () => {
   });
 
   it('parses valid resume text into the ResumeSections shape when the API succeeds', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test-fake';
+    process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
     mockedGenerateObject.mockResolvedValue({
       object: validResumeSections,
       usage: { inputTokens: 4321, outputTokens: 1234 }
@@ -115,7 +115,7 @@ describe('parseResumeText', () => {
   });
 
   it('returns ai_failure when the SDK throws', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test-fake';
+    process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
     mockedGenerateObject.mockRejectedValue(new Error('rate limited'));
 
     const result = await parseResumeText('A'.repeat(200));
@@ -127,7 +127,7 @@ describe('parseResumeText', () => {
   });
 
   it('passes the structured output schema to generateObject with temperature 0', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test-fake';
+    process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
     mockedGenerateObject.mockResolvedValue({
       object: validResumeSections,
       usage: { inputTokens: 0, outputTokens: 0 }

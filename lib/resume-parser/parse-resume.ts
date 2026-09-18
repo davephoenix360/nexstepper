@@ -1,12 +1,12 @@
 import 'server-only';
 
 import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
 
 import {
   resumeSectionsSchema,
   type ResumeSections
 } from '@/lib/resume-schema';
+import { RESUME_PARSER_MODEL, getModel } from '@/lib/ai/providers';
 
 import {
   PARSER_SYSTEM_PROMPT,
@@ -33,7 +33,6 @@ export type ParseResumeErrorCode =
   | 'resume_too_short';
 
 const MIN_RESUME_LENGTH = 100;
-const ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 
 /**
  * Parse free-form resume text into the structured ResumeSections shape.
@@ -45,11 +44,17 @@ const ANTHROPIC_MODEL = 'claude-sonnet-4-5';
  * Behavior:
  *  - Empty / too-short input returns `resume_too_short` without hitting
  *    the API.
- *  - Missing `ANTHROPIC_API_KEY` returns `no_api_key` (the UI shows a
+ *  - Missing `AI_GATEWAY_API_KEY` returns `no_api_key` (the UI shows a
  *    "configure your API key" banner — we don't pretend the parse
- *    succeeded with a fallback shape).
+ *    succeeded with a fallback shape). The gateway's free tier
+ *    requires only a one-time signup at vercel.com/dashboard.
  *  - Any other failure (rate limit, network, model error) returns
  *    `ai_failure` with the underlying message.
+ *
+ * Routing: the call goes through Vercel AI Gateway (`@ai-sdk/gateway`)
+ * so we get free observability + automatic cross-provider failover
+ * even when using the Anthropic Claude model. Swap models by changing
+ * `RESUME_PARSER_MODEL` in `lib/ai/providers.ts`.
  *
  * The function is intentionally pure with respect to its inputs: same
  * resume text in → same ResumeSections out (assuming deterministic
@@ -67,18 +72,18 @@ export async function parseResumeText(
     };
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.AI_GATEWAY_API_KEY) {
     return {
       ok: false,
       code: 'no_api_key',
       error:
-        'ANTHROPIC_API_KEY is not configured. Set it in .env.local to enable resume parsing.'
+        'AI_GATEWAY_API_KEY is not configured. Set it in .env.local to enable resume parsing. Get a free key at vercel.com/dashboard → AI Gateway.'
     };
   }
 
   try {
     const result = await generateObject({
-      model: anthropic(ANTHROPIC_MODEL),
+      model: getModel(RESUME_PARSER_MODEL),
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
       schema: resumeSectionsSchema,

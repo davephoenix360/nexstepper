@@ -447,7 +447,7 @@ function formatImportError(code: ImportResumeErrorCode, detail: string): string 
     case 'text_too_short':
       return 'The file did not contain enough readable text. If it is a scanned image or password-protected, paste the text instead.';
     case 'no_api_key':
-      return 'Resume import needs an Anthropic API key. Set ANTHROPIC_API_KEY in your environment to enable this feature.';
+      return 'Resume import needs a Vercel AI Gateway key. Set AI_GATEWAY_API_KEY in your environment to enable this feature. Get a free key at vercel.com/dashboard → AI Gateway.';
     case 'ai_failure':
       return `The AI could not parse this resume. ${detail}`;
     case 'validation_failed':

@@ -6,8 +6,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 vi.mock('ai', () => ({
   generateObject: vi.fn()
 }));
-vi.mock('@ai-sdk/anthropic', () => ({
-  anthropic: vi.fn(() => 'mock-model')
+vi.mock('@ai-sdk/gateway', () => ({
+  gateway: vi.fn(() => 'mock-model')
 }));
 
 import { generateObject } from 'ai';
@@ -38,7 +38,7 @@ describe('parseJd', () => {
   beforeEach(() => {
     // Important: clear any env var set by other tests so each test is
     // independent. The `no_api_key` test relies on the env NOT being set.
-    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.AI_GATEWAY_API_KEY;
     mockedGenerateObject.mockReset();
   });
 
@@ -59,7 +59,7 @@ describe('parseJd', () => {
     }
   });
 
-  it('returns no_api_key when ANTHROPIC_API_KEY is not set', async () => {
+  it('returns no_api_key when AI_GATEWAY_API_KEY is not set', async () => {
     const result = await parseJd('A'.repeat(100));
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -69,7 +69,7 @@ describe('parseJd', () => {
   });
 
   it('parses a valid JD into the ParsedJd shape when the API succeeds', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test-fake';
+    process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
     mockedGenerateObject.mockResolvedValue({
       object: validParsedJd,
       usage: { inputTokens: 1234, outputTokens: 567 }
@@ -87,7 +87,7 @@ describe('parseJd', () => {
   });
 
   it('returns ai_failure when the SDK throws', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test-fake';
+    process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
     mockedGenerateObject.mockRejectedValue(new Error('rate limited'));
 
     const result = await parseJd('A'.repeat(100));
@@ -99,7 +99,7 @@ describe('parseJd', () => {
   });
 
   it('passes the structured output schema to generateObject', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test-fake';
+    process.env.AI_GATEWAY_API_KEY = 'sk-test-fake';
     mockedGenerateObject.mockResolvedValue({
       object: validParsedJd,
       usage: { inputTokens: 0, outputTokens: 0 }
