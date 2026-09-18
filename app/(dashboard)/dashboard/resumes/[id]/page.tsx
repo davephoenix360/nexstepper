@@ -9,6 +9,7 @@ import { EditableResume } from '@/components/editable';
 import { CreateVariantButton } from '../_components/create-variant-button';
 import { DownloadPdfButton } from './download-pdf-button';
 import { ShareButton } from './share-button';
+import { OptimizeButton } from './optimize-button';
 
 /**
  * Resume editor page — RSC.
@@ -94,6 +95,7 @@ export default async function ResumeEditorPage({
         <div className="flex items-center gap-2">
           <ShareButton resumeId={resume.id} initialStatus={shareStatusView} />
           <DownloadPdfButton resumeId={resume.id} />
+          <OptimizeButton resumeId={resume.id} />
         </div>
       </header>
 
