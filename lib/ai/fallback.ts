@@ -25,13 +25,26 @@ import type { ZodType } from 'zod';
  *  - Network errors
  *
  * What we DO NOT fall back from (let it bubble as `validation_failed`):
- *  - Schema validation failures — the model gave us something but
+ *  - Schema validation failures - the model gave us something but
  *    it didn't match the schema. Falling back won't help; the
  *    downstream model will likely make the same mistake.
  *
  * Returns the model name that succeeded in `modelUsed` so callers
  * can log it for cost attribution.
  */
+
+/**
+ * Per-call output token budget. The AI SDK 6 default is the model's
+ * full context-window-cap (16K for gpt-4o-mini), but OpenAI's strict
+ * `response_format: json_schema` mode caps structured-output at
+ * 4K tokens by default — which truncates a full resume parse
+ * mid-string and produces "could not parse the response" errors.
+ *
+ * 12K covers the largest legitimate resume parse (a senior engineer
+ * with 8+ roles + projects + publications stays well under that).
+ */
+const MAX_TOKENS = 12_000;
+
 export type ModelWithFallbackResult<T> = {
   data: T;
   modelUsed: string;
@@ -69,7 +82,11 @@ export async function generateObjectWithFallbacks<T>({
         prompt,
         schema,
         temperature,
-        abortSignal
+        abortSignal,
+        // See MAX_TOKENS comment above. The provider may also
+        // impose its own cap (OpenAI strict schema = 4K unless
+        // overridden here).
+        maxOutputTokens: MAX_TOKENS
       });
       console.info(`[ai] served by ${modelName}`);
       return {
@@ -85,8 +102,17 @@ export async function generateObjectWithFallbacks<T>({
       const message = err instanceof Error ? err.message : String(err);
       // Schema-validation failures are the model's problem, not
       // an upstream infra issue. Don't waste a fallback call.
+      // (See the comment above MAX_TOKENS — a parse error here is
+      // usually truncation from the default 4K strict-mode cap,
+      // and falling back to a smaller-context model won't help.)
       if (isValidationFailure(err)) {
-        console.warn(`[ai] ${modelName} failed schema validation, not falling back: ${message}`);
+        const rawText = readRawResponseText(err);
+        console.warn(
+          `[ai] ${modelName} failed schema validation, not falling back: ${message}` +
+            (rawText
+              ? `\n[ai] --- raw response (first 500 chars) ---\n${rawText.slice(0, 500)}\n[ai] --- end raw response ---`
+              : '')
+        );
         throw err;
       }
       console.warn(`[ai] ${modelName} failed (${message}), trying fallback`);
@@ -101,7 +127,8 @@ export async function generateObjectWithFallbacks<T>({
 /**
  * Did the error come from generateObject's schema-validation retry?
  * The SDK throws a NoObjectGeneratedError when the output fails
- * Zod validation.
+ * Zod validation (or, in OpenAI's strict JSON-schema mode, when
+ * the response is unparseable / truncated).
  */
 function isValidationFailure(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -113,7 +140,24 @@ function isValidationFailure(err: unknown): boolean {
   );
 }
 
-// Lazy import of the providers module to avoid a circular dep —
+/**
+ * Pull the offending raw response text off the SDK error so we
+ * can log it without rebuilding the call. The AI SDK 6 attaches
+ * the raw text to the error as `text` and/or inside the `cause`.
+ * We look in both — schema-dependent on the SDK version.
+ */
+function readRawResponseText(err: unknown): string | undefined {
+  if (!err || typeof err !== 'object') return undefined;
+  const e = err as { text?: unknown; cause?: unknown };
+  if (typeof e.text === 'string') return e.text;
+  if (e.cause && typeof e.cause === 'object') {
+    const c = (e.cause as { text?: unknown }).text;
+    if (typeof c === 'string') return c;
+  }
+  return undefined;
+}
+
+// Lazy import of the providers module to avoid a circular dep -
 // this file is imported by the parsers, and the parsers already
 // import the providers.
 async function resolveModel(modelId: string): Promise<LanguageModel> {
