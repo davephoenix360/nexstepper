@@ -206,25 +206,60 @@ function recoverWithDefaults<T>(
   try {
     // The AI SDK 6 attaches the raw text in multiple spots
     // depending on failure mode. Probe each.
-    const e = err as { text?: unknown; cause?: { text?: unknown } };
-    const rawText =
-      (typeof e.text === 'string' && e.text) ||
-      (typeof e.cause?.text === 'string' && e.cause.text) ||
-      null;
-    if (!rawText) return null;
+    const e = err as {
+      text?: unknown;
+      cause?: { text?: unknown; value?: unknown };
+      response?: { body?: unknown };
+    };
+
+    // Try every plausible location for the raw model text.
+    let rawText: string | null = null;
+    if (typeof e.text === 'string' && e.text.length > 0) {
+      rawText = e.text;
+    } else if (e.cause && typeof e.cause.text === 'string' && e.cause.text.length > 0) {
+      rawText = e.cause.text;
+    } else if (e.cause && typeof e.cause.value === 'string') {
+      // Some failure modes store the parsed string in cause.value.
+      rawText = e.cause.value;
+    }
+
+    if (!rawText) {
+      console.warn(
+        `[ai] ${modelName} recovery: no raw text found on error ` +
+          `(keys=${Object.keys(err as object).join(',')})`
+      );
+      return null;
+    }
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(rawText);
-    } catch {
-      // Not valid JSON - nothing to recover from.
+    } catch (jerr) {
+      console.warn(
+        `[ai] ${modelName} recovery: JSON.parse failed on first 200 chars: ${rawText.slice(0, 200)}`
+      );
       return null;
     }
 
-    const result = schema.safeParse(parsed);
+    // PRE-PROCESS: Some models (notably Mistral) emit `"field": null`
+    // where we'd rather have a default-filled missing key. Zod's
+    // `.default(value)` does NOT fire for explicit `null` - only for
+    // missing keys. Walk the parsed object once converting every
+    // `null` to `undefined` so the schema's defaults kick in.
+    //
+    // Safe because:
+    //   - JSON.parse never produces `undefined` on its own; converting
+    //     `null` -> `undefined` is a one-way data-loss for the
+    //     `null` sentinel only (which we don't use in our schema).
+    //   - If a caller explicitly wants `null` for a field they should
+    //     use `.nullable()`, but our resume + JD schemas use
+    //     `.default(...)` for fields the model might leave blank.
+    const normalized = nullsToUndefined(parsed);
+    const result = schema.safeParse(normalized);
     if (!result.success) {
-      // Real schema mismatch (e.g. wrong types), not a missing-
-      // default issue. Let the original error bubble up.
+      console.warn(
+        `[ai] ${modelName} recovery: Zod safeParse also rejected (${result.error.issues.length} issues). First: ${result.error.issues[0]?.message ?? '?'} at ${result.error.issues[0]?.path?.join('.') ?? '?'}`
+      );
       return null;
     }
 
@@ -236,9 +271,45 @@ function recoverWithDefaults<T>(
       modelUsed: modelName,
       usage: { inputTokens: 0, outputTokens: 0 }
     };
-  } catch {
+  } catch (recoverErr) {
+    console.warn(
+      `[ai] ${modelName} recovery: unexpected exception: ${recoverErr instanceof Error ? recoverErr.message : String(recoverErr)}`
+    );
     return null;
   }
+}
+
+/**
+ * Recursively convert every `null` value to `undefined` in a JSON-like
+ * value. Returns a NEW object/array; never mutates the input.
+ *
+ * Why: Mistral emits `"description": null` for empty fields; OpenAI
+ * (in strict json_schema mode) emits the field as missing. Zod's
+ * `.default('...')` fires only for missing keys, not for explicit
+ * `null`. Normalizing lets the form-friendly defaults win either way.
+ */
+function nullsToUndefined(value: unknown): unknown {
+  if (value === null) return undefined;
+  if (Array.isArray(value)) {
+    return value.map(nullsToUndefined);
+  }
+  if (typeof value === 'object' && value !== null) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const converted = nullsToUndefined(v);
+      // Drop undefined-keyed entries from objects so Zod sees them
+      // as missing rather than as `field: undefined`. (Optional but
+      // makes the parse unambiguously exercise default-filling.)
+      if (converted !== undefined) {
+        out[k] = converted;
+      } else {
+        // Intentionally skip the key entirely so it's truly missing.
+        // Don't add it.
+      }
+    }
+    return out;
+  }
+  return value;
 }
 
 /**

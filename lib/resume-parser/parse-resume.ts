@@ -9,7 +9,6 @@ import {
   PARSE_FALLBACKS,
   getModel
 } from '@/lib/ai/providers';
-import { aiStrict } from '@/lib/ai/ai-strict-schema';
 import { generateObjectWithFallbacks } from '@/lib/ai/fallback';
 
 import {
@@ -96,13 +95,15 @@ export async function parseResumeText(
       models: [PARSER_MODEL, ...PARSE_FALLBACKS],
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
-      // `aiStrict()` peels every `.default(...)` wrapper off the
-      // resume schema. OpenAI's strict JSON-schema mode rejects
-      // fields that aren't in `required`; the parent-level defaults
-      // on `basics.location` (and friends) produce schema nodes that
-      // OpenAI considers optional. See the comment in
-      // `lib/ai/ai-strict-schema.ts` for the production error.
-      schema: aiStrict(resumeSectionsSchema),
+      // Schema per-model selection lives in `generateObjectWithFallbacks`:
+      //   - OpenAI / Azure: stripped of `.default(...)` so its strict
+      //     `response_format: json_schema` validator accepts it
+      //   - Mistral / Meta / Amazon: kept loose so their form-friendly
+      //     `.default(...)` style works AND so the recovery path
+      //     (re-parse with `safeParse` after a valid JSON response fails
+      //     the AI SDK's stricter validator) can apply defaults
+      //     to keys the model omitted or set to `null`.
+      schema: resumeSectionsSchema,
       temperature: 0,
       abortSignal: AbortSignal.timeout(90_000)
     });

@@ -7,7 +7,6 @@ import {
 } from './prompts';
 import { PARSER_MODEL, PARSE_FALLBACKS } from '@/lib/ai/providers';
 import { generateObjectWithFallbacks } from '@/lib/ai/fallback';
-import { aiStrict } from '@/lib/ai/ai-strict-schema';
 
 /**
  * Discriminated union for the parser result — same shape the rest of the
@@ -79,10 +78,14 @@ export async function parseJd(jdText: string): Promise<ParseJdResult> {
       models: [PARSER_MODEL, ...PARSE_FALLBACKS],
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
-      // `aiStrict()` peels every `.default(...)` wrapper so OpenAI's
-      // strict JSON-schema mode accepts the schema. See
-      // `lib/ai/ai-strict-schema.ts` for the production error this fixes.
-      schema: aiStrict(parsedJdSchema),
+      // Schema per-model selection lives in `generateObjectWithFallbacks`:
+      //   - OpenAI / Azure: stripped of `.default(...)` so its strict
+      //     `response_format: json_schema` validator accepts it
+      //   - Mistral / Meta / Amazon: kept loose so `.default(...)`
+      //     fills in omitted/null fields. The JD parser uses
+      //     `.nullable()` on company/salaryMin so those still come
+      //     through as `null` when the JD doesn't disclose.
+      schema: parsedJdSchema,
       // generateObject already retries once on validation failure (it'll
       // re-prompt the model with the schema errors). We don't need to
       // wrap that in our own retry loop.
