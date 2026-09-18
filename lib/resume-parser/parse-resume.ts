@@ -82,20 +82,24 @@ export async function parseResumeText(
   }
 
   try {
-    // 30s cap. Typical Gemini Flash response is 1-2s for our input
-    // sizes; 30s is generous enough to absorb cold starts, queue
-    // waits, and Gemini rate-limit retries, while preventing an
+    // 90s cap. Typical Gemini Flash response is 1-2s for our input
+    // sizes; 90s is generous enough to absorb cold starts, queue
+    // waits, and Gemini rate-limit retries while preventing an
     // indefinite hang if the Gateway or upstream provider is
     // unreachable. The AbortError thrown by this surfaces in the
     // catch as `ai_failure` with the message "This operation was
     // aborted".
+    //
+    // Tuned up from 30s after we observed real-world Vercel Gateway
+    // Gemini calls completing in 30-60s on cold start / rate limit
+    // retry. 90s is still well under any UX-acceptable threshold.
     const result = await generateObject({
       model: getModel(RESUME_PARSER_MODEL),
       system: PARSER_SYSTEM_PROMPT,
       prompt: buildParseUserPrompt(trimmed),
       schema: resumeSectionsSchema,
       temperature: 0,
-      abortSignal: AbortSignal.timeout(30_000)
+      abortSignal: AbortSignal.timeout(90_000)
     });
 
     return {

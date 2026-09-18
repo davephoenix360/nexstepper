@@ -73,7 +73,7 @@ export async function parseJd(jdText: string): Promise<ParseJdResult> {
   }
 
   try {
-    // 30s cap. See resume-parser/parse-resume.ts for rationale.
+    // 90s cap. See resume-parser/parse-resume.ts for rationale.
     const result = await generateObject({
       model: getModel(JD_PARSER_MODEL),
       system: PARSER_SYSTEM_PROMPT,
@@ -83,7 +83,7 @@ export async function parseJd(jdText: string): Promise<ParseJdResult> {
       // re-prompt the model with the schema errors). We don't need to
       // wrap that in our own retry loop.
       temperature: 0,
-      abortSignal: AbortSignal.timeout(30_000)
+      abortSignal: AbortSignal.timeout(90_000)
     });
 
     return {
