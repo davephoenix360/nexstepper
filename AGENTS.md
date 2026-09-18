@@ -570,6 +570,29 @@ Vercel AI Gateway (`@ai-sdk/gateway@3`) instead of calling
   Both parser test files swap the mocked `@ai-sdk/anthropic` for
   a mocked `@ai-sdk/gateway`.
 
+### DB migrations: `db:push` vs `db:generate` + `db:migrate` (learned the hard way)
+
+Drizzle-kit has **two mutually-exclusive dev workflows** and mixing them gets you stuck. We hit this on 2026-09-18 when the share-link columns were missing from the dev DB.
+
+| Command | What it does | Audit trail? |
+|---|---|---|
+| `pnpm db:push` | Syncs schema → DB directly. No files, no history. | **No.** Don't use in prod. |
+| `pnpm db:generate` + `pnpm db:migrate` | Generates numbered `.sql` files in `lib/db/migrations/`, applies them in order, tracks them in `__drizzle_migrations`. | **Yes.** Replayable, version-controlled. |
+
+The codebase was using `db:push` historically; when I added the share columns I generated a `0003_*.sql` file but never applied it. The columns were in `schema.ts` but not in the live DB, so the `resumes` queries crashed with `column "share_token_hash" does not exist`.
+
+**The fix that worked** — `scripts/sync-pending-migrations.mjs`:
+1. Creates `__drizzle_migrations` if missing.
+2. For each migration 0000..0003, computes the SHA-256 hash (drizzle's scheme) and inserts a row.
+3. For 0003, also runs the SQL (since the columns aren't yet in the DB).
+4. For 0000..0002, only marks them applied (the tables are already there from prior `db:push` calls).
+
+Run once to reconcile, then use `db:generate` + `db:migrate` from now on. Idempotent — safe to re-run.
+
+**Known drizzle-kit bug** (drizzle-kit 0.30.4 .. 0.31.5): `db:push` on Postgres 18 fails with `column "id" is in a primary key` (code 42P16) on tables with NOT NULL PK columns. Fixed in 0.31.7. We hit this; the sync script sidesteps it entirely.
+
+**Going forward**: use `pnpm db:generate` to create migrations from schema diffs, commit the SQL files, then `pnpm db:migrate` to apply. The sync script exists for the one-off reconciliation.
+
 ### Public share-link flow (shipped 2026-09-01)
 
 Owners can flip a switch in the editor header → generate a
