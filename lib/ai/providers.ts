@@ -29,77 +29,81 @@ import { gateway } from '@ai-sdk/gateway';
  * Reference: `NEXTEP_REBUILD_PLAN.md` + the 2026 AI landscape
  * research in `output/deep-research/20260901_222225_ai-integration-options/`.
  *
- * ## Why Z.AI GLM 5.3 Flash as primary (not Gemini, not Claude)
+ * ## Why openai/gpt-4o-mini as primary
  *
- * Both the JD parser and the resume parser are quality-critical
- * structured-extraction calls — they use the JSON-Schema-as-output-
- * contract pattern with Zod. We need a model that:
+ * After multiple attempts at free-tier models (inclusionai /
+ * poolside showed in the CLI as free but errored at runtime with
+ * "Free tier users do not have access", and Google / Z.AI had
+ * other problems), we switched to a cheap paid tier that's known
+ * to work.
  *
- *   1. Supports structured JSON output
- *   2. Is reliable (responds within seconds, not minutes)
- *   3. Is in Vercel AI Gateway's free tier (no paid credits needed)
- *   4. Is cheap if we exceed the free tier
+ * `openai/gpt-4o-mini` is the sweet spot for our use case:
+ *   1. Best-in-class structured JSON output (OpenAI's JSON mode is
+ *      the most mature in the industry)
+ *   2. 0.8s typical latency — fast enough for an interactive import
+ *   3. $0.15/$0.60 per M tokens — at our volume (10K calls/month),
+ *      total cost is ~$0.60. Essentially free.
+ *   4. Cross-provider diversification (different from anything we'd
+ *      use for chat or future Optimize work)
  *
- * `zai/glm-5.3-flash` checks every box:
- *   - JSON-mode structured output (confirmed in Z.AI docs)
- *   - 0.4s typical latency, 219 tps — well below our 90s timeout
- *   - In Vercel AI Gateway's free-tier subset
- *   - $0.05/M input, $0.20/M output (50% off the list price)
+ * ## What we've tried and why we moved away
  *
- * Previous choice was `google/gemini-2.5-flash`, which worked in
- * isolation but became unreliable in production traffic — Vercel's
- * Google Vertex AI routing had a known degradation in late Sep
- * 2026 causing 30-60s latencies. Different provider = different
- * infrastructure = independent failure modes.
+ * - `anthropic/claude-sonnet-4.5` and `anthropic/claude-haiku-4.5`:
+ *     Not in Vercel's free tier. Error: "Free tier users do not have
+ *     access to this model. Upgrade to paid credits."
  *
- * Previous choice was also `anthropic/claude-sonnet-4.5`, but
- * Sonnet/Haiku are NOT in Vercel AI Gateway's free tier — Vercel
- * returns "Free tier users do not have access to this model."
+ * - `google/gemini-2.5-flash`: Was in the free tier initially but
+ *     became unreliable in late Sep 2026 — Vercel's Google Vertex
+ *     AI routing had a known degradation causing 30-60s latencies.
+ *
+ * - `zai/glm-5.3-flash`: NOT in Vercel's free tier (despite the
+ *     model browser page suggesting it was). Hit the same "Free
+ *     tier users do not have access" error.
+ *
+ * - `inclusionai/ling-3.0-flash-fin-free` and friends: Listed in
+ *     the CLI as free tier, but the user's account got "Free tier
+ *     users do not have access" when actually calling. Could be a
+ *     per-account restriction (new accounts, team policies) — only
+ *     the user's actual test can confirm.
  *
  * ## The fallback chain (PARSE_FALLBACKS)
  *
- * We pass `models: [primary, fallback1, fallback2]` via the AI SDK's
- * `providerOptions.gateway.models` option. The gateway then
- * automatically tries each in order when the primary fails or
- * times out — no retry logic needed in our code.
+ * Our fallback (see `lib/ai/fallback.ts`) walks the chain when the
+ * primary fails. Every fallback is from a DIFFERENT provider so
+ * we don't share a single infrastructure failure mode:
  *
- * Fallback order rationale:
- *   1. Z.AI GLM 5.3 Flash        — primary (cheapest, fast, free tier)
- *   2. Google Gemini 2.5 Flash Lite — different provider, sibling
- *      to the Flash that was failing. Often faster than the regular
- *      Flash on cold starts.
- *   3. Google Gemini 2.5 Flash  — last resort. The one that was
- *      slow but at least we know it works.
+ *   1. `mistral/mistral-nemo`     — $0.02/$0.03, Mistral, 0.3s
+ *   2. `meta/llama-3.1-8b`        — $0.02/$0.05, Meta, 0.2s
+ *   3. `amazon/nova-micro`        — $0.04/$0.14, Amazon, 0.4s (EU)
  *
- * If all three fail, the gateway returns an error → our catch block
- * surfaces it as `ai_failure`.
+ * If all four fail, we surface it as `ai_failure`.
  *
- * ## Switching to a paid model (Sonnet, once you add credits)
+ * ## Switching to Claude (once the team prefers it)
  *
  * Change `PARSER_MODEL` to `'anthropic/claude-sonnet-4.5'` and
- * update `PARSE_FALLBACKS` to a paid-only chain (e.g. Sonnet → Haiku).
- * The call sites don't change.
+ * `PARSE_FALLBACKS` to `[Haiku]`. The call sites don't change.
  */
 
 /**
  * Primary model for both parsers. Quality-critical structured
  * extraction. See the doc comment above for the rationale.
  */
-export const PARSER_MODEL = 'zai/glm-5.3-flash';
+export const PARSER_MODEL = 'openai/gpt-4o-mini';
 
 /**
- * Fallback chain for parser calls. Passed to the AI SDK as
- * `providerOptions.gateway.models`. The gateway tries each in
+ * Fallback chain for parser calls. The gateway tries each in
  * order when the previous model fails or times out.
  *
- * Different providers across the chain (Z.AI → Google → Google)
- * means independent infrastructure failures. Different model tiers
- * within the chain (flash → flash-lite → flash) means we trade
- * quality for resilience when needed.
+ * Each fallback is from a DIFFERENT provider (OpenAI, Mistral,
+ * Meta, Amazon) so we get independent infrastructure failure
+ * modes. They're all in the cheap-tier (under $0.20/M input)
+ * so the fallback chain costs essentially nothing even if
+ * exercised heavily.
  */
 export const PARSE_FALLBACKS: readonly string[] = [
-  'google/gemini-2.5-flash-lite',
-  'google/gemini-2.5-flash'
+  'mistral/mistral-nemo',
+  'meta/llama-3.1-8b',
+  'amazon/nova-micro'
 ] as const;
 
 /**

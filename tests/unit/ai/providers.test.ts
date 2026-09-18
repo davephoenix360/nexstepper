@@ -20,13 +20,14 @@ import {
 const mockedGateway = vi.mocked(gateway);
 
 describe('model constants', () => {
-  it('uses Z.AI GLM 5.3 Flash as the primary (cheap, fast, free tier)', () => {
-    expect(PARSER_MODEL).toBe('zai/glm-5.3-flash');
+  it('uses openai/gpt-4o-mini as primary (best structured-output support, cheap)', () => {
+    // Paid tier — confirmed working after free-tier inclusionai
+    // models returned "Free tier users do not have access" at
+    // runtime. ~$0.60 per 10K calls.
+    expect(PARSER_MODEL).toBe('openai/gpt-4o-mini');
   });
 
   it('declares both parsers as using PARSER_MODEL (single source of truth)', () => {
-    // Both parsers use the same primary right now. The aliases
-    // exist so existing call sites don't need to change.
     expect(JD_PARSER_MODEL).toBe(PARSER_MODEL);
     expect(RESUME_PARSER_MODEL).toBe(PARSER_MODEL);
   });
@@ -35,20 +36,26 @@ describe('model constants', () => {
     expect(OPTIMIZE_MODEL).toBe(PARSER_MODEL);
   });
 
-  it('declares a fallback chain with at least 2 entries', () => {
-    expect(PARSE_FALLBACKS.length).toBeGreaterThanOrEqual(2);
+  it('declares a fallback chain with at least 3 entries', () => {
+    expect(PARSE_FALLBACKS.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('every fallback model is a different provider from the primary', () => {
-    // Extract provider slug (everything before the first '/') and
-    // assert at least one fallback uses a different provider than
-    // the primary. This is the whole point of a fallback chain —
-    // independent infrastructure failure modes.
+  it('all 4 entries (primary + 3 fallbacks) are from DIFFERENT providers', () => {
+    // The whole point of the fallback chain is cross-infrastructure
+    // resilience. If we ever regress to two entries from the same
+    // provider, this catches it.
+    const providers = new Set([
+      PARSER_MODEL.split('/')[0],
+      ...PARSE_FALLBACKS.map((m) => m.split('/')[0])
+    ]);
+    expect(providers.size).toBe(PARSE_FALLBACKS.length + 1);
+  });
+
+  it('every fallback is from a different provider than the primary', () => {
     const primaryProvider = PARSER_MODEL.split('/')[0];
-    const otherProviders = PARSE_FALLBACKS.map(
-      (m) => m.split('/')[0] !== primaryProvider
-    );
-    expect(otherProviders.some(Boolean)).toBe(true);
+    for (const m of PARSE_FALLBACKS) {
+      expect(m.split('/')[0]).not.toBe(primaryProvider);
+    }
   });
 
   it('model strings are prefixed with the provider slug (Gateway convention)', () => {
@@ -71,23 +78,19 @@ describe('getModel', () => {
   });
 
   it('passes the model id straight through to the gateway', () => {
-    getModel('zai/glm-5.3-flash');
-    expect(mockedGateway).toHaveBeenCalledWith('zai/glm-5.3-flash');
+    getModel('openai/gpt-4o-mini');
+    expect(mockedGateway).toHaveBeenCalledWith('openai/gpt-4o-mini');
   });
 
   it('returns whatever the gateway returns (no wrapping or validation)', () => {
     mockedGateway.mockReturnValue('mock-model' as never);
-    const result = getModel('zai/glm-5.3-flash');
+    const result = getModel('openai/gpt-4o-mini');
     expect(result).toBe('mock-model');
   });
 
   it('does not add a default fallback at this layer (fallback lives in lib/ai/fallback.ts)', () => {
-    // The Gateway itself doesn't expose a fallback chain in the
-    // v3 bridge. Fallback lives at lib/ai/fallback.ts and is
-    // invoked by the parsers, not by getModel. Keeping these
-    // responsibilities split makes each testable in isolation.
-    getModel('zai/glm-5.3-flash');
+    getModel('openai/gpt-4o-mini');
     expect(mockedGateway).toHaveBeenCalledTimes(1);
-    expect(mockedGateway).toHaveBeenCalledWith('zai/glm-5.3-flash');
+    expect(mockedGateway).toHaveBeenCalledWith('openai/gpt-4o-mini');
   });
 });
