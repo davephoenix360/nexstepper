@@ -3,6 +3,8 @@ import 'server-only';
 import { generateObject, type LanguageModel } from 'ai';
 import type { ZodType } from 'zod';
 
+import { aiStrict } from '@/lib/ai/ai-strict-schema';
+
 /**
  * Try a list of models in order, returning the first successful
  * response. Logs which model actually served the request so we
@@ -45,6 +47,30 @@ import type { ZodType } from 'zod';
  */
 const MAX_TOKENS = 12_000;
 
+/**
+ * Only OpenAI's strict `response_format: json_schema` requires us to
+ * peel every `.default(...)` wrapper off the schema (its validator
+ * rejects optional fields). Mistral, Meta, and Amazon all accept
+ * loose schemas with default values, AND they faithfully emit
+ * "missing" fields that the model skipped - the form layer then
+ * fills them in via Zod's `.default()` semantics at parse time.
+ *
+ * Keeping strict for non-OpenAI models caused mistral to fail
+ * schema validation on `projects[*].roles` and `skills[*].level`
+ * (the model emitted them as `undefined` for empty cases instead
+ * of as `[]` / `""`), which silently broke the resume import flow
+ * until we noticed in the dev console.
+ *
+ * Provider detection uses the Vercel AI Gateway model-id format
+ * (`<provider>/<model>`), e.g. `openai/gpt-4o-mini`,
+ * `mistral/mistral-nemo`. Substrings match (case-insensitive) so
+ * new Anthropic / Cohere / etc. providers get sensible defaults.
+ */
+function needsStrictSchema(modelIdOrName: string): boolean {
+  const id = modelIdOrName.toLowerCase();
+  return id.startsWith('openai/') || id.startsWith('azure/');
+}
+
 export type ModelWithFallbackResult<T> = {
   data: T;
   modelUsed: string;
@@ -75,12 +101,20 @@ export async function generateObjectWithFallbacks<T>({
     const model = typeof modelEntry === 'string' ? await resolveModel(modelEntry) : modelEntry;
     const modelName = typeof modelEntry === 'string' ? modelEntry : '<resolved>';
 
+    // OpenAI needs schema-level strict JSON for its validator; the
+    // rest of the providers can handle the form-friendly loose
+    // schema (with `.default('')` and `.default([])`) - and they
+    // do, which means the form-layer defaults fill in any fields
+    // the model skipped on parse.
+    const useStrict = needsStrictSchema(modelName);
+    const effectiveSchema = useStrict ? aiStrict(schema) : schema;
+
     try {
       const result = await generateObject({
         model,
         system,
         prompt,
-        schema,
+        schema: effectiveSchema,
         temperature,
         abortSignal,
         // See MAX_TOKENS comment above. The provider may also
@@ -100,18 +134,18 @@ export async function generateObjectWithFallbacks<T>({
     } catch (err) {
       lastError = err;
       const message = err instanceof Error ? err.message : String(err);
-      // Schema-validation failures are the model's problem, not
-      // an upstream infra issue. Don't waste a fallback call.
-      // (See the comment above MAX_TOKENS — a parse error here is
-      // usually truncation from the default 4K strict-mode cap,
-      // and falling back to a smaller-context model won't help.)
+      // Schema-validation failures are usually recoverable: the
+      // model returned valid JSON, but the AI SDK's internal
+      // validator (which goes through Standard Schema) doesn't
+      // apply Zod `.default(...)` for missing keys the same way
+      // `schema.safeParse()` does. Re-parse the raw text with Zod
+      // directly, which DOES fill in defaults, and use that.
       if (isValidationFailure(err)) {
-        // Dump everything we can pull off the error so we can see
-        // exactly what gpt-4o-mini (or the Gateway) sent back. The
-        // AI SDK 6 attaches the raw text in different places across
-        // failure modes (`error.text`, `error.cause.text`, the
-        // `error.response.body` JSON, etc.), and we'd rather print
-        // too much than too little.
+        const recovered = recoverWithDefaults(err, schema, modelName);
+        if (recovered) return recovered;
+        // Couldn't recover (e.g. JSON parse failure, not a
+        // shape-mismatch). Don't waste a fallback call - the
+        // next model would just hit the same trap.
         const debug = debugError(err);
         console.warn(
           `[ai] ${modelName} failed schema validation, not falling back: ${message}\n${debug}`
@@ -141,6 +175,70 @@ function isValidationFailure(err: unknown): boolean {
     name === 'NoObjectGeneratedError' ||
     err.message.includes('No object generated')
   );
+}
+
+/**
+ * Recover from a shape-mismatch validation failure.
+ *
+ * Root cause: AI SDK 6's `safeValidateTypes()` walks Standard Schema
+ * for the validator. Zod's Standard Schema `validate()` path does
+ * NOT apply `.default(...)` for missing keys the same way Zod's
+ * `schema.safeParse()` does - so a model that emits JSON without a
+ * leaf that has `.default('')` or `.default([])` fails validation
+ * even though the form-layer parser would happily fill it in.
+ *
+ * Fix: pull the raw text off the SDK error, `JSON.parse` it, and
+ * run our own `schema.safeParse()` which DOES fire Zod defaults.
+ * Returns the recovered result, or `null` if we can't recover
+ * (caller will re-throw the original error).
+ *
+ * Won't help on:
+ *  - JSON-parse failures (raw text wasn't valid JSON)
+ *  - Real schema-shape mismatches (e.g. wrong types)
+ *  - OpenAI strict-mode cap (`max_output_tokens` truncation);
+ *    there's nothing to recover from an empty response.
+ */
+function recoverWithDefaults<T>(
+  err: unknown,
+  schema: ZodType<T>,
+  modelName: string
+): ModelWithFallbackResult<T> | null {
+  try {
+    // The AI SDK 6 attaches the raw text in multiple spots
+    // depending on failure mode. Probe each.
+    const e = err as { text?: unknown; cause?: { text?: unknown } };
+    const rawText =
+      (typeof e.text === 'string' && e.text) ||
+      (typeof e.cause?.text === 'string' && e.cause.text) ||
+      null;
+    if (!rawText) return null;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      // Not valid JSON - nothing to recover from.
+      return null;
+    }
+
+    const result = schema.safeParse(parsed);
+    if (!result.success) {
+      // Real schema mismatch (e.g. wrong types), not a missing-
+      // default issue. Let the original error bubble up.
+      return null;
+    }
+
+    console.info(
+      `[ai] ${modelName} schema mismatch auto-recovered via Zod defaults`
+    );
+    return {
+      data: result.data,
+      modelUsed: modelName,
+      usage: { inputTokens: 0, outputTokens: 0 }
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
