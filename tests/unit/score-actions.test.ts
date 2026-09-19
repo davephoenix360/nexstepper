@@ -237,12 +237,17 @@ describe('recomputeScoreAction', () => {
     const result = await recomputeScoreAction({ resumeId: 'r1' });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data).toHaveProperty('overallScore');
-      expect(result.data).toHaveProperty('dimensionScores');
-      expect(result.data).toHaveProperty('criteriaScores');
-      expect(result.data).toHaveProperty('computedInMs');
-      expect(result.data.overallScore).toBeGreaterThanOrEqual(0);
-      expect(result.data.overallScore).toBeLessThanOrEqual(100);
+      const { breakdown, tips } = result.data;
+      expect(breakdown).toHaveProperty('overallScore');
+      expect(breakdown).toHaveProperty('dimensionScores');
+      expect(breakdown).toHaveProperty('criteriaScores');
+      expect(breakdown).toHaveProperty('computedInMs');
+      expect(breakdown.overallScore).toBeGreaterThanOrEqual(0);
+      expect(breakdown.overallScore).toBeLessThanOrEqual(100);
+      // tips is the per-sub-criterion DynamicTips map — Partial<Record>
+      // so it can be empty when no useful signal exists. We don't
+      // assert content here; the helper's own tests cover that.
+      expect(typeof tips).toBe('object');
     }
     // Confirm the hybrid (not sync-only) engine was invoked.
     expect(scoreResumeHybridFromEnvelope).toHaveBeenCalled();

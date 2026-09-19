@@ -7,6 +7,8 @@ import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getResume } from '@/lib/db/queries';
 import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
+import { buildDynamicTips, type DynamicTips } from '@/lib/scoring/tips';
+import type { ScoreBreakdown } from '@/lib/scoring';
 
 /**
  * Server Action: re-run the ATS scoring engine for a variant using
@@ -16,7 +18,7 @@ import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid'
  * criterion #7 ("Refresh score button calls recomputeScoreAction
  * via useTransition, shows a spinner, and updates the bars in
  * place") and #12 (validates session + ownership, returns the
- * standard `ActionResult<ScoreBreakdown>` discriminated union).
+ * standard `ActionResult<…>` discriminated union).
  *
  * The action is intentionally narrow:
  *   - Input: just `{ resumeId: string }`. The score is computed
@@ -24,10 +26,9 @@ import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid'
  *     truth on the resume), not from the client. The client can't
  *     inject a different JD for scoring — that would be a stale-
  *     score vector we don't want.
- *   - Output: `ActionResult<ScoreBreakdown>` (ok | error). Same
- *     shape used by every other Server Action in the codebase
- *     (per AGENTS.md §"Server Action results use a discriminated
- *     union").
+ *   - Output: `ActionResult<{ breakdown, tips }>` where tips are
+ *     the per-sub-criterion dynamic improvement advice (merged
+ *     with the static `CRITERIA_TIPS` at render time by the panel).
  *   - Side effects: `revalidatePath` on the variant editor so the
  *     server-rendered first-render score refreshes on next
  *     navigation. The client-side `useTransition` wrapper also
@@ -46,11 +47,17 @@ import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid'
  * more accurate adds confusion without value. The previous
  * `recomputeScoreSemanticAction` is kept for backwards compatibility
  * but this action is now the canonical default.
+ *
+ * Drift: this action also computes resume-specific dynamic tips
+ * (alongside the score) so the scorecard panel can show
+ * personalized advice — "Add these missing keywords: Kubernetes,
+ * gRPC, Terraform" — instead of generic static guidance. The
+ * helper is pure / sync and runs in the same RSC pass.
  */
 export async function recomputeScoreAction(
   input: unknown
 ): Promise<
-  | { ok: true; data: import('@/lib/scoring').ScoreBreakdown }
+  | { ok: true; data: { breakdown: ScoreBreakdown; tips: DynamicTips } }
   | { ok: false; error: string }
 > {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -84,8 +91,9 @@ export async function recomputeScoreAction(
 
   try {
     const breakdown = await scoreResumeHybridFromEnvelope(data, data.jobContext);
+    const tips = buildDynamicTips(breakdown, data, data.jobContext);
     revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
-    return { ok: true, data: breakdown };
+    return { ok: true, data: { breakdown, tips } };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {

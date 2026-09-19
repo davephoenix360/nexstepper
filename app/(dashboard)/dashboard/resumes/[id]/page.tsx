@@ -13,6 +13,7 @@ import { OptimizeButton } from './optimize-button';
 import { JdPanel } from './_components/jd-panel';
 import { ScorecardClient } from './_components/scorecard-client';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
+import { buildDynamicTips } from '@/lib/scoring/tips';
 
 /**
  * Resume editor page — RSC.
@@ -85,6 +86,13 @@ export default async function ResumeEditorPage({
       ? scoreResumeFromEnvelope(data, data.jobContext)
       : null;
 
+  // Compute dynamic improvement tips server-side (same pass as the
+  // breakdown). Empty object when no JD / no resume envelope so the
+  // panel falls back to the static CRITERIA_TIPS map at render time.
+  const dynamicTips = breakdown
+    ? buildDynamicTips(breakdown, data, data.jobContext ?? null)
+    : {};
+
   return (
     <section className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
       <header className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -139,6 +147,7 @@ export default async function ResumeEditorPage({
               resumeId={resume.id}
               jobContext={data.jobContext ?? null}
               initialBreakdown={breakdown}
+              initialDynamicTips={dynamicTips}
             />
           </div>
         )}

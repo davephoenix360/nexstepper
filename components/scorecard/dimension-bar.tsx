@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Info } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -56,7 +57,15 @@ export function DimensionBar({
   label: string;
   score: number;
   testId?: string;
-  tip?: string;
+  /**
+   * Optional improvement tip shown as a tooltip on hover. When
+   * provided, an Info icon appears next to the label and clicking /
+   * hovering it reveals the tip. Accepts a ReactNode so callers
+   * can pass plain strings (the static `CRITERIA_TIPS` map) or
+   * rich JSX with `<strong>` keyword emphasis (the dynamic
+   * `buildDynamicTips` helper).
+   */
+  tip?: ReactNode;
 }) {
   const safeScore = Math.max(0, Math.min(100, score));
   const tier = tierFor(safeScore);

@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 import { ScorecardPanel } from '@/components/scorecard/scorecard';
 import type { JobPosting } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring';
+import type { DynamicTips } from '@/lib/scoring/tips';
 
 import { recomputeScoreAction } from '../score-actions';
 
@@ -24,10 +25,10 @@ import { recomputeScoreAction } from '../score-actions';
  *
  * The page Server Component passes the first-render breakdown +
  * the variant's resumeId. This wrapper:
- *   1. Holds the breakdown in local state (initial = the server-
- *      rendered value).
+ *   1. Holds the breakdown + dynamic tips in local state (initial =
+ *      the server-rendered value).
  *   2. On Recompute click, calls the hybrid Server Action and
- *      swaps in the result.
+ *      swaps in both the result and the freshly computed tips.
  *   3. Uses `useTransition` so the button can show a spinner
  *      without freezing the surrounding UI.
  *   4. Surfaces error messages inline below the panel (no toast —
@@ -41,15 +42,19 @@ import { recomputeScoreAction } from '../score-actions';
 export function ScorecardClient({
   resumeId,
   jobContext,
-  initialBreakdown
+  initialBreakdown,
+  initialDynamicTips
 }: {
   resumeId: string;
   jobContext: JobPosting | null;
   initialBreakdown: ScoreBreakdown | null;
+  initialDynamicTips: DynamicTips;
 }) {
   const [breakdown, setBreakdown] = useState<ScoreBreakdown | null>(
     initialBreakdown
   );
+  const [dynamicTips, setDynamicTips] =
+    useState<DynamicTips>(initialDynamicTips);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -61,7 +66,8 @@ export function ScorecardClient({
         setError(result.error);
         return;
       }
-      setBreakdown(result.data);
+      setBreakdown(result.data.breakdown);
+      setDynamicTips(result.data.tips);
     });
   }
 
@@ -75,6 +81,7 @@ export function ScorecardClient({
     <div className="flex flex-col gap-2" data-testid="scorecard-client">
       <ScorecardPanel
         breakdown={breakdown}
+        dynamicTips={dynamicTips}
         onRecompute={handleRecompute}
         computing={pending}
       />

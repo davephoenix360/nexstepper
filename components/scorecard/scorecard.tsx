@@ -6,7 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ScoreBreakdown } from '@/lib/scoring';
-import { CRITERIA_TIPS } from '@/lib/scoring/tips';
+import { CRITERIA_TIPS, type DynamicTips } from '@/lib/scoring/tips';
 
 import {
   DimensionBar,
@@ -56,10 +56,19 @@ const SUB_CRITERIA = [
 
 export function ScorecardPanel({
   breakdown,
+  dynamicTips = {},
   onRecompute,
   computing = false
 }: {
   breakdown?: ScoreBreakdown | null;
+  /**
+   * Per-sub-criterion dynamic improvement tips keyed by the
+   * canonical `SubCriterionKey`. Computed server-side from the
+   * resume + JD envelopes. Merged on top of the static
+   * `CRITERIA_TIPS` map at render time — any key present here
+   * takes precedence over the static fallback.
+   */
+  dynamicTips?: DynamicTips;
   /** Triggers the hybrid (BM25 + semantic) recompute. */
   onRecompute?: () => void;
   computing?: boolean;
@@ -102,25 +111,25 @@ export function ScorecardPanel({
           label="Keywords"
           score={breakdown.dimensionScores.atsMatching}
           testId="score-dim-keywords"
-          tip={CRITERIA_TIPS['ATS Keyword Match']}
+          tip={dynamicTips['ATS Keyword Match'] ?? CRITERIA_TIPS['ATS Keyword Match']}
         />
         <DimensionBar
           label="Format"
           score={breakdown.dimensionScores.structure}
           testId="score-dim-format"
-          tip={CRITERIA_TIPS['Section Completeness']}
+          tip={dynamicTips['Section Completeness'] ?? CRITERIA_TIPS['Section Completeness']}
         />
         <DimensionBar
           label="Impact"
           score={breakdown.dimensionScores.contentQuality}
           testId="score-dim-impact"
-          tip={CRITERIA_TIPS['Accomplishment Focus']}
+          tip={dynamicTips['Accomplishment Focus'] ?? CRITERIA_TIPS['Accomplishment Focus']}
         />
         <DimensionBar
           label="Experience match"
           score={breakdown.dimensionScores.alignment}
           testId="score-dim-experience-match"
-          tip={CRITERIA_TIPS['Tailoring']}
+          tip={dynamicTips['Tailoring'] ?? CRITERIA_TIPS['Tailoring']}
         />
       </ul>
 
@@ -152,7 +161,7 @@ export function ScorecardPanel({
                 label={key}
                 score={breakdown.criteriaScores[key as keyof typeof breakdown.criteriaScores]}
                 testId={`score-sub-${key.toLowerCase().replace(/\s+/g, '-')}`}
-                tip={CRITERIA_TIPS[key]}
+                tip={dynamicTips[key] ?? CRITERIA_TIPS[key]}
               />
             ))}
           </ul>
