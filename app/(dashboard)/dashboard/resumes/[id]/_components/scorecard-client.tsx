@@ -7,6 +7,7 @@ import type { JobPosting } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring';
 
 import { recomputeScoreAction } from '../score-actions';
+import { recomputeScoreSemanticAction } from '../score-semantic-actions';
 
 /**
  * Client wrapper around <ScorecardPanel> that owns the "Recompute"
@@ -17,19 +18,29 @@ import { recomputeScoreAction } from '../score-actions';
  *    useTransition, shows a spinner, and updates the bars in
  *    place."
  *
+ * Phase 3 of the post-ship engine review
+ * (`docs/drift/2026-09-19-ats-engine-review.md`) adds a second
+ * opt-in action — `recomputeScoreSemanticAction` — that runs
+ * the hybrid (BM25 + semantic embeddings) path. The default
+ * `recomputeScoreAction` is unchanged (sync, BM25-only, fast).
+ *
  * The page Server Component passes the first-render breakdown +
  * the variant's resumeId. This wrapper:
  *   1. Holds the breakdown in local state (initial = the server-
  *      rendered value).
- *   2. On click, calls the Server Action and swaps in the result.
- *   3. Uses `useTransition` so the button can show a "Recomputing…"
- *      label without freezing the surrounding UI.
- *   4. Surfaces error messages inline below the panel (no toast —
+ *   2. On Recompute click, calls the sync Server Action and
+ *      swaps in the result.
+ *   3. On "Try semantic" click, calls the hybrid Server Action
+ *      and swaps in the result.
+ *   4. Uses `useTransition` so each button can show a spinner
+ *      without freezing the surrounding UI.
+ *   5. Surfaces error messages inline below the panel (no toast —
  *      we keep the right rail self-contained).
  *
- * The Recompute button is hidden entirely when there's no JD to
- * score against — matches the visual contract from slice 2 where
- * the placeholder shows "Recompute" as a disabled affordance.
+ * The Recompute / Try semantic buttons are hidden entirely when
+ * there's no JD to score against — matches the visual contract
+ * from slice 2 where the placeholder shows "Recompute" as a
+ * disabled affordance.
  */
 export function ScorecardClient({
   resumeId,
@@ -44,12 +55,25 @@ export function ScorecardClient({
     initialBreakdown
   );
   const [pending, startTransition] = useTransition();
+  const [pendingHybrid, startHybridTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   function handleRecompute() {
     setError(null);
     startTransition(async () => {
       const result = await recomputeScoreAction({ resumeId });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setBreakdown(result.data);
+    });
+  }
+
+  function handleRecomputeHybrid() {
+    setError(null);
+    startHybridTransition(async () => {
+      const result = await recomputeScoreSemanticAction({ resumeId });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -69,7 +93,9 @@ export function ScorecardClient({
       <ScorecardPanel
         breakdown={breakdown}
         onRecompute={handleRecompute}
+        onRecomputeHybrid={handleRecomputeHybrid}
         computing={pending}
+        computingHybrid={pendingHybrid}
       />
       {error && (
         <p

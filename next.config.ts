@@ -14,13 +14,20 @@ import { withSentryConfig } from '@sentry/nextjs';
  * which is too small for scanned / image-heavy resumes. We also cap
  * server-side in `lib/resume-parser/extract-file-text.ts` (MAX_FILE_BYTES)
  * so this limit is defense-in-depth, not the only guard.
+ *
+ * `serverExternalPackages` excludes `@huggingface/transformers` (and its
+ * `onnxruntime-node` native binary) from the server bundle so the heavy
+ * native module is loaded at runtime via `require()` rather than webpack-
+ * bundled. Phase 3 of the ATS engine review introduced this dep — see
+ * `docs/drift/2026-09-19-ats-engine-review.md`.
  */
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb'
     }
-  }
+  },
+  serverExternalPackages: ['@huggingface/transformers']
 };
 
 export default withSentryConfig(nextConfig, {

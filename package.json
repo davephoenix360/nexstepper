@@ -17,6 +17,7 @@
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.148",
     "@hookform/resolvers": "^5.4.0",
+    "@huggingface/transformers": "^4.3.0",
     "@liveblocks/client": "^3.21.0",
     "@liveblocks/node": "^3.21.0",
     "@liveblocks/react": "^3.21.0",

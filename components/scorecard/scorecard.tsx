@@ -20,23 +20,31 @@ import { EmptyScorecardState } from './empty-state';
  *     number, 4 dimension bars (color-coded by tier), a "Computed
  *     in N ms" hint, and the Recompute button.
  *
- * Slice 2 ships this with the Recompute button DISABLED. Slice 3
- * wires it to `recomputeScoreAction` via `useTransition`. We keep
- * the visual contract locked here so the wiring PR is small.
- *
- * The component is a Server Component (no hooks, no event handlers
- * beyond the disabled button). The Recompute handler is wired by
- * the page-level client wrapper that owns the action call.
+ * Phase 3 of the post-ship engine review
+ * (`docs/drift/2026-09-19-ats-engine-review.md`) adds an opt-in
+ * second action — "Try semantic" — that recomputes with the
+ * hybrid BM25+embeddings path. The default "Recompute" button is
+ * unchanged (sync, BM25-only, fast).
  */
 
 export function ScorecardPanel({
   breakdown,
   onRecompute,
-  computing = false
+  onRecomputeHybrid,
+  computing = false,
+  computingHybrid = false
 }: {
   breakdown?: ScoreBreakdown | null;
   onRecompute?: () => void;
+  /**
+   * Phase 3 opt-in path. Triggers the hybrid (BM25 + semantic
+   * embeddings) recompute. Slow (cold start ~2-5s for model
+   * download, ~100-200ms warm). Wired only when the page
+   * explicitly opts in by passing the handler.
+   */
+  onRecomputeHybrid?: () => void;
   computing?: boolean;
+  computingHybrid?: boolean;
 }) {
   if (!breakdown) {
     return (
@@ -96,17 +104,33 @@ export function ScorecardPanel({
         Computed in {breakdown.computedInMs} ms.
       </p>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 mt-2 h-7 px-2 text-xs text-muted-foreground"
-        onClick={onRecompute}
-        disabled={!onRecompute || computing}
-        data-testid="scorecard-recompute"
-      >
-        <Sparkles className="mr-1 h-3 w-3" />
-        {computing ? 'Recomputing…' : 'Recompute'}
-      </Button>
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-muted-foreground"
+          onClick={onRecompute}
+          disabled={!onRecompute || computing || computingHybrid}
+          data-testid="scorecard-recompute"
+        >
+          <Sparkles className="mr-1 h-3 w-3" />
+          {computing ? 'Recomputing…' : 'Recompute'}
+        </Button>
+        {onRecomputeHybrid ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={onRecomputeHybrid}
+            disabled={computing || computingHybrid}
+            data-testid="scorecard-recompute-hybrid"
+            title="Re-run with semantic embeddings (cold start ~2-5s)"
+          >
+            <Sparkles className="mr-1 h-3 w-3" />
+            {computingHybrid ? 'Scoring…' : 'Try semantic'}
+          </Button>
+        ) : null}
+      </div>
     </aside>
   );
 }
