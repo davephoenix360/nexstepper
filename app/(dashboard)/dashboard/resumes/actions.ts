@@ -3,6 +3,8 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { randomUUID } from 'node:crypto';
+
 import { auth } from '@/lib/auth';
 import {
   createMasterResume,
@@ -10,7 +12,10 @@ import {
   getResume,
   saveResumeRevision
 } from '@/lib/db/queries';
-import { resumeDataSchema } from '@/lib/resume-schema';
+import {
+  jobPostingSchema,
+  resumeDataSchema
+} from '@/lib/resume-schema';
 import {
   extractFileText,
   parseResumeText,
@@ -349,6 +354,73 @@ export async function createVariantAction(
 
 const createVariantSchema = z.object({
   masterId: z.string().min(1, 'Master resume id is required')
+});
+
+/**
+ * Create a variant with an attached job description in one step.
+ *
+ * Slice 3 of the variant-first UX (plan: docs/plans/variant-first-ux.md).
+ *
+ * This is the "headline CTA" — it does the two things the user
+ * would otherwise do separately (create variant + paste JD into
+ * the right rail) in one click. The raw JD is stored on the new
+ * variant's first revision as `jobContext.description`; the AI
+ * parser (Plan B / Plan C) will fill in `title` / `company` /
+ * `keywords` later.
+ *
+ * Auth: Better Auth session check (Server Actions are public
+ * regardless of where they appear in the UI).
+ *
+ * Validation: Zod `safeParse`. Min 50 chars so the parser has
+ * something to work with.
+ */
+export async function createVariantFromJdAction(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, error: 'Not signed in' };
+  }
+
+  const parsed = createVariantFromJdSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Invalid input',
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  // Build a JobPosting with just the raw text filled. The future
+  // parser will overwrite title/company/keywords via the JD panel's
+  // "Save JD" action; this slice ships the storage path only.
+  const jobContext = jobPostingSchema.parse({
+    id: randomUUID(),
+    description: parsed.data.jdText,
+    source: 'paste',
+    capturedAt: new Date().toISOString()
+  });
+
+  const variant = await createVariant(session.user.id, parsed.data.masterId, {
+    jobContext
+  });
+  if (!variant) {
+    return { ok: false, error: 'Master resume not found' };
+  }
+
+  revalidatePath('/dashboard/resumes');
+  revalidatePath(`/dashboard/resumes/${parsed.data.masterId}`);
+  revalidatePath(`/dashboard/resumes/${variant.id}`);
+
+  return { ok: true, data: { id: variant.id } };
+}
+
+const createVariantFromJdSchema = z.object({
+  masterId: z.string().min(1, 'Master resume id is required'),
+  jdText: z
+    .string()
+    .min(50, 'Paste at least 50 characters of the job description')
+    .max(20_000, 'Job description is too long (20,000 characters max)')
 });
 
 // ─── Share actions (Phase 2.5) ──────────────────────────────────────────────

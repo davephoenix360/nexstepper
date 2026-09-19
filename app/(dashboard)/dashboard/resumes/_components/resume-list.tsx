@@ -13,6 +13,7 @@ import type { ResumeFamily } from '@/lib/db/queries';
 import type { Resume } from '@/lib/db/schema';
 
 import { CreateVariantButton } from './create-variant-button';
+import { CreateVariantFromJdButton } from './create-variant-from-jd-button';
 
 /**
  * Master→variant tree for /dashboard/resumes.
@@ -45,7 +46,7 @@ export function ResumeList({
   renderLink = defaultLink
 }: {
   families: ResumeFamily[];
-  renderVariantActions?: (masterId: string) => React.ReactNode;
+  renderVariantActions?: (master: Resume) => React.ReactNode;
   renderLink?: React.ComponentType<
     React.ComponentPropsWithoutRef<typeof Link> & {
       children?: React.ReactNode;
@@ -64,7 +65,7 @@ export function ResumeList({
           <MasterCard
             master={master}
             variants={variants}
-            actions={renderVariantActions(master.id)}
+            actions={renderVariantActions(master)}
             renderLink={renderLink}
           />
         </li>
@@ -74,7 +75,9 @@ export function ResumeList({
 }
 
 /** Default render prop used by the dashboard route. */
-function defaultVariantActions(masterId: string) {
+function defaultVariantActions(master: Resume) {
+  const masterId = master.id;
+  const masterName = master.name || 'Untitled master';
   return (
     <div className="flex items-center gap-2">
       <Button asChild variant="ghost" size="sm">
@@ -83,6 +86,7 @@ function defaultVariantActions(masterId: string) {
           <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </Link>
       </Button>
+      <CreateVariantFromJdButton masterId={masterId} masterName={masterName} />
       <CreateVariantButton masterId={masterId} />
     </div>
   );

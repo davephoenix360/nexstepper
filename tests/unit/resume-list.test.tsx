@@ -61,8 +61,8 @@ function render(families: ResumeFamily[]): string {
     <ResumeList
       families={families}
       renderLink={StubLink as never}
-      renderVariantActions={(masterId) => (
-        <span data-testid={`actions-${masterId}`}>actions</span>
+      renderVariantActions={(master) => (
+        <span data-testid={`actions-${master.id}`}>actions</span>
       )}
     />
   );
