@@ -68,32 +68,29 @@ audit" below).
 
 **Next (queued, priority order)**
 
-1. **JD Markdown formatting** — small AI call (free-tier Gateway
-   model) to re-format raw JD text into well-structured Markdown;
-   render with `react-markdown`; cache on the resume so the call
-   runs once per JD. *Plan:*
-   [`docs/plans/jd-markdown-format.md`](./docs/plans/jd-markdown-format.md).
-2. **ATS scoring engine + scorecard UI** — port the 4-dimension
+1. **ATS scoring engine + scorecard UI** — port the 4-dimension
    weighted algorithm from the legacy `nextep/src/lib/score.ts`;
    pure function in `lib/scoring/`; replace the placeholder
    `AtsScorecard` on the variant-editor right-rail (slots already
-   exist from `variant-first-ux`). Depends on #1. *Plan:*
+   exist from `variant-first-ux`). Depends on the JD Markdown
+   formatting ship (done — see "Phase handoff" §JD Markdown
+   formatting). *Plan:*
    [`docs/plans/ats-scoring.md`](./docs/plans/ats-scoring.md).
-3. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+2. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
-4. **Optimize work-highlights + Pro tier gate** — section-agnostic
+3. **Optimize work-highlights + Pro tier gate** — section-agnostic
    plumbing is ready (`lib/optimize/optimize-resume.ts`); add
    `work[*].highlights` rewrite, gate behind
    `subscriptions.plan === 'pro'`.
-5. **Liveblocks real-time collab UI** — presence + cursors on the
+4. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
-6. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
+5. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
    verdict.
-7. **`/api/job-contexts` + extension-ready API tokens** — so
+6. **`/api/job-contexts` + extension-ready API tokens** — so
    `nextep-ext` has a clean contract.
-8. **Template studio (Phase 6)** — admin-only template authoring.
-9. **Monorepo split** — defer until it actually bites (likely after
+7. **Template studio (Phase 6)** — admin-only template authoring.
+8. **Monorepo split** — defer until it actually bites (likely after
    collab, when packages like `lib/scoring/` start to feel cramped).
 
 **Later / parked** — see the locked non-goals above.
@@ -533,7 +530,7 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session), refreshed 2026-09-19 (variant-first UX shipped))
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session), refreshed 2026-09-19 (variant-first UX shipped), refreshed 2026-09-19 (JD Markdown formatting shipped))
 
 > Per-phase **drift audits** live at `docs/drift/`. Architecture
 > **decisions** are recorded as ADRs at `docs/decisions/`. This section
@@ -558,16 +555,18 @@ generate a read-only `/r/{token}` URL anyone can view without
 a Nextep account. A fresh session is expected to pick up at the
 **variant-first UX boundary** (2026-09-19): variants are now
 the editorial surface, masters are library cards, the variant
-editor carries a collapsible right rail with a JD panel (raw
-text store today; Markdown formatting lands next) plus an ATS
-scorecard stub (slot is wired; scoring lands after that). The
-dashboard home now opens with "Recent variants" pinned at the
-top — drop the user into their latest in-progress variant
-instead of an empty hero. A new headline CTA "Tailor with a JD"
-on each master card creates a variant AND attaches the JD in
-one click via `createVariantFromJdAction`. Plans B (JD
-Markdown) and C (ATS scoring) now slot in next; both have a
-home on the new right rail.
+editor carries a collapsible right rail with a JD panel (now
+rendering AI-formatted Markdown; raw text fallback when the AI
+fails) plus an ATS scorecard stub (slot is wired; scoring lands
+next). The dashboard home now opens with "Recent variants"
+pinned at the top — drop the user into their latest in-progress
+variant instead of an empty hero. A new headline CTA "Tailor
+with a JD" on each master card creates a variant AND attaches
+the JD in one click via `createVariantFromJdAction` — that
+action now also kicks off the Markdown formatter, so the very
+first open of the variant editor shows formatted Markdown.
+Plan B (JD Markdown) is shipped; Plan C (ATS scoring) is next
+and has a home on the new right rail.
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
 
@@ -680,6 +679,68 @@ queued for the next session.
 - **Optimize work highlights** — the second section type. The
   `buildWorkHighlightsUserPrompt` prompt builder is already stubbed
   in `lib/optimize/prompts.ts`; wiring the action + UI is one PR.
+
+### JD Markdown formatting (shipped 2026-09-19)
+
+Plan: [`docs/plans/jd-markdown-format.md`](./docs/plans/jd-markdown-format.md)
+(Plan B in the variant-first UX series). Two commits on
+`feat/jd-markdown-format` (still in review):
+
+- **`03319cb`** — Schema extension (`markdown` + `markdownGeneratedAt`
+  on `jobPostingSchema`, both optional / nullable so legacy rows load
+  fine) + the render path. `<JdPanel>` now renders
+  `jobContext.markdown` via `react-markdown` when present, falling
+  back to a `<pre>` of the raw `description` text when null.
+- **`5bc68aa`** — The AI call. New module
+  `lib/jd-parser/format-jd-as-markdown.ts` with
+  `formatJdAsMarkdown(rawText): Promise<FormatJdResult>`. New
+  `generateTextWithFallbacks` helper in `lib/ai/fallback.ts` (parallel
+  to the existing `generateObjectWithFallbacks`, but for plain-text
+  output). `setVariantJobContextAction` and `createVariantFromJdAction`
+  both call the formatter and populate the schema fields.
+
+**Why `react-markdown` v10, not v9** — plan said `^9`. v10 is the
+current stable; same default-export API. v10 dropped rehype-sanitize
+from the default plugin chain (it was bundled in v9), so we use the
+`skipHtml` prop to strip raw HTML. JD content has no legitimate need
+for raw HTML rendering, so this is the right tradeoff — no extra dep
+(`rehype-sanitize` ~10KB), no behavior change for legitimate JDs,
+zero XSS surface.
+
+**Why a separate fallback chain** — formatter reuses `PARSE_FALLBACKS`
+(4 models, 4 providers), so cross-provider diversification is free.
+The free-tier primary (`mistral/mistral-nemo`) handles ~99% of calls;
+the chain only kicks in during an outage. Output cap is 4K tokens
+(real formatted JDs are 1-3K); input cap is 16K chars (matches
+`setVariantJobContextSchema.max`); 30s AbortSignal per model.
+
+**Failure as a value** — `formatJdAsMarkdown` returns a discriminated
+union with codes `no_api_key | input_too_short | input_too_large |
+ai_failure | empty_output`. Callers silently fall back to
+`markdown: null`, and `<JdPanel>` renders raw text. The user is
+never blocked on this enhancement — same offline / no-API-key
+behavior as the parser calls.
+
+**Faithfulness discipline** — the system prompt is strict:
+"preserve every sentence in the same order with the same wording.
+Never summarize, paraphrase, rephrase, rewrite, translate, polish,
+or 'improve' the text." Mirrors the Optimize tool's anti-hallucination
+discipline. The `cleanOutput()` post-processor strips wrapper
+```markdown fences and "Here is the formatted JD:" preambles that
+small models occasionally emit despite the prompt.
+
+**Tests** — 21 new tests across `tests/unit/jd-panel.test.tsx` (4
+Markdown render path tests: heading/list/emphasis, fenced code,
+raw-text fallback, XSS strip) and
+`tests/unit/jd-parser/format-jd-as-markdown.test.ts` (17 tests:
+input_too_short/large, no_api_key, success, ai_failure, empty_output,
+fence strip, preamble strip, blank-line collapse, prompt-injection,
+AbortSignal forwarding, schema round-trip with/without/null markdown).
+Total `pnpm test`: **424/424 green** (was 403).
+
+**New deps** — exactly one: `react-markdown` (`^10.1.0`). Plan said
+`^9`; we accepted `^10` (latest stable, same API). No `rehype-sanitize`
+because we use `skipHtml` instead.
 
 ### Resume import flow (shipped 2026-09-01)
 

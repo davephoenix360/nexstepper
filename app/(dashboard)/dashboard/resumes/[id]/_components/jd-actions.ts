@@ -16,27 +16,26 @@ import {
   type JobPosting,
   type ResumeData
 } from '@/lib/resume-schema';
+import { formatJdAsMarkdown } from '@/lib/jd-parser';
 
 /**
  * Set the job context on a variant resume.
  *
- * Slice 2 of the variant-first UX (plan: docs/plans/variant-first-ux.md).
+ * Plan: docs/plans/variant-first-ux.md (slice 2, the storage slot)
+ * + docs/plans/jd-markdown-format.md (Plan B, the formatter call).
  *
- * This action intentionally stores the raw JD text under
- * `resumeRevisions.data.jobContext` without invoking the AI parser.
- * The Markdown formatting (Plan B) and structured-parse / scorecard
- * (Plan C) ship as separate follow-ups. Today we just persist the
- * raw text so the right-rail panel has something to display.
+ * Stores the raw JD text under `resumeRevisions.data.jobContext` AND
+ * invokes `formatJdAsMarkdown` to populate `jobContext.markdown` +
+ * `markdownGeneratedAt`. The Markdown body is what the right-rail
+ * `<JdPanel>` renders. When the formatter fails (no API key, AI
+ * timeout, rate limit), the action still succeeds — `markdown`
+ * stays null and the panel falls back to raw text in a `<pre>`.
  *
  * Auth: Better Auth session lookup. Server Actions are public
  * endpoints regardless of where they appear in the UI, so we
  * re-check at the top.
  *
  * Validation: Zod `safeParse` — never trust the client shape.
- * We accept either:
- *   - the raw text only (parsed client-side later), or
- *   - a structured JobPosting (when a future slice uploads one
- *     from a parser round-trip).
  */
 export async function setVariantJobContextAction(
   input: unknown
@@ -65,9 +64,13 @@ export async function setVariantJobContextAction(
     };
   }
 
-  // Build a JobPosting from the raw text. Title/company/location are
-  // empty — the future parser will fill them. We keep a stable id so
-  // the client can render without flicker on re-save.
+  // Fire the Markdown formatter alongside the save. The formatter is
+  // a small AI round-trip (~0.4-1 s) so we let it run in the same
+  // microtask pass as the read. If it fails (no API key, timeout,
+  // rate limit), `markdown` stays null and `<JdPanel>` falls back to
+  // raw text — never an error to the user.
+  const formatResult = await formatJdAsMarkdown(parsed.data.jdText);
+
   const jobContext: JobPosting = jobPostingSchema.parse({
     id: existing.data.jobContext?.id ?? randomUUID(),
     title: existing.data.jobContext?.title ?? '',
@@ -82,7 +85,11 @@ export async function setVariantJobContextAction(
     employmentType: existing.data.jobContext?.employmentType ?? '',
     source: existing.data.jobContext?.source ?? 'paste',
     capturedAt:
-      existing.data.jobContext?.capturedAt ?? new Date().toISOString()
+      existing.data.jobContext?.capturedAt ?? new Date().toISOString(),
+    markdown: formatResult.ok ? formatResult.data.markdown : null,
+    markdownGeneratedAt: formatResult.ok
+      ? formatResult.data.markdownGeneratedAt
+      : null
   });
 
   const nextData: ResumeData = resumeDataSchema.parse({

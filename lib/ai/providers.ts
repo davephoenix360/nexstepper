@@ -142,6 +142,29 @@ export const RESUME_PARSER_MODEL = PARSER_MODEL;
 export const OPTIMIZE_MODEL = PARSER_MODEL;
 
 /**
+ * Model for the JD Markdown formatter (Plan B,
+ * `docs/plans/jd-markdown-format.md`). The formatter turns raw JD
+ * text into well-structured Markdown for the variant editor's
+ * right-rail panel.
+ *
+ * Same free-tier primary as the parsers — Markdown restructuring
+ * is a small, low-risk job that doesn't justify burning a different
+ * (paid) model. Swap to a higher-quality model if real-world
+ * formatting quality proves insufficient (acceptance criterion #1).
+ */
+export const JD_FORMATTER_MODEL = PARSER_MODEL;
+
+/**
+ * Fallback chain for the JD Markdown formatter. Same chain as
+ * `PARSE_FALLBACKS` so we get cross-provider diversification
+ * without paying for a second fallback chain's worth of cold-cache
+ * model loads. The formatter is a small job (≤16K char input,
+ * ≤4K char output), so we keep latency tight and only retry once
+ * before surfacing `ai_failure`.
+ */
+export const JD_FORMATTER_FALLBACKS: readonly string[] = PARSE_FALLBACKS;
+
+/**
  * Resolve a model string into a gateway-backed `LanguageModelV1`
  * instance. This is the only function that knows about the
  * gateway — callers just pass model constants in.

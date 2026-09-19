@@ -29,3 +29,9 @@ export {
   type ParseJdResult,
   type ParseErrorCode
 } from './parse-jd';
+
+export {
+  formatJdAsMarkdown,
+  type FormatJdResult,
+  type FormatErrorCode
+} from './format-jd-as-markdown';
