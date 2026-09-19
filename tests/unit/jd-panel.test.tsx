@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { AtsScorecard } from '@/app/(dashboard)/dashboard/resumes/[id]/_components/ats-scorecard';
 import { JdPanel } from '@/app/(dashboard)/dashboard/resumes/[id]/_components/jd-panel';
 import type { JobPosting } from '@/lib/resume-schema';
 
@@ -48,57 +47,10 @@ const ATTACHED_JD: JobPosting = {
   keywords: ['typescript', 'rust', 'distributed systems']
 };
 
-describe('AtsScorecard', () => {
-  it('renders the placeholder score of —', () => {
-    const html = renderToStaticMarkup(
-      <AtsScorecard jobContext={null} />
-    );
-    expect(html).toContain('ATS score');
-    expect(html).toContain('Coming soon');
-    expect(html).toContain('—');
-  });
-
-  it('lists the four ATS dimensions in locked order', () => {
-    const html = renderToStaticMarkup(
-      <AtsScorecard jobContext={null} />
-    );
-    const dims = [
-      'Keywords',
-      'Format',
-      'Impact',
-      'Experience match'
-    ];
-    let lastIdx = -1;
-    for (const label of dims) {
-      const idx = html.indexOf(label);
-      expect(idx, `expected ${label} to appear`).toBeGreaterThan(-1);
-      expect(idx).toBeGreaterThan(lastIdx);
-      lastIdx = idx;
-    }
-  });
-
-  it('asks the user to attach a JD when none is present', () => {
-    const html = renderToStaticMarkup(
-      <AtsScorecard jobContext={null} />
-    );
-    expect(html).toContain('Attach a job description');
-  });
-
-  it('hints at the next-slice scoring when a JD is attached', () => {
-    const html = renderToStaticMarkup(
-      <AtsScorecard jobContext={ATTACHED_JD} />
-    );
-    expect(html).toContain('Scoring lands in the next slice');
-    expect(html).not.toContain('Attach a job description');
-  });
-
-  it('does not crash on an empty JobPosting (defaults-filled shape)', () => {
-    const html = renderToStaticMarkup(
-      <AtsScorecard jobContext={EMPTY_JD} />
-    );
-    expect(html).toContain('ATS score');
-  });
-});
+// AtsScorecard tests moved to tests/unit/scorecard.test.tsx (slice 2)
+// and tests/unit/scorecard-client.test.tsx (slice 3). The component
+// is now rendered by the <ScorecardClient> wrapper on the page; the
+// raw <ScorecardPanel> is the presentational surface they test.
 
 /**
  * Markdown render path — Plan B (docs/plans/jd-markdown-format.md).

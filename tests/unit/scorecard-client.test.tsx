@@ -1,0 +1,94 @@
+import { describe, expect, it, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+// The Server Action import resolves through Next's 'use server' marker.
+// We don't call it in SSR (no client transitions in renderToStaticMarkup),
+// so mocking it as a no-op keeps the client component's `import`
+// statements valid.
+vi.mock('@/app/(dashboard)/dashboard/resumes/[id]/score-actions', () => ({
+  recomputeScoreAction: vi.fn(async () => ({ ok: false, error: 'mocked' }))
+}));
+
+import { ScorecardClient } from '@/app/(dashboard)/dashboard/resumes/[id]/_components/scorecard-client';
+import type { JobPosting } from '@/lib/resume-schema';
+import type { ScoreBreakdown } from '@/lib/scoring';
+
+const JD: JobPosting = {
+  id: 'job-1',
+  title: 'Senior Engineer',
+  company: 'Stripe',
+  location: 'Remote',
+  description: 'Build payments APIs.',
+  requirements: ['TypeScript'],
+  niceToHaves: [],
+  benefits: [],
+  keywords: [],
+  seniority: '',
+  employmentType: '',
+  source: 'paste'
+};
+
+const BREAKDOWN: ScoreBreakdown = {
+  overallScore: 78,
+  dimensionScores: {
+    atsMatching: 70,
+    structure: 80,
+    contentQuality: 75,
+    alignment: 85
+  },
+  criteriaScores: {
+    'ATS Keyword Match': 60,
+    'ATS Similarity': 50,
+    'ATS Coverage': 70,
+    'Section Completeness': 80,
+    'Optimal Length': 80,
+    'Accomplishment Focus': 80,
+    'Action Verb Usage': 70,
+    Tailoring: 50,
+    'Unique Value': 100,
+    'Soft Skills': 50
+  },
+  computedInMs: 12
+};
+
+describe('ScorecardClient', () => {
+  it('renders the scorecard with the initial breakdown on SSR', () => {
+    const html = renderToStaticMarkup(
+      <ScorecardClient
+        resumeId="r1"
+        jobContext={JD}
+        initialBreakdown={BREAKDOWN}
+      />
+    );
+    expect(html).toContain('data-testid="scorecard"');
+    expect(html).toContain('78');
+    // overallScore=78 → "Decent" tier (50-79, below the green 80 line).
+    expect(html).toContain('Decent');
+  });
+
+  it('renders the empty state when no JD is attached', () => {
+    const html = renderToStaticMarkup(
+      <ScorecardClient
+        resumeId="r1"
+        jobContext={null}
+        initialBreakdown={null}
+      />
+    );
+    expect(html).toContain('data-testid="scorecard-empty-wrapper"');
+    expect(html).toContain('Attach a job description');
+  });
+
+  it('renders the placeholder when a JD is attached but breakdown is null', () => {
+    const html = renderToStaticMarkup(
+      <ScorecardClient
+        resumeId="r1"
+        jobContext={JD}
+        initialBreakdown={null}
+      />
+    );
+    // The wrapper is still rendered (so the layout doesn't shift).
+    // The inner panel shows the "Awaiting first compute" state via
+    // <ScorecardPanel>'s breakdown=null path.
+    expect(html).toContain('data-testid="scorecard-empty-wrapper"');
+  });
+});

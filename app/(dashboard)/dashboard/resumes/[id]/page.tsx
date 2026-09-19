@@ -10,8 +10,8 @@ import { CreateVariantButton } from '../_components/create-variant-button';
 import { DownloadPdfButton } from './download-pdf-button';
 import { ShareButton } from './share-button';
 import { OptimizeButton } from './optimize-button';
-import { AtsScorecard } from './_components/ats-scorecard';
 import { JdPanel } from './_components/jd-panel';
+import { ScorecardClient } from './_components/scorecard-client';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 
 /**
@@ -135,7 +135,11 @@ export default async function ResumeEditorPage({
         {showRightRail && (
           <div className="flex w-full shrink-0 flex-col gap-4 lg:w-80 lg:sticky lg:top-4">
             <JdPanel resumeId={resume.id} jobContext={data.jobContext ?? null} />
-            <AtsScorecard jobContext={data.jobContext ?? null} breakdown={breakdown} />
+            <ScorecardClient
+              resumeId={resume.id}
+              jobContext={data.jobContext ?? null}
+              initialBreakdown={breakdown}
+            />
           </div>
         )}
       </div>
