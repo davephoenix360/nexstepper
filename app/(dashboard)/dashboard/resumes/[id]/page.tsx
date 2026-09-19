@@ -10,27 +10,33 @@ import { CreateVariantButton } from '../_components/create-variant-button';
 import { DownloadPdfButton } from './download-pdf-button';
 import { ShareButton } from './share-button';
 import { OptimizeButton } from './optimize-button';
+import { AtsScorecard } from './_components/ats-scorecard';
+import { JdPanel } from './_components/jd-panel';
 
 /**
  * Resume editor page — RSC.
  *
- * Loads the resume + current revision data, then hands off to the
- * client-side <EditableResume> which renders the actual resume
- * (using <ClassicTemplate editable={true}>) and lets the user edit
- * each text value in place. Tabs (Profile / Experience / Skills /
- * Recognition) are gone in this WYSIWYG slice — the rendered resume
- * is one continuous scroll, and section-edit dialogs at the bottom
- * open the table editor for the parts we don't inline-edit yet.
+ * Slice 2 of the variant-first UX (plan: docs/plans/variant-first-ux.md).
  *
- * Print flow: <EditableResume> ships a "Print / Save as PDF" button
- * that hits window.print(). Layout + globals.css handle the chrome
- * strip and `@page` rules.
+ *   - For variants, the page renders a two-column layout: the
+ *     existing editable resume on the left, and a right rail
+ *     housing the JD panel (top) and the ATS scorecard (below).
+ *   - For masters, the rail is hidden — masters don't have a JD,
+ *     and the scorecard makes no sense without one.
+ *
+ * The right rail is a fixed 320px column on `lg`+ screens. On
+ * `md` it stacks beneath the editor. On `sm` the JD panel keeps
+ * its collapse handle so the editor stays the dominant surface.
  *
  * Variant UX:
- *  - Master: shows the "Tailor this for a job" button (creates a variant).
- *  - Variant: shows a "← Back to master" link to parentResumeId. Both
- *    link back to /dashboard/resumes as well so the user can always
- *    reach the list.
+ *  - Master: shows the "Tailor this for a job" CTA (creates a variant).
+ *  - Variant: shows a back-to-master link via parentResumeId.
+ *
+ * Future slices:
+ *  - Plan B (JD Markdown) replaces the `description` line-clamp in
+ *    JdPanel with a react-markdown render.
+ *  - Plan C (ATS scoring) replaces the placeholder scores with real
+ *    numbers from `lib/scoring/`.
  */
 export default async function ResumeEditorPage({
   params
@@ -53,7 +59,7 @@ export default async function ResumeEditorPage({
 
   // Server-render the share status so the dialog opens with the right
   // state (no extra round-trip). We never expose the raw token in
-  // the page — only the actions return that, and only after the user
+  // the page - only the actions return that, and only after the user
   // explicitly enables / rotates.
   const shareStatus = await getShareStatus(resume.id, user.id);
   const shareStatusView = {
@@ -66,6 +72,8 @@ export default async function ResumeEditorPage({
       ? shareStatus.createdAt.toISOString()
       : null
   };
+
+  const showRightRail = !resume.isMaster;
 
   return (
     <section className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
@@ -99,11 +107,28 @@ export default async function ResumeEditorPage({
         </div>
       </header>
 
-      <EditableResume
-        resumeId={resume.id}
-        initialData={data}
-        isMaster={resume.isMaster}
-      />
+      <div
+        className={
+          showRightRail
+            ? 'flex flex-col gap-6 lg:flex-row lg:items-start'
+            : 'flex flex-col gap-6'
+        }
+      >
+        <div className="min-w-0 flex-1">
+          <EditableResume
+            resumeId={resume.id}
+            initialData={data}
+            isMaster={resume.isMaster}
+          />
+        </div>
+
+        {showRightRail && (
+          <div className="flex w-full shrink-0 flex-col gap-4 lg:w-80 lg:sticky lg:top-4">
+            <JdPanel resumeId={resume.id} jobContext={data.jobContext ?? null} />
+            <AtsScorecard jobContext={data.jobContext ?? null} />
+          </div>
+        )}
+      </div>
     </section>
   );
 }
