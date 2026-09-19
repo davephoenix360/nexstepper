@@ -11,6 +11,10 @@ import {
 import { cn } from '@/lib/utils';
 import type { ResumeFamily } from '@/lib/db/queries';
 import type { Resume } from '@/lib/db/schema';
+import {
+  SCORE_GREEN_THRESHOLD,
+  SCORE_AMBER_THRESHOLD
+} from '@/components/scorecard/dimension-bar';
 
 import { CreateVariantButton } from './create-variant-button';
 import { CreateVariantFromJdButton } from './create-variant-from-jd-button';
@@ -34,6 +38,10 @@ import { CreateVariantFromJdButton } from './create-variant-from-jd-button';
  *   - The list itself is a Server Component: `listResumes()` runs in
  *     the page and hands us already-grouped `ResumeFamily[]`. No
  *     per-row fetches, no client round-trip just to render the tree.
+ *
+ * Plan: docs/plans/ats-scoring.md §"User-visible behavior" — the
+ * variant row also gets a single-number score badge (computed
+ * server-side in `listResumes`).
  *
  * Master/variant distinction comes from the row's `isMaster` /
  * `parentResumeId` columns (see AGENTS.md "Data model truths"). The
@@ -60,11 +68,12 @@ export function ResumeList({
       className="space-y-4"
       aria-label="Master resumes and their variants"
     >
-      {families.map(({ master, variants }) => (
+      {families.map(({ master, variants, variantScores }) => (
         <li key={master.id}>
           <MasterCard
             master={master}
             variants={variants}
+            variantScores={variantScores}
             actions={renderVariantActions(master)}
             renderLink={renderLink}
           />
@@ -104,11 +113,13 @@ function defaultLink(
 function MasterCard({
   master,
   variants,
+  variantScores,
   actions,
   renderLink: LinkEl
 }: {
   master: Resume;
   variants: Resume[];
+  variantScores: Record<string, number | null>;
   actions: React.ReactNode;
   renderLink: React.ComponentType<
     React.ComponentPropsWithoutRef<typeof Link> & {
@@ -168,6 +179,7 @@ function MasterCard({
               <VariantRow
                 key={variant.id}
                 variant={variant}
+                score={variantScores[variant.id] ?? null}
                 renderLink={LinkEl}
               />
             ))}
@@ -182,9 +194,11 @@ function MasterCard({
 
 function VariantRow({
   variant,
+  score,
   renderLink: LinkEl
 }: {
   variant: Resume;
+  score: number | null;
   renderLink: React.ComponentType<
     React.ComponentPropsWithoutRef<typeof Link> & {
       children?: React.ReactNode;
@@ -218,6 +232,7 @@ function VariantRow({
             <StatusBadge status={status} />
           </p>
         </div>
+        {score !== null && <ScoreBadge score={score} />}
         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
       </LinkEl>
     </li>
@@ -243,6 +258,47 @@ function TemplateBadge({ template }: { template: string }) {
     <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
       {template}
     </Badge>
+  );
+}
+
+/**
+ * Single-number score badge for the variant row.
+ *
+ * Same tier thresholds as the scorecard panel (SCORE_GREEN_THRESHOLD /
+ * SCORE_AMBER_THRESHOLD). Imported from the scorecard module so a
+ * future calibration pass only has to change the numbers in one
+ * place.
+ *
+ * Drift from plan §"Open questions" #2: the plan called for "green /
+ * amber / red" tier colors on the scorecard. The badge on the
+ * variant row is more constrained — we use a single text color per
+ * tier rather than a filled background, so the row stays scannable
+ * even with many variants.
+ */
+function ScoreBadge({ score }: { score: number }) {
+  const tier =
+    score >= SCORE_GREEN_THRESHOLD
+      ? 'green'
+      : score >= SCORE_AMBER_THRESHOLD
+        ? 'amber'
+        : 'red';
+  const colorClass = {
+    green: 'text-emerald-700 dark:text-emerald-400',
+    amber: 'text-amber-700 dark:text-amber-400',
+    red: 'text-rose-700 dark:text-rose-400'
+  }[tier];
+  return (
+    <span
+      data-testid="variant-score-badge"
+      data-score={score}
+      data-tier={tier}
+      className={cn(
+        'shrink-0 rounded-md border px-2 py-0.5 font-mono text-xs tabular-nums',
+        colorClass
+      )}
+    >
+      {score}
+    </span>
   );
 }
 

@@ -12,6 +12,7 @@ import { ShareButton } from './share-button';
 import { OptimizeButton } from './optimize-button';
 import { AtsScorecard } from './_components/ats-scorecard';
 import { JdPanel } from './_components/jd-panel';
+import { scoreResumeFromEnvelope } from '@/lib/scoring';
 
 /**
  * Resume editor page — RSC.
@@ -75,6 +76,15 @@ export default async function ResumeEditorPage({
 
   const showRightRail = !resume.isMaster;
 
+  // First-render scoring: when a variant has a JD attached, compute
+  // the ATS score server-side and pass it to <AtsScorecard> so the
+  // user sees real numbers on first paint (no extra round-trip).
+  // Per plan §"Key design decisions" #6 and acceptance criterion #8.
+  const breakdown =
+    !resume.isMaster && data.jobContext
+      ? scoreResumeFromEnvelope(data, data.jobContext)
+      : null;
+
   return (
     <section className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
       <header className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -125,7 +135,7 @@ export default async function ResumeEditorPage({
         {showRightRail && (
           <div className="flex w-full shrink-0 flex-col gap-4 lg:w-80 lg:sticky lg:top-4">
             <JdPanel resumeId={resume.id} jobContext={data.jobContext ?? null} />
-            <AtsScorecard jobContext={data.jobContext ?? null} />
+            <AtsScorecard jobContext={data.jobContext ?? null} breakdown={breakdown} />
           </div>
         )}
       </div>

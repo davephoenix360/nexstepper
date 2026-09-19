@@ -82,7 +82,8 @@ describe('ResumeList', () => {
           isMaster: true,
           updatedAt: T0
         }),
-        variants: []
+        variants: [],
+        variantScores: {}
       }
     ]);
 
@@ -121,7 +122,8 @@ describe('ResumeList', () => {
             status: 'draft',
             updatedAt: T2
           })
-        ]
+        ],
+        variantScores: {}
       }
     ]);
 
@@ -152,7 +154,8 @@ describe('ResumeList', () => {
             name: 'A1',
             parentResumeId: 'master-a'
           })
-        ]
+        ],
+        variantScores: {}
       },
       {
         master: makeResume({ id: 'master-b', name: 'Resume B', isMaster: true }),
@@ -167,7 +170,8 @@ describe('ResumeList', () => {
             name: 'B2',
             parentResumeId: 'master-b'
           })
-        ]
+        ],
+        variantScores: {}
       }
     ]);
 
@@ -192,10 +196,39 @@ describe('ResumeList', () => {
         master: makeResume({ id: 'master-1', name: 'Solo', isMaster: true }),
         variants: [
           makeResume({ id: 'variant-1', parentResumeId: 'master-1' })
-        ]
+        ],
+        variantScores: {}
       }
     ]);
     expect(html).toContain('1 variant');
     expect(html).not.toContain('1 variants');
+  });
+
+  it('renders a score badge when the variant has a non-null score', () => {
+    const html = render([
+      {
+        master: makeResume({ id: 'master-1', name: 'Master', isMaster: true }),
+        variants: [
+          makeResume({ id: 'v1', name: 'V1', parentResumeId: 'master-1' })
+        ],
+        variantScores: { v1: 78 }
+      }
+    ]);
+    expect(html).toContain('data-testid="variant-score-badge"');
+    expect(html).toContain('data-score="78"');
+    expect(html).toContain('data-tier="amber"');
+  });
+
+  it('omits the score badge when the variant score is null', () => {
+    const html = render([
+      {
+        master: makeResume({ id: 'master-1', name: 'Master', isMaster: true }),
+        variants: [
+          makeResume({ id: 'v1', name: 'V1', parentResumeId: 'master-1' })
+        ],
+        variantScores: { v1: null }
+      }
+    ]);
+    expect(html).not.toContain('variant-score-badge');
   });
 });

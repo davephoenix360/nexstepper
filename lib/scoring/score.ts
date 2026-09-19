@@ -4,6 +4,7 @@ import { scoreContentQuality } from './dimensions/content-quality';
 import { scoreAlignment } from './dimensions/alignment';
 import { flattenJobText, flattenResumeText } from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
+import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 
 /**
  * Top-level scoring engine.
@@ -88,9 +89,55 @@ export type ScoreableResume = ResumeTextSource & {
 export type ScoreableJob = JobTextSource;
 
 /**
+ * Convert a full `ResumeData` envelope (Zod schema shape) into the
+ * narrow `ScoreableResume` the scoring engine reads. Lives here so
+ * the engine never imports the envelope schema directly — keeps the
+ * dependency direction one-way (scoring depends on resume-schema,
+ * not the other way around).
+ *
+ * Sections under `data.sections.{basics,skills,work,projects,education,...}`
+ * are flattened into the engine's narrow shape. Optional sections
+ * default to empty arrays / empty objects.
+ */
+export function resumeDataToScoreable(resume: ResumeData): ScoreableResume {
+  const sections = resume.sections;
+  return {
+    basics: {
+      summary: sections.basics.summary ?? '',
+      label: sections.basics.label ?? ''
+    },
+    skills: sections.skills.map((s) => ({
+      name: s.name,
+      keywords: s.keywords
+    })),
+    work: sections.work.map((w) => ({
+      summary: w.description ?? '',
+      positions: w.positions.map((p) => ({
+        title: p.title ?? '',
+        highlights: p.highlights ?? []
+      }))
+    })),
+    projects: (sections.projects ?? []).map((p) => ({
+      name: p.name,
+      description: p.description,
+      highlights: p.highlights
+    })),
+    education: sections.education ?? [],
+    awards: sections.awards ?? [],
+    publications: sections.publications ?? []
+  };
+}
+
+/**
  * Score a resume against a job posting. Returns the full breakdown so
  * the UI can render both the overall number and the per-dimension
  * bars from one call.
+ *
+ * Pure / sync / no IO. Operates on the narrow `ScoreableResume` +
+ * `ScoreableJob` shapes (defined in `similarity.ts`) so the engine
+ * has no Zod-schema dependency. Callers that hold the wide envelope
+ * (`ResumeData` + `JobPosting`) should go through `scoreResumeFromEnvelope`
+ * (defined below) which adapts the shapes before calling this.
  *
  * Single source of truth: the `WEIGHTS` constant. The composition
  * formula below MUST be kept in sync with it — there's a test
@@ -160,4 +207,27 @@ export function scoreResume(
  */
 function nowMs(): number {
   return performance.now();
+}
+
+/**
+ * Envelope-aware scorer. Adapts the wide `ResumeData` + `JobPosting`
+ * shapes (from the resume-schema Zod package) to the narrow
+ * `ScoreableResume` + `ScoreableJob` shapes the engine reads, then
+ * calls `scoreResume`. Use this from Server Components that already
+ * hold parsed envelope data — saves the caller from writing the
+ * adapter inline.
+ *
+ * Returns the same `ScoreBreakdown` shape.
+ */
+export function scoreResumeFromEnvelope(
+  resume: ResumeData,
+  job: JobPosting | null
+): ScoreBreakdown {
+  return scoreResume(resumeDataToScoreable(resume), job === null ? {} : {
+    title: job.title ?? '',
+    description: job.description ?? '',
+    requirements: job.requirements ?? [],
+    niceToHaves: job.niceToHaves ?? [],
+    benefits: job.benefits ?? []
+  });
 }

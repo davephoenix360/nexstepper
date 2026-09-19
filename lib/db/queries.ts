@@ -129,6 +129,16 @@ export async function upsertSubscription(
 export type ResumeFamily = {
   master: Resume;
   variants: Resume[];
+  /**
+   * Per-variant ATS score (0-100), computed server-side from the
+   * variant's current `data` + `data.jobContext`. `null` when the
+   * variant has no JD attached (master never has one, so the
+   * variant-level null is the common case for fresh variants).
+   *
+   * Powers the badge on the variant row in `resume-list.tsx`.
+   * Plan: docs/plans/ats-scoring.md §"User-visible behavior".
+   */
+  variantScores: Record<string, number | null>;
 };
 
 /**
@@ -136,6 +146,21 @@ export type ResumeFamily = {
  *
  * Masters come first (sorted by most recently updated). Variants are nested
  * under their parent. Variants without a master (orphaned) are filtered out.
+ *
+ * Per plan §"User-visible behavior" #11: each variant's current ATS
+ * score is computed server-side and returned alongside the row, so
+ * the variant card can render the score badge without a per-row
+ * fetch. Variants without a JD (the common case for fresh variants)
+ * return null in the `variantScores` map.
+ *
+ * Implementation:
+ *   1. One `SELECT * FROM resumes WHERE user_id = ?` to get the
+ *      rows (master + variant metadata).
+ *   2. One `SELECT * FROM resume_revisions WHERE id IN (...)` to get
+ *      every variant's current revision's data (batched — one query
+ *      for all variants, not one-per-row).
+ *   3. Compute the score per variant with a JD attached.
+ *   4. Return the assembled families + scores.
  */
 export async function listResumes(userId: string): Promise<ResumeFamily[]> {
   // One round trip: pull all the user's resumes, then group in memory.
@@ -155,12 +180,65 @@ export async function listResumes(userId: string): Promise<ResumeFamily[]> {
     }
   }
 
-  return masters.map((master) => ({
-    master,
-    variants: (variantsByParent.get(master.id) ?? []).sort(
+  // Assemble the families first; the score map starts empty.
+  const families = masters.map((master) => {
+    const variants = (variantsByParent.get(master.id) ?? []).sort(
       (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-    )
-  }));
+    );
+    const variantScores: Record<string, number | null> = {};
+    for (const v of variants) variantScores[v.id] = null;
+    return { master, variants, variantScores };
+  });
+
+  // Batch-fetch every variant's current revision in one query.
+  // `inArray` translates to `WHERE id IN (...)` which is a single
+  // round trip. Without this we'd N+1 — one query per variant.
+  const allVariants = families.flatMap((f) => f.variants);
+  const revisionIds = allVariants
+    .map((v) => v.currentRevisionId)
+    .filter((id): id is string => id !== null && id !== undefined);
+
+  if (revisionIds.length === 0) return families;
+
+  const { inArray } = await import('drizzle-orm');
+  const { resumeRevisions } = await import('./schema');
+  const revisions = await db
+    .select()
+    .from(resumeRevisions)
+    .where(inArray(resumeRevisions.id, revisionIds));
+
+  const dataByRevision = new Map<string, ResumeData>();
+  for (const rev of revisions) {
+    dataByRevision.set(rev.id, rev.data);
+  }
+
+  // Lazy-import the scoring engine so the queries module doesn't
+  // pull it into every consumer (some test setups mock queries).
+  const { scoreResumeFromEnvelope } = await import('@/lib/scoring');
+
+  for (const variant of allVariants) {
+    const data =
+      variant.currentRevisionId !== null
+        ? dataByRevision.get(variant.currentRevisionId)
+        : undefined;
+    if (!data || !data.jobContext) continue;
+    try {
+      const family = families.find((f) =>
+        f.variants.some((v) => v.id === variant.id)
+      );
+      if (family) {
+        family.variantScores[variant.id] = scoreResumeFromEnvelope(
+          data,
+          data.jobContext
+        ).overallScore;
+      }
+    } catch {
+      // Never let a scoring failure break the list render — the
+      // variant card simply shows no badge.
+    }
+  }
+
+  return families;
 }
 
 /**

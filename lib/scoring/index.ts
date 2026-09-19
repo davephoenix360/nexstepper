@@ -9,7 +9,7 @@
  */
 
 // Top-level composition
-export { scoreResume, WEIGHTS } from './score';
+export { scoreResume, scoreResumeFromEnvelope, WEIGHTS } from './score';
 export type {
   ScoreBreakdown,
   DimensionKey,
