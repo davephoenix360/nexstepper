@@ -1,28 +1,24 @@
-import Link from 'next/link';
 import { FileText } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 
 import { getUser, listResumes } from '@/lib/db/queries';
 import { CreateMasterResumeForm } from './_components/create-master-form';
+import { ResumeList } from './_components/resume-list';
 
 /**
- * Resume list page — masters and their variants, grouped by family.
+ * Resume list page — variant-first UX (plan: docs/plans/variant-first-ux.md).
  *
- * Slice 1: create form is inline at the top; the master cards link
- * to a disabled "coming next" target because `/dashboard/resumes/[id]`
- * (the editor) lands in slice 2.
+ *   - Masters render as compact library cards. Variants render as
+ *     rows nested under their master, linking to the variant editor.
+ *   - The "Create a master" affordance lives at the top of the page,
+ *     not inside the list. Variant creation is per-master.
+ *   - No redirect on unauthed visitors — matches the dashboard home's
+ *     pattern of rendering an empty state.
  *
- * No redirect on unauthed visitors — matches the dashboard home's
- * pattern of rendering an empty state. Once Phase 1 is fully shipped
- * we can tighten this to require an active session.
+ * Server Component: `listResumes()` (lib/db/queries.ts) returns the
+ * already-grouped master→variant tree in one round trip. We never
+ * re-fetch per row.
  */
 export default async function ResumesPage() {
   const user = await getUser();
@@ -33,7 +29,9 @@ export default async function ResumesPage() {
       <header>
         <h1 className="text-lg lg:text-2xl font-medium">Resumes</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Masters and tailored variants you can edit and tailor per role.
+          {families.length === 0
+            ? 'Build a master, then tailor variants for specific roles.'
+            : 'Your masters are the source of truth. Variants branch off each one for specific roles.'}
         </p>
       </header>
 
@@ -42,40 +40,15 @@ export default async function ResumesPage() {
       {families.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              No resumes yet. Create your first master above to get started.
+            <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium">No resumes yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Create your first master above to get started.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {families.map(({ master, variants }) => (
-            <Card key={master.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  {master.name}
-                </CardTitle>
-                <CardDescription>
-                  Master · updated{' '}
-                  {master.updatedAt.toLocaleDateString()}
-                  {variants.length > 0 && (
-                    <>
-                      {' · '}
-                      {variants.length} variant
-                      {variants.length === 1 ? '' : 's'}
-                    </>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild variant="outline">
-                  <Link href={`/dashboard/resumes/${master.id}`}>Open editor</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <ResumeList families={families} />
       )}
     </section>
   );
