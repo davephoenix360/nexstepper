@@ -68,39 +68,33 @@ audit" below).
 
 **Next (queued, priority order)**
 
-1. **Variant-first UX restructure** — promote variants to the
-   primary editorial surface; demote master to a "library" card;
-   JD lives in a collapsible right-rail panel on the variant editor;
-   "Create variant from JD" is the headline flow. Sets the surface
-   for ATS scoring + JD display. *Plan:*
-   [`docs/plans/variant-first-ux.md`](./docs/plans/variant-first-ux.md).
-2. **JD Markdown formatting** — small AI call (free-tier Gateway
+1. **JD Markdown formatting** — small AI call (free-tier Gateway
    model) to re-format raw JD text into well-structured Markdown;
    render with `react-markdown`; cache on the resume so the call
    runs once per JD. *Plan:*
    [`docs/plans/jd-markdown-format.md`](./docs/plans/jd-markdown-format.md).
-3. **ATS scoring engine + scorecard UI** — port the 4-dimension
+2. **ATS scoring engine + scorecard UI** — port the 4-dimension
    weighted algorithm from the legacy `nextep/src/lib/score.ts`;
-   pure function in `lib/scoring/`; Scorecard component in the
-   variant-editor right-rail (sits next to the JD panel from #2).
-   Depends on #1 and #2. *Plan:*
+   pure function in `lib/scoring/`; replace the placeholder
+   `AtsScorecard` on the variant-editor right-rail (slots already
+   exist from `variant-first-ux`). Depends on #1. *Plan:*
    [`docs/plans/ats-scoring.md`](./docs/plans/ats-scoring.md).
-4. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+3. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
-5. **Optimize work-highlights + Pro tier gate** — section-agnostic
+4. **Optimize work-highlights + Pro tier gate** — section-agnostic
    plumbing is ready (`lib/optimize/optimize-resume.ts`); add
    `work[*].highlights` rewrite, gate behind
    `subscriptions.plan === 'pro'`.
-6. **Liveblocks real-time collab UI** — presence + cursors on the
+5. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
-7. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
+6. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
    verdict.
-8. **`/api/job-contexts` + extension-ready API tokens** — so
+7. **`/api/job-contexts` + extension-ready API tokens** — so
    `nextep-ext` has a clean contract.
-9. **Template studio (Phase 6)** — admin-only template authoring.
-10. **Monorepo split** — defer until it actually bites (likely after
-    collab, when packages like `lib/scoring/` start to feel cramped).
+8. **Template studio (Phase 6)** — admin-only template authoring.
+9. **Monorepo split** — defer until it actually bites (likely after
+   collab, when packages like `lib/scoring/` start to feel cramped).
 
 **Later / parked** — see the locked non-goals above.
 
@@ -539,7 +533,7 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session))
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session), refreshed 2026-09-19 (variant-first UX shipped))
 
 > Per-phase **drift audits** live at `docs/drift/`. Architecture
 > **decisions** are recorded as ADRs at `docs/decisions/`. This section
@@ -562,7 +556,18 @@ cross-provider failover, 0% markup on tokens, and a single
 `AI_GATEWAY_API_KEY` env var. The share link lets an owner
 generate a read-only `/r/{token}` URL anyone can view without
 a Nextep account. A fresh session is expected to pick up at the
-**Phase 2.6 boundary** (Liveblocks collab + Optimize tier gate).
+**variant-first UX boundary** (2026-09-19): variants are now
+the editorial surface, masters are library cards, the variant
+editor carries a collapsible right rail with a JD panel (raw
+text store today; Markdown formatting lands next) plus an ATS
+scorecard stub (slot is wired; scoring lands after that). The
+dashboard home now opens with "Recent variants" pinned at the
+top — drop the user into their latest in-progress variant
+instead of an empty hero. A new headline CTA "Tailor with a JD"
+on each master card creates a variant AND attaches the JD in
+one click via `createVariantFromJdAction`. Plans B (JD
+Markdown) and C (ATS scoring) now slot in next; both have a
+home on the new right rail.
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
 
