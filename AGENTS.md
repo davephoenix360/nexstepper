@@ -5,12 +5,36 @@
 > This is the **single source of truth** for how to write code in this repo.
 > Keep it short, concrete, and current.
 
-## What this project is
+## Product vision
 
-AI-assisted resume builder. Master-resume → tailored variants, ATS-style
-scoring against a parsed job description, peer reviews, sharing, real-time
-collaboration. See `README.md` for the user-facing overview and
-`NEXTEP_REBUILD_PLAN.md` for the 14-week / 6-phase plan.
+AI-assisted resume builder. The user lands, builds a **master resume**
+(manually or by importing a PDF / DOCX / pasted text), pastes a
+**job description** for it to parse into structured `JobPostingData`,
+gets an **ATS-style score** against the resume (4 weighted dimensions),
+generates a **tailored variant** via AI optimization, **shares** the
+resume (public link) or invites **reviewers**, and optionally
+**collaborates in real time**.
+
+**Core user loop** — master → JD parse → score → optimize → share →
+review → collab. Everything else (template studio, browser extension,
+doc pages) orbits it.
+
+> See `README.md` for the user-facing overview and `NEXTEP_REBUILD_PLAN.md`
+> for the full 14-week / 6-phase plan + rationale.
+
+### Locked non-goals (v1)
+
+Adding any of these needs a discussion, not a drive-by edit:
+
+| Out of v1 | Why |
+|---|---|
+| Cover letter builder | Stretch post-launch (rebuild plan §6). |
+| LinkedIn / GitHub profile import | Out of v1 scope (rebuild plan §2). |
+| Job-board integration / auto-apply | Out of v1 scope. |
+| Mobile apps (Capacitor / Expo) | Out of v1 scope. |
+| Multi-language i18n | Out of v1 scope. |
+| Server-generated PDFs (bulk export, email attachments) | Deferred — see "Future server-side rendering" in Phase handoff. |
+| LaTeX export | Deferred — HTML+CSS print is the primary render path. |
 
 **Locked stack** (changing any of these needs a discussion, not a drive-by edit):
 
@@ -23,7 +47,7 @@ collaboration. See `README.md` for the user-facing overview and
 | ORM | Drizzle (no Prisma) |
 | Auth | Better Auth 1.6+ (no NextAuth, no Clerk) |
 | Billing | Stripe (Free + Pro $12/mo) |
-| AI | Vercel AI SDK 6 + Anthropic Claude Sonnet |
+| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`; free-tier primary `inclusionai/ling-3.0-flash-fin-free` with 4-model fallback chain (see `docs/ai-models-reference.md`) |
 | Email | Resend |
 | File storage | Vercel Blob |
 | Observability | Sentry (errors) + PostHog (analytics) |
@@ -33,6 +57,52 @@ collaboration. See `README.md` for the user-facing overview and
 | Forms | react-hook-form + `@hookform/resolvers/zod` (no Formik, no RJSF) |
 | Package mgr | pnpm 11 |
 | Deployment | Vercel |
+
+## Roadmap
+
+The living priority order. Update this list when state changes — and
+write a `docs/drift/` memo if the update is non-trivial (see "Drift
+audit" below).
+
+**Now (in flight)** — what this session is shipping.
+
+**Next (queued, priority order)**
+
+1. **Variant-first UX restructure** — promote variants to the
+   primary editorial surface; demote master to a "library" card;
+   JD lives in a collapsible right-rail panel on the variant editor;
+   "Create variant from JD" is the headline flow. Sets the surface
+   for ATS scoring + JD display. *Plan:*
+   [`docs/plans/variant-first-ux.md`](./docs/plans/variant-first-ux.md).
+2. **JD Markdown formatting** — small AI call (free-tier Gateway
+   model) to re-format raw JD text into well-structured Markdown;
+   render with `react-markdown`; cache on the resume so the call
+   runs once per JD. *Plan:*
+   [`docs/plans/jd-markdown-format.md`](./docs/plans/jd-markdown-format.md).
+3. **ATS scoring engine + scorecard UI** — port the 4-dimension
+   weighted algorithm from the legacy `nextep/src/lib/score.ts`;
+   pure function in `lib/scoring/`; Scorecard component in the
+   variant-editor right-rail (sits next to the JD panel from #2).
+   Depends on #1 and #2. *Plan:*
+   [`docs/plans/ats-scoring.md`](./docs/plans/ats-scoring.md).
+4. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+   registry + daily-quota enforcement (`usage` table). Free tier
+   capped at 20 chat messages / day per user; unlimited on Pro.
+5. **Optimize work-highlights + Pro tier gate** — section-agnostic
+   plumbing is ready (`lib/optimize/optimize-resume.ts`); add
+   `work[*].highlights` rewrite, gate behind
+   `subscriptions.plan === 'pro'`.
+6. **Liveblocks real-time collab UI** — presence + cursors on the
+   variant editor surface; Liveblocks server stub already wired.
+7. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
+   verdict.
+8. **`/api/job-contexts` + extension-ready API tokens** — so
+   `nextep-ext` has a clean contract.
+9. **Template studio (Phase 6)** — admin-only template authoring.
+10. **Monorepo split** — defer until it actually bites (likely after
+    collab, when packages like `lib/scoring/` start to feel cramped).
+
+**Later / parked** — see the locked non-goals above.
 
 ## Architectural principles (non-negotiable)
 
@@ -136,6 +206,11 @@ endpoint callable by anyone with the URL. Every protected action calls
 
 ```
 nextep-saas/
+├── docs/                      # Plans, ADRs, drift memos, AI model reference
+│   ├── plans/                 # Feature plans: docs/plans/<slug>.md
+│   ├── decisions/             # ADRs: docs/decisions/NNNN-<slug>.md
+│   ├── drift/                 # Phase-boundary drift audits
+│   └── ai-models-reference.md # Free-tier + paid AI model reference
 ├── app/                       # Next.js App Router
 │   ├── (marketing)/           # Public site (landing, pricing)
 │   ├── (auth)/                # Sign in / sign up
@@ -192,6 +267,157 @@ packages/
 ├── billing/                   # Stripe + subscription helpers
 apps/web/                      # The Next.js app (becomes current root)
 ```
+
+## Planning discipline
+
+Plans are **encouraged artifacts**, not blockers. The gate:
+
+A plan is required when the work is any of:
+- A new feature that ships end-user value (anything you'd describe in a release note).
+- More than ~200 lines of code changed in one PR.
+- A new env var, npm dep, external service, or DB migration.
+- An architecture-shaping decision (new trust boundary, new package boundary, replacement of a locked pick).
+- A change to the locked stack, the locked non-goals, or the scope of v1.
+
+Anything below that threshold — bug fixes, small refactors, copy
+tweaks, small UX polish — ships directly with a clear commit message.
+
+### Plan template
+
+Every plan lives at `docs/plans/<feature-slug>.md` (kebab-case,
+extends the existing `docs/plans/wysiwyg-editor.md` convention). Use
+this template:
+
+```markdown
+# <Feature> — Plan
+
+## Objective
+What we're building and why. One paragraph.
+
+## User-visible behavior
+What the user sees / does / receives. Concrete.
+
+## Scope (in)
+Bullet list of what's included.
+
+## Non-goals (out of this plan)
+Bullet list of related items we're explicitly NOT doing. Call out the tempting ones.
+
+## Architecture
+Diagram + key design decisions + locked tradeoffs.
+
+## Files
+- **New:** …
+- **Changed:** …
+- **Deleted:** …
+
+## DB / schema
+- Migrations: …
+- New tables / columns / indexes: …
+- Env vars: …
+
+## Dependencies
+- npm packages: …
+- External services: …
+- Env keys to add to `.env.example`: …
+
+## Risks
+Top 3 + mitigations.
+
+## Acceptance criteria
+Testable list. If a criterion can't be tested, it doesn't belong here.
+
+## Test plan
+- Unit: …
+- Integration: …
+- Manual smoke: …
+
+## Rollback plan
+How to revert cleanly if something goes wrong.
+
+## Open questions
+Anything the user must answer before/during build.
+```
+
+### Plan ↔ PR convention
+
+- **Branch name:** `feat/<feature-slug>` or `fix/<short-slug>`.
+- **Commit footer:** `Plan: docs/plans/<feature-slug>.md` (or
+  `Plan: none` for sub-trigger work).
+- **PR description:** links the plan and summarizes the diff vs. the
+  plan.
+- **Post-merge:** tick the plan's "Acceptance criteria" checkboxes if
+  you used them.
+
+### How a fresh session reads the plan
+
+1. Read this file end-to-end — architecture principles, locked stack,
+   naming, what-not-to-do.
+2. Read the relevant section of `NEXTEP_REBUILD_PLAN.md` for product
+   rationale.
+3. Read the **Roadmap** above to see what's "Next."
+4. If picking up an in-flight plan: read `docs/plans/<feature-slug>.md`
+   for the spec, then the most recent `docs/drift/` memo to know
+   what's changed since the plan was written.
+
+## Architecture Decision Records (ADRs)
+
+When we make a non-obvious architecture choice — a stack pick, a
+replacement, a paid-API call, a security boundary, an explicit
+deferral — write a short ADR at `docs/decisions/NNNN-short-slug.md`.
+Number sequentially. Use this shape:
+
+```markdown
+# NNNN — <Decision title>
+
+## Context
+What's the situation? What forces are at play? What constraints exist?
+
+## Decision
+What we chose. One paragraph.
+
+## Consequences
+**Good:** what this unlocks / makes easier.
+**Bad:** what it costs / forecloses / makes harder.
+
+## Alternatives considered
+What we didn't pick and why.
+```
+
+**When to write one** (the bar: would a fresh session reasonably
+choose differently?):
+- Locking a new dependency into the locked stack.
+- Replacing one locked pick with another.
+- Introducing a new trust boundary (auth, billing, PII handling, file uploads).
+- A paid-API commitment with a cost projection.
+- Any explicit "out of v1 scope" item we might revisit.
+
+**When NOT to write one:**
+- Routine bug fix.
+- A refactor that doesn't change the contract.
+- A small UX polish.
+
+> The three documented pivots below (browser-print PDF, AI Gateway,
+> `db:push` removal) are essentially retro-ADRs living in Phase
+> handoff. New ones should land at `docs/decisions/`.
+
+## Drift audit
+
+On every phase boundary — or whenever shipped state diverges from
+vision / roadmap — write a short drift memo at
+`docs/drift/YYYY-MM-DD-phase-boundary.md` (or `…-short-slug.md` for
+ad-hoc drift). The audit:
+
+1. **Vision recap** — one paragraph: what we're shipping, who for, why
+   it's differentiated.
+2. **Roadmap status** — Now / Next / Later with ✅ / 🟡 / ❌ for each.
+3. **Drift callouts** — anything shipped that's NOT in vision (or vice
+   versa). For each: the gap, why it's drifted, and the proposed
+   resolution (ship it, de-scope it, or park it).
+4. **Action items** — concrete next moves.
+
+A drift memo is the artifact that prevents future sessions from
+re-litigating settled decisions.
 
 ## TypeScript conventions
 
@@ -313,7 +539,12 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped))
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session))
+
+> Per-phase **drift audits** live at `docs/drift/`. Architecture
+> **decisions** are recorded as ADRs at `docs/decisions/`. This section
+> is the institutional journal — what was shipped, when, and why it
+> mattered.
 
 Session ends with **PDF download shipped** (2026-07-13), a
 **resume import flow** (2026-09-01), a **public share-link
@@ -763,6 +994,10 @@ browser-print path.
 
 - `NEXTEP_REBUILD_PLAN.md` — full 14-week plan with rationale
 - `README.md` — user-facing overview + setup
+- `docs/plans/` — feature plans (`<feature-slug>.md`)
+- `docs/decisions/` — Architecture Decision Records (`NNNN-<slug>.md`)
+- `docs/drift/` — drift audits at phase boundaries
+- `docs/ai-models-reference.md` — free-tier + paid AI model reference
 - `scripts/coderabbit-review.ps1` — the CodeRabbit entry point
 - Legacy `nextep/` repo — reference implementation (don't port verbatim;
   use as ground truth for data shapes and product behavior)

@@ -1,17 +1,23 @@
 # Nextep — Rebuild Plan v1
 
-> **Status:** Decisions confirmed 2026-07-06:
+> **Status:** Decisions confirmed 2026-07-06. Refreshed 2026-09-18 to match
+> shipped state (Phase 2.5/3 boundary). For the current priority order
+> and what's "Next", see the **Roadmap** section in [`AGENTS.md`](./AGENTS.md).
+> Phase-by-phase shipped status is annotated in §6 below.
+>
+> Original 2026-07-06 decisions:
 > - ✅ Auth: **Better Auth**
 > - ✅ Boilerplate: **Build from `nextjs/saas-starter`** (no Makerkit budget)
-> - ✅ Templates: **HTML+CSS → Playwright PDF**, LaTeX as export-only
+> - ✅ Templates: **HTML+CSS** (PDF rendering later pivoted to browser print-to-PDF — see AGENTS.md Phase handoff). LaTeX is export-only / deferred.
 > - ✅ Repo: **New GitHub repo**, current `nextep` folder kept as reference
 > - 🆕 Browser extension `nextep-ext` becomes a JD-capture client for the SaaS (post-launch, but the SaaS API must support it from day one)
 >
 > **TL;DR:** Rebuild as a Next.js 16 + React 19 + TypeScript SaaS on a Postgres + Drizzle
-> foundation, with Better Auth, Stripe billing, Vercel AI SDK 6 for the
-> assistant, and Playwright-based PDF rendering that lets templates stay as React/HTML/CSS while
-> still letting power users export raw LaTeX. Real-time collab via Liveblocks (Phase 5).
-> Browser extension is a downstream client of the same `/api/job-contexts` endpoint.
+> foundation, with Better Auth, Stripe billing, Vercel AI SDK 6 → Vercel AI
+> Gateway for the AI layer, and browser print-to-PDF for export (lets templates
+> stay as React/HTML/CSS while still giving the user a real PDF). Real-time
+> collab via Liveblocks (Phase 5). Browser extension is a downstream client
+> of the same `/api/job-contexts` endpoint (still pending).
 
 ---
 
@@ -105,10 +111,10 @@ Either way, here's the canonical stack I'd put on top of Next.js 16:
 | Billing | **Stripe** + `better-auth/stripe` plugin (or Clerk Billing) | Industry standard, receipts done |
 | File storage | **Vercel Blob** (assets) or **UploadThing** (user uploads) | Blob for templates, UploadThing for resume PDFs |
 | AI orchestration | **Vercel AI SDK 6** (`streamText`, `generateObject`, `useChat`) | Streaming-first, Next.js native, way less glue than LangChain |
-| Provider(s) | **Anthropic Claude Sonnet** primary + **OpenAI gpt-4o-mini** fallback (optional) | Claude writes better for nuanced tone; OpenAI as escape hatch |
-| Embeddings | **OpenAI `text-embedding-3-small`** (or directly via the same provider as chat) | Server-side, 1536-dim, normalized, cheap |
-| Vector search | **pgvector** in the same Postgres | No separate Pinecone needed; we have small N |
-| PDF rendering | **Playwright (Chromium)** via managed API (Browserless / PDF4.dev / Firecrawl's PDF endpoint) | Best fidelity HTML→PDF without running your own Chromium |
+| Provider(s) | **Vercel AI Gateway** (`@ai-sdk/gateway@3`); free-tier primary `inclusionai/ling-3.0-flash-fin-free` + 4-model fallback chain (see [`docs/ai-models-reference.md`](./docs/ai-models-reference.md)) | Single API key for 275+ models across Anthropic, OpenAI, Google, Mistral, DeepSeek. 0% markup. Automatic cross-provider failover. Free tier ($5/mo credit) covers current usage. First pick was Anthropic Claude Sonnet direct; pivoted to the Gateway on 2026-09-18. |
+| Embeddings | **Defer until we need them** — most flows stay as direct text comparisons | Optimizer + scoring don't need embeddings today. Add `text-embedding-3-small` (OpenAI) or `voyage-3` when a search/use-case lands. |
+| Vector search | **Defer** — pgvector is fine when we need it (small N) | Same rationale as embeddings. No need yet. |
+| PDF rendering | **Browser print-to-PDF** via `window.print()` on a `/preview?print=1` route | Pivoted from Playwright-managed-API mid-session (2026-07-13). $0 forever, pixel-identical to the on-screen preview, no third-party data egress, no API keys. Full rationale in AGENTS.md Phase handoff. |
 | Real-time collab | **Liveblocks** (managed) | Presence + Yjs sync + comments, no infra to run |
 | Email | **Resend** | Clean DX, React Email templates |
 | Observability | **Sentry** (errors) + **PostHog** (product analytics) | Free tiers, real signal |
@@ -257,51 +263,51 @@ already loved it.
 
 ## 6. Phased milestones
 
-### Phase 0 — Repo + foundation (week 1)
-- Init `apps/web` (Next.js 16) + pnpm monorepo (Turborepo)
+### Phase 0 — Repo + foundation (week 1) — ✅ Shipped 2026-07-13
+- ~~Init `apps/web` (Next.js 16) + pnpm monorepo (Turborepo)~~ — **monorepo split deferred** (single-package still; not blocking `apps/web` features)
 - Tailwind v4 + shadcn/ui + ESLint + Prettier + TS strict
 - Set up Drizzle + Postgres (Neon)
-- Better Auth (or Clerk) wired in
+- Better Auth wired in
 - Stripe keys + webhook stub
 - Sentry + PostHog installed
 - Vercel deploys cleanly
 
-### Phase 1 — Resume CRUD + master/variant (weeks 2–3)
+### Phase 1 — Resume CRUD + master/variant (weeks 2–3) — ✅ Shipped
 - Resume list page + master-resume creation flow
 - Schema-driven edit form (one component, driven by Zod + UI spec)
 - Save / version (write to `resumeRevisions` table)
-- Local-only resume preview
+- **WYSIWYG inline editor** (Basics + Work inline; rest via section dialogs) — added in a follow-up slice, plan at [`docs/plans/wysiwyg-editor.md`](./docs/plans/wysiwyg-editor.md)
+- **Import from file** (PDF / DOCX / pastes text) — follow-up slice
 
-### Phase 2 — Templates + PDF render (weeks 4–5)
-- Template registry (2 starter templates ported from existing)
-- Playwright PDF service wrapped in `packages/pdf-render`
+### Phase 2 — Templates + PDF render (weeks 4–5) — ✅ Shipped (with PDF pivot)
+- Template registry (3 templates: Modern, Classic, Classic-Readonly)
+- ~~Playwright PDF service wrapped in `packages/pdf-render`~~ — **pivoted to browser print-to-PDF**. All `lib/pdf-render/` + `app/api/pdf/` + Tailwind-compile pipeline removed mid-session; full rationale in AGENTS.md Phase handoff.
 - Template selector on the resume page
-- PDF preview cached by hash
-- Optional LaTeX export (beta)
+- ~~PDF preview cached by hash~~ — not needed in the browser-print flow
+- ~~Optional LaTeX export (beta)~~ — deferred per locked non-goals in AGENTS.md
 
-### Phase 3 — Job context + scoring (weeks 6–7)
-- Job URL/text → structured `JobPostingData` via `generateObject`
-- Score function unit-tested and running server-side
-- Scorecard UI in the resume editor sidebar
-- Per-section "Optimize" button (one LLM call per click)
+### Phase 3 — Job context + scoring (weeks 6–7) — 🟡 Partial (parsers + Optimize v0)
+- ✅ Job URL/text → structured `JobPostingData` via `generateObject` (`lib/jd-parser/`)
+- ✅ Resume text → structured `ResumeSections` via `generateObject` (`lib/resume-parser/`)
+- ❌ **Score function** — never ported from the legacy `nextep/src/lib/score.ts`. **Next priority.**
+- ❌ Scorecard UI in the resume editor sidebar
+- ✅ Per-section "Optimize" button (basics.summary only) — Optimize v0
 
-### Phase 4 — AI assistant (weeks 8–9)
-- AI SDK 6 streaming chat endpoint with system prompt that knows the resume
-- Tool: `optimize_section(resumeId, sectionName, index?)`
-- Chat UI (shadcn + react-markdown)
-- Daily-quota enforcement on free plan
+### Phase 4 — AI assistant (weeks 8–9) — ❌ Not started
+- ~~AI SDK 6 streaming chat endpoint~~ — not built
+- ~~Tool: `optimize_section(...)`~~ — implemented as a one-shot Optimize page, not via chat
+- ~~Chat UI~~ — not built
+- ~~Daily-quota enforcement~~ — not built (no `usage` table yet)
 
-### Phase 5 — Sharing + reviews + collab (weeks 10–12)
-- Sharing: signed public link with visibility toggle
-- Reviews: invite link → reviewer leaves inline comments + verdict
-- Liveblocks for real-time collab editing (1–2 sections first, expand later)
-- Activity feed (optional)
-- **Browser extension `nextep-ext` v1** — wired into the SaaS via `/api/job-contexts` endpoint.
-  Chrome Web Store submission, one-page JD capture.
+### Phase 5 — Sharing + reviews + collab (weeks 10–12) — 🟡 Partial (sharing done)
+- ✅ Sharing: signed public link at `/r/{token}` (SHA-256-hashed token, 3 revocation modes)
+- ❌ Reviews: invite link → reviewer leaves inline comments + verdict
+- 🟡 Liveblocks for real-time collab editing — server client stub wired; UI not started
+- ~~Activity feed~~ — deferred
+- ❌ **Browser extension `nextep-ext` v1** — `/api/job-contexts` not built; the SaaS API must support it before the extension is a client
 
-### Phase 6 — Template studio + polish (weeks 13–14)
-- Admin-only template studio: upload `.tsx` template + `meta.json` + preview PNG
-- Versioned, `inReview` flag before publishing
+### Phase 6 — Template studio + polish (weeks 13–14) — ❌ Not started
+- Admin-only template studio
 - Public template gallery
 - Landing page polish, doc pages, pricing compliance
 - First paying user milestone
@@ -407,21 +413,21 @@ Build these into the SaaS in Phase 1, even before the extension exists:
 |---|---|---|
 | Framework | Next.js 16 + TS strict | Remix |
 | UI | shadcn/ui + Tailwind v4 | MUI alone, Radix |
-| DB | Postgres (Neon) | Supabase, PlanetScale |
+| DB | Postgres (Neon in prod, postgres-js locally — driver auto-detected) | Supabase, PlanetScale |
 | ORM | Drizzle | Prisma |
-| Auth | Better Auth (or Clerk) | Auth.js v5 |
-| Billing | Stripe | Lemon Squeezy, Paddle |
-| AI | Vercel AI SDK 6 | LangChain 1.x |
-| Provider | Claude Sonnet | OpenAI, Mistral |
-| PDF render | Playwright via managed API | Self-hosted Chromium |
-| Templates | React/HTML/CSS, LaTeX as export | LaTeX-first |
-| Real-time | Liveblocks | Self-hosted Hocuspocus |
+| Auth | Better Auth | Clerk |
+| Billing | Stripe (Free + Pro $12/mo, 7-day trial) | Lemon Squeezy, Paddle |
+| AI orchestration | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`) | LangChain 1.x |
+| AI provider | Free-tier `inclusionai/ling-3.0-flash-fin-free` + 4-model fallback chain via the Gateway (see `docs/ai-models-reference.md`) | Direct Anthropic Claude Sonnet (original pick, pivoted 2026-09-18) |
+| PDF render | Browser print-to-PDF (pivoted 2026-07-13) | Playwright via managed API (original pick — kept as a future option) |
+| Templates | React/HTML/CSS templates, browser print → PDF | LaTeX-first |
+| Real-time | Liveblocks (server client wired, UI pending) | Self-hosted Hocuspocus |
 | Email | Resend | Postmark |
 | Hosting | Vercel | Cloudflare, Railway |
-| Background jobs | Inngest | Trigger.dev, queue-on-Vercel |
+| Background jobs | Inngest (client + serve route, functions pending) | Trigger.dev, queue-on-Vercel |
 | Analytics | PostHog | Plausible, Mixpanel |
 | Errors | Sentry | Rollbar |
-| Boilerplate | Makerkit or `nextjs/saas-starter` | — |
+| Boilerplate | `nextjs/saas-starter` (MIT) | Makerkit (not budgeted) |
 
 ---
 
