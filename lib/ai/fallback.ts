@@ -21,15 +21,17 @@ import { aiStrict } from '@/lib/ai/ai-strict-schema';
  *    debuggable. The native version would be a config option we
  *    have to remember exists.
  *
- * What we consider a "fallback-worthy failure":
- *  - Timeout (AbortError)
- *  - 5xx from upstream
- *  - Network errors
- *
- * What we DO NOT fall back from (let it bubble as `validation_failed`):
- *  - Schema validation failures - the model gave us something but
- *    it didn't match the schema. Falling back won't help; the
- *    downstream model will likely make the same mistake.
+ * Policy: ALWAYS try the next model on any failure. We never want
+ * a single model's quirk to stump the user flow. The trade-off is
+ * worst-case latency when every model fails in the same way, but
+ * the AI Gateway free tier is fast (3-8s per call) and the user
+ * experience of "we keep trying until something works" beats
+ * "we give up at the first sign of trouble". The first model's
+ * failure is also the loudest signal in the logs (full debug
+ * block), and the
+ * success path's `recovery` (`recoverWithDefaults`) still rescues
+ * common "missing defaults" shape mismatches without needing to
+ * burn the next model.
  *
  * Returns the model name that succeeded in `modelUsed` so callers
  * can log it for cost attribution.
@@ -134,25 +136,28 @@ export async function generateObjectWithFallbacks<T>({
     } catch (err) {
       lastError = err;
       const message = err instanceof Error ? err.message : String(err);
-      // Schema-validation failures are usually recoverable: the
-      // model returned valid JSON, but the AI SDK's internal
-      // validator (which goes through Standard Schema) doesn't
-      // apply Zod `.default(...)` for missing keys the same way
-      // `schema.safeParse()` does. Re-parse the raw text with Zod
-      // directly, which DOES fill in defaults, and use that.
+      // Always try the cheap recovery first - if the model returned
+      // valid JSON and the only issue is Zod `.default(...)` not
+      // firing for missing keys, we can fix it in-process and
+      // avoid the latency of trying the next model. If recovery
+      // succeeds, we return immediately.
       if (isValidationFailure(err)) {
         const recovered = recoverWithDefaults(err, schema, modelName);
         if (recovered) return recovered;
-        // Couldn't recover (e.g. JSON parse failure, not a
-        // shape-mismatch). Don't waste a fallback call - the
-        // next model would just hit the same trap.
-        const debug = debugError(err);
-        console.warn(
-          `[ai] ${modelName} failed schema validation, not falling back: ${message}\n${debug}`
-        );
-        throw err;
       }
-      console.warn(`[ai] ${modelName} failed (${message}), trying fallback`);
+
+      // Log the failure so future-us can see what's happening.
+      // Validation failures get the full debug block (raw text +
+      // response body); infra failures get a one-liner.
+      const debug = isValidationFailure(err) ? debugError(err) : '';
+      const debugBlock = debug ? `\n${debug}` : '';
+      if (isValidationFailure(err)) {
+        console.warn(
+          `[ai] ${modelName} failed schema validation, trying fallback: ${message}${debugBlock}`
+        );
+      } else {
+        console.warn(`[ai] ${modelName} failed (${message}), trying fallback`);
+      }
       // Continue to the next model in the chain.
     }
   }

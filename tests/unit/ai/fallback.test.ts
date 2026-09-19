@@ -95,25 +95,32 @@ describe('generateObjectWithFallbacks', () => {
     ).rejects.toThrow('SECOND_FAILED');
   });
 
-  it('does NOT fall back on schema validation failure (model problem, not infra)', async () => {
-    // generateObject's schema-validation retry throws NoObjectGeneratedError
-    // when the model output fails Zod parsing. Falling back wastes time —
-    // the next model will likely make the same mistake.
+  it('falls back to the next model when validation fails (no stumping)', async () => {
+    // Policy: validation failures also walk the chain. We never want
+    // a single model's output quirk to stump the user flow. The
+    // `recoverWithDefaults` short-circuit runs first (and would
+    // rescue the common "missing optional field" case for free),
+    // but if recovery fails - and especially if it's a real JSON
+    // parse error - we still try the next model.
     const validationError = new Error('No object generated: ...');
     validationError.name = 'AI_NoObjectGeneratedError';
-    mockedGenerateObject.mockRejectedValueOnce(validationError);
+    mockedGenerateObject
+      .mockRejectedValueOnce(validationError) // primary validation failure
+      .mockResolvedValueOnce({
+        // fallback succeeds
+        object: { ok: true },
+        usage: { inputTokens: 10, outputTokens: 5 }
+      } as never);
 
-    await expect(
-      generateObjectWithFallbacks({
-        models: ['primary', 'fallback'],
-        system: 'sys',
-        prompt: 'prompt',
-        schema: {} as never
-      })
-    ).rejects.toThrow('No object generated');
+    const result = await generateObjectWithFallbacks({
+      models: ['primary', 'fallback'],
+      system: 'sys',
+      prompt: 'prompt',
+      schema: {} as never
+    });
 
-    // Only one call — we didn't try the fallback
-    expect(mockedGenerateObject).toHaveBeenCalledTimes(1);
+    expect(result.modelUsed).toBe('fallback');
+    expect(mockedGenerateObject).toHaveBeenCalledTimes(2);
   });
 
   it('accepts pre-resolved LanguageModel instances (not just strings)', async () => {
