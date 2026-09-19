@@ -84,11 +84,17 @@ describe('scoreAlignment', () => {
     expect(result.breakdown.hasExtras).toBe(0);
   });
 
-  it('scores 100 on softSkills when all 4 soft-skill words are in the resume', () => {
+  it('scores 100 on softSkills when all 12 soft-skill phrases are in the resume', () => {
+    // Phase 1 calibration drift: the soft-skill list was expanded
+    // from 4 to 12 phrases. To max out, the fixture must mention
+    // all 12 (via substring match — `'mentorship'` does NOT
+    // substring-match `'Mentored'`, so the fixture has to write
+    // `'mentorship'` verbatim). We craft a summary that hits
+    // every phrase.
     const resume: ResumeTextSource = {
       basics: {
         summary:
-          'I have been a team lead with strong leadership. I collaborated across teams and value clear communication.'
+          'A team lead with strong leadership. I collaborated with stakeholders across cross-functional teams. Took mentorship seriously alongside people management responsibilities. Strong presentation and analytical skills. Skilled at conflict resolution and negotiation. Clear communication throughout.'
       },
       skills: [],
       work: [],
@@ -98,19 +104,21 @@ describe('scoreAlignment', () => {
     expect(result.breakdown.softSkills).toBe(100);
   });
 
-  it('scores partial on softSkills when only some of the 4 words are present', () => {
+  it('scores partial on softSkills when only some of the 12 phrases are present', () => {
     const resume: ResumeTextSource = {
       basics: { summary: 'I worked on a team and led projects.' },
       skills: [],
       work: [],
       projects: []
     };
-    // "team" is present, "leadership" / "collaborated" / "communication" are not
+    // "team" is present (substring hit), the other 11 are not.
+    // 1 / 12 = 8.33% — the partial-score contract holds even
+    // with the expanded list.
     const result = scoreAlignment(resume, {}, NO_EXTRAS);
-    expect(result.breakdown.softSkills).toBe(25);
+    expect(result.breakdown.softSkills).toBeCloseTo(8.33, 1);
   });
 
-  it('scores 0 on softSkills when none of the 4 words are present', () => {
+  it('scores 0 on softSkills when none of the 12 phrases are present', () => {
     const result = scoreAlignment(
       {
         basics: { summary: 'A pure backend engineer focused on compilers.' },
@@ -126,6 +134,8 @@ describe('scoreAlignment', () => {
 
   it('uses substring matching (not whole-word) for soft skills', () => {
     // "teamwork" contains "team" as a substring → counts as a hit.
+    // Phase 1 calibration drift: list expanded to 12, so 1/12 ≈
+    // 8.33% instead of the old 1/4 = 25%.
     const resume: ResumeTextSource = {
       basics: { summary: 'Strong teamwork experience.' },
       skills: [],
@@ -133,7 +143,7 @@ describe('scoreAlignment', () => {
       projects: []
     };
     const result = scoreAlignment(resume, {}, NO_EXTRAS);
-    expect(result.breakdown.softSkills).toBe(25);
+    expect(result.breakdown.softSkills).toBeCloseTo(8.33, 1);
   });
 
   it('combines sub-criteria with 50/30/20 weighting', () => {
@@ -141,8 +151,9 @@ describe('scoreAlignment', () => {
     // We craft a fixture that hits that:
     //   - tailoring: summary == title (same exact text) → Jaccard 1.0
     //   - hasExtras: projects is present → 100
-    //   - softSkills: all 4 words present in the summary → 100
-    const sameText = 'Senior TypeScript Engineer team leadership collaborated communication';
+    //   - softSkills: all 12 phrases present in the summary → 100
+    const sameText =
+      'Senior TypeScript Engineer team leadership collaborated communication stakeholder cross-functional people management mentorship conflict resolution presentation analytical negotiation';
     const result = scoreAlignment(
       {
         basics: { summary: sameText },

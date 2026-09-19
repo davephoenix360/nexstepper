@@ -82,13 +82,37 @@ describe('WEAK_VERBS', () => {
 
 describe('SOFT_SKILLS', () => {
   it('contains the legacy 4-word list verbatim', () => {
-    // Per plan §"Open questions" #3 default.
-    expect(SOFT_SKILLS).toEqual([
-      'team',
-      'leadership',
-      'collaborated',
-      'communication'
-    ]);
+    // Phase 1 calibration drift: the legacy 4-word list is a
+    // subset of the current list (the list was expanded to 12
+    // phrases — see docs/drift/2026-09-19-ats-engine-review.md).
+    // The legacy 4 must still be present verbatim; the
+    // expansion only ADDS, never removes.
+    const must = ['team', 'leadership', 'collaborated', 'communication'];
+    for (const word of must) {
+      expect(SOFT_SKILLS).toContain(word);
+    }
+  });
+
+  it('contains the 8 phrases added in Phase 1 calibration', () => {
+    const added = [
+      'stakeholder',
+      'cross-functional',
+      'people management',
+      'mentorship',
+      'conflict resolution',
+      'presentation',
+      'analytical',
+      'negotiation'
+    ];
+    for (const word of added) {
+      expect(SOFT_SKILLS).toContain(word);
+    }
+  });
+
+  it('contains exactly 12 entries (legacy 4 + 8 additions)', () => {
+    // Lock the size so a future PR that adds another phrase must
+    // also justify it. Expand deliberately, not accidentally.
+    expect(SOFT_SKILLS).toHaveLength(12);
   });
 });
 

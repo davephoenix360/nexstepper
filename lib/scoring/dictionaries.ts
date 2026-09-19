@@ -8,7 +8,7 @@
  *   - `WEAK_VERBS`   — ~20 verbs that mean "did some work" without
  *     showing impact. Bullets starting with these score zero on the
  *     action-verb sub-criterion.
- *   - `SOFT_SKILLS`  — 4 keywords that score the "soft skills"
+ *   - `SOFT_SKILLS`  — 12 phrases that score the "soft skills"
  *     sub-criterion of `dimensions/alignment.ts`.
  *   - `STOP_WORDS`   — ~100 high-frequency English words the keyword
  *     match sub-criterion filters out before scoring. Prevents "the",
@@ -150,15 +150,38 @@ export const WEAK_VERBS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Inherited from the legacy verbatim. Plan §"Open questions" #3 says
- * "default: inherit. Expand later if user testing says the alignment
- * score is uniformly low."
+ * Phase 1 calibration drift: the legacy shipped with a 4-word
+ * soft-skill list ("team", "leadership", "collaborated",
+ * "communication"). Slice-1 calibration showed the alignment
+ * sub-criterion maxed out at 100% on every well-matched fixture
+ * because the fixture's summary happened to contain all four
+ * words — real JDs use a much wider vocabulary.
+ *
+ * The expanded list below is drawn from the 12 phrases that score
+ * reliably on real ATS platforms when they appear verbatim in the
+ * JD, per `docs/drift/2026-09-19-ats-engine-review.md`. Phrases
+ * are kept as lowercase substrings for compatibility with the
+ * existing substring-matching implementation in
+ * `dimensions/alignment.ts`.
+ *
+ * Plan §"Open questions" #3 default: inherit. Calibration says
+ * expand. Done.
  */
 export const SOFT_SKILLS: readonly string[] = [
+  // ─── Legacy 4 ──────────────────────────────────────────────
   'team',
   'leadership',
   'collaborated',
-  'communication'
+  'communication',
+  // ─── Industry-standard 8 additions (2026) ──────────────────
+  'stakeholder',
+  'cross-functional',
+  'people management',
+  'mentorship',
+  'conflict resolution',
+  'presentation',
+  'analytical',
+  'negotiation'
 ] as const;
 
 /**
