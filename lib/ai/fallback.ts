@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { generateObject, type LanguageModel } from 'ai';
+import { generateObject, generateText, type LanguageModel } from 'ai';
 import type { ZodType } from 'zod';
 
 import { aiStrict } from '@/lib/ai/ai-strict-schema';
@@ -380,4 +380,78 @@ function debugError(err: unknown): string {
 async function resolveModel(modelId: string): Promise<LanguageModel> {
   const { getModel } = await import('./providers');
   return getModel(modelId) as LanguageModel;
+}
+
+/**
+ * Try a list of models in order for a plain-text generation, returning
+ * the first successful response. Parallel to `generateObjectWithFallbacks`
+ * but for cases where the output is a string (e.g. Markdown
+ * formatting — see `lib/jd-parser/format-jd-as-markdown.ts`).
+ *
+ * Same policy as the object variant: ALWAYS try the next model on any
+ * failure (rate limit, network, validation, anything else). No silent
+ * fallback to a default string — we'd rather throw and let the caller
+ * decide to surface a degraded UX than hand the user back a hardcoded
+ * "no AI available" message that pretends to be AI output.
+ */
+export type TextWithFallbackResult = {
+  text: string;
+  modelUsed: string;
+  usage: { inputTokens: number; outputTokens: number };
+};
+
+export async function generateTextWithFallbacks({
+  models,
+  system,
+  prompt,
+  temperature = 0,
+  abortSignal,
+  maxOutputTokens
+}: {
+  models: readonly (LanguageModel | string)[];
+  system: string;
+  prompt: string;
+  temperature?: number;
+  abortSignal?: AbortSignal;
+  /** Per-call output cap. Defaults to 4K — text-formatting jobs are small. */
+  maxOutputTokens?: number;
+}): Promise<TextWithFallbackResult> {
+  let lastError: unknown = null;
+
+  for (const modelEntry of models) {
+    const model =
+      typeof modelEntry === 'string'
+        ? await resolveModel(modelEntry)
+        : modelEntry;
+    const modelName =
+      typeof modelEntry === 'string' ? modelEntry : '<resolved>';
+
+    try {
+      const result = await generateText({
+        model,
+        system,
+        prompt,
+        temperature,
+        abortSignal,
+        maxOutputTokens: maxOutputTokens ?? 4_000
+      });
+      console.info(`[ai] served by ${modelName}`);
+      return {
+        text: result.text,
+        modelUsed: modelName,
+        usage: {
+          inputTokens: result.usage?.inputTokens ?? 0,
+          outputTokens: result.usage?.outputTokens ?? 0
+        }
+      };
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`[ai] ${modelName} failed (${message}), trying fallback`);
+      // Continue to the next model in the chain.
+    }
+  }
+
+  // Exhausted the chain. Surface the last error.
+  throw lastError ?? new Error('All models failed without a specific error');
 }

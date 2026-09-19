@@ -33,6 +33,7 @@ import {
   generateShareTokenRaw,
   hashShareToken
 } from '@/lib/share';
+import { formatJdAsMarkdown } from '@/lib/jd-parser';
 
 /**
  * Discriminated union for Server Action results — see AGENTS.md §3.
@@ -394,11 +395,25 @@ export async function createVariantFromJdAction(
   // Build a JobPosting with just the raw text filled. The future
   // parser will overwrite title/company/keywords via the JD panel's
   // "Save JD" action; this slice ships the storage path only.
+  //
+  // Plan B (docs/plans/jd-markdown-format.md) hooks in here too:
+  // the formatter AI runs in the same request and populates
+  // `markdown` + `markdownGeneratedAt` so the variant editor's right
+  // rail can render a nicely-formatted body from the very first
+  // open. If the formatter fails (no API key, timeout, rate limit)
+  // we silently leave `markdown` null and the UI falls back to raw
+  // text — the user is never blocked on this enhancement.
+  const formatResult = await formatJdAsMarkdown(parsed.data.jdText);
+
   const jobContext = jobPostingSchema.parse({
     id: randomUUID(),
     description: parsed.data.jdText,
     source: 'paste',
-    capturedAt: new Date().toISOString()
+    capturedAt: new Date().toISOString(),
+    markdown: formatResult.ok ? formatResult.data.markdown : null,
+    markdownGeneratedAt: formatResult.ok
+      ? formatResult.data.markdownGeneratedAt
+      : null
   });
 
   const variant = await createVariant(session.user.id, parsed.data.masterId, {
