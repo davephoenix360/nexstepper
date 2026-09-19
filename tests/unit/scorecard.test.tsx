@@ -110,7 +110,7 @@ describe('ScorecardPanel — with breakdown', () => {
         computing
       />
     );
-    expect(html).toContain('Recomputing');
+    expect(html).toContain('Scoring');
   });
 
   it('clamps a >100 score to the bar width', () => {

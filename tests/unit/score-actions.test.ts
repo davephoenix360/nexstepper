@@ -30,7 +30,36 @@ vi.mock('next/headers', () => ({
   headers: () => Promise.resolve(new Headers())
 }));
 
+// Mock the hybrid scoring engine so tests run without a live model
+// download. The mock returns a deterministic breakdown matching the
+// ScoreBreakdown shape so the action's return-type assertions hold.
+vi.mock('@/lib/scoring-async/score-hybrid', () => ({
+  scoreResumeHybridFromEnvelope: vi.fn(async () => ({
+    overallScore: 75,
+    dimensionScores: {
+      atsMatching: 70,
+      structure: 80,
+      contentQuality: 75,
+      alignment: 85
+    },
+    criteriaScores: {
+      'ATS Keyword Match': 60,
+      'ATS Similarity': 55,
+      'ATS Coverage': 70,
+      'Section Completeness': 80,
+      'Optimal Length': 80,
+      'Accomplishment Focus': 80,
+      'Action Verb Usage': 70,
+      Tailoring: 50,
+      'Unique Value': 100,
+      'Soft Skills': 50
+    },
+    computedInMs: 3
+  }))
+}));
+
 import { recomputeScoreAction } from '@/app/(dashboard)/dashboard/resumes/[id]/score-actions';
+import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 
 const SAMPLE_RESUME = {
@@ -182,7 +211,7 @@ describe('recomputeScoreAction', () => {
     if (!result.ok) expect(result.error).toMatch(/job description/i);
   });
 
-  it('returns a ScoreBreakdown on success', async () => {
+  it('calls the hybrid scoring engine (not the sync-only path)', async () => {
     mockSession.mockResolvedValue({ user: { id: 'u1' } });
     mockGetResume.mockResolvedValue({
       resume: {
@@ -215,5 +244,7 @@ describe('recomputeScoreAction', () => {
       expect(result.data.overallScore).toBeGreaterThanOrEqual(0);
       expect(result.data.overallScore).toBeLessThanOrEqual(100);
     }
+    // Confirm the hybrid (not sync-only) engine was invoked.
+    expect(scoreResumeHybridFromEnvelope).toHaveBeenCalled();
   });
 });

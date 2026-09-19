@@ -1,10 +1,19 @@
-import { Sparkles } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ScoreBreakdown } from '@/lib/scoring';
+import { CRITERIA_TIPS } from '@/lib/scoring/tips';
 
-import { DimensionBar, tierFor, SCORE_GREEN_THRESHOLD, SCORE_AMBER_THRESHOLD } from './dimension-bar';
+import {
+  DimensionBar,
+  tierFor,
+  SCORE_GREEN_THRESHOLD,
+  SCORE_AMBER_THRESHOLD
+} from './dimension-bar';
 import { EmptyScorecardState } from './empty-state';
 
 /**
@@ -14,38 +23,49 @@ import { EmptyScorecardState } from './empty-state';
  * the variant editor and shows the overall score + 4 dimension bars
  * when a `ScoreBreakdown` is provided.
  *
- *   - When `breakdown` is `null` or `undefined`: renders the
- *     placeholder ("attach a JD" hint + disabled Recompute button).
- *   - When `breakdown` is provided: renders the scorecard — overall
- *     number, 4 dimension bars (color-coded by tier), a "Computed
- *     in N ms" hint, and the Recompute button.
+ * UX decision (this session): the "Recompute" button uses the hybrid
+ * (BM25 + semantic embeddings) scoring path as the default. The
+ * prior two-button design (separate "Recompute" / "Try semantic")
+ * was replaced with a single button because hybrid scoring is
+ * strictly better signal than BM25-only and there is no reason to
+ * present the user with two numbers.
  *
- * Phase 3 of the post-ship engine review
- * (`docs/drift/2026-09-19-ats-engine-review.md`) adds an opt-in
- * second action — "Try semantic" — that recomputes with the
- * hybrid BM25+embeddings path. The default "Recompute" button is
- * unchanged (sync, BM25-only, fast).
+ * An expandable "Details" section below the dimension bars shows all
+ * 10 sub-criteria with hover tooltips containing specific,
+ * actionable improvement tips for each criterion.
  */
+
+/** The 10 sub-criteria in display order, with the dimension they
+ *  belong to for layout grouping. */
+const SUB_CRITERIA = [
+  // ATS Matching
+  { key: 'ATS Keyword Match', dimension: 'ATS Matching' },
+  { key: 'ATS Similarity', dimension: 'ATS Matching' },
+  { key: 'ATS Coverage', dimension: 'ATS Matching' },
+  // Structure
+  { key: 'Section Completeness', dimension: 'Format' },
+  { key: 'Optimal Length', dimension: 'Format' },
+  // Content Quality
+  { key: 'Accomplishment Focus', dimension: 'Impact' },
+  { key: 'Action Verb Usage', dimension: 'Impact' },
+  // Alignment
+  { key: 'Tailoring', dimension: 'Experience match' },
+  { key: 'Unique Value', dimension: 'Experience match' },
+  { key: 'Soft Skills', dimension: 'Experience match' }
+] as const;
 
 export function ScorecardPanel({
   breakdown,
   onRecompute,
-  onRecomputeHybrid,
-  computing = false,
-  computingHybrid = false
+  computing = false
 }: {
   breakdown?: ScoreBreakdown | null;
+  /** Triggers the hybrid (BM25 + semantic) recompute. */
   onRecompute?: () => void;
-  /**
-   * Phase 3 opt-in path. Triggers the hybrid (BM25 + semantic
-   * embeddings) recompute. Slow (cold start ~2-5s for model
-   * download, ~100-200ms warm). Wired only when the page
-   * explicitly opts in by passing the handler.
-   */
-  onRecomputeHybrid?: () => void;
   computing?: boolean;
-  computingHybrid?: boolean;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   if (!breakdown) {
     return (
       <aside
@@ -82,54 +102,78 @@ export function ScorecardPanel({
           label="Keywords"
           score={breakdown.dimensionScores.atsMatching}
           testId="score-dim-keywords"
+          tip={CRITERIA_TIPS['ATS Keyword Match']}
         />
         <DimensionBar
           label="Format"
           score={breakdown.dimensionScores.structure}
           testId="score-dim-format"
+          tip={CRITERIA_TIPS['Section Completeness']}
         />
         <DimensionBar
           label="Impact"
           score={breakdown.dimensionScores.contentQuality}
           testId="score-dim-impact"
+          tip={CRITERIA_TIPS['Accomplishment Focus']}
         />
         <DimensionBar
           label="Experience match"
           score={breakdown.dimensionScores.alignment}
           testId="score-dim-experience-match"
+          tip={CRITERIA_TIPS['Tailoring']}
         />
       </ul>
+
+      {/* Expandable sub-criteria breakdown with improvement tips. */}
+      <button
+        type="button"
+        onClick={() => setDetailsOpen((v) => !v)}
+        className="mt-3 flex w-full items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        aria-expanded={detailsOpen}
+        data-testid="scorecard-details-toggle"
+      >
+        <ChevronDown
+          className="h-3 w-3 transition-transform duration-200"
+          style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        />
+        {detailsOpen ? 'Hide details' : 'Show details + tips'}
+      </button>
+
+      {detailsOpen && (
+        <div className="mt-3">
+          {/* Two-column grid for the 10 sub-criteria. */}
+          <ul
+            className="grid grid-cols-2 gap-x-4 gap-y-1.5"
+            data-testid="scorecard-sub-criteria"
+          >
+            {SUB_CRITERIA.map(({ key }) => (
+              <DimensionBar
+                key={key}
+                label={key}
+                score={breakdown.criteriaScores[key as keyof typeof breakdown.criteriaScores]}
+                testId={`score-sub-${key.toLowerCase().replace(/\s+/g, '-')}`}
+                tip={CRITERIA_TIPS[key]}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p className="mt-4 text-xs text-muted-foreground">
         Computed in {breakdown.computedInMs} ms.
       </p>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1">
+      <div className="mt-2">
         <Button
           variant="ghost"
           size="sm"
           className="h-7 px-2 text-xs text-muted-foreground"
           onClick={onRecompute}
-          disabled={!onRecompute || computing || computingHybrid}
+          disabled={!onRecompute || computing}
           data-testid="scorecard-recompute"
         >
-          <Sparkles className="mr-1 h-3 w-3" />
-          {computing ? 'Recomputing…' : 'Recompute'}
+          {computing ? 'Scoring…' : 'Recompute'}
         </Button>
-        {onRecomputeHybrid ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={onRecomputeHybrid}
-            disabled={computing || computingHybrid}
-            data-testid="scorecard-recompute-hybrid"
-            title="Re-run with semantic embeddings (cold start ~2-5s)"
-          >
-            <Sparkles className="mr-1 h-3 w-3" />
-            {computingHybrid ? 'Scoring…' : 'Try semantic'}
-          </Button>
-        ) : null}
       </div>
     </aside>
   );

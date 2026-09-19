@@ -1,4 +1,7 @@
+import { Info } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
  * One horizontal dimension bar — label, filled fraction, numeric
@@ -42,14 +45,47 @@ const TIER_TEXT: Record<ScoreTier, string> = {
 export function DimensionBar({
   label,
   score,
-  testId
+  testId,
+  /**
+   * Optional improvement tip shown as a tooltip on hover. When
+   * provided, an Info icon appears next to the label and clicking
+   * / hovering it reveals the tip.
+   */
+  tip
 }: {
   label: string;
   score: number;
   testId?: string;
+  tip?: string;
 }) {
   const safeScore = Math.max(0, Math.min(100, score));
   const tier = tierFor(safeScore);
+
+  const labelContent = (
+    <span className="flex items-center gap-1">
+      <span>{label}</span>
+      {tip && (
+        <Tooltip>
+          <TooltipTrigger
+            asChild
+            className="cursor-default text-muted-foreground hover:text-foreground"
+            // Stop click propagation so the tooltip trigger doesn't
+            // interfere with any parent click handlers on the bar row.
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
+            <Info className="h-3 w-3 shrink-0" aria-hidden />
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            className="max-w-xs"
+            data-testid={testId ? `${testId}-tip` : undefined}
+          >
+            {tip}
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </span>
+  );
 
   return (
     <li
@@ -57,7 +93,7 @@ export function DimensionBar({
       className="flex items-center gap-3"
     >
       <span className="w-24 shrink-0 text-xs text-muted-foreground">
-        {label}
+        {labelContent}
       </span>
       <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
         <div

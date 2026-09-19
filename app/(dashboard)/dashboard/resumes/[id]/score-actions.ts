@@ -6,10 +6,11 @@ import { headers } from 'next/headers';
 
 import { auth } from '@/lib/auth';
 import { getResume } from '@/lib/db/queries';
-import { scoreResumeFromEnvelope } from '@/lib/scoring';
+import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
 
 /**
- * Server Action: re-run the ATS scoring engine for a variant.
+ * Server Action: re-run the ATS scoring engine for a variant using
+ * the HYBRID (BM25 + semantic embeddings) path.
  *
  * Plan: docs/plans/ats-scoring.md §"Files (New)" + acceptance
  * criterion #7 ("Refresh score button calls recomputeScoreAction
@@ -36,6 +37,15 @@ import { scoreResumeFromEnvelope } from '@/lib/scoring';
  * where they appear in the UI. We re-check the session + ownership
  * at the top (acceptance criterion #12), exactly like
  * `setVariantJobContextAction` and the share-link actions.
+ *
+ * Drift: Phase 3 post-ship review consolidated the two-button UX
+ * (BM25-only "Recompute" + hybrid "Try semantic") into a single
+ * "Recompute" button using the hybrid path by default. The hybrid
+ * path is strictly better signal (BM25 alpha=0.4 + semantic
+ * weight=0.6), so showing users two numbers when one is strictly
+ * more accurate adds confusion without value. The previous
+ * `recomputeScoreSemanticAction` is kept for backwards compatibility
+ * but this action is now the canonical default.
  */
 export async function recomputeScoreAction(
   input: unknown
@@ -73,7 +83,7 @@ export async function recomputeScoreAction(
   }
 
   try {
-    const breakdown = scoreResumeFromEnvelope(data, data.jobContext);
+    const breakdown = await scoreResumeHybridFromEnvelope(data, data.jobContext);
     revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
     return { ok: true, data: breakdown };
   } catch (err) {
