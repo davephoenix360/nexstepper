@@ -1,6 +1,7 @@
 import { jaccard, tokenize, type TokenSet } from '../similarity';
 import type { JobTextSource, ResumeTextSource } from '../similarity';
 import { STOP_WORDS } from '../dictionaries';
+import { bm25Similarity } from './bm25-similarity';
 
 /**
  * ATS-matching dimension (30% of the overall score).
@@ -60,8 +61,15 @@ export function scoreAtsMatching(
   }
 ): AtsMatchingScore {
   const keywordScore = computeKeywordScore(job, flatten.resumeText);
-  const similarityScore =
-    jaccard(tokenize(flatten.resumeText), tokenize(flatten.jobText)) * 100;
+  // Phase 2 calibration drift: replace the Jaccard token-set
+  // similarity with a proper BM25 retrieval signal. The Jaccard
+  // version treated every shared token as equal — "the" counted
+  // the same as "Kubernetes". BM25 weights each term by its
+  // inverse document frequency across the 2-document corpus
+  // (resume + JD), so rare technical terms contribute more.
+  // Same 20% weight in the dimension. Returns [0, 1]; we map
+  // to a 0-100 scale to match the other sub-criteria's units.
+  const similarityScore = bm25Similarity(resume, job) * 100;
   // Phase 1: pass the credited-keyword set so the coverage
   // sub-criterion doesn't double-count hits that already
   // contributed to `keywordScore`.

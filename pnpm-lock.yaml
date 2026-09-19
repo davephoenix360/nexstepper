@@ -62,6 +62,9 @@ importers:
       drizzle-orm:
         specifier: ^0.43.1
         version: 0.43.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(gel@2.1.0)(kysely@0.29.3)(postgres@3.4.5)
+      fast-bm25:
+        specifier: ^0.0.6
+        version: 0.0.6(typescript@5.8.3)
       inngest:
         specifier: ^4.11.0
         version: 4.11.0(@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1))(next@16.2.10(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(typescript@5.8.3)(zod@4.4.3)
@@ -3444,6 +3447,12 @@ packages:
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
 
+  fast-bm25@0.0.6:
+    resolution: {integrity: sha512-w+UZydpeWOFTq9z86ir2T5i36Svtm/OpTQrjEIHJXqjxW2IInHKI2xKotdyFh+D0kxL8M8OL6Ayc3DNrq91fqg==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      typescript: ^5.6.3 || ^6.0.0 || ^7.0.0
+
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
@@ -4194,6 +4203,9 @@ packages:
   picomatch@4.0.5:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
     engines: {node: '>=12'}
+
+  porter2@1.1.0:
+    resolution: {integrity: sha512-Io2cLEdZn0O1dH60pRsjmr/cH/qJJ/j6Cjubz8wQWi0b6vPdQIUxSBQKyx9d+8CN7fSnY+5uOU3rErMFjNqcLw==}
 
   postal-mime@2.7.4:
     resolution: {integrity: sha512-0WdnFQYUrPGGTFu1uOqD2s7omwua8xaeYGdO6rb88oD5yJ/4pPHDA4sdWqfD8wQVfCny563n/HQS7zTFft+f/g==}
@@ -8107,6 +8119,11 @@ snapshots:
 
   extend@3.0.2: {}
 
+  fast-bm25@0.0.6(typescript@5.8.3):
+    dependencies:
+      porter2: 1.1.0
+      typescript: 5.8.3
+
   fast-deep-equal@3.1.3: {}
 
   fast-sha256@1.3.0: {}
@@ -8924,6 +8941,8 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.5: {}
+
+  porter2@1.1.0: {}
 
   postal-mime@2.7.4: {}
 
