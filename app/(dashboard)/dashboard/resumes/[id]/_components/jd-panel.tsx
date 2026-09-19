@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Markdown from 'react-markdown';
 import {
   Briefcase,
   ChevronRight,
@@ -27,16 +28,22 @@ import { setVariantJobContextAction } from './jd-actions';
  *   - empty    — the variant has no jobContext yet. Show a CTA to paste
  *                a JD (parses via the existing /api/parse-jd route in
  *                the next slice).
- *   - attached — show title/company/location + the first 6–10 lines
- *                of the description as a preview.
+ *   - attached — show title/company/location + the AI-formatted Markdown
+ *                body (Plan B) when available, falling back to raw text.
  *   - editing  — inline textarea replaces the preview while the user
  *                pastes a fresh JD.
  *
- * The component is intentionally "view-only" today: the textarea
- * state stays local and the Save button posts the raw text to the
- * server action. Markdown rendering (Plan B) and the structured parse
- * (Plan C's scorecard) come later — this slice ships the slot, not
- * the AI behind it.
+ * Markdown rendering (Plan B, docs/plans/jd-markdown-format.md):
+ *   - When `jobContext.markdown` is non-null we render it with
+ *     `react-markdown` (heading / list / paragraph / emphasis).
+ *   - When it is null (AI call skipped, failed, or the user attached
+ *     a JD before this feature shipped) we fall back to the raw
+ *     `description` text in a `<pre>` block. Same content, less
+ *     prettiness — the user is never blocked on this feature.
+ *   - `skipHtml` strips raw HTML so a prompt-injection payload
+ *     (e.g. `<script>alert(1)</script>`) can never render as a
+ *     DOM element. The AI is told to emit Markdown only, but
+ *     defense-in-depth matters.
  *
  * Persistence: `setVariantJobContextAction` accepts the raw JD text
  * and the optional parsed `JobPosting` (left null in this slice; the
@@ -201,11 +208,8 @@ function AttachedView({
         )}
       </div>
 
-      {jobContext.description && (
-        <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-          {jobContext.description}
-        </p>
-      )}
+      {/* Body — formatted Markdown when the AI succeeded, raw text otherwise. */}
+      <Body jobContext={jobContext} />
 
       {jobContext.keywords.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -232,6 +236,102 @@ function AttachedView({
       </Button>
     </div>
   );
+}
+
+/**
+ * Body of the attached view — picks the formatted Markdown when the
+ * AI call populated `jobContext.markdown`, otherwise falls back to the
+ * raw description text. Same content, different presentation.
+ *
+ * The Markdown pass goes through `react-markdown` with `skipHtml` so
+ * any prompt-injection payload (`<script>` etc.) is dropped at parse
+ * time. The `components` map threads the right-rail typography tokens
+ * through the headings/lists/paragraphs without dragging in a
+ * `@tailwindcss/typography` dependency.
+ */
+function Body({ jobContext }: { jobContext: JobPosting }) {
+  if (jobContext.markdown) {
+    return (
+      <div
+        data-testid="jd-panel-markdown"
+        className="jd-markdown text-xs leading-relaxed text-muted-foreground"
+      >
+        <Markdown
+          skipHtml
+          components={{
+            h1: ({ children }) => (
+              <h1 className="mt-2 text-sm font-semibold text-foreground">
+                {children}
+              </h1>
+            ),
+            h2: ({ children }) => (
+              <h2 className="mt-3 text-xs font-semibold uppercase tracking-wide text-foreground">
+                {children}
+              </h2>
+            ),
+            h3: ({ children }) => (
+              <h3 className="mt-2 text-xs font-semibold text-foreground">
+                {children}
+              </h3>
+            ),
+            p: ({ children }) => <p className="mt-1.5">{children}</p>,
+            ul: ({ children }) => (
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-4">{children}</ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="mt-1.5 list-decimal space-y-0.5 pl-4">
+                {children}
+              </ol>
+            ),
+            li: ({ children }) => <li>{children}</li>,
+            code: ({ children }) => (
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                {children}
+              </code>
+            ),
+            pre: ({ children }) => (
+              <pre className="mt-1.5 overflow-x-auto rounded bg-muted p-2 font-mono text-[11px]">
+                {children}
+              </pre>
+            ),
+            strong: ({ children }) => (
+              <strong className="font-semibold text-foreground">
+                {children}
+              </strong>
+            ),
+            em: ({ children }) => (
+              <em className="italic">{children}</em>
+            ),
+            a: ({ children, href }) => (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                {children}
+              </a>
+            )
+          }}
+        >
+          {jobContext.markdown}
+        </Markdown>
+      </div>
+    );
+  }
+
+  if (jobContext.description) {
+    return (
+      <pre
+        data-testid="jd-panel-raw"
+        className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground"
+      >
+        {jobContext.description}
+      </pre>
+    );
+  }
+
+  return null;
 }
 
 function EmptyView() {
