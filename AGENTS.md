@@ -68,29 +68,21 @@ audit" below).
 
 **Next (queued, priority order)**
 
-1. **ATS scoring engine + scorecard UI** — port the 4-dimension
-   weighted algorithm from the legacy `nextep/src/lib/score.ts`;
-   pure function in `lib/scoring/`; replace the placeholder
-   `AtsScorecard` on the variant-editor right-rail (slots already
-   exist from `variant-first-ux`). Depends on the JD Markdown
-   formatting ship (done — see "Phase handoff" §JD Markdown
-   formatting). *Plan:*
-   [`docs/plans/ats-scoring.md`](./docs/plans/ats-scoring.md).
-2. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
-3. **Optimize work-highlights + Pro tier gate** — section-agnostic
+2. **Optimize work-highlights + Pro tier gate** — section-agnostic
    plumbing is ready (`lib/optimize/optimize-resume.ts`); add
    `work[*].highlights` rewrite, gate behind
    `subscriptions.plan === 'pro'`.
-4. **Liveblocks real-time collab UI** — presence + cursors on the
+3. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
-5. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
+4. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
    verdict.
-6. **`/api/job-contexts` + extension-ready API tokens** — so
+5. **`/api/job-contexts` + extension-ready API tokens** — so
    `nextep-ext` has a clean contract.
-7. **Template studio (Phase 6)** — admin-only template authoring.
-8. **Monorepo split** — defer until it actually bites (likely after
+6. **Template studio (Phase 6)** — admin-only template authoring.
+7. **Monorepo split** — defer until it actually bites (likely after
    collab, when packages like `lib/scoring/` start to feel cramped).
 
 **Later / parked** — see the locked non-goals above.
@@ -530,7 +522,7 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session), refreshed 2026-09-19 (variant-first UX shipped), refreshed 2026-09-19 (JD Markdown formatting shipped))
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session), refreshed 2026-09-19 (variant-first UX shipped), refreshed 2026-09-19 (JD Markdown formatting shipped), refreshed 2026-09-19 (ATS scoring shipped))
 
 > Per-phase **drift audits** live at `docs/drift/`. Architecture
 > **decisions** are recorded as ADRs at `docs/decisions/`. This section
@@ -741,6 +733,73 @@ Total `pnpm test`: **424/424 green** (was 403).
 **New deps** — exactly one: `react-markdown` (`^10.1.0`). Plan said
 `^9`; we accepted `^10` (latest stable, same API). No `rehype-sanitize`
 because we use `skipHtml` instead.
+
+### ATS scoring (shipped 2026-09-19)
+
+Plan: [`docs/plans/ats-scoring.md`](./docs/plans/ats-scoring.md) —
+"Plan C" in the variant-first UX series. Three commits on
+`feat/ats-scoring` (still in review):
+
+- **`4c2dd49`** — Pure scoring engine. `lib/scoring/` ships
+  `score.ts` (top-level composition), `similarity.ts` (tokenize +
+  Jaccard + flatteners), `dictionaries.ts` (action verbs / weak
+  verbs / soft skills / stop words), and 4 dimension modules
+  (`ats-matching`, `structure`, `content-quality`, `alignment`).
+  Hard constraints (plan §"Hard constraints") all enforced:
+  sync, no IO, no external services, deterministic, no new deps.
+  148 unit tests covering each dimension in isolation, golden
+  regression (bounded ranges — see Drift below), purity test
+  (static grep of `lib/scoring/` for `fetch` / `http` / `https` /
+  `crypto` / `Date.now` / `Math.random` / `async` / `await`), and
+  a latency benchmark (100-iteration `scoreResume` < 100 ms).
+- **`9b11506`** — Scorecard UI + variant badge.
+  `components/scorecard/{scorecard,dimension-bar,empty-state}.tsx`
+  form the presentational surface. `<AtsScorecard>` (the slice-2
+  placeholder) gains a `breakdown?: ScoreBreakdown | null` prop
+  and delegates to `<ScorecardPanel>` when present. The variant
+  editor page computes the score server-side on first render (plan
+  §"Key design decisions" #6). `listResumes()` now batches every
+  variant's revision in one query and returns a per-variant score
+  map; `<VariantRow>` renders a color-coded score badge on every
+  variant card. Tier thresholds exported from
+  `dimension-bar.tsx` (80 / 50) so the scorecard + badge stay in
+  lock-step.
+- **`f92ef93`** — Recompute wiring. `recomputeScoreAction` Server
+  Action validates session + ownership + input via Zod, refuses
+  to score master / no-JD variants, calls
+  `scoreResumeFromEnvelope`, and revalidates the editor path.
+  `<ScorecardClient>` wraps `<ScorecardPanel>` and owns
+  `useTransition` for the Recompute button (acceptance criterion
+  #7). Inline error display below the panel — no toast.
+
+**Adapter pattern** — `scoreResume` itself takes a narrow
+`ScoreableResume` + `ScoreableJob` shape so the engine stays
+dependency-free. `scoreResumeFromEnvelope(resume, job)` adapts the
+wide `ResumeData` + `JobPosting` envelope down to the narrow shape
+for callers that already hold parsed envelope data (Server
+Components, `listResumes()`).
+
+**Drift from plan:**
+  - Golden-fixture tests assert **bounded ranges** (well-matched
+    ≥ 50, poorly-matched < 30) rather than literal legacy-output
+    equality. The legacy uses `@xenova/transformers` embeddings
+    which v1 explicitly drops per plan §"Hard constraints"; numeric
+    equality is unreachable by construction. Documented in
+    `tests/unit/scoring/score.test.ts`.
+  - Readability (Flesch-Kincaid) sub-criterion dropped per plan
+    §"Non-goals" — saves the `flesch-kincaid` + `syllable` deps.
+    Content-quality weights are 40/30 (sum 70%) instead of the
+    legacy's 40/30/30 (sum 100%). Documented in
+    `dimensions/content-quality.ts`.
+  - `<AtsScorecard>` was deleted in slice 3. The placeholder lived
+    as a temporary shape until `<ScorecardClient>` + `<ScorecardPanel>`
+    shipped; the placeholder tests moved to
+    `tests/unit/scorecard.test.tsx`.
+
+**Test count:** 424 → 588 (+164). `pnpm typecheck` clean.
+
+**New deps:** zero. Pure TypeScript + the Zod schemas we already
+have.
 
 ### Resume import flow (shipped 2026-09-01)
 
