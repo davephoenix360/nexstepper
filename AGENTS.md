@@ -102,6 +102,21 @@ scorecard render), Mistral Nemo at `PARSER_MODEL`/`PARSE_FALLBACKS`
 (no new model constant), `MatchBreakdown` JSONB type migrates from
 `unknown` to a real shape. The next session ships it.
 
+Subscription / billing — auth/billing boundary layer (shipped
+2026-09-20, branch `feat/subscription-billing-complete`): the
+trust-boundary helpers every Pro-only feature will share. Plan at
+`docs/plans/subscription-billing.md`; ADR at
+`docs/decisions/0007-tier-gating.md`. New module
+`lib/billing/` with `requirePro()` (server-authoritative gate;
+typed `ProRequiredError`), `usePlanFromProps()` / `useIsPro()`
+(client cosmetic hints), `isProEffective()` predicate covering
+`'active' | 'trialing'` Pro-effective statuses (canceled-but-in-
+period and past-due handled per Stripe semantics). New Billing
+card on `/dashboard/general` surfaces current plan + status +
+renewal date + Upgrade / Manage billing CTAs. Inline-issue
+surface's `enrichBulletAction` can now call `requirePro()` without
+re-discovering the boundary.
+
 **Next (queued, priority order)**
 
 1. **Inline issue surface implementation** —
