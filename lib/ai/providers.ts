@@ -165,6 +165,27 @@ export const JD_FORMATTER_MODEL = PARSER_MODEL;
 export const JD_FORMATTER_FALLBACKS: readonly string[] = PARSE_FALLBACKS;
 
 /**
+ * v2 intent extractor (ATS scoring v2 — Phase 1). Same primary model
+ * as the parser / formatter (we already know Mistral Nemo handles
+ * structured output reliably on the free tier, ~$0.0002/JD), same
+ * fallback chain for cross-provider failover. The extractor prompt
+ * is small (≤16K char input, ≤2K char output JSON) so latency is
+ * tighter than the full parser.
+ *
+ * Plan: docs/plans/ats-scoring-v2.md
+ */
+export const JD_INTENT_EXTRACTOR_MODEL = PARSER_MODEL;
+
+/**
+ * Fallback chain for the v2 intent extractor. Same shape as
+ * `PARSE_FALLBACKS` so we get the same cross-provider diversification
+ * without paying for a second fallback chain's worth of cold-cache
+ * model loads. The extractor is cheaper than the parser (smaller
+ * output, fewer fields), so we keep latency tight.
+ */
+export const JD_INTENT_EXTRACTOR_FALLBACKS: readonly string[] = PARSE_FALLBACKS;
+
+/**
  * Resolve a model string into a gateway-backed `LanguageModelV1`
  * instance. This is the only function that knows about the
  * gateway — callers just pass model constants in.
