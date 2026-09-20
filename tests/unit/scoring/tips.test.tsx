@@ -87,6 +87,8 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown 
       Tailoring: 30,
       'Unique Value': 100,
       'Soft Skills': 25,
+      'Role Fit': 50,
+      'Seniority Fit': 50,
       ...overrides.criteriaScores
     },
     dimensionScores: {
@@ -95,6 +97,8 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown 
       contentQuality: 70,
       alignment: 60,
       intentCoverage: 50,
+      roleFit: 50,
+      seniorityFit: 50,
       ...overrides.dimensionScores
     }
   };
@@ -568,7 +572,9 @@ describe('buildDynamicTips — JD-aware criteria', () => {
         Tailoring: 30,
         'Unique Value': 100,
         'Soft Skills': 25,
-        'Intent Coverage': 50
+        'Intent Coverage': 50,
+        'Role Fit': 50,
+        'Seniority Fit': 50
       }
     });
     const tips = buildDynamicTips(breakdown, makeResume(), makeJob());
@@ -590,7 +596,9 @@ describe('buildDynamicTips — JD-aware criteria', () => {
         Tailoring: 30,
         'Unique Value': 100,
         'Soft Skills': 25,
-        'Intent Coverage': 80
+        'Intent Coverage': 80,
+        'Role Fit': 50,
+        'Seniority Fit': 50
       }
     });
     expect(
@@ -847,7 +855,9 @@ describe('buildDynamicTips — alignment criteria', () => {
         Tailoring: 10, // low score → dynamic tip triggers
         'Unique Value': 100,
         'Soft Skills': 25,
-        'Intent Coverage': 50
+        'Intent Coverage': 50,
+        'Role Fit': 50,
+        'Seniority Fit': 50
       }
     });
     const tips = buildDynamicTips(breakdown, resume, job);
@@ -923,7 +933,7 @@ describe('CRITERIA_TIPS', () => {
   it('has an entry for every sub-criterion in ScoreBreakdown.criteriaScores', () => {
     const breakdown = makeBreakdown();
     const keys = Object.keys(breakdown.criteriaScores);
-    expect(keys).toHaveLength(11);
+    expect(keys).toHaveLength(13);
     for (const key of keys) {
       expect(CRITERIA_TIPS).toHaveProperty(key);
       expect(typeof CRITERIA_TIPS[key]).toBe('string');

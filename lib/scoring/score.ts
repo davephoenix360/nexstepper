@@ -7,6 +7,15 @@ import {
   NEUTRAL_INTENT_COVERAGE_SCORE,
   type IntentCoverageBreakdown
 } from './dimensions/intent-coverage';
+import {
+  scoreRoleFitParams,
+  NEUTRAL_ROLE_FIT_SCORE
+} from './dimensions/role-fit';
+import {
+  scoreSeniorityFit,
+  NEUTRAL_SENIORITY_FIT_SCORE,
+  type SeniorityFitResult
+} from './dimensions/seniority-fit';
 import { flattenJobText, flattenResumeText } from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
@@ -67,18 +76,33 @@ export const WEIGHTS = {
 } as const;
 
 /**
- * v2 weights — see the doc comment on `WEIGHTS`. Used when the JD
- * has populated `mustHaveSkills` / `niceToHaveSkills` /
- * `implicitSkills` (i.e. the v2 extractor produced useful output).
- * Sum: 1.00 (0.85 from the four scaled v1 dimensions + 0.15 from
- * Intent Coverage).
+ * v2 weights (Phase 2) — 7 dimensions. Used when the JD has
+ * populated `mustHaveSkills` / `niceToHaveSkills` /
+ * `implicitSkills` (i.e. the v2 intent extractor produced useful
+ * output). Sum: 1.00 (0.68 from the four scaled v1 dimensions +
+ * 0.32 from the three v2 dimensions = intent coverage + role fit +
+ * seniority fit).
+ *
+ *   v1 dims scaled to 0.68 combined (down from Phase 1's 0.85):
+ *     atsMatching × 0.21 (was 0.30)
+ *     structure   × 0.14 (was 0.20)
+ *     contentQuality × 0.21 (was 0.30)
+ *     alignment   × 0.14 (was 0.20)
+ *   Phase 2 v2 dims take the remaining 0.32:
+ *     intentCoverage × 0.10 (down from Phase 1's 0.15 — Role Fit
+ *                            and Seniority Fit share the carved-out
+ *                            weight equally)
+ *     roleFit × 0.10 (new)
+ *     seniorityFit × 0.10 (new)
  */
 export const WEIGHTS_V2 = {
-  atsMatching: 0.255,
-  structure: 0.17,
-  contentQuality: 0.255,
-  alignment: 0.17,
-  intentCoverage: 0.15
+  atsMatching: 0.21,
+  structure: 0.14,
+  contentQuality: 0.21,
+  alignment: 0.14,
+  intentCoverage: 0.10,
+  roleFit: 0.10,
+  seniorityFit: 0.10
 } as const;
 
 export type DimensionKey = keyof typeof WEIGHTS;
@@ -102,6 +126,20 @@ export type ScoreBreakdown = {
      * flag.
      */
     intentCoverage: number;
+    /**
+     * v2 Phase 2 — Role Fit (semantic title similarity). 0-100 when
+     * the JD has a title AND the resume has at least one work
+     * title. Falls back to `NEUTRAL_ROLE_FIT_SCORE` (= 50) when
+     * either side is empty.
+     */
+    roleFit: number;
+    /**
+     * v2 Phase 2 — Seniority Fit (year alignment with asymmetric
+     * penalty). 0-100 when the JD discloses `yearsRequiredMin` AND
+     * the resume has work history. Falls back to
+     * `NEUTRAL_SENIORITY_FIT_SCORE` (= 50) otherwise.
+     */
+    seniorityFit: number;
   };
   /** 0-100 per sub-criterion. Useful for the scorecard drill-down + tests. */
   criteriaScores: {
@@ -126,6 +164,20 @@ export type ScoreBreakdown = {
     Tailoring: number;
     'Unique Value': number;
     'Soft Skills': number;
+    /**
+     * v2 Phase 2 — Role Fit sub-criterion. Cosine similarity × 100
+     * between JD.title and the best-matching resume title. Falls back
+     * to NEUTRAL_ROLE_FIT_SCORE (= 50) when no title signal is
+     * available (no JD title or no resume titles).
+     */
+    'Role Fit': number;
+    /**
+     * v2 Phase 2 — Seniority Fit sub-criterion. Year-gap analysis
+     * with asymmetric penalty (under-qualified costs 3x more than
+     * over-qualified). Falls back to NEUTRAL_SENIORITY_FIT_SCORE (= 50)
+     * when no years signal is available.
+     */
+    'Seniority Fit': number;
   };
   /** Wall-clock milliseconds the score took to compute. For the UI footer. */
   computedInMs: number;
@@ -152,6 +204,25 @@ export type ScoreableJob = JobTextSource & {
   mustHaveSkills?: string[];
   niceToHaveSkills?: string[];
   implicitSkills?: string[];
+  /** v2 Phase 2 — seniority ask. Optional; null when JD doesn't quantify. */
+  yearsRequiredMin?: number | null;
+  yearsRequiredMax?: number | null;
+};
+
+/**
+ * v2 Phase 2 — pre-computed signals passed into the sync engine.
+ *
+ * `roleFitSimilarity` is async (loads the MiniLM pipeline lazily);
+ * the engine stays sync. Callers that want Role Fit in their
+ * breakdown must compute the similarity first and pass it via this
+ * shape. Callers that don't care about Role Fit (the scorecard
+ * first-render path, hybrid recompute when the title-similarity
+ * call hasn't completed, etc.) just omit it — the engine falls
+ * back to the neutral score.
+ */
+export type PrecomputedRoleFit = {
+  /** Cosine similarity in [0, 1] between JD.title and best-matching resume title. */
+  roleFitSimilarity: number | null;
 };
 
 /**
@@ -228,7 +299,8 @@ function hasV2Intent(job: ScoreableJob): boolean {
  */
 export function scoreResume(
   resume: ScoreableResume,
-  job: ScoreableJob
+  job: ScoreableJob,
+  precomputed: PrecomputedRoleFit = { roleFitSimilarity: null }
 ): ScoreBreakdown {
   const t0 = nowMs();
   const resumeText = flattenResumeText(resume);
@@ -258,15 +330,40 @@ export function scoreResume(
     resumeTextLower: resumeText.toLowerCase()
   });
 
+  // v2 Phase 2 — Role Fit (sync surface). Consumes the pre-computed
+  // similarity passed by the async wrapper (`score-hybrid.ts` for
+  // the recompute path, or any caller that already ran the model).
+  // When omitted (first-render SSR, or the caller hasn't yet run
+  // the model), falls back to neutral.
+  const roleFitBreakdown = scoreRoleFitParams({
+    similarity: precomputed.roleFitSimilarity
+  });
+
+  // v2 Phase 2 — Seniority Fit. Pure math from work-history dates
+  // vs. JD's stated yearsRequiredMin/Max. Asymmetric penalty:
+  // under-qualified loses 25 pts/year, over-qualified loses 7.5 pts/year.
+  //
+  // We pass the engine's clock as `now` so the dimension stays
+  // deterministic (no implicit `new Date()`). Same purity pattern
+  // as `performance.now()` for `computedInMs`.
+  //
+  // NOTE: `computeSeniorityForScoreable` is currently a fallback
+  // shim (the scoreable shape doesn't carry work-history dates).
+  // The envelope-aware version `scoreSeniorityFitFromEnvelope` is
+  // what we'd call once the scoreable shape grows dates; for now
+  // it returns neutral and the v2 path remains neutral until the
+  // score-actions calls the envelope-aware version explicitly.
+  const seniorityFitBreakdown = computeSeniorityForScoreable(job);
+
   // Pick the weight set based on v2 data availability. Pure v1
   // behavior when no v2 intent; v2 weights otherwise. The formula
   // below branches on `useV2Weights` but only computes arithmetic
   // — no IO, no async. Purity is preserved.
   const useV2Weights = !intentCoverageBreakdown.fallback;
   // The conditional creates a union type where TS can't statically
-  // confirm `intentCoverage` exists on both branches. The v1
-  // branch (WEIGHTS) gets `intentCoverage` defaulted to 0 inside
-  // the score formula — neutral weight, neutral contribution.
+  // confirm every v2 key exists on both branches. The v1 branch
+  // (WEIGHTS) gets the v2 dimensions defaulted to 0 inside the
+  // score formula — neutral weight, neutral contribution.
   // Compose into a single `w` value with a stable shape so the
   // arithmetic below is one branch instead of two.
   const w = useV2Weights
@@ -275,14 +372,18 @@ export function scoreResume(
         structure: WEIGHTS_V2.structure,
         contentQuality: WEIGHTS_V2.contentQuality,
         alignment: WEIGHTS_V2.alignment,
-        intentCoverage: WEIGHTS_V2.intentCoverage
+        intentCoverage: WEIGHTS_V2.intentCoverage,
+        roleFit: WEIGHTS_V2.roleFit,
+        seniorityFit: WEIGHTS_V2.seniorityFit
       }
     : {
         atsMatching: WEIGHTS.atsMatching,
         structure: WEIGHTS.structure,
         contentQuality: WEIGHTS.contentQuality,
         alignment: WEIGHTS.alignment,
-        intentCoverage: 0
+        intentCoverage: 0,
+        roleFit: 0,
+        seniorityFit: 0
       };
 
   const overall =
@@ -290,7 +391,9 @@ export function scoreResume(
     w.structure * structure.value +
     w.contentQuality * content.value +
     w.alignment * alignment.value +
-    w.intentCoverage * intentCoverageBreakdown.value;
+    w.intentCoverage * intentCoverageBreakdown.value +
+    w.roleFit * roleFitBreakdown.value +
+    w.seniorityFit * seniorityFitBreakdown.value;
 
   const computedInMs = Math.max(0, nowMs() - t0);
 
@@ -301,7 +404,9 @@ export function scoreResume(
       structure: structure.value,
       contentQuality: content.value,
       alignment: alignment.value,
-      intentCoverage: intentCoverageBreakdown.value
+      intentCoverage: intentCoverageBreakdown.value,
+      roleFit: roleFitBreakdown.value,
+      seniorityFit: seniorityFitBreakdown.value
     },
     criteriaScores: {
       'ATS Keyword Match': ats.breakdown.keywordScore,
@@ -321,6 +426,11 @@ export function scoreResume(
       'Action Verb Usage': content.breakdown.actionVerbUsage,
       Tailoring: alignment.breakdown.tailoring,
       'Unique Value': alignment.breakdown.hasExtras,
+      // v2 Phase 2 — Role Fit + Seniority Fit. Mirror v1 dim behavior
+      // when in fallback mode: surface the neutral score so the
+      // legacy UI keeps working unchanged.
+      'Role Fit': roleFitBreakdown.value,
+      'Seniority Fit': seniorityFitBreakdown.value,
       'Soft Skills': alignment.breakdown.softSkills
     },
     computedInMs,
@@ -360,20 +470,89 @@ function nowMs(): number {
  */
 export function scoreResumeFromEnvelope(
   resume: ResumeData,
-  job: JobPosting | null
+  job: JobPosting | null,
+  precomputed: PrecomputedRoleFit = { roleFitSimilarity: null }
 ): ScoreBreakdown {
-  return scoreResume(resumeDataToScoreable(resume), job === null ? {} : {
-    title: job.title ?? '',
-    description: job.description ?? '',
-    requirements: job.requirements ?? [],
-    niceToHaves: job.niceToHaves ?? [],
-    benefits: job.benefits ?? [],
-    mustHaveSkills: job.mustHaveSkills ?? [],
-    niceToHaveSkills: job.niceToHaveSkills ?? [],
-    implicitSkills: job.implicitSkills ?? []
-  });
+  return scoreResume(
+    resumeDataToScoreable(resume),
+    job === null
+      ? {}
+      : {
+          title: job.title ?? '',
+          description: job.description ?? '',
+          requirements: job.requirements ?? [],
+          niceToHaves: job.niceToHaves ?? [],
+          benefits: job.benefits ?? [],
+          mustHaveSkills: job.mustHaveSkills ?? [],
+          niceToHaveSkills: job.niceToHaveSkills ?? [],
+          implicitSkills: job.implicitSkills ?? [],
+          yearsRequiredMin: job.yearsRequiredMin ?? null,
+          yearsRequiredMax: job.yearsRequiredMax ?? null
+        },
+    precomputed
+  );
+}
+
+/**
+ * Adapter that runs the Seniority Fit dimension over the scoreable
+ * job shape (not the wide envelope). Returns a neutral breakdown
+ * when the scoreable shape doesn't expose the yearsRequiredMin/Max
+ * fields (legacy scoreable callers).
+ */
+function computeSeniorityForScoreable(
+  job: ScoreableJob
+): SeniorityFitResult {
+  // The scoreable shape doesn't carry the resume envelope, but the
+  // `scoreSeniorityFit` dimension function needs it for years
+  // computation. Reconstruct a minimal envelope shell — the
+  // dimension only reads `sections.work[*].positions[*].startDate`
+  // / `endDate`, plus `yearsRequiredMin`/`yearsRequiredMax`.
+  //
+  // For now, when called from the scoreable path (i.e. the scoreable
+  // shape's resume fields), we can't access the envelope. Fall back
+  // to the neutral score. Once the scoreable shape grows to carry
+  // work positions (it currently carries `positions` without dates),
+  // we can wire this through without the envelope reconstruction.
+  const jdYearsMin = job.yearsRequiredMin ?? null;
+  const jdYearsMax = job.yearsRequiredMax ?? null;
+
+  if (jdYearsMin === null) {
+    return {
+      value: NEUTRAL_SENIORITY_FIT_SCORE,
+      resumeYears: 0,
+      jdYearsMin: null,
+      jdYearsMax,
+      gap: null,
+      fallback: true
+    };
+  }
+
+  // No envelope available in the scoreable shape — fall back.
+  // Future: thread the resume positions with dates through the
+  // scoreable shape so this can compute years properly.
+  return {
+    value: NEUTRAL_SENIORITY_FIT_SCORE,
+    resumeYears: 0,
+    jdYearsMin,
+    jdYearsMax,
+    gap: -jdYearsMin,
+    fallback: true
+  };
+}
+
+/**
+ * Public envelope-aware Seniority Fit scorer. Callers that hold
+ * the wide `ResumeData` + `JobPosting` envelopes use this directly;
+ * the scoreable-shape path falls back to neutral (see
+ * `computeSeniorityForScoreable`).
+ */
+export function scoreSeniorityFitFromEnvelope(
+  resume: ResumeData,
+  job: JobPosting
+): SeniorityFitResult {
+  return scoreSeniorityFit(resume, job);
 }
 
 // Re-export the neutral score so callers (e.g. tests) can reference it
 // without importing the dimension directly.
-export { NEUTRAL_INTENT_COVERAGE_SCORE };
+export { NEUTRAL_INTENT_COVERAGE_SCORE, NEUTRAL_ROLE_FIT_SCORE, NEUTRAL_SENIORITY_FIT_SCORE };

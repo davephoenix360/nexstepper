@@ -59,6 +59,12 @@ export const CRITERIA_TIPS: Record<string, string> = {
   'ATS Coverage':
     'Make sure your resume covers the main requirements: if the JD asks for five things and you only address three, add content that covers the missing ones.',
 
+  'Role Fit':
+    "Title alignment matters — if the JD asks for a 'Senior Platform Engineer' but your resume titles say 'Backend Engineer', edit them to use the JD's role family vocabulary where it's true to your experience.",
+
+  'Seniority Fit':
+    'Seniority gap: a candidate with 2 years is rarely going to land a 5+ years JD. If you have adjacent experience, call it out explicitly; otherwise focus on transferable skills.',
+
   'Section Completeness':
     'Fill in every standard resume section: Summary, Experience, Education, Skills, and at least one achievement-oriented section. Missing sections lower your score.',
 

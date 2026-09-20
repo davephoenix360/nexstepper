@@ -47,7 +47,10 @@ const BREAKDOWN: ScoreBreakdown = {
     contentQuality: 75,
     alignment: 85,
     // v2 — neutral (no v2 data in the SSR fixture).
-    intentCoverage: 50
+    intentCoverage: 50,
+    // v2 Phase 2 — neutral.
+    roleFit: 50,
+    seniorityFit: 50
   },
   criteriaScores: {
     'ATS Keyword Match': 60,
@@ -61,7 +64,10 @@ const BREAKDOWN: ScoreBreakdown = {
     'Unique Value': 100,
     'Soft Skills': 50,
     // v2 — same as the dimension: neutral when no v2 data.
-    'Intent Coverage': 60
+    'Intent Coverage': 60,
+    // v2 Phase 2 — neutral.
+    'Role Fit': 50,
+    'Seniority Fit': 50
   },
   computedInMs: 12,
   intentCoverageBreakdown: {

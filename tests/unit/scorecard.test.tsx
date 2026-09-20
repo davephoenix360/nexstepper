@@ -25,7 +25,10 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown>): ScoreBreakdown {
       alignment: 60,
       // v2 Intent Coverage — neutral by default so legacy fixtures
       // (and tests that don't care about v2) continue to work.
-      intentCoverage: 50
+      intentCoverage: 50,
+      // v2 Phase 2 — Role Fit + Seniority Fit (neutral by default).
+      roleFit: 50,
+      seniorityFit: 50
     },
     criteriaScores: {
       'ATS Keyword Match': 60,
@@ -41,7 +44,10 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown>): ScoreBreakdown {
       'Action Verb Usage': 70,
       Tailoring: 50,
       'Unique Value': 100,
-      'Soft Skills': 50
+      'Soft Skills': 50,
+      // v2 Phase 2 — neutral for both.
+      'Role Fit': 50,
+      'Seniority Fit': 50
     },
     computedInMs: 12,
     intentCoverageBreakdown: {
@@ -137,7 +143,9 @@ describe('ScorecardPanel — with breakdown', () => {
             structure: 80,
             contentQuality: 75,
             alignment: 60,
-            intentCoverage: 50
+            intentCoverage: 50,
+            roleFit: 50,
+            seniorityFit: 50
           }
         })}
       />

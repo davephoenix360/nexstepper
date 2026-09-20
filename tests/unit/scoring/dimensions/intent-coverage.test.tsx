@@ -313,7 +313,9 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
           structure: 80,
           contentQuality: 75,
           alignment: 70,
-          intentCoverage: 84 // 100 - 16 (2 missing must-haves × 8)
+          intentCoverage: 84, // 100 - 16 (2 missing must-haves × 8)
+          roleFit: 50,
+          seniorityFit: 50
         },
         criteriaScores: {
           'ATS Keyword Match': 60,
@@ -326,7 +328,9 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
           'Action Verb Usage': 70,
           Tailoring: 50,
           'Unique Value': 100,
-          'Soft Skills': 50
+          'Soft Skills': 50,
+          'Role Fit': 50,
+          'Seniority Fit': 50
         },
         computedInMs: 5,
         intentCoverageBreakdown: {
@@ -427,7 +431,10 @@ function makeBreakdownStub() {
       structure: 80,
       contentQuality: 75,
       alignment: 70,
-      intentCoverage: 50
+      intentCoverage: 50,
+      // v2 Phase 2 — neutral for both.
+      roleFit: 50,
+      seniorityFit: 50
     },
     criteriaScores: {
       'ATS Keyword Match': 60,
@@ -440,7 +447,10 @@ function makeBreakdownStub() {
       'Action Verb Usage': 70,
       Tailoring: 50,
       'Unique Value': 100,
-      'Soft Skills': 50
+      'Soft Skills': 50,
+      // v2 Phase 2 — neutral.
+      'Role Fit': 50,
+      'Seniority Fit': 50
     },
     computedInMs: 5,
     intentCoverageBreakdown: {
