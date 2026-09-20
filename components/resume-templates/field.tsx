@@ -203,6 +203,11 @@ interface FieldChipsProps {
   chipClassName?: string;
   /** Read-only wrapper class. */
   className?: string;
+  /** Inline style applied to each chip in read-only mode. Used by
+   *  templates that need accent-coloured chips (e.g. Creative) where
+   *  the chip background depends on the template accent variable.
+   *  Editing mode ignores this -- KeywordChips picks its own style. */
+  chipStyle?: React.CSSProperties;
 }
 
 export function FieldChips({
@@ -211,7 +216,8 @@ export function FieldChips({
   placeholder,
   size,
   chipClassName,
-  className
+  className,
+  chipStyle
 }: FieldChipsProps) {
   if (mode.editable) {
     return (
@@ -240,6 +246,7 @@ export function FieldChips({
             'inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10.5pt] text-zinc-700 print:border-zinc-300',
             chipClassName
           )}
+          style={chipStyle}
         >
           {v}
         </span>

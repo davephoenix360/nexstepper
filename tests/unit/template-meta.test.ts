@@ -180,9 +180,12 @@ describe("Default template meta constants", () => {
 });
 
 describe("Template registry", () => {
-  it("contains both shipped templates", () => {
+  it("contains all five shipped templates", () => {
     expect(Object.keys(templateRegistry).sort()).toEqual([
       "classic",
+      "creative",
+      "executive",
+      "minimal",
       "modern"
     ]);
   });
@@ -200,6 +203,9 @@ describe("Template registry", () => {
   it("getTemplate returns the right template for known ids", () => {
     expect(getTemplate("classic").meta.id).toBe("classic");
     expect(getTemplate("modern").meta.id).toBe("modern");
+    expect(getTemplate("minimal").meta.id).toBe("minimal");
+    expect(getTemplate("executive").meta.id).toBe("executive");
+    expect(getTemplate("creative").meta.id).toBe("creative");
   });
 
   it("getTemplate falls back to Classic for unknown / null / undefined ids", () => {

@@ -5,8 +5,9 @@
  * lets the user pick which template renders their resume.
  *
  * Why a dropdown and not a grid-of-cards:
- *   - Two templates today; the toolbar is the right place for a
- *     compact "current template" indicator
+ *   - Five templates today (Classic / Modern / Minimal / Executive
+ *     / Creative); the toolbar is the right place for a compact
+ *     "current template" indicator. A grid would be too heavy.
  *   - A full grid is for the Phase 6 admin UI / public template
  *     gallery, not the in-editor experience
  *   - The picker surfaces meta (ATS-safe, tier, version) as small

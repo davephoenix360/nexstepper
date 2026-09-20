@@ -25,8 +25,17 @@
  */
 
 import { ClassicTemplate } from "./classic";
+import { CreativeTemplate } from "./creative";
+import { ExecutiveTemplate } from "./executive";
+import { MinimalTemplate } from "./minimal";
 import { ModernTemplate } from "./modern";
-import { CLASSIC_TEMPLATE_META, MODERN_TEMPLATE_META } from "./meta";
+import {
+  CLASSIC_TEMPLATE_META,
+  CREATIVE_TEMPLATE_META,
+  EXECUTIVE_TEMPLATE_META,
+  MINIMAL_TEMPLATE_META,
+  MODERN_TEMPLATE_META
+} from "./meta";
 import type { ResumeTemplate } from "./types";
 
 export const templateRegistry: Record<string, ResumeTemplate> = {
@@ -37,6 +46,18 @@ export const templateRegistry: Record<string, ResumeTemplate> = {
   [MODERN_TEMPLATE_META.id]: {
     meta: MODERN_TEMPLATE_META,
     Component: ModernTemplate
+  },
+  [MINIMAL_TEMPLATE_META.id]: {
+    meta: MINIMAL_TEMPLATE_META,
+    Component: MinimalTemplate
+  },
+  [EXECUTIVE_TEMPLATE_META.id]: {
+    meta: EXECUTIVE_TEMPLATE_META,
+    Component: ExecutiveTemplate
+  },
+  [CREATIVE_TEMPLATE_META.id]: {
+    meta: CREATIVE_TEMPLATE_META,
+    Component: CreativeTemplate
   }
 };
 

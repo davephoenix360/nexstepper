@@ -185,3 +185,104 @@ export const MODERN_TEMPLATE_META: TemplateMeta = {
   pageSize: "letter",
   tags: ["single-column", "sans-serif", "contemporary"]
 };
+
+/**
+ * Default meta for the Minimal template. Picked to complement the
+ * existing Classic + Modern pair:
+ *   - tier: 'free' — keeps the starter set free
+ *   - atsSafe: true — single column, no graphics, parseable
+ *   - category: 'minimal' — sets a separate lane in the picker
+ *   - accent: 'slate' — quieter than indigo; the minimal aesthetic
+ *     leans toward neutral chrome. Picker can still override per
+ *     template via the accent CSS variable.
+ *   - maxPages: 'auto' — same as the existing pair
+ *   - pageSize: 'letter' — US default
+ *   - tags: ['single-column', 'sans-serif', 'editorial'] — picker
+ *     filters so users can find Minimal via "editorial" or
+ *     "whitespace"
+ *
+ * Use case (per the founder): designers, PMs, anyone who wants
+ * an understated resume. The chrome is the visual signal — no
+ * section borders, no accent bar, smaller body font, generous
+ * letter-spacing on section headings.
+ */
+export const MINIMAL_TEMPLATE_META: TemplateMeta = {
+  id: "minimal",
+  name: "Minimal",
+  version: "1.0.0",
+  description:
+    "Editorial, generous whitespace, hairline accent. For understated types.",
+  tier: "free",
+  atsSafe: true,
+  category: "minimal",
+  accent: "slate",
+  maxPages: "auto",
+  pageSize: "letter",
+  tags: ["single-column", "sans-serif", "editorial", "whitespace"]
+};
+
+/**
+ * Default meta for the Executive template. Picked for senior roles
+ * where authority matters more than modern visuals:
+ *   - tier: 'free' — keeps the starter set free (Phase 6+ can flip)
+ *   - atsSafe: true — single column, no graphics, parseable
+ *   - category: 'executive' — sets a separate lane in the picker
+ *   - accent: 'slate' — quieter than indigo; serif body wants a
+ *     neutral accent. Picker can still override.
+ *   - maxPages: '2' — exec resumes often run 2 pages, force it
+ *     so the picker doesn't accidentally truncate
+ *   - pageSize: 'letter' — US default
+ *   - tags: ['single-column', 'serif', 'executive', 'senior']
+ *
+ * Use case: C-suite, VP, Director-track. The serif body is the
+ * signal — readers associate serif with academic / legal /
+ * authority. Header is right-justified with no hairline chrome.
+ */
+export const EXECUTIVE_TEMPLATE_META: TemplateMeta = {
+  id: "executive",
+  name: "Executive",
+  version: "1.0.0",
+  description:
+    "Serif, dignified, right-justified header. For senior-track roles.",
+  tier: "free",
+  atsSafe: true,
+  category: "executive",
+  accent: "slate",
+  maxPages: "2",
+  pageSize: "letter",
+  tags: ["single-column", "serif", "executive", "senior"]
+};
+
+/**
+ * Default meta for the Creative template. Picked for designers,
+ * marketers, creative-leaning PMs:
+ *   - tier: 'free' — keeps the starter set free
+ *   - atsSafe: true — single column, no graphics, no tables. The
+ *     color accent is just typography (the section accent) and a
+ *     thin section divider line; nothing an ATS can't parse.
+ *   - category: 'creative' — sets a separate lane in the picker
+ *   - accent: 'rose' — the existing rose palette entry; the
+ *     picker exposes it via the accent CSS variable
+ *   - maxPages: 'auto' — same as the existing pair
+ *   - pageSize: 'letter' — US default
+ *   - tags: ['single-column', 'sans-serif', 'creative', 'color']
+ *
+ * Use case: visual roles where the candidate WANTS a touch of
+ * color but the resume still needs to parse in Workday / Greenhouse
+ * / Lever / Taleo. The accent is a single-color section rule and
+ * the contact strip gets the accent color too.
+ */
+export const CREATIVE_TEMPLATE_META: TemplateMeta = {
+  id: "creative",
+  name: "Creative",
+  version: "1.0.0",
+  description:
+    "Color-forward, single-column, accent section rules. For visual roles.",
+  tier: "free",
+  atsSafe: true,
+  category: "creative",
+  accent: "rose",
+  maxPages: "auto",
+  pageSize: "letter",
+  tags: ["single-column", "sans-serif", "creative", "color"]
+};
