@@ -99,7 +99,7 @@ export function DimensionBar({
   return (
     <li
       data-testid={testId ?? `score-dim-${label.toLowerCase().replace(/\s+/g, '-')}`}
-      className="flex items-center gap-3"
+      className="flex items-center gap-3 py-1"
     >
       <span className="w-24 shrink-0 text-xs text-muted-foreground">
         {labelContent}

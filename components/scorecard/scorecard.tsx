@@ -149,10 +149,10 @@ export function ScorecardPanel({
       </button>
 
       {detailsOpen && (
-        <div className="mt-3">
+        <div className="mt-4 rounded-md border bg-muted/30 p-3">
           {/* Two-column grid for the 10 sub-criteria. */}
           <ul
-            className="grid grid-cols-2 gap-x-4 gap-y-1.5"
+            className="grid grid-cols-2 gap-x-4 gap-y-3"
             data-testid="scorecard-sub-criteria"
           >
             {SUB_CRITERIA.map(({ key }) => (
