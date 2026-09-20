@@ -56,6 +56,11 @@ dev*.log
 # Playwright CLI browser cache (transient — recreated on every open)
 .playwright-cli/
 
+# HuggingFace transformers cache (downloaded by scripts that exercise
+# the semantic-similarity path of the ATS scoring engine — e.g.
+# scripts/smoke-semantic.mjs. ~1.5 GB; never commit.)
+.cache/
+
 # Output artifacts (PDFs, PNGs, screenshots, etc. — never commit
 # generated deliverables, only the source scripts that produce them)
 output/
