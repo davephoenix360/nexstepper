@@ -43,12 +43,18 @@ export function ScorecardClient({
   resumeId,
   jobContext,
   initialBreakdown,
-  initialDynamicTips
+  initialDynamicTips = {}
 }: {
   resumeId: string;
   jobContext: JobPosting | null;
   initialBreakdown: ScoreBreakdown | null;
-  initialDynamicTips: DynamicTips;
+  /**
+   * Server-rendered dynamic tips from `buildDynamicTips(breakdown, resume, job)`.
+   * Optional — when omitted, the panel falls back to the static
+   * `CRITERIA_TIPS` map at render time. The Server Action result
+   * (post-Recompute) also returns a `tips` map that overrides this.
+   */
+  initialDynamicTips?: DynamicTips;
 }) {
   const [breakdown, setBreakdown] = useState<ScoreBreakdown | null>(
     initialBreakdown

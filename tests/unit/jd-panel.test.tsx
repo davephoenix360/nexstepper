@@ -35,7 +35,19 @@ const EMPTY_JD: JobPosting = {
   keywords: [],
   seniority: '',
   employmentType: '',
-  source: 'paste'
+  source: 'paste',
+  // v2 intent-extraction fields (added 2026-09-19, optional with defaults).
+  // Listed explicitly so the literal satisfies `JobPosting` without
+  // needing an `as JobPosting` cast. Empty defaults are fine — this
+  // fixture represents a JD where the extractor hasn't run.
+  mustHaveSkills: [],
+  niceToHaveSkills: [],
+  implicitSkills: [],
+  seniorityLevel: null,
+  yearsRequiredMin: null,
+  yearsRequiredMax: null,
+  roleFamily: null,
+  domainSignals: []
 };
 
 const ATTACHED_JD: JobPosting = {

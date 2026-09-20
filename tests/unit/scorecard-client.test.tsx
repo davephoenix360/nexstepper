@@ -25,7 +25,18 @@ const JD: JobPosting = {
   keywords: [],
   seniority: '',
   employmentType: '',
-  source: 'paste'
+  source: 'paste',
+  // v2 intent-extraction fields (added 2026-09-19, optional with defaults).
+  // Listed explicitly so the literal satisfies `JobPosting` without
+  // needing an `as JobPosting` cast.
+  mustHaveSkills: [],
+  niceToHaveSkills: [],
+  implicitSkills: [],
+  seniorityLevel: null,
+  yearsRequiredMin: null,
+  yearsRequiredMax: null,
+  roleFamily: null,
+  domainSignals: []
 };
 
 const BREAKDOWN: ScoreBreakdown = {

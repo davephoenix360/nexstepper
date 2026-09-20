@@ -37,6 +37,27 @@ import type { ScoreBreakdown } from '@/lib/scoring';
 // Fixtures
 // ---------------------------------------------------------------------------
 
+/**
+ * Recursive `Partial<T>` — walks the object type and marks every
+ * nested field as optional. TypeScript's built-in `Partial` is
+ * shallow (only top-level keys are marked optional), so a test
+ * fixture that wants to override just `sections.work` would have
+ * to enumerate every other section to satisfy the parameter type.
+ *
+ * Used by `makeResume` below so test fixtures can pass partial
+ * section overrides without re-declaring all 13 standard sections.
+ *
+ * Caveats:
+ *  - Arrays become `DeepPartial<Array<T>>` which is `{ 0?: T, ... }`
+ *    — TypeScript will accept this for indexed reads, but iteration
+ *    is still over `T[]`. Practically fine because we never partially
+ *    override array elements.
+ *  - Functions and primitives are passed through unchanged.
+ */
+type DeepPartial<T> = T extends object
+  ? { [P in keyof T]?: DeepPartial<T[P]> }
+  : T;
+
 function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
   return {
     overallScore: 70,
@@ -63,8 +84,16 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown 
   };
 }
 
-function makeResume(overrides: Partial<ResumeData> = {}): ResumeData {
-  const baseSections = {
+function makeResume(overrides: DeepPartial<ResumeData> = {}): ResumeData {
+  // Explicit annotation is required — without it, the `baseSections`
+  // object literal infers to a structural type with REQUIRED keys
+  // (name, label, summary, etc.) from the schema's `.default()` calls,
+  // but the spread-with-overrides result merges with `DeepPartial<…>`
+  // (everything optional) and TypeScript loses the "fully populated"
+  // signal. Pinning to `ResumeData['sections']` keeps the spread
+  // type-clean. The optional `overrides.sections` will only widen
+  // existing fields, never unset them, at runtime.
+  const baseSections: ResumeData['sections'] = {
     basics: {
       name: 'Jane Doe',
       label: 'Senior Engineer',
@@ -140,13 +169,24 @@ function makeResume(overrides: Partial<ResumeData> = {}): ResumeData {
     status: 'draft',
     template: 'classic',
     jobContext: null,
-    sections: { ...baseSections, ...(overrides.sections ?? {}) }
+    // Cast because `DeepPartial<sections>` widens fields to optional,
+    // which loses the "fully populated" signal. Safe at runtime —
+    // `overrides.sections` only widens specific fields, never unsets
+    // them. The base supplies every required key.
+    sections: {
+      ...baseSections,
+      ...(overrides.sections ?? {})
+    } as ResumeData['sections']
   };
-  return { ...base, ...overrides, sections: base.sections };
+  return { ...base, ...overrides, sections: base.sections } as ResumeData;
 }
 
-function makeJob(overrides: Partial<JobPosting> = {}): JobPosting {
-  return {
+function makeJob(overrides: DeepPartial<JobPosting> = {}): JobPosting {
+  // The base literal supplies the full JobPosting shape; overrides
+  // only widen specific fields. The spread-with-DeepPartial loses
+  // the inferred type's "required" markings, so we build the base
+  // explicitly with a typed local + cast the result to keep tsc quiet.
+  const base: JobPosting = {
     id: 'job-1',
     url: '',
     title: 'Senior TypeScript Engineer',
@@ -165,8 +205,19 @@ function makeJob(overrides: Partial<JobPosting> = {}): JobPosting {
     employmentType: '',
     source: 'paste',
     capturedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides
-  } as JobPosting;
+    // v2 intent-extraction fields — base fixture represents a JD
+    // where the extractor hasn't run. Tests that exercise v2 supply
+    // these via overrides.
+    mustHaveSkills: [],
+    niceToHaveSkills: [],
+    implicitSkills: [],
+    seniorityLevel: null,
+    yearsRequiredMin: null,
+    yearsRequiredMax: null,
+    roleFamily: null,
+    domainSignals: []
+  };
+  return { ...base, ...overrides } as JobPosting;
 }
 
 // ---------------------------------------------------------------------------

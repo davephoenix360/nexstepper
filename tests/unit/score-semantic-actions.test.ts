@@ -98,7 +98,17 @@ const SAMPLE_RESUME_DATA = {
     seniority: '',
     employmentType: '',
     source: 'paste',
-    capturedAt: '2026-01-01T00:00:00.000Z'
+    capturedAt: '2026-01-01T00:00:00.000Z',
+    // v2 intent-extraction fields (added 2026-09-19, optional with defaults).
+    // Listed explicitly so the `as JobPosting` cast succeeds.
+    mustHaveSkills: [],
+    niceToHaveSkills: [],
+    implicitSkills: [],
+    seniorityLevel: null,
+    yearsRequiredMin: null,
+    yearsRequiredMax: null,
+    roleFamily: null,
+    domainSignals: []
   } as JobPosting
 } as unknown as ResumeData;
 
