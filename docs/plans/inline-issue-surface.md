@@ -455,26 +455,31 @@ call the action programmatically. Acceptable for one bad release.
 Revert the type change in `lib/db/queries.ts:1074` to `unknown`. No DB
 migration needed; the type was always a type-only contract.
 
-## Open questions for the founder
+## Open questions for the founder — LOCKED 2026-09-20
 
-1. **Pro detection source.** Pull from `subscriptions` table (Stripe),
-   or a simpler `user.isPro` boolean? Current best guess: subscriptions
-   table. Confirm before implementation.
-2. **Insert-as-new-bullet vs Apply-in-place.** Should the popover also
-   offer "Insert as new bullet" alongside "Apply" (useful when the
-   section is sparse)? Recommend defer to a future iteration; v1 is
-   Apply-in-place only.
-3. **Regenerate prompt history.** On Regenerate, should the previous
-   rewrites be included in the new prompt (for diversity) or restarted
-   fresh? Recommend restart fresh — cheaper, usually more diverse.
-4. **No-JD behavior.** The scorecard is mostly empty without a JD.
-   The inline surface should simply be hidden (no scorecard → no
-   triggers). Confirm; alternative is to gate the editor behind
-   "must have JD attached" but that's hostile to masters.
-5. **Pulse target.** Should the pulse flash the section header
-   (current plan), the entire section block, or the specific
-   `EditableText` leaf? Section header is the lowest-noise and most
-   scannable. Confirm.
+1. **Pro detection source** — ✅ **Subscriptions table.** Use the
+   existing Stripe subscriptions query. `requirePro()` reads from
+   there. (No `user.isPro` boolean; subscriptions is the source of
+   truth, and we'll likely want subscription metadata for analytics
+   later.)
+2. **Insert-as-new-bullet vs Apply-in-place** — ✅ **Defer to v2.** v1
+   is Apply-in-place only. The popover ships with Apply / Regenerate
+   / Dismiss. If user feedback in v1 wants "Insert as new bullet",
+   add it then.
+3. **Regenerate prompt history** — ✅ **Restart fresh.** Each
+   Regenerate call sends only the bullet + JD + criterion hint; no
+   previous rewrites in context. Cheaper, usually more diverse.
+4. **No-JD behavior** — ✅ **Hide triggers.** When no JD is attached
+   to the variant, the scorecard's 7 dim bars and skill-gap rows are
+   not interactive. No pulse, no popover, no scroll. The Free Show-Me
+   surface inherits this constraint from the scorecard. No editor
+   gating.
+5. **Pulse target** — ✅ **Section header.** `@keyframes pulse-accent`
+   applied to the section's header element via the stable
+   `id="section-{slug}"` (we add the id alongside the existing
+   `data-testid`). The header is the lowest-noise and most scannable
+   target. The specific `EditableText` leaf that drove the issue
+   gets the inline popover anchored to it on Pro.
 
 ## ADR
 
