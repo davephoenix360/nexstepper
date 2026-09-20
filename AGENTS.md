@@ -91,17 +91,28 @@ Drift memo in `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
 gate: `pnpm test tests/unit/scoring/validation-corpus.test.ts` must
 stay green.
 
+Inline issue surface — research + design (shipped 2026-09-20,
+branch `plan/inline-issue-surface`, doc-only PR to main): the
+replacement for the retired Optimize tool v0. Plan lives at
+`docs/plans/inline-issue-surface.md`; ADR at
+`docs/decisions/0006-inline-issue-surface.md`. Chosen direction:
+**dim-bar click → scroll + pulse + inline dynamic tip (Free) +
+AI-rewrite popover (Pro)**. Lazy AI (per popover open, not per
+scorecard render), Mistral Nemo at `PARSER_MODEL`/`PARSE_FALLBACKS`
+(no new model constant), `MatchBreakdown` JSONB type migrates from
+`unknown` to a real shape. The next session ships it.
+
 **Next (queued, priority order)**
 
-1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+1. **Inline issue surface implementation** —
+   `docs/plans/inline-issue-surface.md` is the spec; the next
+   session builds it. New `lib/inline-issue/` module,
+   `enrichBulletAction` server action with `requirePro()` gate,
+   `ScorecardClient` owns the Free/Pro split, `<InlineIssuePopover />`
+   anchored to the affected leaf via RHF path.
+2. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
-2. **Optimize work-highlights + Pro tier gate** — ~~removed~~
-   2026-09-20 (drift memo `2026-09-20-optimize-removed.md`). The
-   next session does the design research, not a re-wire of the
-   dead code. The old code path (lib/optimize/) was deleted to
-   prevent naive re-use. The future plan will live at
-   `docs/plans/inline-issue-surface.md` (TBD).
 3. **Seniority Fit calibration fix** — drift memo
    `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
    §"Seniority Fit wired into the sync engine" exposes that the
@@ -122,7 +133,11 @@ stay green.
 8. **Monorepo split** — defer until it actually bites (likely after
    collab, when packages like `lib/scoring/` start to feel cramped).
 
-**Later / parked** — see the locked non-goals above.
+**Later / parked** — see the locked non-goals above. Note: the
+"Optimize" feature as a class of work is now parked. The inline
+issue surface replaces it; no "Optimize" plan will be written. The
+dead `lib/optimize/` was already deleted (2026-09-20) to prevent
+naive re-use of the v0 modal-diff.
 
 ## Architectural principles (non-negotiable)
 
