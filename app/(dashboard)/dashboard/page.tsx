@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Library, Sparkles, Users } from 'lucide-react';
+import { Library, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -29,8 +29,12 @@ import { RecentVariants } from './_components/recent-variants';
  *   - The "Master library" card is now a thin pointer to
  *     /dashboard/resumes (where the headline "Tailor with a JD"
  *     CTA lives).
- *   - The Optimize + Sharing cards from Slice 0 stay as future-
- *     facing placeholders.
+ *   - The Sharing & reviews card stays as a future-facing
+ *     placeholder (Phase 5). The Optimize card was removed in
+ *     2026-09-20 — it shipped without delivering meaningful value,
+ *     and the v3 scorecard + miss list now carry the signals it
+ *     was supposed to surface. A future "Grammarly-style inline
+ *     highlight" feature may replace it (UX polish, not committed).
  *
  * Server Component: one round trip to load the user + subscription
  * + recent variants. No client interactivity beyond `<Link>`.
@@ -74,21 +78,7 @@ export default async function DashboardHome() {
         </CardContent>
       </Card>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-5 w-5 text-muted-foreground" />
-              AI Optimize
-            </CardTitle>
-            <CardDescription>
-              Per-section &quot;Optimize&quot; button (Phase 3).{' '}
-              {sub.plan === 'pro'
-                ? 'Available on your Pro plan.'
-                : 'Pro plan unlocks unlimited Optimize calls.'}
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="grid md:grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

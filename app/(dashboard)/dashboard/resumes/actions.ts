@@ -10,7 +10,9 @@ import {
   createMasterResume,
   createVariant,
   getResume,
-  saveResumeRevision
+  renameResume,
+  saveResumeRevision,
+  updateVariantJobContextTitle
 } from '@/lib/db/queries';
 import {
   jobPostingSchema,
@@ -463,6 +465,97 @@ const createVariantFromJdSchema = z.object({
     .string()
     .min(50, 'Paste at least 50 characters of the job description')
     .max(20_000, 'Job description is too long (20,000 characters max)')
+});
+
+// ─── Rename + JD title edit (Phase 3.5 polish) ──────────────────────────────
+
+/**
+ * Rename a resume in place — used by the variant editor header's
+ * inline rename affordance. Does NOT bump the revision history
+ * (renaming isn't a content edit; see `renameResume` in queries.ts).
+ */
+export async function renameResumeAction(
+  input: unknown
+): Promise<ActionResult<{ name: string }>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, error: 'Not signed in' };
+  }
+
+  const parsed = renameResumeSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Invalid input',
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  const ok = await renameResume(
+    parsed.data.resumeId,
+    session.user.id,
+    parsed.data.name
+  );
+  if (!ok) {
+    return { ok: false, error: 'Could not rename resume' };
+  }
+
+  revalidatePath('/dashboard/resumes');
+  revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
+  return { ok: true, data: { name: parsed.data.name.trim() } };
+}
+
+const renameResumeSchema = z.object({
+  resumeId: z.string().min(1, 'Resume id is required'),
+  name: z
+    .string()
+    .min(1, 'Name is required')
+    .max(100, 'Name must be 100 characters or fewer')
+});
+
+/**
+ * Update only the title on a variant's attached job context — used
+ * by the JD panel's inline title edit. Does NOT re-run the Markdown
+ * formatter or intent extractor (those are heavy AI calls; the
+ * title is a UI label, not a parsing input).
+ */
+export async function updateJobContextTitleAction(
+  input: unknown
+): Promise<ActionResult<{ title: string }>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, error: 'Not signed in' };
+  }
+
+  const parsed = updateJobContextTitleSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Invalid input',
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  const updated = await updateVariantJobContextTitle(
+    parsed.data.resumeId,
+    session.user.id,
+    parsed.data.title
+  );
+  if (!updated) {
+    return {
+      ok: false,
+      error:
+        'Could not update the job title. Make sure the variant has a job attached.'
+    };
+  }
+
+  revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
+  return { ok: true, data: { title: updated.title } };
+}
+
+const updateJobContextTitleSchema = z.object({
+  resumeId: z.string().min(1, 'Resume id is required'),
+  title: z.string().max(200, 'Title must be 200 characters or fewer')
 });
 
 // ─── Share actions (Phase 2.5) ──────────────────────────────────────────────

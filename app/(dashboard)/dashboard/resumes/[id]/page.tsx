@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, GitBranch } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { getUser, getResume, getShareStatus } from '@/lib/db/queries';
@@ -9,9 +9,9 @@ import { EditableResume } from '@/components/editable';
 import { CreateVariantButton } from '../_components/create-variant-button';
 import { DownloadPdfButton } from './download-pdf-button';
 import { ShareButton } from './share-button';
-import { OptimizeButton } from './optimize-button';
 import { JdPanel } from './_components/jd-panel';
 import { ScorecardClient } from './_components/scorecard-client';
+import { RenameResumeControl } from './_components/rename-resume-button';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 
@@ -104,10 +104,11 @@ export default async function ResumeEditorPage({
             </Link>
           </Button>
           <h1 className="text-lg lg:text-2xl font-medium flex items-center gap-2">
-            {resume.isMaster ? null : (
-              <GitBranch className="h-5 w-5 text-muted-foreground" />
-            )}
-            {resume.name}
+            <RenameResumeControl
+              resumeId={resume.id}
+              initialName={resume.name}
+              showBranchIcon={!resume.isMaster}
+            />
           </h1>
           <p className="text-sm text-muted-foreground">
             {resume.isMaster
@@ -121,7 +122,6 @@ export default async function ResumeEditorPage({
         <div className="flex items-center gap-2">
           <ShareButton resumeId={resume.id} initialStatus={shareStatusView} />
           <DownloadPdfButton resumeId={resume.id} />
-          <OptimizeButton resumeId={resume.id} />
         </div>
       </header>
 

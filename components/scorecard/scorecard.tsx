@@ -1,8 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ScoreBreakdown } from '@/lib/scoring';
@@ -10,7 +7,6 @@ import { CRITERIA_TIPS, type DynamicTips } from '@/lib/scoring/tips';
 
 import {
   DimensionBar,
-  SCORE_STRONG_THRESHOLD,
   tierFor,
   tierLabelFor,
   TIER_BADGE
@@ -38,34 +34,13 @@ import { cn } from '@/lib/utils';
  *   - 7-axis radar chart (`<AtsRadar>`) for shape-based comparison.
  *   - Per-skill miss list (`<MissList>`) grouped by priority.
  *
- * An expandable "Details" section below the dimension bars shows all
- * 13 sub-criteria with hover tooltips containing specific,
- * actionable improvement tips for each criterion.
+ * **Phase 3.5 polish:** the v1 "Show details + tips" expandable
+ * sub-criteria grid (13 sub-criteria with hover tips) was removed
+ * in this session — the new headline UI (radar + 7-dim bars +
+ * miss list) carries the signal that drill-down used to, and the
+ * sub-criteria hover tips remain available on each dim bar via
+ * `CRITERIA_TIPS`.
  */
-
-/** The 13 sub-criteria in display order, with the dimension they
- *  belong to for layout grouping. */
-const SUB_CRITERIA = [
-  // ATS Matching
-  { key: 'ATS Keyword Match', dimension: 'ATS Matching' },
-  { key: 'ATS Similarity', dimension: 'ATS Matching' },
-  { key: 'ATS Coverage', dimension: 'ATS Matching' },
-  // Structure
-  { key: 'Section Completeness', dimension: 'Format' },
-  { key: 'Optimal Length', dimension: 'Format' },
-  // Content Quality
-  { key: 'Accomplishment Focus', dimension: 'Impact' },
-  { key: 'Action Verb Usage', dimension: 'Impact' },
-  // Alignment
-  { key: 'Tailoring', dimension: 'Experience match' },
-  { key: 'Unique Value', dimension: 'Experience match' },
-  { key: 'Soft Skills', dimension: 'Experience match' },
-  // v2 Intent Coverage
-  { key: 'Intent Coverage', dimension: 'Intent coverage' },
-  // v2 Phase 2
-  { key: 'Role Fit', dimension: 'Role fit' },
-  { key: 'Seniority Fit', dimension: 'Seniority fit' }
-] as const;
 
 export function ScorecardPanel({
   breakdown,
@@ -86,8 +61,6 @@ export function ScorecardPanel({
   onRecompute?: () => void;
   computing?: boolean;
 }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
-
   if (!breakdown) {
     return (
       <aside
@@ -185,41 +158,6 @@ export function ScorecardPanel({
           empty-state UI for every user that hasn't run v2 yet. */}
       {hasIntentSignals && <MissList breakdown={breakdown.intentCoverageBreakdown} />}
 
-      {/* Expandable sub-criteria breakdown with improvement tips. */}
-      <button
-        type="button"
-        onClick={() => setDetailsOpen((v) => !v)}
-        className="mt-3 flex w-full items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        aria-expanded={detailsOpen}
-        data-testid="scorecard-details-toggle"
-      >
-        <ChevronDown
-          className="h-3 w-3 transition-transform duration-200"
-          style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-        />
-        {detailsOpen ? 'Hide details' : 'Show details + tips'}
-      </button>
-
-      {detailsOpen && (
-        <div className="mt-4 rounded-md border bg-muted/30 p-3">
-          {/* Two-column grid for the 13 sub-criteria. */}
-          <ul
-            className="grid grid-cols-2 gap-x-4 gap-y-3"
-            data-testid="scorecard-sub-criteria"
-          >
-            {SUB_CRITERIA.map(({ key }) => (
-              <DimensionBar
-                key={key}
-                label={key}
-                score={breakdown.criteriaScores[key as keyof typeof breakdown.criteriaScores]}
-                testId={`score-sub-${key.toLowerCase().replace(/\s+/g, '-')}`}
-                tip={dynamicTips[key] ?? CRITERIA_TIPS[key]}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-
       <p className="mt-4 text-xs text-muted-foreground">
         Computed in {breakdown.computedInMs} ms.
       </p>
@@ -280,4 +218,4 @@ function HeaderPlaceholder() {
 export { tierFor, tierLabelFor } from './dimension-bar';
 // Keep the legacy `SCORE_GREEN_THRESHOLD` re-export for any caller
 // still using the v1 name — new code should use SCORE_STRONG_THRESHOLD.
-export const SCORE_GREEN_THRESHOLD = SCORE_STRONG_THRESHOLD;
+export { SCORE_STRONG_THRESHOLD as SCORE_GREEN_THRESHOLD } from './dimension-bar';

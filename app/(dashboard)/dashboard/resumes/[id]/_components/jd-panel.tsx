@@ -14,10 +14,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { InlineRename } from '@/components/editable/inline-rename';
 import { cn } from '@/lib/utils';
 import type { JobPosting } from '@/lib/resume-schema';
 
 import { setVariantJobContextAction } from './jd-actions';
+import { updateJobContextTitleAction } from '../../actions';
 
 /**
  * Collapsible right-rail JD panel on the variant editor.
@@ -133,6 +135,7 @@ export function JdPanel({
         <div id="jd-panel-body" className="space-y-3">
           {hasJd ? (
             <AttachedView
+              resumeId={resumeId}
               jobContext={jobContext}
               onClear={() => {
                 setEditing(true);
@@ -168,9 +171,11 @@ export function JdPanel({
 // ─── Sub-views ──────────────────────────────────────────────────────────────
 
 function AttachedView({
+  resumeId,
   jobContext,
   onClear
 }: {
+  resumeId: string;
   jobContext: JobPosting;
   onClear: () => void;
 }) {
@@ -181,8 +186,16 @@ function AttachedView({
           Targeting
         </p>
         <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
-          <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-          {jobContext.title || 'Untitled role'}
+          <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <InlineRename
+            initialName={jobContext.title || 'Untitled role'}
+            resumeId={resumeId}
+            testId="jd-title"
+            inputTestId="jd-title-input"
+            fieldName="title"
+            className="text-sm font-semibold"
+            action={updateJobContextTitleAction}
+          />
         </p>
         {(jobContext.company || jobContext.location) && (
           <p className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
@@ -254,7 +267,11 @@ function Body({ jobContext }: { jobContext: JobPosting }) {
     return (
       <div
         data-testid="jd-panel-markdown"
-        className="jd-markdown text-xs leading-relaxed text-muted-foreground"
+        // Cap the body height so long JDs scroll inside the panel
+        // instead of pushing the page down. Matches the raw-text
+        // fallback's `max-h-72 overflow-auto` so both presentations
+        // behave the same.
+        className="jd-markdown max-h-72 overflow-auto text-xs leading-relaxed text-muted-foreground"
       >
         <Markdown
           skipHtml

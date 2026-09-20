@@ -18,7 +18,9 @@ import {
 import { auth } from '@/lib/auth';
 import {
   blankResumeData,
+  jobPostingSchema,
   resumeDataSchema,
+  type JobPosting,
   type ResumeData,
   type ResumeSections
 } from '@/lib/resume-schema';
@@ -558,6 +560,79 @@ export async function deleteResume(
 
     return true;
   });
+}
+
+/**
+ * Rename a resume (master or variant) — updates only the `name`
+ * column on the `resumes` row. Does NOT bump the revision history
+ * (the rename isn't a content change; we don't want it to appear
+ * in the revisions list).
+ *
+ * Returns true on success. Returns false when the resume doesn't
+ * exist OR doesn't belong to the user (the `and(eq(id), eq(userId))`
+ * is the ownership check — same pattern as the other write helpers).
+ */
+export async function renameResume(
+  resumeId: string,
+  userId: string,
+  name: string
+): Promise<boolean> {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+
+  const result = await db
+    .update(resumes)
+    .set({ name: trimmed, updatedAt: new Date() })
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .returning({ id: resumes.id });
+
+  return result.length > 0;
+}
+
+/**
+ * Update only the title on a variant's attached job context — a
+ * lighter-weight alternative to `setVariantJobContextAction` (which
+ * re-runs the Markdown formatter + intent extractor). The user can
+ * rename the role inline; we don't want to trigger a full re-extraction.
+ *
+ * Returns the updated `JobPosting` on success, `null` when the
+ * resume doesn't exist / isn't owned / isn't a variant. We also
+ * bail when there's no `jobContext` to update (the user can attach
+ * a JD first, then rename).
+ */
+export async function updateVariantJobContextTitle(
+  resumeId: string,
+  userId: string,
+  title: string
+): Promise<JobPosting | null> {
+  const trimmed = title.trim();
+
+  const existing = await getResume(resumeId, userId);
+  if (!existing) return null;
+  if (existing.resume.isMaster) return null;
+  if (!existing.data.jobContext) return null;
+
+  const nextJobContext: JobPosting = {
+    ...existing.data.jobContext,
+    title: trimmed
+  };
+
+  // Validate the merged shape before persisting — defense-in-depth.
+  const parsed = jobPostingSchema.safeParse(nextJobContext);
+  if (!parsed.success) return null;
+
+  const nextData: ResumeData = resumeDataSchema.parse({
+    ...existing.data,
+    jobContext: parsed.data
+  });
+
+  const saved = await saveResumeRevision(
+    resumeId,
+    userId,
+    nextData,
+    { message: 'Renamed the job title' }
+  );
+  return saved ? parsed.data : null;
 }
 
 // ─── Share-link queries (Phase 2.5) ─────────────────────────────────────────
