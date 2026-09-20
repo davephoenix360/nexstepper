@@ -226,6 +226,29 @@ export type PrecomputedRoleFit = {
 };
 
 /**
+ * v2 Phase 2 — pre-computed Seniority Fit signal.
+ *
+ * `scoreSeniorityFit` is pure and sync (no model call) but needs
+ * the resume envelope's work-history dates plus a `now: Date` to
+ * compute tenure. Callers that hold the wide envelope can compute
+ * it themselves (e.g. `scoreResumeFromEnvelope` does so on every
+ * call); callers that hold only the scoreable shape can omit it
+ * and the engine falls back to the scoreable-shape neutral shim.
+ *
+ * The `now: Date` requirement is preserved through the
+ * pre-computed shape because the engine can't construct a clock
+ * itself without violating the purity test (forbids `new Date`,
+ * `Date.now`, `Math.random` in `lib/scoring/`). Production
+ * callers inject the system clock; tests inject an explicit Date
+ * for determinism. Same discipline as `scoreSeniorityFit`
+ * itself.
+ */
+export type PrecomputedSeniorityFit = {
+  /** Result of `scoreSeniorityFit` over the wide envelope + job. */
+  seniorityFit: SeniorityFitResult;
+};
+
+/**
  * Convert a full `ResumeData` envelope (Zod schema shape) into the
  * narrow `ScoreableResume` the scoring engine reads. Lives here so
  * the engine never imports the envelope schema directly — keeps the
@@ -300,7 +323,8 @@ function hasV2Intent(job: ScoreableJob): boolean {
 export function scoreResume(
   resume: ScoreableResume,
   job: ScoreableJob,
-  precomputed: PrecomputedRoleFit = { roleFitSimilarity: null }
+  precomputed: PrecomputedRoleFit = { roleFitSimilarity: null },
+  precomputedSeniority: PrecomputedSeniorityFit | null = null
 ): ScoreBreakdown {
   const t0 = nowMs();
   const resumeText = flattenResumeText(resume);
@@ -339,21 +363,16 @@ export function scoreResume(
     similarity: precomputed.roleFitSimilarity
   });
 
-  // v2 Phase 2 — Seniority Fit. Pure math from work-history dates
-  // vs. JD's stated yearsRequiredMin/Max. Asymmetric penalty:
-  // under-qualified loses 25 pts/year, over-qualified loses 7.5 pts/year.
-  //
-  // We pass the engine's clock as `now` so the dimension stays
-  // deterministic (no implicit `new Date()`). Same purity pattern
-  // as `performance.now()` for `computedInMs`.
-  //
-  // NOTE: `computeSeniorityForScoreable` is currently a fallback
-  // shim (the scoreable shape doesn't carry work-history dates).
-  // The envelope-aware version `scoreSeniorityFitFromEnvelope` is
-  // what we'd call once the scoreable shape grows dates; for now
-  // it returns neutral and the v2 path remains neutral until the
-  // score-actions calls the envelope-aware version explicitly.
-  const seniorityFitBreakdown = computeSeniorityForScoreable(job);
+  // v2 Phase 2 — Seniority Fit. Prefer the envelope-aware result
+  // computed by the caller (passed in via `precomputedSeniority` —
+  // typically `scoreResumeFromEnvelope` which holds the wide
+  // envelope). Fall back to the scoreable-shape neutral shim when
+  // the caller only holds the narrow shape and can't compute
+  // tenure (the shim returns NEUTRAL_SENIORITY_FIT_SCORE = 50 so
+  // the dimension contributes 5 pts to the overall under
+  // WEIGHTS_V2).
+  const seniorityFitBreakdown =
+    precomputedSeniority?.seniorityFit ?? computeSeniorityForScoreable(job);
 
   // Pick the weight set based on v2 data availability. Pure v1
   // behavior when no v2 intent; v2 weights otherwise. The formula
@@ -466,13 +485,44 @@ function nowMs(): number {
  * hold parsed envelope data — saves the caller from writing the
  * adapter inline.
  *
+ * Computes the envelope-aware Seniority Fit before calling the
+ * sync engine so the v2 path is at parity with the async Server
+ * Action (drift memo `2026-09-20-ats-v2-validation-corpus.md` §3
+ * follow-up #1, shipped 2026-09-20 on `main`).
+ *
+ * `now` is REQUIRED (no default) — the Seniority Fit dimension
+ * needs a clock to compute tenure from work-history dates, and
+ * `lib/scoring/` is purity-tested (`purity.test.ts` forbids
+ * `new Date`, `Date.now`). Production callers pass `new Date()`;
+ * tests pass an explicit `Date` for determinism. Same pattern
+ * as the Seniority Fit dimension itself.
+ *
  * Returns the same `ScoreBreakdown` shape.
  */
 export function scoreResumeFromEnvelope(
   resume: ResumeData,
   job: JobPosting | null,
+  now: Date,
   precomputed: PrecomputedRoleFit = { roleFitSimilarity: null }
 ): ScoreBreakdown {
+  // Compute Seniority Fit from the envelope BEFORE adapting to the
+  // scoreable shape — the scoreable shape strips work-history
+  // dates (it only carries position titles + highlights), so the
+  // dimension function can't run on the scoreable path. The
+  // envelope-aware computation here is the only place the engine
+  // gets real seniority signal.
+  const seniorityFit: SeniorityFitResult =
+    job === null
+      ? {
+          value: NEUTRAL_SENIORITY_FIT_SCORE,
+          resumeYears: 0,
+          jdYearsMin: null,
+          jdYearsMax: null,
+          gap: null,
+          fallback: true
+        }
+      : scoreSeniorityFit(resume, job, now);
+
   return scoreResume(
     resumeDataToScoreable(resume),
     job === null
@@ -489,7 +539,8 @@ export function scoreResumeFromEnvelope(
           yearsRequiredMin: job.yearsRequiredMin ?? null,
           yearsRequiredMax: job.yearsRequiredMax ?? null
         },
-    precomputed
+    precomputed,
+    { seniorityFit }
   );
 }
 

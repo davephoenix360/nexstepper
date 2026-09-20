@@ -215,3 +215,100 @@ then mis-ranks because the underlying text was poorly extracted.
 - Methodology decision — `docs/decisions/0005-ats-validation-corpus.md`
 - Test harness — `tests/unit/scoring/validation-corpus.test.ts`
 - Corpus fixture — `tests/fixtures/ats-corpus.json`
+
+---
+
+# 2026-09-20 (later same day) - Seniority Fit wired into the sync engine
+
+Follow-up #1 from the original drift memo above. `scoreResumeFromEnvelope`
+now takes a `now: Date` parameter and computes Seniority Fit from the
+envelope before adapting to the scoreable shape. The 5 production call
+sites (`app/(dashboard)/dashboard/resumes/[id]/page.tsx`,
+`lib/db/queries.ts`, `lib/scoring-async/score-hybrid.ts`, plus 2 test
+files) pass `new Date()` (production) or a fixed `Date('2026-09-20')`
+(corpus test, for determinism).
+
+## New Pearson r = 0.907 (was 0.923)
+
+The acceptance gate is still cleared by a wide margin (>= 0.7), but
+the r value DROPPED slightly. This is the opposite of the prediction
+in the original §3 ("Pearson r will likely climb to 0.95+"). The
+reason is a calibration quirk in the **Seniority Fit dimension** that
+the corpus now exposes:
+
+- **Strong matches have many years** (8-12) vs. JD asks of 4-8 ->
+  gap is +4 to +6 -> OUTSIDE the +/-2-year tolerance ->
+  over-qualified penalty kicks in -> Seniority Fit drops to 55-85.
+- **Good matches have 5-7 years** vs. JD asks of 4-5 -> gap is
+  +1 to +2 -> INSIDE the tolerance -> Seniority Fit is 85-100.
+- **Needs-work matches have 1-4 years** vs. JD asks of 5-12 ->
+  gap is -1 to -8 -> OUTSIDE the tolerance -> under-qualified
+  penalty -> Seniority Fit is 50-100 (depends on exact gap).
+
+The asymmetric penalty was designed to favor mid-career candidates
+(within tolerance = full marks). The corpus now reveals this
+INVERTS the calibration for senior-track JDs: the BEST candidates
+get the LOWEST seniority scores because they're the most over-
+qualified.
+
+The r drops because Seniority is now adding noise that doesn't
+correlate with my ideal scores -- but the rank order across the
+whole corpus is still preserved (r = 0.907).
+
+## Calibration follow-up (proposed, not done)
+
+Two ways to fix the Seniority Fit calibration:
+
+1. **Flatten the over-qualified penalty.** The current slopes are
+   UNDER_QUALIFIED_SLOPE = 25 and OVER_QUALIFIED_SLOPE = 7.5. The
+   asymmetric design was "over-qualifying is mild signal", but the
+   corpus says recruiters treat over-qualifying as neutral (not as
+   a small negative). One option: cap OVER_QUALIFIED_SLOPE at 0
+   beyond the tolerance band (treat +3 years same as +2 years,
+   both = 100).
+2. **Bump the tolerance band.** TOLERANCE_YEARS = 2 is tight.
+   Bumping to 3-4 would let a 5-year-ask JD accept up to 9-year
+   candidates at full marks, which matches recruiter intuition
+   better.
+
+Either fix is a single-line constant change in
+`lib/scoring/dimensions/seniority-fit.ts`, with the corpus as the
+regression test. **Out of scope for this session** -- the original
+drift memo's §"Out of scope for this session" explicitly defers
+recalibration to AFTER the corpus ships. The corpus is now shipped,
+so the next session can pick this up.
+
+## Engine span
+
+Engine scores now span 34-70 (36 points). Still below the original
+50-point ideal because alignment remains the limiting floor for most
+resumes (basics.summary doesn't echo JD.title in the corpus).
+Seniority contributed modestly to the spread -- strong matches
+moved DOWN slightly (over-qualified penalty), needs-work matches
+moved DOWN slightly too (under-qualified penalty). Net effect: the
+span is similar to before (was 38, now 36) but with more real
+signal.
+
+## Files touched in this follow-up
+
+- `lib/scoring/score.ts` -- added `PrecomputedSeniorityFit` type,
+  added `precomputedSeniority` parameter to `scoreResume`, made
+  `scoreResumeFromEnvelope` take `now: Date` and compute seniority
+  from the envelope before adapting to scoreable shape.
+- `app/(dashboard)/dashboard/resumes/[id]/page.tsx` -- pass
+  `new Date()`.
+- `lib/db/queries.ts` -- pass `new Date()` in the variant recompute
+  path.
+- `lib/scoring-async/score-hybrid.ts` -- pass `new Date()` so the
+  hybrid baseline also gets real seniority.
+- `tests/unit/scoring-async/score-hybrid.test.ts` -- pass a fixed
+  `Date('2026-01-01')` for determinism.
+- `tests/unit/scoring/validation-corpus.test.ts` -- pass a fixed
+  `Date('2026-09-20')` for determinism (the date the corpus is
+  anchored to).
+
+## Acceptance gate status
+
+**Still cleared.** Pearson r = 0.907 > 0.7. The corpus now
+exercises 7 of 7 v2 dimensions with real signal (no shim). The
+next follow-up is the Seniority Fit calibration fix above.

@@ -82,12 +82,14 @@ branch `feat/ats-scoring-v2-validation`, PR to main): 50
 manually-curated `(resume, job, idealScore)` triples committed to
 `tests/fixtures/ats-corpus.json` (~245 KB, 11 role families, 5
 match-quality tiers). Pearson r vs `engine.overallScore` =
-**0.923** — well above the 0.7 acceptance gate. Methodology
-decision (manual curation over public / synthetic) in
-`docs/decisions/0005-ats-validation-corpus.md`. Drift memo in
-`docs/drift/2026-09-20-ats-v2-validation-corpus.md`. CI gate:
-`pnpm test tests/unit/scoring/validation-corpus.test.ts` must stay
-green.
+**0.907** (after Seniority Fit was wired into the sync engine
+2026-09-20 — was 0.923 with seniority locked at 50) — well above
+the 0.7 acceptance gate. Methodology decision (manual curation over
+public / synthetic) in `docs/decisions/0005-ats-validation-corpus.md`.
+Drift memo in `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
+(plus follow-up §"Seniority Fit wired into the sync engine"). CI
+gate: `pnpm test tests/unit/scoring/validation-corpus.test.ts` must
+stay green.
 
 **Next (queued, priority order)**
 
@@ -98,12 +100,16 @@ green.
    plumbing is ready (`lib/optimize/optimize-resume.ts`); add
    `work[*].highlights` rewrite, gate behind
    `subscriptions.plan === 'pro'`.
-3. **Wire `scoreSeniorityFitFromEnvelope` into the sync engine** —
-   the v2 calibration corpus ships with seniority always at 50
-   (drift memo `2026-09-20-ats-v2-validation-corpus.md` §3). The
-   envelope-aware seniority path exists but is only wired into
-   the async Server Action today. Single-PR change to bring the
-   sync engine to parity, then re-run the corpus.
+3. **Seniority Fit calibration fix** — drift memo
+   `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
+   §"Seniority Fit wired into the sync engine" exposes that the
+   asymmetric penalty (`OVER_QUALIFIED_SLOPE = 7.5` past a ±2
+   year tolerance band) penalizes senior candidates on senior-track
+   JDs. Pearson r dropped from 0.923 → 0.907 once seniority was
+   wired in. Two proposed fixes (flatten over-qualified penalty to
+   0 past tolerance, or widen `TOLERANCE_YEARS` to 3-4). Single-
+   line constant change in `lib/scoring/dimensions/seniority-fit.ts`;
+   the corpus serves as the regression test.
 4. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
 5. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs

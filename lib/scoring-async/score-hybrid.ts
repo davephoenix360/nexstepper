@@ -62,7 +62,10 @@ export async function scoreResumeHybridFromEnvelope(
   job: JobPosting
 ): Promise<ScoreBreakdown> {
   // 1. Run the sync engine first to get the unchanged baseline.
-  const baseline = scoreResumeFromEnvelope(resume, job);
+  // Pass `new Date()` as the engine's clock so the envelope-aware
+  // Seniority Fit dimension gets real tenure signal (drift memo
+  // 2026-09-20-ats-v2-validation-corpus.md §3 follow-up #1).
+  const baseline = scoreResumeFromEnvelope(resume, job, new Date());
 
   // 2. Compute the hybrid similarity. Returns [0, 1] - convert to
   // 0-100 to match the unit of every other sub-criterion. The

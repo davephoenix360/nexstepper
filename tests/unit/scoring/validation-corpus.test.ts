@@ -157,6 +157,14 @@ function scoreTriple(entry: CorpusEntry): ScoredTriple {
   const breakdown = scoreResumeFromEnvelope(
     entry.resume as ResumeData,
     entry.jd as JobPosting,
+    // Fixed clock for determinism — Seniority Fit computes tenure
+    // from `now - work.startDate`. Without a fixed clock the test
+    // would drift over time as `new Date()` advances. Picked
+    // 2026-09-20 because that's the date the corpus is anchored
+    // to (see ADR-0005 + drift memo §3). Server Components and
+    // Server Actions pass `new Date()` at the call site — see
+    // `app/(dashboard)/dashboard/resumes/[id]/page.tsx`.
+    new Date('2026-09-20'),
     { roleFitSimilarity: entry.precomputedRoleFitSimilarity }
   );
   return {

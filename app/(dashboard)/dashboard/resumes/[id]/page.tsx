@@ -83,7 +83,7 @@ export default async function ResumeEditorPage({
   // Per plan §"Key design decisions" #6 and acceptance criterion #8.
   const breakdown =
     !resume.isMaster && data.jobContext
-      ? scoreResumeFromEnvelope(data, data.jobContext)
+      ? scoreResumeFromEnvelope(data, data.jobContext, new Date())
       : null;
 
   // Compute dynamic improvement tips server-side (same pass as the

@@ -108,7 +108,11 @@ describe('scoreResumeHybridFromEnvelope', () => {
 
     // Capture the sync engine's output as the ground truth.
     const { scoreResumeFromEnvelope } = await import('@/lib/scoring');
-    const sync = scoreResumeFromEnvelope(SAMPLE_RESUME, SAMPLE_JOB);
+    const sync = scoreResumeFromEnvelope(
+      SAMPLE_RESUME,
+      SAMPLE_JOB,
+      new Date('2026-01-01')
+    );
 
     const hybrid = await scoreResumeHybridFromEnvelope(SAMPLE_RESUME, SAMPLE_JOB);
 
@@ -132,7 +136,11 @@ describe('scoreResumeHybridFromEnvelope', () => {
     mockHybrid.mockResolvedValue(0.5);
 
     const { scoreResumeFromEnvelope } = await import('@/lib/scoring');
-    const sync = scoreResumeFromEnvelope(SAMPLE_RESUME, SAMPLE_JOB);
+    const sync = scoreResumeFromEnvelope(
+      SAMPLE_RESUME,
+      SAMPLE_JOB,
+      new Date('2026-01-01')
+    );
 
     const hybrid = await scoreResumeHybridFromEnvelope(SAMPLE_RESUME, SAMPLE_JOB);
 
@@ -148,7 +156,11 @@ describe('scoreResumeHybridFromEnvelope', () => {
     mockHybrid.mockResolvedValue(1.0); // hybrid = 1.0 → similarityScore = 100
 
     const { scoreResumeFromEnvelope } = await import('@/lib/scoring');
-    const sync = scoreResumeFromEnvelope(SAMPLE_RESUME, SAMPLE_JOB);
+    const sync = scoreResumeFromEnvelope(
+      SAMPLE_RESUME,
+      SAMPLE_JOB,
+      new Date('2026-01-01')
+    );
 
     const hybrid = await scoreResumeHybridFromEnvelope(SAMPLE_RESUME, SAMPLE_JOB);
 
@@ -166,7 +178,11 @@ describe('scoreResumeHybridFromEnvelope', () => {
     const jdNoReqs = { ...SAMPLE_JOB, requirements: [] } as JobPosting;
 
     const { scoreResumeFromEnvelope } = await import('@/lib/scoring');
-    const sync = scoreResumeFromEnvelope(SAMPLE_RESUME, jdNoReqs);
+    const sync = scoreResumeFromEnvelope(
+      SAMPLE_RESUME,
+      jdNoReqs,
+      new Date('2026-01-01')
+    );
 
     const hybrid = await scoreResumeHybridFromEnvelope(SAMPLE_RESUME, jdNoReqs);
 

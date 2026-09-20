@@ -231,7 +231,8 @@ export async function listResumes(userId: string): Promise<ResumeFamily[]> {
       if (family) {
         family.variantScores[variant.id] = scoreResumeFromEnvelope(
           data,
-          data.jobContext
+          data.jobContext,
+          new Date()
         ).overallScore;
       }
     } catch {
