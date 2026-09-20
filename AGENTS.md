@@ -77,20 +77,33 @@ the user explicitly Recomputes (the action picks `WEIGHTS_V2` when
 the JD has v2 intent-extraction fields, else falls back to
 `WEIGHTS`).
 
+Phase 3 v2 ATS scoring validation corpus (shipped 2026-09-20,
+branch `feat/ats-scoring-v2-validation`, PR to main): 50
+manually-curated `(resume, job, idealScore)` triples committed to
+`tests/fixtures/ats-corpus.json` (~245 KB, 11 role families, 5
+match-quality tiers). Pearson r vs `engine.overallScore` =
+**0.923** — well above the 0.7 acceptance gate. Methodology
+decision (manual curation over public / synthetic) in
+`docs/decisions/0005-ats-validation-corpus.md`. Drift memo in
+`docs/drift/2026-09-20-ats-v2-validation-corpus.md`. CI gate:
+`pnpm test tests/unit/scoring/validation-corpus.test.ts` must stay
+green.
+
 **Next (queued, priority order)**
 
-1. **ATS scoring validation corpus** — 50 (JD, resume, ideal-score)
-   labeled triples for Pearson r > 0.7 acceptance gate. Deferred from
-   Phase 3 v2 — needs a labeling methodology decision (manual
-   curation vs. public dataset vs. synthetic). See
-   `docs/drift/2026-09-20-ats-v2-shipped.md`.
-2. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
-3. **Optimize work-highlights + Pro tier gate** — section-agnostic
+2. **Optimize work-highlights + Pro tier gate** — section-agnostic
    plumbing is ready (`lib/optimize/optimize-resume.ts`); add
    `work[*].highlights` rewrite, gate behind
    `subscriptions.plan === 'pro'`.
+3. **Wire `scoreSeniorityFitFromEnvelope` into the sync engine** —
+   the v2 calibration corpus ships with seniority always at 50
+   (drift memo `2026-09-20-ats-v2-validation-corpus.md` §3). The
+   envelope-aware seniority path exists but is only wired into
+   the async Server Action today. Single-PR change to bring the
+   sync engine to parity, then re-run the corpus.
 4. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
 5. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
@@ -481,7 +494,7 @@ re-litigating settled decisions.
 pnpm typecheck       # must be clean
 pnpm build           # must produce all routes
 pnpm dev             # smoke-test any new UI
-pnpm test            # 236+ unit tests must stay green
+pnpm test            # 766+ unit tests must stay green (incl. ATS validation corpus, Pearson r > 0.7)
 ```
 
 If you add a new env var: add it to `.env.example` with a placeholder value and
