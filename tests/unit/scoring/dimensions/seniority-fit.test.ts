@@ -5,6 +5,7 @@ import {
   NEUTRAL_SENIORITY_FIT_SCORE
 } from '@/lib/scoring/dimensions/seniority-fit';
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
+import type { DeepPartial } from '@/tests/fixtures/types';
 
 /**
  * Locks the v2 Seniority Fit scoring dimension.
@@ -22,7 +23,7 @@ const NOW = new Date('2026-01-15T00:00:00Z');
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeResume(overrides: Partial<ResumeData> = {}): ResumeData {
+function makeResume(overrides: DeepPartial<ResumeData> = {}): ResumeData {
   return {
     name: 'Test Resume',
     note: '',

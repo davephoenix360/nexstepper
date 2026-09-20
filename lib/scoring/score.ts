@@ -545,12 +545,21 @@ function computeSeniorityForScoreable(
  * the wide `ResumeData` + `JobPosting` envelopes use this directly;
  * the scoreable-shape path falls back to neutral (see
  * `computeSeniorityForScoreable`).
+ *
+ * `now` is REQUIRED — the dimension is pure (no `Date`, no
+ * `Math.random`, no `fetch` — see `tests/unit/scoring/purity.test.ts`)
+ * so the wrapper cannot call `new Date()` itself. Production callers
+ * (Server Actions, scripts) inject `new Date()`; tests inject an
+ * explicit `Date` for determinism. This mirrors the existing
+ * `performance.now()` pattern already in `score.ts` for `computedInMs`
+ * — the impurity lives outside the engine, never inside it.
  */
 export function scoreSeniorityFitFromEnvelope(
   resume: ResumeData,
-  job: JobPosting
+  job: JobPosting,
+  now: Date
 ): SeniorityFitResult {
-  return scoreSeniorityFit(resume, job);
+  return scoreSeniorityFit(resume, job, now);
 }
 
 // Re-export the neutral score so callers (e.g. tests) can reference it

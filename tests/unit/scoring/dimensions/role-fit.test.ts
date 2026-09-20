@@ -22,6 +22,7 @@ import {
 import * as semanticSimilarityModule from '@/lib/scoring-async/semantic-similarity';
 import { roleFitSimilarity } from '@/lib/scoring-async/role-fit';
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
+import type { DeepPartial } from '@/tests/fixtures/types';
 
 // ---------------------------------------------------------------------------
 // scoreRoleFitParams — sync surface (canonical entry point)
@@ -62,7 +63,7 @@ describe('scoreRoleFitParams — sync scoring', () => {
 // roleFitSimilarity — async wrapper (mocks the model)
 // ---------------------------------------------------------------------------
 
-function makeResume(overrides: Partial<ResumeData> = {}): ResumeData {
+function makeResume(overrides: DeepPartial<ResumeData> = {}): ResumeData {
   return {
     name: 'Test Resume',
     note: '',
