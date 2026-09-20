@@ -131,17 +131,6 @@ export const JD_PARSER_MODEL = PARSER_MODEL;
 export const RESUME_PARSER_MODEL = PARSER_MODEL;
 
 /**
- * Placeholder model for the Optimize tool (Phase 3, not built yet).
- * When the action lands, this should be Anthropic Haiku 4.5 with
- * a Sonnet fallback — 3-5x cheaper than Sonnet for the per-section
- * rewrite, similar quality for text transformations.
- *
- * For now we point it at the same free-tier primary so import paths
- * stay stable; swap when the Optimize action ships.
- */
-export const OPTIMIZE_MODEL = PARSER_MODEL;
-
-/**
  * Model for the JD Markdown formatter (Plan B,
  * `docs/plans/jd-markdown-format.md`). The formatter turns raw JD
  * text into well-structured Markdown for the variant editor's

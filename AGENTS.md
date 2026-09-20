@@ -96,10 +96,12 @@ stay green.
 1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
-2. **Optimize work-highlights + Pro tier gate** — section-agnostic
-   plumbing is ready (`lib/optimize/optimize-resume.ts`); add
-   `work[*].highlights` rewrite, gate behind
-   `subscriptions.plan === 'pro'`.
+2. **Optimize work-highlights + Pro tier gate** — ~~removed~~
+   2026-09-20 (drift memo `2026-09-20-optimize-removed.md`). The
+   next session does the design research, not a re-wire of the
+   dead code. The old code path (lib/optimize/) was deleted to
+   prevent naive re-use. The future plan will live at
+   `docs/plans/inline-issue-surface.md` (TBD).
 3. **Seniority Fit calibration fix** — drift memo
    `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
    §"Seniority Fit wired into the sync engine" exposes that the
@@ -699,13 +701,14 @@ queued for the next session.
 - **Liveblocks collab** (Phase 5 in the rebuild plan) — the editor
   surface is ready; collab is a session model + cursor presence
   on top of the existing component tree.
-- **Optimize tier gate** — Optimize v0 ships ungated (anyone can
-  use it). The Phase 3 plan has it as Pro-only; the gate is a small
-  follow-up that adds an entitlement check (Stripe subscription
-  status) at the top of `runOptimizeSummaryAction`.
-- **Optimize work highlights** — the second section type. The
-  `buildWorkHighlightsUserPrompt` prompt builder is already stubbed
-  in `lib/optimize/prompts.ts`; wiring the action + UI is one PR.
+- **Optimize tier gate** — removed 2026-09-20 (drift memo
+  `2026-09-20-optimize-removed.md`). The dead code path
+  (`lib/optimize/`) was deleted. Future Optimize plans will
+  design the inline-issue-surface UX fresh, not retrofit the
+  old modal-diff.
+- **Optimize work highlights** — removed 2026-09-20 (same memo).
+  The stubbed `buildWorkHighlightsUserPrompt` was deleted with
+  the rest of `lib/optimize/prompts.ts`.
 
 ### JD Markdown formatting (shipped 2026-09-19)
 
@@ -1056,6 +1059,20 @@ Total: **379 tests across 24 files, all green**. Typecheck
 clean. **End-to-end requires `AI_GATEWAY_API_KEY`** in
 `.env.local`; without it, the action returns `no_api_key`
 and the UI shows a setup hint.
+
+**2026-09-20 follow-up -- removed.** The Optimize card on the
+dashboard home was taken down on 2026-09-20 (the founder
+considered the side-by-side modal UX "extremely strange" --
+it pulled the user out of the resume editor they were trying
+to improve). This session deleted the rest of the dead code:
+`lib/optimize/` (orchestrator + prompts) and
+`tests/unit/optimize/` (38 tests). `OPTIMIZE_MODEL` was
+removed from `lib/ai/providers.ts`. The
+`app/(dashboard)/dashboard/resumes/[id]/optimize*` files
+were already gone by the time this session touched the
+codebase. Drift memo: `docs/drift/2026-09-20-optimize-removed.md`.
+The next session that picks up "Optimize" will start from
+zero (research + plan) rather than retrofit this UX.
 
 ### DB migrations: `db:push` vs `db:generate` + `db:migrate` (learned the hard way)
 

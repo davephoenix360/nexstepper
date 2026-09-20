@@ -1065,13 +1065,11 @@ export async function deleteApplication(
 // ─── Resume-variant queries (Phase 2.4a) ────────────────────────────────────
 
 /**
- * The structured breakdown of an Optimize score. The full score
- * (0-100 headline) lives on `matchScore`; this is the per-axis
- * breakdown the UI shows when the user clicks for details.
- *
- * Mirrors the contract `lib/optimize/` will write when it runs. We
- * keep the breakdown shape loose here (`unknown` JSONB) so the
- * Optimize tool can evolve the axes without a migration.
+ * Placeholder for a future per-axis breakdown (e.g. when we add
+ * an inline issue-surface tool that calls out specific resume
+ * sections). Kept as `unknown` JSONB so future shape changes
+ * don't require a migration. Not currently written by any app
+ * path — reserved for the next-session inline design work.
  */
 export type MatchBreakdown = unknown;
 

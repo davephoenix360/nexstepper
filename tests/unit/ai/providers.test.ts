@@ -10,7 +10,6 @@ vi.mock('@ai-sdk/gateway', () => ({
 import { gateway } from '@ai-sdk/gateway';
 import {
   JD_PARSER_MODEL,
-  OPTIMIZE_MODEL,
   PARSE_FALLBACKS,
   PARSER_MODEL,
   RESUME_PARSER_MODEL,
@@ -32,10 +31,6 @@ describe('model constants', () => {
   it('declares both parsers as using PARSER_MODEL (single source of truth)', () => {
     expect(JD_PARSER_MODEL).toBe(PARSER_MODEL);
     expect(RESUME_PARSER_MODEL).toBe(PARSER_MODEL);
-  });
-
-  it('uses the same primary for the Optimize placeholder (until Optimize ships)', () => {
-    expect(OPTIMIZE_MODEL).toBe(PARSER_MODEL);
   });
 
   it('declares a fallback chain with at least 3 entries', () => {
@@ -61,13 +56,13 @@ describe('model constants', () => {
   });
 
   it('model strings are prefixed with the provider slug (Gateway convention)', () => {
-    for (const id of [PARSER_MODEL, ...PARSE_FALLBACKS, OPTIMIZE_MODEL]) {
+    for (const id of [PARSER_MODEL, ...PARSE_FALLBACKS]) {
       expect(id).toContain('/');
     }
   });
 
   it('no model string contains whitespace or accidental whitespace', () => {
-    for (const id of [PARSER_MODEL, ...PARSE_FALLBACKS, OPTIMIZE_MODEL]) {
+    for (const id of [PARSER_MODEL, ...PARSE_FALLBACKS]) {
       expect(id.trim()).toBe(id);
       expect(id).not.toMatch(/\s/);
     }
