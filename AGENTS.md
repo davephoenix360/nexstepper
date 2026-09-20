@@ -539,16 +539,17 @@ automatic Git hook on Windows.
 commit it makes. Manual invocation:
 
 ```powershell
-scripts/coderabbit-review.ps1                              # last commit, light, plain
+scripts/coderabbit-review.ps1                              # last commit, light, plain text
 scripts/coderabbit-review.ps1 -Base main                   # all commits since main
 scripts/coderabbit-review.ps1 -Plain:$false                # agent-mode structured output
 scripts/coderabbit-review.ps1 -CrBinPath '~/bin/coderabbit'  # custom WSL install location
 ```
 
 `--light` keeps the review under ~5 minutes (vs the default
-7-30 min). `--plain` emits human-readable text; pass
-`-Plain:$false` for structured JSON. Output streams to stdout
-in real time.
+7-30 min). Plain text is the CLI's default output (≥ 0.7.x dropped
+the deprecated `--plain` flag); pass `-Plain:$false` to map to
+the CLI's `--agent` flag for structured JSON. Output streams to
+stdout in real time.
 
 **CodeRabbit auto-trial** — the `cr auth status` currently
 reads `Plan: Pro+`. That's the auto-trial that CodeRabbit

@@ -31,6 +31,11 @@
     Default is true. Set `-Plain:$false` to capture structured
     findings for downstream tooling.
 
+    NOTE (CodeRabbit CLI ≥ 0.7.x): plain text is now the default
+    output mode (no flag needed). `-Plain:$false` maps to the
+    CLI's `--agent` flag, which emits structured findings. The
+    deprecated `--plain` flag was removed in 0.7.
+
 .PARAMETER CrBinPath
     Override the path inside WSL to the `coderabbit` binary.
     Defaults to the installer's standard location
@@ -98,17 +103,18 @@ if ($LASTEXITCODE -ne 0) {
     throw "wsl --status failed (exit $LASTEXITCODE). Is WSL installed and a default distro configured?"
 }
 
-# Build the CodeRabbit argument vector. -Plain is `cr review`
-# default behaviour for human consumers; we expose a switch for
-# the agent flow.
+# Build the CodeRabbit argument vector. As of CLI 0.7.x, plain text
+# is the default output (no flag needed); the agent-optimised JSON
+# flow is requested with `--agent`. We expose the `-Plain` switch
+# for back-compat with callers that pass `-Plain:$false`.
 $crArgs = @('review')
 
 if ($Mode -eq 'light') {
     $crArgs += '--light'
 }
 
-if ($Plain) {
-    $crArgs += '--plain'
+if (-not $Plain) {
+    $crArgs += '--agent'
 }
 
 $crArgs += @('--base', $Base)
