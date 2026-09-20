@@ -34,6 +34,7 @@ import {
   hashShareToken
 } from '@/lib/share';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
+import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
 
 /**
  * Discriminated union for Server Action results — see AGENTS.md §3.
@@ -405,6 +406,18 @@ export async function createVariantFromJdAction(
   // text — the user is never blocked on this enhancement.
   const formatResult = await formatJdAsMarkdown(parsed.data.jdText);
 
+  // Phase 1 v2: extract structured intent (must-have vs nice-to-have
+  // skills, seniority, years required, role family, domain signals)
+  // for the Intent Coverage scoring dimension. Same "best-effort,
+  // never block" pattern as the Markdown formatter above — on any
+  // failure (no API key, AI failure, empty result) we leave the v2
+  // fields at their defaults and v1 scoring carries the load. The
+  // 50ms latency hit when successful is dwarfed by the parse +
+  // format round-trips that already run above.
+  //
+  // Plan: docs/plans/ats-scoring-v2.md
+  const extractResult = await extractJdIntent(parsed.data.jdText);
+
   const jobContext = jobPostingSchema.parse({
     id: randomUUID(),
     description: parsed.data.jdText,
@@ -413,7 +426,21 @@ export async function createVariantFromJdAction(
     markdown: formatResult.ok ? formatResult.data.markdown : null,
     markdownGeneratedAt: formatResult.ok
       ? formatResult.data.markdownGeneratedAt
-      : null
+      : null,
+    ...(extractResult.ok
+      ? {
+          mustHaveSkills: extractResult.data.intent.mustHaveSkills,
+          niceToHaveSkills: extractResult.data.intent.niceToHaveSkills,
+          implicitSkills: extractResult.data.intent.implicitSkills,
+          seniorityLevel: extractResult.data.intent.seniorityLevel,
+          yearsRequiredMin: extractResult.data.intent.yearsRequiredMin,
+          yearsRequiredMax: extractResult.data.intent.yearsRequiredMax,
+          roleFamily: extractResult.data.intent.roleFamily,
+          domainSignals: extractResult.data.intent.domainSignals,
+          intentExtractedAt: extractResult.data.extractedAt,
+          intentExtractorModel: extractResult.data.model
+        }
+      : {})
   });
 
   const variant = await createVariant(session.user.id, parsed.data.masterId, {

@@ -61,26 +61,42 @@ type DeepPartial<T> = T extends object
 function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
   return {
     overallScore: 70,
-    dimensionScores: {
-      atsMatching: 60,
-      structure: 80,
-      contentQuality: 70,
-      alignment: 60
+    computedInMs: 5,
+    intentCoverageBreakdown: {
+      value: 50,
+      missed: { mustHave: [], niceToHave: [], implicit: [] },
+      penalty: 0,
+      fallback: true
     },
+    ...overrides,
+    // Merge partial overrides for nested objects so a test can
+    // override just `criteriaScores: { 'ATS Keyword Match': 50 }`
+    // without wiping out the new v2 'Intent Coverage' key. Same
+    // shape concern that surfaced in `tests/unit/jd-panel.test.tsx`
+    // after the v1 merge — see commit `a4a47a1` for the related
+    // discussion of `DeepPartial` vs shallow spread.
     criteriaScores: {
       'ATS Keyword Match': 50,
       'ATS Similarity': 60,
       'ATS Coverage': 50,
+      'Intent Coverage': 50,
       'Section Completeness': 100,
       'Optimal Length': 80,
       'Accomplishment Focus': 70,
       'Action Verb Usage': 60,
       Tailoring: 30,
       'Unique Value': 100,
-      'Soft Skills': 25
+      'Soft Skills': 25,
+      ...overrides.criteriaScores
     },
-    computedInMs: 5,
-    ...overrides
+    dimensionScores: {
+      atsMatching: 60,
+      structure: 80,
+      contentQuality: 70,
+      alignment: 60,
+      intentCoverage: 50,
+      ...overrides.dimensionScores
+    }
   };
 }
 
@@ -551,7 +567,8 @@ describe('buildDynamicTips — JD-aware criteria', () => {
         'Action Verb Usage': 60,
         Tailoring: 30,
         'Unique Value': 100,
-        'Soft Skills': 25
+        'Soft Skills': 25,
+        'Intent Coverage': 50
       }
     });
     const tips = buildDynamicTips(breakdown, makeResume(), makeJob());
@@ -572,7 +589,8 @@ describe('buildDynamicTips — JD-aware criteria', () => {
         'Action Verb Usage': 60,
         Tailoring: 30,
         'Unique Value': 100,
-        'Soft Skills': 25
+        'Soft Skills': 25,
+        'Intent Coverage': 80
       }
     });
     expect(
@@ -828,7 +846,8 @@ describe('buildDynamicTips — alignment criteria', () => {
         'Action Verb Usage': 60,
         Tailoring: 10, // low score → dynamic tip triggers
         'Unique Value': 100,
-        'Soft Skills': 25
+        'Soft Skills': 25,
+        'Intent Coverage': 50
       }
     });
     const tips = buildDynamicTips(breakdown, resume, job);
@@ -904,7 +923,7 @@ describe('CRITERIA_TIPS', () => {
   it('has an entry for every sub-criterion in ScoreBreakdown.criteriaScores', () => {
     const breakdown = makeBreakdown();
     const keys = Object.keys(breakdown.criteriaScores);
-    expect(keys).toHaveLength(10);
+    expect(keys).toHaveLength(11);
     for (const key of keys) {
       expect(CRITERIA_TIPS).toHaveProperty(key);
       expect(typeof CRITERIA_TIPS[key]).toBe('string');

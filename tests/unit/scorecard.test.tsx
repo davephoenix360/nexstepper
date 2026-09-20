@@ -22,12 +22,19 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown>): ScoreBreakdown {
       atsMatching: 65,
       structure: 80,
       contentQuality: 75,
-      alignment: 60
+      alignment: 60,
+      // v2 Intent Coverage — neutral by default so legacy fixtures
+      // (and tests that don't care about v2) continue to work.
+      intentCoverage: 50
     },
     criteriaScores: {
       'ATS Keyword Match': 60,
       'ATS Similarity': 50,
       'ATS Coverage': 70,
+      // v2 sub-criterion — mirror `ATS Keyword Match` so the
+      // expanded "Show details + tips" panel renders identically
+      // for legacy fixtures.
+      'Intent Coverage': 60,
       'Section Completeness': 80,
       'Optimal Length': 80,
       'Accomplishment Focus': 80,
@@ -37,6 +44,12 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown>): ScoreBreakdown {
       'Soft Skills': 50
     },
     computedInMs: 12,
+    intentCoverageBreakdown: {
+      value: 50,
+      missed: { mustHave: [], niceToHave: [], implicit: [] },
+      penalty: 0,
+      fallback: true
+    },
     ...overrides
   };
 }
@@ -123,7 +136,8 @@ describe('ScorecardPanel — with breakdown', () => {
             atsMatching: 150,
             structure: 80,
             contentQuality: 75,
-            alignment: 60
+            alignment: 60,
+            intentCoverage: 50
           }
         })}
       />

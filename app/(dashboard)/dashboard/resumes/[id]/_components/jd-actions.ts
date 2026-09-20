@@ -17,6 +17,7 @@ import {
   type ResumeData
 } from '@/lib/resume-schema';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
+import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
 
 /**
  * Set the job context on a variant resume.
@@ -71,25 +72,73 @@ export async function setVariantJobContextAction(
   // raw text — never an error to the user.
   const formatResult = await formatJdAsMarkdown(parsed.data.jdText);
 
+  // Phase 1 v2: also run the structured intent extractor. Same
+  // best-effort / never-block pattern as the Markdown formatter.
+  // When the extractor succeeds, populate the priority-weighted skill
+  // lists + seniority + years + role family. When it fails (no API
+  // key, AI failure, empty result), preserve the previously extracted
+  // values so we don't regress on re-save. The Intent Coverage
+  // dimension will fall back to v1 token-based scoring for fields
+  // that remain empty.
+  //
+  // Plan: docs/plans/ats-scoring-v2.md
+  const extractResult = await extractJdIntent(parsed.data.jdText);
+
+  const existingJobContext = existing.data.jobContext;
+  const useExistingIntent = !extractResult.ok;
+
   const jobContext: JobPosting = jobPostingSchema.parse({
-    id: existing.data.jobContext?.id ?? randomUUID(),
-    title: existing.data.jobContext?.title ?? '',
-    company: existing.data.jobContext?.company ?? '',
-    location: existing.data.jobContext?.location ?? '',
+    id: existingJobContext?.id ?? randomUUID(),
+    title: existingJobContext?.title ?? '',
+    company: existingJobContext?.company ?? '',
+    location: existingJobContext?.location ?? '',
     description: parsed.data.jdText,
-    requirements: existing.data.jobContext?.requirements ?? [],
-    niceToHaves: existing.data.jobContext?.niceToHaves ?? [],
-    benefits: existing.data.jobContext?.benefits ?? [],
-    keywords: existing.data.jobContext?.keywords ?? [],
-    seniority: existing.data.jobContext?.seniority ?? '',
-    employmentType: existing.data.jobContext?.employmentType ?? '',
-    source: existing.data.jobContext?.source ?? 'paste',
+    requirements: existingJobContext?.requirements ?? [],
+    niceToHaves: existingJobContext?.niceToHaves ?? [],
+    benefits: existingJobContext?.benefits ?? [],
+    keywords: existingJobContext?.keywords ?? [],
+    seniority: existingJobContext?.seniority ?? '',
+    employmentType: existingJobContext?.employmentType ?? '',
+    source: existingJobContext?.source ?? 'paste',
     capturedAt:
-      existing.data.jobContext?.capturedAt ?? new Date().toISOString(),
+      existingJobContext?.capturedAt ?? new Date().toISOString(),
     markdown: formatResult.ok ? formatResult.data.markdown : null,
     markdownGeneratedAt: formatResult.ok
       ? formatResult.data.markdownGeneratedAt
-      : null
+      : null,
+    // v2 intent-extraction fields. Successful extraction → fresh
+    // values. Failed extraction → preserve the previously extracted
+    // values (graceful re-save, no field regression).
+    mustHaveSkills: useExistingIntent
+      ? existingJobContext?.mustHaveSkills ?? []
+      : extractResult.data.intent.mustHaveSkills,
+    niceToHaveSkills: useExistingIntent
+      ? existingJobContext?.niceToHaveSkills ?? []
+      : extractResult.data.intent.niceToHaveSkills,
+    implicitSkills: useExistingIntent
+      ? existingJobContext?.implicitSkills ?? []
+      : extractResult.data.intent.implicitSkills,
+    seniorityLevel: useExistingIntent
+      ? existingJobContext?.seniorityLevel ?? null
+      : extractResult.data.intent.seniorityLevel,
+    yearsRequiredMin: useExistingIntent
+      ? existingJobContext?.yearsRequiredMin ?? null
+      : extractResult.data.intent.yearsRequiredMin,
+    yearsRequiredMax: useExistingIntent
+      ? existingJobContext?.yearsRequiredMax ?? null
+      : extractResult.data.intent.yearsRequiredMax,
+    roleFamily: useExistingIntent
+      ? existingJobContext?.roleFamily ?? null
+      : extractResult.data.intent.roleFamily,
+    domainSignals: useExistingIntent
+      ? existingJobContext?.domainSignals ?? []
+      : extractResult.data.intent.domainSignals,
+    intentExtractedAt: useExistingIntent
+      ? existingJobContext?.intentExtractedAt ?? null
+      : extractResult.data.extractedAt,
+    intentExtractorModel: useExistingIntent
+      ? existingJobContext?.intentExtractorModel ?? null
+      : extractResult.data.model
   });
 
   const nextData: ResumeData = resumeDataSchema.parse({

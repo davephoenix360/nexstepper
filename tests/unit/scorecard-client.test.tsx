@@ -45,7 +45,9 @@ const BREAKDOWN: ScoreBreakdown = {
     atsMatching: 70,
     structure: 80,
     contentQuality: 75,
-    alignment: 85
+    alignment: 85,
+    // v2 — neutral (no v2 data in the SSR fixture).
+    intentCoverage: 50
   },
   criteriaScores: {
     'ATS Keyword Match': 60,
@@ -57,9 +59,17 @@ const BREAKDOWN: ScoreBreakdown = {
     'Action Verb Usage': 70,
     Tailoring: 50,
     'Unique Value': 100,
-    'Soft Skills': 50
+    'Soft Skills': 50,
+    // v2 — same as the dimension: neutral when no v2 data.
+    'Intent Coverage': 60
   },
-  computedInMs: 12
+  computedInMs: 12,
+  intentCoverageBreakdown: {
+    value: 50,
+    missed: { mustHave: [], niceToHave: [], implicit: [] },
+    penalty: 0,
+    fallback: true
+  }
 };
 
 describe('ScorecardClient', () => {

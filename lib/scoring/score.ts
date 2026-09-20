@@ -2,6 +2,11 @@ import { scoreAtsMatching } from './dimensions/ats-matching';
 import { scoreStructure } from './dimensions/structure';
 import { scoreContentQuality } from './dimensions/content-quality';
 import { scoreAlignment } from './dimensions/alignment';
+import {
+  scoreIntentCoverageParams,
+  NEUTRAL_INTENT_COVERAGE_SCORE,
+  type IntentCoverageBreakdown
+} from './dimensions/intent-coverage';
 import { flattenJobText, flattenResumeText } from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
@@ -9,20 +14,34 @@ import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 /**
  * Top-level scoring engine.
  *
- * Composes four dimensions into a single 0-100 score. Same weights
- * as the legacy `nextep/src/lib/score.ts:442-446`:
+ * Composes FIVE dimensions into a single 0-100 score. v1 used four
+ * (no Intent Coverage). v2 adds Intent Coverage at 15% weight when
+ * the JD has v2 intent-extraction fields populated, scaling the
+ * other four dimensions to 85% combined. When the JD has no v2
+ * intent data (legacy rows, failed extractions), scoring is
+ * IDENTICAL to v1 — no behavior change.
+ *
+ * v1 weights (per the legacy `nextep/src/lib/score.ts:442-446`):
  *
  *   atsMatching    × 0.30
  *   structure      × 0.20
  *   contentQuality × 0.30
  *   alignment      × 0.20
  *
- * These weights live in `WEIGHTS` so calibration can tune them
- * without touching the function bodies. Per the plan §"Risks" #1:
- * "export the weights as constants, document the source (legacy
- * `score.ts` line numbers), and write a test that asserts the
- * top-level composition uses them — so a future calibration pass
- * can `git diff` what changed."
+ * v2 weights (Plan: docs/plans/ats-scoring-v2.md):
+ *
+ *   atsMatching      × 0.255  (v1 × 0.85)
+ *   structure        × 0.17   (v1 × 0.85)
+ *   contentQuality   × 0.255  (v1 × 0.85)
+ *   alignment        × 0.17   (v1 × 0.85)
+ *   intentCoverage   × 0.15   (new)
+ *
+ * `WEIGHTS` (v1) and `WEIGHTS_V2` live as constants so calibration
+ * can tune them without touching the function bodies. Per the plan
+ * §"Risks" #1: "export the weights as constants, document the
+ * source (legacy `score.ts` line numbers), and write a test that
+ * asserts the top-level composition uses them — so a future
+ * calibration pass can `git diff` what changed."
  *
  * Hard constraints (plan §"Hard constraints"):
  *   - Pure function, no async, no IO.
@@ -47,7 +66,23 @@ export const WEIGHTS = {
   alignment: 0.2
 } as const;
 
+/**
+ * v2 weights — see the doc comment on `WEIGHTS`. Used when the JD
+ * has populated `mustHaveSkills` / `niceToHaveSkills` /
+ * `implicitSkills` (i.e. the v2 extractor produced useful output).
+ * Sum: 1.00 (0.85 from the four scaled v1 dimensions + 0.15 from
+ * Intent Coverage).
+ */
+export const WEIGHTS_V2 = {
+  atsMatching: 0.255,
+  structure: 0.17,
+  contentQuality: 0.255,
+  alignment: 0.17,
+  intentCoverage: 0.15
+} as const;
+
 export type DimensionKey = keyof typeof WEIGHTS;
+export type DimensionKeyV2 = keyof typeof WEIGHTS_V2;
 
 export type ScoreBreakdown = {
   /** 0-100, rounded to integer. The single number on the scorecard. */
@@ -58,6 +93,15 @@ export type ScoreBreakdown = {
     structure: number;
     contentQuality: number;
     alignment: number;
+    /**
+     * v2 Intent Coverage (priority-weighted skill coverage). 0-100
+     * when v2 data is available; equals `NEUTRAL_INTENT_COVERAGE_SCORE`
+     * (= 50) when falling back to v1 scoring (legacy rows / failed
+     * extractions). Always present in the shape; consumers can
+     * detect v2-availability via the `intentCoverageBreakdown.fallback`
+     * flag.
+     */
+    intentCoverage: number;
   };
   /** 0-100 per sub-criterion. Useful for the scorecard drill-down + tests. */
   criteriaScores: {
@@ -65,6 +109,13 @@ export type ScoreBreakdown = {
     'ATS Keyword Match': number;
     'ATS Similarity': number;
     'ATS Coverage': number;
+    /**
+     * v2 sub-criterion — appears in the expanded "Show details + tips"
+     * grid when v2 data is available. Falls back to v1 ATS Keyword Match
+     * value (the legacy token-overlap score) when v2 data is missing —
+     * keeps the existing UI working unchanged for legacy rows.
+     */
+    'Intent Coverage': number;
     /** Structure sub-criteria. */
     'Section Completeness': number;
     'Optimal Length': number;
@@ -78,6 +129,16 @@ export type ScoreBreakdown = {
   };
   /** Wall-clock milliseconds the score took to compute. For the UI footer. */
   computedInMs: number;
+  /**
+   * v2 Intent Coverage breakdown — the per-priority miss lists + the
+   * penalty applied + the fallback flag. Always present in the
+   * shape; consumers that don't care about v2 can ignore it.
+   *
+   * Surfaces the data the dynamic-tip renderer needs to say
+   * "missing 2 must-have infra skills: Terraform, Helm" vs. the
+   * legacy "missing 5 JD keywords".
+   */
+  intentCoverageBreakdown: IntentCoverageBreakdown;
 };
 
 export type ScoreableResume = ResumeTextSource & {
@@ -86,7 +147,12 @@ export type ScoreableResume = ResumeTextSource & {
   publications?: unknown[];
 };
 
-export type ScoreableJob = JobTextSource;
+export type ScoreableJob = JobTextSource & {
+  /** v2 intent-extraction fields (optional; absent on legacy rows). */
+  mustHaveSkills?: string[];
+  niceToHaveSkills?: string[];
+  implicitSkills?: string[];
+};
 
 /**
  * Convert a full `ResumeData` envelope (Zod schema shape) into the
@@ -129,6 +195,20 @@ export function resumeDataToScoreable(resume: ResumeData): ScoreableResume {
 }
 
 /**
+ * Whether the JD has v2 intent data available (at least one priority
+ * list populated). Drives whether the scoring engine uses v1 or v2
+ * weights.
+ */
+function hasV2Intent(job: ScoreableJob): boolean {
+  return (
+    (job.mustHaveSkills?.length ?? 0) +
+      (job.niceToHaveSkills?.length ?? 0) +
+      (job.implicitSkills?.length ?? 0) >
+    0
+  );
+}
+
+/**
  * Score a resume against a job posting. Returns the full breakdown so
  * the UI can render both the overall number and the per-dimension
  * bars from one call.
@@ -139,11 +219,12 @@ export function resumeDataToScoreable(resume: ResumeData): ScoreableResume {
  * (`ResumeData` + `JobPosting`) should go through `scoreResumeFromEnvelope`
  * (defined below) which adapts the shapes before calling this.
  *
- * Single source of truth: the `WEIGHTS` constant. The composition
- * formula below MUST be kept in sync with it — there's a test
- * (`score.test.ts > composition uses WEIGHTS`) that asserts the
- * formula via property-based test, so a future refactor that
- * changes the weights without updating the formula will fail CI.
+ * Single source of truth: the `WEIGHTS` (v1) and `WEIGHTS_V2`
+ * constants. The composition formula below MUST be kept in sync with
+ * them — there's a test (`score.test.ts > composition uses WEIGHTS`)
+ * that asserts the formula via property-based test, so a future
+ * refactor that changes the weights without updating the formula
+ * will fail CI.
  */
 export function scoreResume(
   resume: ScoreableResume,
@@ -163,11 +244,53 @@ export function scoreResume(
       Array.isArray(resume.publications) && resume.publications.length > 0
   });
 
+  // v2 Intent Coverage — always computed, but returns neutral when
+  // the JD has no v2 priority data (legacy rows / failed extract).
+  // Computing it unconditionally keeps the function pure + the
+  // purity test honest (no conditional branches around IO).
+  // We share the `flattenResumeText(resume)` pass computed above
+  // (lowercased here so the priority-weighted substring match is
+  // case-insensitive).
+  const intentCoverageBreakdown = scoreIntentCoverageParams({
+    mustHaveSkills: job.mustHaveSkills ?? [],
+    niceToHaveSkills: job.niceToHaveSkills ?? [],
+    implicitSkills: job.implicitSkills ?? [],
+    resumeTextLower: resumeText.toLowerCase()
+  });
+
+  // Pick the weight set based on v2 data availability. Pure v1
+  // behavior when no v2 intent; v2 weights otherwise. The formula
+  // below branches on `useV2Weights` but only computes arithmetic
+  // — no IO, no async. Purity is preserved.
+  const useV2Weights = !intentCoverageBreakdown.fallback;
+  // The conditional creates a union type where TS can't statically
+  // confirm `intentCoverage` exists on both branches. The v1
+  // branch (WEIGHTS) gets `intentCoverage` defaulted to 0 inside
+  // the score formula — neutral weight, neutral contribution.
+  // Compose into a single `w` value with a stable shape so the
+  // arithmetic below is one branch instead of two.
+  const w = useV2Weights
+    ? {
+        atsMatching: WEIGHTS_V2.atsMatching,
+        structure: WEIGHTS_V2.structure,
+        contentQuality: WEIGHTS_V2.contentQuality,
+        alignment: WEIGHTS_V2.alignment,
+        intentCoverage: WEIGHTS_V2.intentCoverage
+      }
+    : {
+        atsMatching: WEIGHTS.atsMatching,
+        structure: WEIGHTS.structure,
+        contentQuality: WEIGHTS.contentQuality,
+        alignment: WEIGHTS.alignment,
+        intentCoverage: 0
+      };
+
   const overall =
-    WEIGHTS.atsMatching * ats.value +
-    WEIGHTS.structure * structure.value +
-    WEIGHTS.contentQuality * content.value +
-    WEIGHTS.alignment * alignment.value;
+    w.atsMatching * ats.value +
+    w.structure * structure.value +
+    w.contentQuality * content.value +
+    w.alignment * alignment.value +
+    w.intentCoverage * intentCoverageBreakdown.value;
 
   const computedInMs = Math.max(0, nowMs() - t0);
 
@@ -177,12 +300,21 @@ export function scoreResume(
       atsMatching: ats.value,
       structure: structure.value,
       contentQuality: content.value,
-      alignment: alignment.value
+      alignment: alignment.value,
+      intentCoverage: intentCoverageBreakdown.value
     },
     criteriaScores: {
       'ATS Keyword Match': ats.breakdown.keywordScore,
       'ATS Similarity': ats.breakdown.similarityScore,
       'ATS Coverage': ats.breakdown.coverageScore,
+      // v2 Intent Coverage sub-criterion. When v2 data is available
+      // we surface the priority-weighted value (the dynamic-tip
+      // renderer turns this into the "missing must-have skills"
+      // message). When fallback, we mirror the v1 ATS Keyword Match
+      // score so the existing UI keeps working unchanged.
+      'Intent Coverage': intentCoverageBreakdown.fallback
+        ? ats.breakdown.keywordScore
+        : intentCoverageBreakdown.value,
       'Section Completeness': structure.breakdown.sectionCompleteness,
       'Optimal Length': structure.breakdown.lengthScore,
       'Accomplishment Focus': content.breakdown.accomplishmentRatio,
@@ -191,10 +323,17 @@ export function scoreResume(
       'Unique Value': alignment.breakdown.hasExtras,
       'Soft Skills': alignment.breakdown.softSkills
     },
-    computedInMs
+    computedInMs,
+    intentCoverageBreakdown
   };
 }
 
+/**
+ * Compute Intent Coverage from the scoreable shapes. The dimension
+ * function (`scoreIntentCoverage`) takes the wide envelope; this
+ * adapter lets the sync engine pass the narrow scoreable shapes
+ * without losing the v2 fields.
+ */
 /**
  * Wall-clock read. Wrapped in a function so `purity.test.ts` can
  * static-grep the call sites and verify the engine never reaches
@@ -228,6 +367,13 @@ export function scoreResumeFromEnvelope(
     description: job.description ?? '',
     requirements: job.requirements ?? [],
     niceToHaves: job.niceToHaves ?? [],
-    benefits: job.benefits ?? []
+    benefits: job.benefits ?? [],
+    mustHaveSkills: job.mustHaveSkills ?? [],
+    niceToHaveSkills: job.niceToHaveSkills ?? [],
+    implicitSkills: job.implicitSkills ?? []
   });
 }
+
+// Re-export the neutral score so callers (e.g. tests) can reference it
+// without importing the dimension directly.
+export { NEUTRAL_INTENT_COVERAGE_SCORE };

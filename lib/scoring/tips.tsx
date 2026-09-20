@@ -53,6 +53,9 @@ export const CRITERIA_TIPS: Record<string, string> = {
   'ATS Similarity':
     'Rewrite your descriptions to use the same language as the job posting. Phrases like "built a database" and "designed a data store" score higher when they match the JD wording.',
 
+  'Intent Coverage':
+    'Look at the JD and identify which skills are explicitly required vs. nice-to-have. Address the must-haves first — missing those costs your score 3x more than missing nice-to-haves.',
+
   'ATS Coverage':
     'Make sure your resume covers the main requirements: if the JD asks for five things and you only address three, add content that covers the missing ones.',
 
@@ -125,6 +128,18 @@ export function buildDynamicTips(
           {tail}.
         </>
       );
+    }
+
+    // v2 Intent Coverage — surface the per-priority miss list when
+    // the engine has v2 intent data (mustHave/niceToHave/implicit
+    // skill arrays populated). Skips the v1 token-level fallback
+    // when the extractor produced no structured intent (legacy
+    // rows + failed extractions). The v1 'ATS Keyword Match' tip
+    // above still fires in that case, so the user always sees
+    // something actionable.
+    if (hasV2Intent(job)) {
+      const intentTip = buildIntentCoverageMissListTip(job, resumeText);
+      if (intentTip) out['Intent Coverage'] = intentTip;
     }
 
     const similarityScore = breakdown.criteriaScores['ATS Similarity'];
@@ -399,6 +414,145 @@ export function tokenizeLight(text: string): string[] {
     .toLowerCase()
     .split(/\W+/)
     .filter((t) => t.length >= 2);
+}
+
+/**
+ * True when the JD has at least one v2-extracted priority skill
+ * populated. Drives the v2 Intent Coverage dynamic tip branch
+ * (mirrors the same gate the score-actions flag uses to decide
+ * which weight set to apply).
+ */
+function hasV2Intent(job: JobPosting): boolean {
+  return (
+    (job.mustHaveSkills?.length ?? 0) +
+      (job.niceToHaveSkills?.length ?? 0) +
+      (job.implicitSkills?.length ?? 0) >
+    0
+  );
+}
+
+/**
+ * v2 Intent Coverage dynamic tip — surfaces the per-priority miss
+ * list with priority-bolded skill names. Reads like:
+ *
+ *   Missing 2 must-have infra skills: **Terraform, Helm**, plus
+ *   1 nice-to-have: **Kustomize**.
+ *
+ * Returns `null` when every priority skill is present (no tip
+ * needed). The cap mirrors `scoreIntentCoverageParams` in
+ * `lib/scoring/dimensions/intent-coverage.ts` — three per priority
+ * keeps the tooltip readable; counts beyond three get a "+N more"
+ * tail.
+ */
+function buildIntentCoverageMissListTip(
+  job: JobPosting,
+  resumeText: string
+): ReactNode {
+  const resumeTextLower = resumeText.toLowerCase();
+  const missedMustHave = findMissingForTip(
+    job.mustHaveSkills ?? [],
+    resumeTextLower,
+    3
+  );
+  const missedNiceToHave = findMissingForTip(
+    job.niceToHaveSkills ?? [],
+    resumeTextLower,
+    3
+  );
+  const missedImplicit = findMissingForTip(
+    job.implicitSkills ?? [],
+    resumeTextLower,
+    3
+  );
+
+  if (
+    missedMustHave.items.length === 0 &&
+    missedNiceToHave.items.length === 0 &&
+    missedImplicit.items.length === 0
+  ) {
+    return null;
+  }
+
+  // Use the ORIGINAL missed counts (not the truncated items.length)
+  // for the pluralize wording — "Missing 5 must-have skills" even
+  // when we only show the top 3 in the tooltip.
+  const mustHaveTotal = missedMustHave.items.length + countTail(missedMustHave.tail);
+  const niceToHaveTotal = missedNiceToHave.items.length + countTail(missedNiceToHave.tail);
+  const implicitTotal = missedImplicit.items.length + countTail(missedImplicit.tail);
+
+  return (
+    <>
+      {missedMustHave.items.length > 0 && (
+        <>
+          {pluralize(mustHaveTotal, 'must-have skill', 'must-have skills')}:{' '}
+          <strong>{missedMustHave.items.join(', ')}</strong>
+          {missedMustHave.tail}
+          {missedNiceToHave.items.length > 0 || missedImplicit.items.length > 0
+            ? ', plus '
+            : '.'}
+        </>
+      )}
+      {missedNiceToHave.items.length > 0 && (
+        <>
+          {pluralize(niceToHaveTotal, 'nice-to-have', 'nice-to-haves')}:{' '}
+          <strong>{missedNiceToHave.items.join(', ')}</strong>
+          {missedNiceToHave.tail}
+          {missedImplicit.items.length > 0 ? ', plus ' : '.'}
+        </>
+      )}
+      {missedImplicit.items.length > 0 && (
+        <>
+          {pluralize(implicitTotal, 'implicit skill', 'implicit skills')}:{' '}
+          <strong>{missedImplicit.items.join(', ')}</strong>
+          {missedImplicit.tail}.
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * Extract the "+N more" count from the tail string, or 0 if no tail.
+ * Used to recover the original missed count for accurate pluralize
+ * wording even after the items array is truncated for display.
+ */
+function countTail(tail: string): number {
+  const match = /\(\+(\d+) more\)/.exec(tail);
+  return match ? Number(match[1]) : 0;
+}
+
+/**
+ * Find missing skills for the dynamic tip. Returns the items list
+ * (capped at `maxItems`) plus a "+N more" tail when the original
+ * list was longer.
+ */
+function findMissingForTip(
+  skills: string[],
+  resumeTextLower: string,
+  maxItems: number
+): { items: string[]; tail: string } {
+  const missed: string[] = [];
+  for (const skill of skills) {
+    if (typeof skill !== 'string' || skill.length === 0) continue;
+    if (!resumeTextLower.includes(skill.toLowerCase())) {
+      missed.push(skill);
+    }
+  }
+  const items = missed.slice(0, maxItems);
+  const tail =
+    missed.length > maxItems
+      ? ` (+${missed.length - maxItems} more)`
+      : '';
+  return { items, tail };
+}
+
+/** Pluralize a noun. Singular / plural form passed explicitly so the
+ * caller controls the exact wording (the tip is shown to candidates
+ * in plain English).
+ */
+function pluralize(count: number, singular: string, plural: string): string {
+  if (count === 1) return `Missing 1 ${singular}`;
+  return `Missing ${count} ${plural}`;
 }
 
 function jobTokensWithoutStopWords(job: JobPosting): string[] {
