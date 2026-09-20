@@ -10,32 +10,40 @@ import { CRITERIA_TIPS, type DynamicTips } from '@/lib/scoring/tips';
 
 import {
   DimensionBar,
+  SCORE_STRONG_THRESHOLD,
   tierFor,
-  SCORE_GREEN_THRESHOLD,
-  SCORE_AMBER_THRESHOLD
+  tierLabelFor,
+  TIER_BADGE
 } from './dimension-bar';
 import { EmptyScorecardState } from './empty-state';
+import { MissList } from './miss-list';
+import { AtsRadar } from './radar';
+import { cn } from '@/lib/utils';
 
 /**
  * Right-rail ATS scorecard.
  *
- * Plan: docs/plans/ats-scoring.md. Sits below the `<JdPanel>` in
- * the variant editor and shows the overall score + 4 dimension bars
- * when a `ScoreBreakdown` is provided.
+ * **Plan:** docs/plans/ats-scoring-v2.md. Sits below the `<JdPanel>`
+ * in the variant editor and shows the overall score + 7 dimension
+ * bars + tier badge + radar + per-skill miss list when a
+ * `ScoreBreakdown` is provided.
  *
- * UX decision (this session): the "Recompute" button uses the hybrid
- * (BM25 + semantic embeddings) scoring path as the default. The
- * prior two-button design (separate "Recompute" / "Try semantic")
- * was replaced with a single button because hybrid scoring is
- * strictly better signal than BM25-only and there is no reason to
- * present the user with two numbers.
+ * **Phase 3 additions (v2):**
+ *   - 5-tier score badge (Strong / Good / Partial / Limited / Needs
+ *     work — Greenhouse-aligned).
+ *   - 7-dimension bars: keywords + format + impact + experience match
+ *     + intent coverage + role fit + seniority fit. The v2 dimensions
+ *     fall back to a neutral 50 when their signal isn't available
+ *     (legacy JDs, failed extractions, no resume work history).
+ *   - 7-axis radar chart (`<AtsRadar>`) for shape-based comparison.
+ *   - Per-skill miss list (`<MissList>`) grouped by priority.
  *
  * An expandable "Details" section below the dimension bars shows all
- * 10 sub-criteria with hover tooltips containing specific,
+ * 13 sub-criteria with hover tooltips containing specific,
  * actionable improvement tips for each criterion.
  */
 
-/** The 10 sub-criteria in display order, with the dimension they
+/** The 13 sub-criteria in display order, with the dimension they
  *  belong to for layout grouping. */
 const SUB_CRITERIA = [
   // ATS Matching
@@ -51,7 +59,12 @@ const SUB_CRITERIA = [
   // Alignment
   { key: 'Tailoring', dimension: 'Experience match' },
   { key: 'Unique Value', dimension: 'Experience match' },
-  { key: 'Soft Skills', dimension: 'Experience match' }
+  { key: 'Soft Skills', dimension: 'Experience match' },
+  // v2 Intent Coverage
+  { key: 'Intent Coverage', dimension: 'Intent coverage' },
+  // v2 Phase 2
+  { key: 'Role Fit', dimension: 'Role fit' },
+  { key: 'Seniority Fit', dimension: 'Seniority fit' }
 ] as const;
 
 export function ScorecardPanel({
@@ -88,6 +101,13 @@ export function ScorecardPanel({
     );
   }
 
+  const tier = tierFor(breakdown.overallScore);
+  // Phase 3 v2 — surface whether v2 Intent Coverage produced usable
+  // output. The dimension always renders (neutral 50), but the
+  // breakdown's `fallback` flag tells us to either show the miss
+  // list or hide it.
+  const hasIntentSignals = !breakdown.intentCoverageBreakdown.fallback;
+
   return (
     <aside
       aria-label="ATS scorecard"
@@ -106,7 +126,12 @@ export function ScorecardPanel({
 
       <Header overall={breakdown.overallScore} />
 
-      <ul className="mt-4 space-y-2">
+      {/* Phase 3 — 7-axis radar (recharts). Sits between the badge
+          and the dimension bars so the "shape" is the first thing
+          the user scans after the headline number. */}
+      <AtsRadar breakdown={breakdown} />
+
+      <ul className="mt-4 space-y-1">
         <DimensionBar
           label="Keywords"
           score={breakdown.dimensionScores.atsMatching}
@@ -131,7 +156,34 @@ export function ScorecardPanel({
           testId="score-dim-experience-match"
           tip={dynamicTips['Tailoring'] ?? CRITERIA_TIPS['Tailoring']}
         />
+        {/* v2 dimensions — always rendered; fall back to neutral 50
+            when no signal is available (legacy rows, failed extractions,
+            no resume work history). */}
+        <DimensionBar
+          label="Intent coverage"
+          score={breakdown.dimensionScores.intentCoverage}
+          testId="score-dim-intent-coverage"
+          tip={dynamicTips['Intent Coverage'] ?? CRITERIA_TIPS['Intent Coverage']}
+        />
+        <DimensionBar
+          label="Role fit"
+          score={breakdown.dimensionScores.roleFit}
+          testId="score-dim-role-fit"
+          tip={dynamicTips['Role Fit'] ?? CRITERIA_TIPS['Role Fit']}
+        />
+        <DimensionBar
+          label="Seniority fit"
+          score={breakdown.dimensionScores.seniorityFit}
+          testId="score-dim-seniority-fit"
+          tip={dynamicTips['Seniority Fit'] ?? CRITERIA_TIPS['Seniority Fit']}
+        />
       </ul>
+
+      {/* Phase 3 — per-skill miss list, grouped by priority bucket.
+          Hidden when the v2 intent extractor produced no signal
+          (legacy JDs / failed extractions) so we don't show an
+          empty-state UI for every user that hasn't run v2 yet. */}
+      {hasIntentSignals && <MissList breakdown={breakdown.intentCoverageBreakdown} />}
 
       {/* Expandable sub-criteria breakdown with improvement tips. */}
       <button
@@ -150,7 +202,7 @@ export function ScorecardPanel({
 
       {detailsOpen && (
         <div className="mt-4 rounded-md border bg-muted/30 p-3">
-          {/* Two-column grid for the 10 sub-criteria. */}
+          {/* Two-column grid for the 13 sub-criteria. */}
           <ul
             className="grid grid-cols-2 gap-x-4 gap-y-3"
             data-testid="scorecard-sub-criteria"
@@ -189,6 +241,7 @@ export function ScorecardPanel({
 }
 
 function Header({ overall }: { overall: number }) {
+  const tier = tierFor(overall);
   return (
     <div className="mt-2 flex items-center justify-between">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -196,14 +249,14 @@ function Header({ overall }: { overall: number }) {
       </p>
       <Badge
         variant="outline"
-        className="px-1.5 py-0 text-[10px]"
+        className={cn(
+          'px-1.5 py-0 text-[10px]',
+          TIER_BADGE[tier]
+        )}
         data-testid="scorecard-tier"
+        data-tier={tier}
       >
-        {overall >= SCORE_GREEN_THRESHOLD
-          ? 'Strong'
-          : overall >= SCORE_AMBER_THRESHOLD
-            ? 'Decent'
-            : 'Needs work'}
+        {tierLabelFor(overall)}
       </Badge>
     </div>
   );
@@ -222,6 +275,9 @@ function HeaderPlaceholder() {
   );
 }
 
-// Keep tierFor imported so future consumers can read it without
-// having to also import from `dimension-bar`.
-export { tierFor } from './dimension-bar';
+// Re-export the tier helpers so future consumers can read them
+// without having to also import from `dimension-bar`.
+export { tierFor, tierLabelFor } from './dimension-bar';
+// Keep the legacy `SCORE_GREEN_THRESHOLD` re-export for any caller
+// still using the v1 name — new code should use SCORE_STRONG_THRESHOLD.
+export const SCORE_GREEN_THRESHOLD = SCORE_STRONG_THRESHOLD;

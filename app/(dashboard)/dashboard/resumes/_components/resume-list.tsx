@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils';
 import type { ResumeFamily } from '@/lib/db/queries';
 import type { Resume } from '@/lib/db/schema';
 import {
-  SCORE_GREEN_THRESHOLD,
-  SCORE_AMBER_THRESHOLD
+  tierFor,
+  type ScoreTier
 } from '@/components/scorecard/dimension-bar';
 
 import { CreateVariantButton } from './create-variant-button';
@@ -264,29 +264,28 @@ function TemplateBadge({ template }: { template: string }) {
 /**
  * Single-number score badge for the variant row.
  *
- * Same tier thresholds as the scorecard panel (SCORE_GREEN_THRESHOLD /
- * SCORE_AMBER_THRESHOLD). Imported from the scorecard module so a
- * future calibration pass only has to change the numbers in one
- * place.
+ * Uses the same tier taxonomy as the scorecard panel (Phase 3 v2:
+ * 5 tiers — strong / good / partial / limited / needs-work). Imported
+ * from the scorecard module so a future calibration pass only has
+ * to change the numbers in one place.
  *
- * Drift from plan §"Open questions" #2: the plan called for "green /
- * amber / red" tier colors on the scorecard. The badge on the
- * variant row is more constrained — we use a single text color per
- * tier rather than a filled background, so the row stays scannable
- * even with many variants.
+ * Drift from plan §"Open questions" #2: the plan originally called
+ * for a 3-tier (green / amber / red) badge. Phase 3 promoted that
+ * to 5 tiers via the Greenhouse taxonomy (strong / good / partial /
+ * limited / needs-work). We use a single text color per tier rather
+ * than a filled background so the row stays scannable with many
+ * variants.
  */
 function ScoreBadge({ score }: { score: number }) {
-  const tier =
-    score >= SCORE_GREEN_THRESHOLD
-      ? 'green'
-      : score >= SCORE_AMBER_THRESHOLD
-        ? 'amber'
-        : 'red';
-  const colorClass = {
-    green: 'text-emerald-700 dark:text-emerald-400',
-    amber: 'text-amber-700 dark:text-amber-400',
-    red: 'text-rose-700 dark:text-rose-400'
-  }[tier];
+  const tier = tierFor(score);
+  const TIER_COLOR: Record<ScoreTier, string> = {
+    strong: 'text-emerald-700 dark:text-emerald-400',
+    good: 'text-lime-700 dark:text-lime-400',
+    partial: 'text-amber-700 dark:text-amber-400',
+    limited: 'text-orange-700 dark:text-orange-400',
+    'needs-work': 'text-rose-700 dark:text-rose-400'
+  };
+  const colorClass = TIER_COLOR[tier];
   return (
     <span
       data-testid="variant-score-badge"

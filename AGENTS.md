@@ -43,6 +43,7 @@ Adding any of these needs a discussion, not a drive-by edit:
 | Framework | Next.js 16.2+ (App Router, Turbopack default, **async cookies/headers/params**) |
 | Language | TypeScript 5.x with `strict: true` |
 | UI | shadcn/ui + Tailwind v4 (no MUI, no extra CSS-in-JS libs) |
+| Charts | Recharts 3.x for the ATS scorecard radar (rationale + rollback in `docs/decisions/0004-recharts-for-ats-radar.md`) |
 | Database | Postgres (Neon in prod, postgres-js locally — driver auto-detected) |
 | ORM | Drizzle (no Prisma) |
 | Auth | Better Auth 1.6+ (no NextAuth, no Clerk) |
@@ -66,23 +67,38 @@ audit" below).
 
 **Now (in flight)** — what this session is shipping.
 
+Phase 3 v2 ATS scoring UI (shipped 2026-09-20, branch
+`feat/ats-scoring-v2-phase3`, PR to main): 5-tier Greenhouse
+scorecard badge, 7-dimension bars (4 v1 + 3 v2), 7-axis Recharts
+radar, per-skill miss list grouped by priority bucket.
+`ScoreBreakdown.dimensionScores` and `WEIGHTS_V2` (sum = 1.00) are
+the production contract. Existing scores stay on v1 weights until
+the user explicitly Recomputes (the action picks `WEIGHTS_V2` when
+the JD has v2 intent-extraction fields, else falls back to
+`WEIGHTS`).
+
 **Next (queued, priority order)**
 
-1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+1. **ATS scoring validation corpus** — 50 (JD, resume, ideal-score)
+   labeled triples for Pearson r > 0.7 acceptance gate. Deferred from
+   Phase 3 v2 — needs a labeling methodology decision (manual
+   curation vs. public dataset vs. synthetic). See
+   `docs/drift/2026-09-20-ats-v2-shipped.md`.
+2. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
-2. **Optimize work-highlights + Pro tier gate** — section-agnostic
+3. **Optimize work-highlights + Pro tier gate** — section-agnostic
    plumbing is ready (`lib/optimize/optimize-resume.ts`); add
    `work[*].highlights` rewrite, gate behind
    `subscriptions.plan === 'pro'`.
-3. **Liveblocks real-time collab UI** — presence + cursors on the
+4. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
-4. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
+5. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
    verdict.
-5. **`/api/job-contexts` + extension-ready API tokens** — so
+6. **`/api/job-contexts` + extension-ready API tokens** — so
    `nextep-ext` has a clean contract.
-6. **Template studio (Phase 6)** — admin-only template authoring.
-7. **Monorepo split** — defer until it actually bites (likely after
+7. **Template studio (Phase 6)** — admin-only template authoring.
+8. **Monorepo split** — defer until it actually bites (likely after
    collab, when packages like `lib/scoring/` start to feel cramped).
 
 **Later / parked** — see the locked non-goals above.

@@ -6,41 +6,87 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 /**
  * One horizontal dimension bar — label, filled fraction, numeric
- * score, color-coded by tier (green / amber / red per plan §"User-
- * visible behavior").
+ * score, color-coded by tier.
  *
- * Pure presentational component. Receives the score (0-100) and the
- * label. The color tier comes from `tierFor(score)`:
- *   - green: ≥ 80
- *   - amber: 50-79
- *   - red:   < 50
+ * **Tier taxonomy (Phase 3, v2):** five Greenhouse-aligned tiers
+ * via `tierFor(score)`:
+ *   - strong:     ≥ 80  (emerald)
+ *   - good:       65-79 (lime)
+ *   - partial:    50-64 (amber)
+ *   - limited:    35-49 (orange)
+ *   - needs-work: < 35  (rose)
  *
- * Thresholds inherited from the plan §"Open questions" #2 default
- * (80/50). Exported as a constant so a future calibration pass can
+ * Thresholds exported as constants so a future calibration pass can
  * shift the bands without touching the component.
  */
 
-export const SCORE_GREEN_THRESHOLD = 80;
-export const SCORE_AMBER_THRESHOLD = 50;
+export const SCORE_STRONG_THRESHOLD = 80;
+export const SCORE_GOOD_THRESHOLD = 65;
+export const SCORE_PARTIAL_THRESHOLD = 50;
+export const SCORE_LIMITED_THRESHOLD = 35;
 
-export type ScoreTier = 'green' | 'amber' | 'red';
+export type ScoreTier =
+  | 'strong'
+  | 'good'
+  | 'partial'
+  | 'limited'
+  | 'needs-work';
 
 export function tierFor(score: number): ScoreTier {
-  if (score >= SCORE_GREEN_THRESHOLD) return 'green';
-  if (score >= SCORE_AMBER_THRESHOLD) return 'amber';
-  return 'red';
+  if (score >= SCORE_STRONG_THRESHOLD) return 'strong';
+  if (score >= SCORE_GOOD_THRESHOLD) return 'good';
+  if (score >= SCORE_PARTIAL_THRESHOLD) return 'partial';
+  if (score >= SCORE_LIMITED_THRESHOLD) return 'limited';
+  return 'needs-work';
+}
+
+/** Human-readable label for the tier badge in the scorecard header. */
+export function tierLabelFor(score: number): string {
+  switch (tierFor(score)) {
+    case 'strong':
+      return 'Strong';
+    case 'good':
+      return 'Good';
+    case 'partial':
+      return 'Partial';
+    case 'limited':
+      return 'Limited';
+    case 'needs-work':
+      return 'Needs work';
+  }
 }
 
 const TIER_BAR_BG: Record<ScoreTier, string> = {
-  green: 'bg-emerald-500',
-  amber: 'bg-amber-500',
-  red: 'bg-rose-500'
+  strong: 'bg-emerald-500',
+  good: 'bg-lime-500',
+  partial: 'bg-amber-500',
+  limited: 'bg-orange-500',
+  'needs-work': 'bg-rose-500'
 };
 
 const TIER_TEXT: Record<ScoreTier, string> = {
-  green: 'text-emerald-700 dark:text-emerald-400',
-  amber: 'text-amber-700 dark:text-amber-400',
-  red: 'text-rose-700 dark:text-rose-400'
+  strong: 'text-emerald-700 dark:text-emerald-400',
+  good: 'text-lime-700 dark:text-lime-400',
+  partial: 'text-amber-700 dark:text-amber-400',
+  limited: 'text-orange-700 dark:text-orange-400',
+  'needs-work': 'text-rose-700 dark:text-rose-400'
+};
+
+/**
+ * Tier-specific Tailwind classes for the scorecard header badge.
+ * Uses subtle background tints (not the full bar colors) so a 5-tier
+ * badge stays readable when collapsed next to the headline number.
+ */
+export const TIER_BADGE: Record<ScoreTier, string> = {
+  strong:
+    'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
+  good: 'bg-lime-100 text-lime-800 border-lime-200 dark:bg-lime-950 dark:text-lime-300 dark:border-lime-800',
+  partial:
+    'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+  limited:
+    'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800',
+  'needs-work':
+    'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800'
 };
 
 export function DimensionBar({
@@ -101,7 +147,7 @@ export function DimensionBar({
       data-testid={testId ?? `score-dim-${label.toLowerCase().replace(/\s+/g, '-')}`}
       className="flex items-center gap-3 py-1"
     >
-      <span className="w-24 shrink-0 text-xs text-muted-foreground">
+      <span className="w-28 shrink-0 text-xs text-muted-foreground">
         {labelContent}
       </span>
       <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">

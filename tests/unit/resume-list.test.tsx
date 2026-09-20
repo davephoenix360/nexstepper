@@ -216,7 +216,9 @@ describe('ResumeList', () => {
     ]);
     expect(html).toContain('data-testid="variant-score-badge"');
     expect(html).toContain('data-score="78"');
-    expect(html).toContain('data-tier="amber"');
+    // Phase 3 v2 — 5-tier taxonomy. score=78 falls in the "good"
+    // band (65-79), not the old 3-tier "amber".
+    expect(html).toContain('data-tier="good"');
   });
 
   it('omits the score badge when the variant score is null', () => {

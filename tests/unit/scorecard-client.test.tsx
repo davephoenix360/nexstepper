@@ -89,8 +89,8 @@ describe('ScorecardClient', () => {
     );
     expect(html).toContain('data-testid="scorecard"');
     expect(html).toContain('78');
-    // overallScore=78 → "Decent" tier (50-79, below the green 80 line).
-    expect(html).toContain('Decent');
+    // overallScore=78 → "Good" tier (65-79, below the 80 "Strong" line).
+    expect(html).toContain('Good');
   });
 
   it('renders the empty state when no JD is attached', () => {

@@ -87,16 +87,30 @@ describe('ScorecardPanel — with breakdown', () => {
     expect(html).toContain('Strong');
   });
 
-  it('shows the "Decent" tier badge when overall is 50-79', () => {
+  it('shows the "Partial" tier badge when overall is 50-64', () => {
     const html = renderToStaticMarkup(
-      <ScorecardPanel breakdown={makeBreakdown({ overallScore: 65 })} />
+      <ScorecardPanel breakdown={makeBreakdown({ overallScore: 55 })} />
     );
-    expect(html).toContain('Decent');
+    expect(html).toContain('Partial');
   });
 
-  it('shows the "Needs work" tier badge when overall < 50', () => {
+  it('shows the "Good" tier badge when overall is 65-79', () => {
     const html = renderToStaticMarkup(
-      <ScorecardPanel breakdown={makeBreakdown({ overallScore: 35 })} />
+      <ScorecardPanel breakdown={makeBreakdown({ overallScore: 72 })} />
+    );
+    expect(html).toContain('Good');
+  });
+
+  it('shows the "Limited" tier badge when overall is 35-49', () => {
+    const html = renderToStaticMarkup(
+      <ScorecardPanel breakdown={makeBreakdown({ overallScore: 42 })} />
+    );
+    expect(html).toContain('Limited');
+  });
+
+  it('shows the "Needs work" tier badge when overall < 35', () => {
+    const html = renderToStaticMarkup(
+      <ScorecardPanel breakdown={makeBreakdown({ overallScore: 25 })} />
     );
     expect(html).toContain('Needs work');
   });
