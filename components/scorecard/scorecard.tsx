@@ -99,6 +99,24 @@ export function ScorecardPanel({
 
       <Header overall={breakdown.overallScore} />
 
+      {/* Recompute button — moved up here (was at the bottom of the
+          panel) so it sits close to the overall score + tier badge.
+          Hybrid recompute is the primary action a user takes when
+          the score feels stale; placing it near the score reduces
+          the eye-travel cost. */}
+      <div className="mt-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-muted-foreground"
+          onClick={onRecompute}
+          disabled={!onRecompute || computing}
+          data-testid="scorecard-recompute"
+        >
+          {computing ? 'Scoring…' : 'Recompute'}
+        </Button>
+      </div>
+
       {/* Phase 3 — 7-axis radar (recharts). Sits between the badge
           and the dimension bars so the "shape" is the first thing
           the user scans after the headline number. */}
@@ -161,19 +179,6 @@ export function ScorecardPanel({
       <p className="mt-4 text-xs text-muted-foreground">
         Computed in {breakdown.computedInMs} ms.
       </p>
-
-      <div className="mt-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs text-muted-foreground"
-          onClick={onRecompute}
-          disabled={!onRecompute || computing}
-          data-testid="scorecard-recompute"
-        >
-          {computing ? 'Scoring…' : 'Recompute'}
-        </Button>
-      </div>
     </aside>
   );
 }
