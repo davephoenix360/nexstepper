@@ -66,7 +66,7 @@ export function ScorecardPanel({
       <aside
         aria-label="ATS scorecard"
         data-testid="scorecard-empty-wrapper"
-        className="rounded-lg border bg-card p-4"
+        className="no-print rounded-lg border bg-card p-4"
       >
         <HeaderPlaceholder />
         <EmptyScorecardState />
@@ -85,7 +85,7 @@ export function ScorecardPanel({
     <aside
       aria-label="ATS scorecard"
       data-testid="scorecard"
-      className="rounded-lg border bg-card p-4"
+      className="no-print rounded-lg border bg-card p-4"
     >
       <div className="flex items-baseline justify-between gap-2">
         <p

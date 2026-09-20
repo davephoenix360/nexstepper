@@ -43,6 +43,7 @@ import {
   FieldChips,
   type FieldMode
 } from './field';
+import { SmartSection } from './section';
 import { MINIMAL_TEMPLATE_META } from './meta';
 import type { ResumeData } from '@/lib/resume-schema';
 
@@ -139,7 +140,7 @@ function MinimalHeader({ mode, accent }: { mode: FieldMode; accent: string }) {
 function MinimalBody({ mode }: { mode: FieldMode }) {
   return (
     <div className="space-y-7">
-      <MinimalSection mode={mode} title="Summary">
+      <SmartSection mode={mode} title="Summary">
         <FieldArea
           mode={mode}
           path="sections.basics.summary"
@@ -147,60 +148,28 @@ function MinimalBody({ mode }: { mode: FieldMode }) {
           className="text-[10.5pt] leading-relaxed text-zinc-700"
           placeholder="A couple of lines summarizing who you are."
         />
-      </MinimalSection>
+      </SmartSection>
 
-      <MinimalSection mode={mode} title="Experience">
+      <SmartSection mode={mode} title="Experience">
         <MinimalExperience mode={mode} />
-      </MinimalSection>
+      </SmartSection>
 
-      <MinimalSection mode={mode} title="Skills">
+      <SmartSection mode={mode} title="Skills">
         <MinimalSkills mode={mode} />
-      </MinimalSection>
+      </SmartSection>
 
-      <MinimalSection mode={mode} title="Education">
+      <SmartSection mode={mode} title="Education">
         <MinimalEducation mode={mode} />
-      </MinimalSection>
+      </SmartSection>
 
-      <MinimalSection mode={mode} title="Projects">
+      <SmartSection mode={mode} title="Projects">
         <MinimalProjects mode={mode} />
-      </MinimalSection>
+      </SmartSection>
 
-      <MinimalSection mode={mode} title="Volunteer">
+      <SmartSection mode={mode} title="Volunteer">
         <MinimalVolunteer mode={mode} />
-      </MinimalSection>
+      </SmartSection>
     </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Section wrapper                                                            */
-/* -------------------------------------------------------------------------- */
-
-function MinimalSection({
-  mode,
-  title,
-  children
-}: {
-  mode: FieldMode;
-  title: string;
-  children: React.ReactNode;
-}) {
-  // Hide empty sections in read-only mode (no "+ Add" button to show).
-  // In editable mode, the section is always rendered so the editor
-  // affordances remain reachable; the print:hidden utility suppresses
-  // them from PDF.
-  if (!mode.editable) {
-    // We deliberately let `children` render -- empty children yield
-    // null on their own, so the section header doesn't appear unless
-    // there's actual content. No content check needed here.
-  }
-  return (
-    <section>
-      <h2 className="mb-2 text-[10pt] font-medium uppercase tracking-[0.18em] text-zinc-500">
-        {title}
-      </h2>
-      {children}
-    </section>
   );
 }
 

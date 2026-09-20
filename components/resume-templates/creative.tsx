@@ -211,6 +211,14 @@ function CreativeSection({
   accent: string;
   children: React.ReactNode;
 }) {
+  // Suppress the entire section (header + colored rule + content)
+  // when the child rendered null in read-only mode. Without this
+  // guard, "Portfolio & Tools" would appear in the PDF as a header
+  // band with the colored accent rule but no body underneath.
+  // Same null-detection convention as SmartSection.
+  if (!mode.editable && (children === null || children === undefined)) {
+    return null;
+  }
   return (
     <section>
       <div className="mb-3 flex items-center gap-3">

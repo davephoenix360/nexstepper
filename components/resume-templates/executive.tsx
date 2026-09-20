@@ -39,6 +39,7 @@ import {
   FieldChips,
   type FieldMode
 } from './field';
+import { SmartSection } from './section';
 import { EXECUTIVE_TEMPLATE_META } from './meta';
 import type { ResumeData } from '@/lib/resume-schema';
 
@@ -205,6 +206,15 @@ function ExecutiveSection({
   title: string;
   children: React.ReactNode;
 }) {
+  // Suppress the entire section (header + content) when the child
+  // rendered null in read-only mode. Without this guard, "Publications
+  // & Speaking" or "Board & Advisory Roles" would appear in the PDF
+  // as a header band with no body underneath. Same null-detection
+  // convention as SmartSection; child renderers MUST return null
+  // (not an empty fragment) when they have no data in read-only.
+  if (!mode.editable && (children === null || children === undefined)) {
+    return null;
+  }
   return (
     <section>
       <h2 className="mb-2 border-b border-zinc-300 pb-1 text-[10pt] font-serif font-semibold uppercase tracking-[0.18em] text-zinc-800">

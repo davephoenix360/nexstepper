@@ -141,7 +141,7 @@ export default async function ResumeEditorPage({
         </div>
 
         {showRightRail && (
-          <div className="flex w-full shrink-0 flex-col gap-4 lg:w-80 lg:sticky lg:top-4">
+          <div className="no-print flex w-full shrink-0 flex-col gap-4 lg:w-80 lg:sticky lg:top-4">
             <JdPanel resumeId={resume.id} jobContext={data.jobContext ?? null} />
             <ScorecardClient
               resumeId={resume.id}
