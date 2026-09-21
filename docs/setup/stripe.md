@@ -147,7 +147,7 @@ each other. Whatever you do, the Price ID for live goes in
 2. **Endpoint URL:** `https://<your-prod-domain>/api/stripe/webhook`
    (the Vercel auto-generated domain, or your custom domain if set).
 3. **Description:** `Nextep production subscription events`
-4. **API version:** `2025-04-30.basil` (matches
+4. **API version:** `2026-08-26.dahlia` (matches
    `lib/payments/stripe.ts:14`). Stripe will warn if the Dashboard
    version differs from the SDK version — match it to suppress.
 5. **Events to send** (under "Select events"):
@@ -179,10 +179,11 @@ each other. Whatever you do, the Price ID for live goes in
 
 ---
 
-## 3. Managed Payments gotcha (Stripe API `>= 2025-04-30.basil`)
+## 3. Managed Payments gotcha (Stripe API `>= 2025-04-30.basil`, still applies on `2026-08-26.dahlia`)
 
 Stripe's "Managed Payments" feature, enabled by default on accounts
-created/running on API version `2025-04-30.basil` and later,
+created/running on API version `2025-04-30.basil` (still the
+default on `2026-08-26.dahlia`, the current pin),
 **auto-selects payment methods** based on the customer's locale and
 your Dashboard settings.
 
