@@ -4,6 +4,10 @@ import {
   handleSubscriptionChange,
   stripe
 } from '@/lib/payments/stripe';
+import {
+  markStripeEventProcessed,
+  wasStripeEventProcessed
+} from '@/lib/db/queries';
 import { NextRequest, NextResponse } from 'next/server';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -22,6 +26,15 @@ export async function POST(request: NextRequest) {
       { error: 'Webhook signature verification failed.' },
       { status: 400 }
     );
+  }
+
+  // At-least-once dedupe: if we've already processed this event ID,
+  // skip the handler entirely and ack with 200. Stripe's exponential
+  // backoff can replay an event multiple times; without this, we'd
+  // double-update the local row + double-bump the retry counter.
+  if (await wasStripeEventProcessed(event.id)) {
+    console.log(`Stripe event ${event.id} already processed; skipping`);
+    return NextResponse.json({ received: true });
   }
 
   try {
@@ -71,6 +84,14 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  // Mark as processed AFTER the handler returns successfully. If we
+  // marked before and the handler threw, a retry would be silently
+  // dropped (the dedupe check would skip it before we could retry).
+  // Marking after means: we only record an event as "done" when we
+  // actually finished the work — retries for transient failures
+  // (LocalSubscriptionNotFoundError, DB hiccup, …) still happen.
+  await markStripeEventProcessed(event.id, event.type);
 
   return NextResponse.json({ received: true });
 }

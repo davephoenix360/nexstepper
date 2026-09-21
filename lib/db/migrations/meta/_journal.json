@@ -29,6 +29,13 @@
       "when": 1788320775954,
       "tag": "0003_common_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789960112274,
+      "tag": "0004_gifted_photon",
+      "breakpoints": true
     }
   ]
 }

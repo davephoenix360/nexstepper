@@ -6,6 +6,7 @@ import {
   resumes,
   resumeRevisions,
   resumeVariants,
+  stripeEventsProcessed,
   subscriptions,
   user,
   type Application,
@@ -123,6 +124,38 @@ export async function upsertSubscription(
       target: subscriptions.userId,
       set: { ...data, updatedAt: new Date() }
     });
+}
+
+// ─── Stripe webhook idempotency ───────────────────────────────────────────
+
+/**
+ * Returns true if this Stripe event ID has already been processed.
+ * Used by the webhook route to short-circuit at-least-once duplicate
+ * deliveries. The lookup is a single btree hit on the primary key.
+ */
+export async function wasStripeEventProcessed(eventId: string): Promise<boolean> {
+  const row = await db
+    .select({ id: stripeEventsProcessed.eventId })
+    .from(stripeEventsProcessed)
+    .where(eq(stripeEventsProcessed.eventId, eventId))
+    .limit(1);
+  return row.length > 0;
+}
+
+/**
+ * Mark a Stripe event as processed. Safe to call concurrently —
+ * `onConflictDoNothing` makes the second writer a no-op. We never
+ * throw on the unique-constraint path; the row exists, which is
+ * the only invariant we care about.
+ */
+export async function markStripeEventProcessed(
+  eventId: string,
+  eventType: string
+): Promise<void> {
+  await db
+    .insert(stripeEventsProcessed)
+    .values({ eventId, eventType })
+    .onConflictDoNothing();
 }
 
 // ─── Resume queries ─────────────────────────────────────────────────────────

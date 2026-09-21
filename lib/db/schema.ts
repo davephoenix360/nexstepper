@@ -62,6 +62,38 @@ export const verification = pgTable('verification', {
   updatedAt: timestamp('updated_at').defaultNow()
 });
 
+/**
+ * Idempotency log for Stripe webhook events.
+ *
+ * Stripe webhooks are at-least-once. The same `customer.subscription.updated`
+ * can land multiple times in quick succession and double-update the local
+ * row (or double-charge the retry counter, etc.). We dedupe by recording
+ * every processed event ID here; the webhook route checks this table
+ * before doing any work and writes a row after success.
+ *
+ * Rows are append-only; we never delete. A periodic cleanup job can
+ * prune old rows (e.g. > 30 days) if the table grows. Indexed on
+ * event_type for ad-hoc inspection ("how many invoice.* events
+ * did we drop today?").
+ */
+export const stripeEventsProcessed = pgTable(
+  'stripe_events_processed',
+  {
+    /** Stripe event.id (e.g. 'evt_1ABC...'). Primary key — deduplication anchor. */
+    eventId: text('event_id').primaryKey(),
+    /** Stripe event.type — recorded for debugging + future cleanup jobs. */
+    eventType: text('event_type').notNull(),
+    /** Server-side timestamp; useful for the periodic prune. */
+    processedAt: timestamp('processed_at').notNull().defaultNow()
+  },
+  (table) => [
+    index('stripe_events_processed_type_idx').on(table.eventType)
+  ]
+);
+
+export type StripeEventProcessed = typeof stripeEventsProcessed.$inferSelect;
+export type NewStripeEventProcessed = typeof stripeEventsProcessed.$inferInsert;
+
 // --- Nextep domain tables ---
 
 /**

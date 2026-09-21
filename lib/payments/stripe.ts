@@ -66,26 +66,38 @@ export async function createCheckoutSession({
 }) {
   const sub = await getSubscription();
 
-  const session = await stripe.checkout.sessions.create({
-    // NOTE: do NOT pass `payment_method_types` here. Stripe's
-    // "Managed Payments" feature (enabled by default on API version
-    // 2025-04-30.basil and later) auto-selects payment methods
-    // based on the customer's locale + your Dashboard settings.
-    // Passing `payment_method_types: ['card']` triggers a 400
-    // `Unsupported parameter: payment_method_types` error.
-    // See `docs/setup/stripe.md` §"Managed Payments gotcha".
-    line_items: [{ price: priceId, quantity: 1 }],
-    mode: 'subscription',
-    success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.BASE_URL}/pricing`,
-    customer: sub.stripeCustomerId ?? undefined,
-    customer_email: sub.stripeCustomerId ? undefined : email,
-    client_reference_id: userId,
-    allow_promotion_codes: true,
-    subscription_data: {
-      trial_period_days: 7
-    }
-  });
+  // Stripe-side idempotency: dedupe rapid double-clicks (the user
+  // hits the CTA twice, two checkout sessions get created in quick
+  // succession). The key is userId + priceId + minute bucket, so
+  // the same user can intentionally buy again ~1 minute later (e.g.
+  // switched plans) but rapid duplicates collapse into one session.
+  // The minute window matches Stripe's recommended idempotency window
+  // for one-shot actions.
+  const idempotencyKey = `${userId}:${priceId}:${Math.floor(Date.now() / 60000)}`;
+
+  const session = await stripe.checkout.sessions.create(
+    {
+      // NOTE: do NOT pass `payment_method_types` here. Stripe's
+      // "Managed Payments" feature (enabled by default on API version
+      // 2026-08-26.dahlia) auto-selects payment methods
+      // based on the customer's locale + your Dashboard settings.
+      // Passing `payment_method_types: ['card']` triggers a 400
+      // `Unsupported parameter: payment_method_types` error.
+      // See `docs/setup/stripe.md` §"Managed Payments gotcha".
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: 'subscription',
+      success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.BASE_URL}/pricing`,
+      customer: sub.stripeCustomerId ?? undefined,
+      customer_email: sub.stripeCustomerId ? undefined : email,
+      client_reference_id: userId,
+      allow_promotion_codes: true,
+      subscription_data: {
+        trial_period_days: 7
+      }
+    },
+    { idempotencyKey }
+  );
 
   redirect(session.url!);
 }

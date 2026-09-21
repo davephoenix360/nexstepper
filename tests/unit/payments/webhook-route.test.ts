@@ -20,6 +20,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 const mockConstructEvent = vi.fn();
 const mockHandleSubscriptionChange = vi.fn();
+const mockWasStripeEventProcessed = vi.fn();
+const mockMarkStripeEventProcessed = vi.fn();
 
 vi.mock('@/lib/payments/stripe', () => ({
   stripe: {
@@ -39,6 +41,13 @@ vi.mock('@/lib/payments/stripe', () => ({
       this.customerId = customerId;
     }
   }
+}));
+
+vi.mock('@/lib/db/queries', () => ({
+  wasStripeEventProcessed: (...args: unknown[]) =>
+    mockWasStripeEventProcessed(...args),
+  markStripeEventProcessed: (...args: unknown[]) =>
+    mockMarkStripeEventProcessed(...args)
 }));
 
 type FakeRequest = { text: () => Promise<string>; headers: { get: (k: string) => string | null } };
@@ -85,6 +94,10 @@ describe('POST /api/stripe/webhook', () => {
     mockConstructEvent.mockReset();
     mockHandleSubscriptionChange.mockReset();
     mockHandleSubscriptionChange.mockResolvedValue(undefined);
+    mockWasStripeEventProcessed.mockReset();
+    mockWasStripeEventProcessed.mockResolvedValue(false);
+    mockMarkStripeEventProcessed.mockReset();
+    mockMarkStripeEventProcessed.mockResolvedValue(undefined);
     lastJsonBody = null;
     lastJsonStatus = null;
     // STRIPE_WEBHOOK_SECRET is read at module load; the mock value
@@ -195,5 +208,58 @@ describe('POST /api/stripe/webhook', () => {
 
     expect(lastJsonStatus).toBe(400);
     expect(mockHandleSubscriptionChange).not.toHaveBeenCalled();
+  });
+
+  // ---- Idempotency (fix #7) ---------------------------------------------
+
+  it('skips processing when the event ID was already processed (returns 200, no handler call)', async () => {
+    mockConstructEvent.mockReturnValue(makeFakeEvent('customer.subscription.updated'));
+    mockWasStripeEventProcessed.mockResolvedValue(true);
+
+    await POST(makeRequest() as unknown as never);
+
+    expect(mockWasStripeEventProcessed).toHaveBeenCalledWith('evt_1');
+    expect(mockHandleSubscriptionChange).not.toHaveBeenCalled();
+    expect(mockMarkStripeEventProcessed).not.toHaveBeenCalled();
+    expect(lastJsonStatus).toBe(200);
+    expect(lastJsonBody).toEqual({ received: true });
+    expect(logSpy).toHaveBeenCalledWith('Stripe event evt_1 already processed; skipping');
+  });
+
+  it('marks the event as processed after a successful customer.subscription.updated handler', async () => {
+    mockConstructEvent.mockReturnValue(makeFakeEvent('customer.subscription.updated'));
+
+    await POST(makeRequest() as unknown as never);
+
+    expect(mockHandleSubscriptionChange).toHaveBeenCalledTimes(1);
+    expect(mockMarkStripeEventProcessed).toHaveBeenCalledWith(
+      'evt_1',
+      'customer.subscription.updated'
+    );
+    expect(lastJsonStatus).toBe(200);
+  });
+
+  it('marks the event as processed even for noisy / unhandled events (no double-retry storm)', async () => {
+    // Critical: we must mark AFTER the switch, not inside it. A noisy
+    // event (e.g. invoice.*) should still be recorded as processed so
+    // Stripe's retries don't keep hitting the same no-op case.
+    mockConstructEvent.mockReturnValue(makeFakeEvent('invoice.finalized'));
+
+    await POST(makeRequest() as unknown as never);
+
+    expect(mockMarkStripeEventProcessed).toHaveBeenCalledWith('evt_1', 'invoice.finalized');
+    expect(lastJsonStatus).toBe(200);
+  });
+
+  it('does NOT mark the event as processed when handleSubscriptionChange throws (lets Stripe retry)', async () => {
+    mockConstructEvent.mockReturnValue(makeFakeEvent('customer.subscription.updated'));
+    mockHandleSubscriptionChange.mockRejectedValue(
+      new LocalSubscriptionNotFoundError('cus_1')
+    );
+
+    await POST(makeRequest() as unknown as never);
+
+    expect(mockMarkStripeEventProcessed).not.toHaveBeenCalled();
+    expect(lastJsonStatus).toBe(500);
   });
 });
