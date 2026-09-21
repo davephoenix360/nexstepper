@@ -1,12 +1,19 @@
 import Stripe from 'stripe';
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, attachStripeCustomer } from '@/lib/payments/stripe';
+import {
+  stripe,
+  attachStripeCustomer,
+  handleSubscriptionChange
+} from '@/lib/payments/stripe';
 
 /**
  * Stripe Checkout redirects here on success. We pull the subscription
- * metadata, attach the customer ID to our local subscription row, and
- * then bounce the user to /dashboard. The webhook handler will populate
- * the rest of the subscription fields asynchronously.
+ * metadata, attach the customer ID to our local subscription row, then
+ * SYNCHRONOUSLY run `handleSubscriptionChange` so the local row is in
+ * sync before the user lands on `/dashboard` — closing the webhook →
+ * page-load race documented in `docs/decisions/0007-tier-gating.md`
+ * §5. The webhook handler remains the source of truth for subsequent
+ * events (renewals, payment failures, cancellations).
  */
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get('session_id');
@@ -31,6 +38,29 @@ export async function GET(request: NextRequest) {
     }
 
     await attachStripeCustomer(userId, customerId);
+
+    // Resolve `session.subscription` (string | Stripe.Subscription | null)
+    // to a full Stripe.Subscription and call handleSubscriptionChange
+    // synchronously. Wrapped in its own try/catch so a Stripe API hiccup
+    // on the sync path doesn't break the redirect — the webhook will
+    // retry and catch us up either way.
+    try {
+      const subscriptionOrId = session.subscription;
+      const subscription: Stripe.Subscription | null =
+        typeof subscriptionOrId === 'string'
+          ? await stripe.subscriptions.retrieve(subscriptionOrId)
+          : (subscriptionOrId ?? null);
+
+      if (subscription) {
+        await handleSubscriptionChange(subscription);
+      }
+    } catch (syncError) {
+      console.error(
+        'Synchronous handleSubscriptionChange failed on checkout success; relying on webhook retry:',
+        syncError
+      );
+    }
+
     return NextResponse.redirect(new URL('/dashboard', request.url));
   } catch (error) {
     console.error('Error handling successful checkout:', error);

@@ -77,6 +77,24 @@ export async function createCustomerPortalSession() {
   redirect(portalSession.url);
 }
 
+/**
+ * Thrown by `handleSubscriptionChange` when the local `subscriptions`
+ * row for a Stripe customer does not exist yet — typically the
+ * checkout-success redirect lost the race to the webhook. The webhook
+ * route catches this and returns 500 so Stripe retries with exponential
+ * backoff; the retry succeeds once a subsequent event creates the row.
+ */
+export class LocalSubscriptionNotFoundError extends Error {
+  readonly code = 'local_subscription_not_found' as const;
+  readonly customerId: string;
+
+  constructor(customerId: string) {
+    super(`No local subscription row for Stripe customer ${customerId}`);
+    this.name = 'LocalSubscriptionNotFoundError';
+    this.customerId = customerId;
+  }
+}
+
 export async function handleSubscriptionChange(
   subscription: Stripe.Subscription
 ) {
@@ -89,8 +107,10 @@ export async function handleSubscriptionChange(
 
   const existing = await getSubscriptionByStripeCustomerId(customerId);
   if (!existing) {
-    console.error('No subscription row for Stripe customer:', customerId);
-    return;
+    // Signal "retry me later" to the webhook route. The row will be
+    // created by the checkout success route (which attaches the Stripe
+    // customer ID synchronously) or by a subsequent webhook event.
+    throw new LocalSubscriptionNotFoundError(customerId);
   }
 
   const item = subscription.items.data[0];
