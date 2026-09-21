@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { PRICE_IDS, getStripePrices } from '@/lib/payments/stripe';
 import { getSubscription } from '@/lib/db/queries';
+import { isProEffective } from '@/lib/billing';
 
 // Render at request time so the build doesn't depend on a live Stripe API key.
 // Phase 0: this lets Vercel deploys succeed without configuring Stripe yet.
@@ -53,7 +54,11 @@ const PRO_FEATURES = [
 
 export default async function PricingPage() {
   const sub = await getSubscription();
-  const currentPlan = sub.plan;
+  // `isProEffective` is the canonical "is this user Pro right now?"
+  // predicate (lib/billing/types.ts). Use it instead of `sub.plan === 'pro'`
+  // so a canceled-Pro / past_due / unpaid user sees Free as their current
+  // plan — matching what `requirePro()` enforces server-side.
+  const isPro = isProEffective(sub);
 
   // Pull the live Pro price from Stripe so the display auto-tracks
   // whatever the founder configures in the Dashboard. If Stripe is
@@ -115,7 +120,11 @@ export default async function PricingPage() {
 
       <div className="grid md:grid-cols-2 gap-6">
         {PLANS.map((plan) => {
-          const isCurrent = currentPlan === plan.id;
+          // Symmetric to the server gate: the Pro card is "current"
+          // iff the user is Pro-effective; the Free card is "current"
+          // iff the user is not. A canceled-Pro user therefore sees
+          // Free as their current plan, not Pro.
+          const isCurrent = plan.id === 'pro' ? isPro : !isPro;
           return (
             <Card
               key={plan.id}
