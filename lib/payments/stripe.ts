@@ -15,6 +15,30 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /**
+ * Process-local retry counter for `LocalSubscriptionNotFoundError`.
+ *
+ * When a Stripe webhook fires for a customer we never linked to a
+ * Nextep user (e.g. the customer was created in the Stripe Dashboard
+ * by hand, or the checkout flow died before `attachStripeCustomer`
+ * ran), `handleSubscriptionChange` can't sync anything. The webhook
+ * route returns 500, Stripe retries with exponential backoff, and the
+ * server keeps getting hit for ~3 days before Stripe gives up. To
+ * avoid that waste, we cap retries per customer ID here. After N
+ * throws we demote to a silent log + return, the route returns 200,
+ * and Stripe stops retrying.
+ *
+ * Caveats (acceptable for v1):
+ *   - Process-local: in a multi-instance Vercel deploy, each instance
+ *     has its own count. The cap is per-instance, not global. Long
+ *     term: persist the counter in the DB.
+ *   - The map grows unbounded over time. Keys are Stripe customer IDs
+ *     (bounded by your customer count), so the leak is small. Long
+ *     term: add periodic cleanup or a max-size LRU.
+ */
+const notFoundRetries = new Map<string, number>();
+const NOT_FOUND_RETRY_CAP = 5;
+
+/**
  * Nextep plan → Stripe Price ID mapping.
  *
  * Phase 0: read from env so prod / staging can use different price IDs.
@@ -107,9 +131,23 @@ export async function handleSubscriptionChange(
 
   const existing = await getSubscriptionByStripeCustomerId(customerId);
   if (!existing) {
-    // Signal "retry me later" to the webhook route. The row will be
-    // created by the checkout success route (which attaches the Stripe
-    // customer ID synchronously) or by a subsequent webhook event.
+    // We don't have a local row for this Stripe customer. Most likely
+    // the checkout success route lost the race to attach the customer
+    // ID, and a subsequent event will create the row. To avoid a
+    // 3-day Stripe retry storm on customers we'll never track (Stripe
+    // Dashboard hand-created customers, etc.), bump a per-customer
+    // counter; once it exceeds the cap, drop the event by returning
+    // normally (the route returns 200 → Stripe stops retrying).
+    const count = (notFoundRetries.get(customerId) ?? 0) + 1;
+    notFoundRetries.set(customerId, count);
+    if (count > NOT_FOUND_RETRY_CAP) {
+      console.warn(
+        `[stripe] LocalSubscriptionNotFoundError for customer ${customerId} ` +
+        `exceeded ${NOT_FOUND_RETRY_CAP} retries; dropping event. ` +
+        `This usually means the Stripe customer was never linked to a Nextep user.`
+      );
+      return;
+    }
     throw new LocalSubscriptionNotFoundError(customerId);
   }
 

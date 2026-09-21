@@ -26,7 +26,7 @@ vi.mock('@/lib/db/queries', () => ({
 
 // --- Imports -------------------------------------------------------------
 
-import { handleSubscriptionChange } from '@/lib/payments/stripe';
+import { handleSubscriptionChange, LocalSubscriptionNotFoundError } from '@/lib/payments/stripe';
 import type Stripe from 'stripe';
 
 function makeExistingRow() {
@@ -106,5 +106,33 @@ describe('handleSubscriptionChange', () => {
       plan: 'free', // PRICE_IDS.pro is undefined in the test env
       status: 'active'
     });
+  });
+
+  // ---- Retry-cap hardening (fix #5) -------------------------------------
+
+  it('throws LocalSubscriptionNotFoundError for the first N attempts then drops silently', async () => {
+    // Use a unique customer ID so this test is order-independent
+    // (the retry counter is process-local module state).
+    const customerId = 'cus_retry_test_unique';
+    mockGetSubscriptionByStripeCustomerId.mockResolvedValue(null);
+
+    const sub = { id: 'sub_retry', customer: customerId, status: 'active', items: { data: [] } } as unknown as Stripe.Subscription;
+
+    // The map is module-scoped and starts empty in a fresh vitest worker,
+    // so attempts 1-5 should throw and attempt 6 should silently return.
+    for (let i = 1; i <= 5; i++) {
+      await expect(handleSubscriptionChange(sub)).rejects.toBeInstanceOf(
+        LocalSubscriptionNotFoundError
+      );
+    }
+
+    // 6th call: counter exceeds cap → silent log + return.
+    await expect(handleSubscriptionChange(sub)).resolves.toBeUndefined();
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain(
+      `customer ${customerId} exceeded 5 retries`
+    );
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('dropping event');
   });
 });
