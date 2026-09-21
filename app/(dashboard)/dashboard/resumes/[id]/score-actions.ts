@@ -5,10 +5,14 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 import { auth } from '@/lib/auth';
-import { getResume } from '@/lib/db/queries';
+import { getResume, type MatchBreakdown } from '@/lib/db/queries';
 import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
 import { buildDynamicTips, type DynamicTips } from '@/lib/scoring/tips';
 import type { ScoreBreakdown } from '@/lib/scoring';
+import {
+  buildMatchBreakdown,
+  maybeAppendSkillGapEntry
+} from '@/lib/inline-issue/build-match-breakdown';
 
 /**
  * Server Action: re-run the ATS scoring engine for a variant using
@@ -57,7 +61,14 @@ import type { ScoreBreakdown } from '@/lib/scoring';
 export async function recomputeScoreAction(
   input: unknown
 ): Promise<
-  | { ok: true; data: { breakdown: ScoreBreakdown; tips: DynamicTips } }
+  | {
+      ok: true;
+      data: {
+        breakdown: ScoreBreakdown;
+        tips: DynamicTips;
+        matchBreakdown: MatchBreakdown;
+      };
+    }
   | { ok: false; error: string }
 > {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -92,8 +103,17 @@ export async function recomputeScoreAction(
   try {
     const breakdown = await scoreResumeHybridFromEnvelope(data, data.jobContext);
     const tips = buildDynamicTips(breakdown, data, data.jobContext);
+    // Per-leaf MatchBreakdown rows for the inline-issue surface.
+    // The scorecard's controller reads these to anchor the
+    // popovers; the dim bars still fall back to the
+    // `defaultPathForCriterion` heuristic when the breakdown is
+    // missing (first load + legacy rows).
+    const matchBreakdown = maybeAppendSkillGapEntry(
+      buildMatchBreakdown(breakdown),
+      breakdown
+    );
     revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
-    return { ok: true, data: { breakdown, tips } };
+    return { ok: true, data: { breakdown, tips, matchBreakdown } };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {

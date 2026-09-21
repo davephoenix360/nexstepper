@@ -11,6 +11,8 @@ import {
   dispatchInlineIssueTip
 } from './apply-bridge';
 import type { DynamicTips } from '@/lib/scoring/tips';
+import type { MatchBreakdown } from '@/lib/db/queries';
+import { defaultPathForCriterion } from '@/lib/inline-issue/criterion-to-path';
 
 /**
  * Controller hook — owns the open/close state of the popover
@@ -49,6 +51,16 @@ export type UseInlineIssueControllerOptions = {
    * map.
    */
   dynamicTips: DynamicTips;
+  /**
+   * Server-rendered per-leaf breakdown. When provided, the
+   * controller resolves the path for each criterion by looking
+   * up the MatchBreakdown row whose `criterion` matches. When
+   * not provided (first-load before the recompute finishes, or
+   * legacy rows), the controller falls back to the
+   * `defaultPathForCriterion` heuristic so the surface still
+   * works.
+   */
+  matchBreakdown?: MatchBreakdown;
 };
 
 export type TriggerInput = {
@@ -62,7 +74,8 @@ export function useInlineIssueController({
   enrichAction,
   resumeId,
   isPro,
-  dynamicTips: _dynamicTips
+  dynamicTips: _dynamicTips,
+  matchBreakdown
 }: UseInlineIssueControllerOptions) {
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [active, setActive] = React.useState<{
@@ -77,15 +90,23 @@ export function useInlineIssueController({
 
   const trigger = React.useCallback(
     ({ path, criterion }: TriggerInput) => {
-      const text = readLeafText(path);
-      const target = mapPathToSection(path, criterion);
+      // Path resolution precedence:
+      //   1. Use the `path` arg if provided (caller chose).
+      //   2. Else look up `matchBreakdown` for this criterion.
+      //   3. Else fall back to `defaultPathForCriterion(criterion)`.
+      const resolvedPath =
+        path ??
+        resolvePathFromBreakdown(matchBreakdown, criterion) ??
+        defaultPathForCriterion(criterion);
+      const text = readLeafText(resolvedPath);
+      const target = mapPathToSection(resolvedPath, criterion);
       setActive({
-        path,
+        path: resolvedPath,
         criterion,
         currentText: text,
         target: target
           ? {
-              path,
+              path: resolvedPath,
               sectionSlug: target.sectionSlug,
               sectionTitle: target.sectionTitle,
               tipKind: target.tipKind,
@@ -113,7 +134,7 @@ export function useInlineIssueController({
         setPopoverOpen(true);
       }
     },
-    [isPro]
+    [isPro, matchBreakdown]
   );
 
   const popoverProps = React.useMemo(() => {
@@ -191,3 +212,23 @@ function readLeafText(path: string): string {
 // Re-export the slug helper so consumers don't need a separate
 // import. Keeps the controller's public API a one-stop shop.
 export { sectionId, sectionSlugFor };
+
+/**
+ * Resolve a path for a criterion from the server-rendered
+ * MatchBreakdown. Returns the FIRST row whose `criterion`
+ * matches — the rows are sorted by weight DESC server-side, so
+ * the "primary" leaf is picked first. Future slices could pick
+ * a different row per dim (e.g. lowest-scoring bullet) by
+ * walking the array differently.
+ *
+ * Returns `null` when no row matches (caller falls back to the
+ * heuristic).
+ */
+function resolvePathFromBreakdown(
+  breakdown: MatchBreakdown | undefined,
+  criterion: SubCriterionKey
+): string | null {
+  if (!breakdown || breakdown.length === 0) return null;
+  const hit = breakdown.find((row) => row.criterion === criterion);
+  return hit?.path ?? null;
+}

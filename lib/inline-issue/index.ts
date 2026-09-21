@@ -57,6 +57,11 @@ export {
   defaultPathForSkill
 } from './criterion-to-path';
 
+export {
+  buildMatchBreakdown,
+  maybeAppendSkillGapEntry
+} from './build-match-breakdown';
+
 // Apply-event bridge (scorecard → editor).
 export {
   dispatchInlineIssueApply,

@@ -1137,7 +1137,15 @@ export type MatchBreakdown = Array<{
  * the keys the inline-issue surface maps to a leaf — the breakdown
  * is the source of truth that the scorecard + popover read from.
  */
-type SubCriterionKeyForBreakdown =
+/**
+ * Exported so server-side builders (e.g.
+ * `lib/inline-issue/build-match-breakdown.ts`) can produce
+ * MatchBreakdown rows that match the column's expected shape.
+ * Kept as a closed union to keep the writer honest — adding a
+ * new sub-criterion here without updating the dim-bar maps
+ * would surface as a typecheck error in the writer.
+ */
+export type SubCriterionKeyForBreakdown =
   | 'ATS Keyword Match'
   | 'ATS Similarity'
   | 'ATS Coverage'

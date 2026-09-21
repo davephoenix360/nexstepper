@@ -247,7 +247,7 @@ describe('recomputeScoreAction', () => {
     const result = await recomputeScoreAction({ resumeId: 'r1' });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      const { breakdown, tips } = result.data;
+      const { breakdown, tips, matchBreakdown } = result.data;
       expect(breakdown).toHaveProperty('overallScore');
       expect(breakdown).toHaveProperty('dimensionScores');
       expect(breakdown).toHaveProperty('criteriaScores');
@@ -258,6 +258,25 @@ describe('recomputeScoreAction', () => {
       // so it can be empty when no useful signal exists. We don't
       // assert content here; the helper's own tests cover that.
       expect(typeof tips).toBe('object');
+      // matchBreakdown is the per-leaf JSONB the inline-issue
+      // surface reads. The builder emits one row per dim bar
+      // (7) plus an optional skill-gap row, sorted by weight DESC.
+      expect(Array.isArray(matchBreakdown)).toBe(true);
+      expect(matchBreakdown.length).toBeGreaterThanOrEqual(7);
+      for (const row of matchBreakdown) {
+        expect(row).toHaveProperty('path');
+        expect(row).toHaveProperty('weight');
+        expect(row).toHaveProperty('criterion');
+        expect(row).toHaveProperty('tipKind');
+        expect(row.weight).toBeGreaterThanOrEqual(0);
+        expect(row.weight).toBeLessThanOrEqual(1);
+      }
+      // Sorted by weight DESC (stable for tests).
+      for (let i = 1; i < matchBreakdown.length; i++) {
+        expect(matchBreakdown[i - 1].weight).toBeGreaterThanOrEqual(
+          matchBreakdown[i].weight
+        );
+      }
     }
     // Confirm the hybrid (not sync-only) engine was invoked.
     expect(scoreResumeHybridFromEnvelope).toHaveBeenCalled();

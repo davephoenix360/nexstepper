@@ -6,6 +6,7 @@ import { ScorecardPanel } from '@/components/scorecard/scorecard';
 import type { JobPosting } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring';
 import type { DynamicTips } from '@/lib/scoring/tips';
+import type { MatchBreakdown } from '@/lib/db/queries';
 import {
   InlineIssuePopover,
   useInlineIssueController,
@@ -76,6 +77,7 @@ export function ScorecardClient({
   jobContext,
   initialBreakdown,
   initialDynamicTips = {},
+  initialMatchBreakdown = [],
   planId
 }: {
   resumeId: string;
@@ -89,6 +91,14 @@ export function ScorecardClient({
    */
   initialDynamicTips?: DynamicTips;
   /**
+   * Server-rendered per-leaf breakdown for the inline-issue
+   * surface. Optional — when omitted, the controller falls back
+   * to the `defaultPathForCriterion` heuristic on every dim-bar
+   * click. Threaded from the page RSC's recompute action so the
+   * breakdown is computed once and reused.
+   */
+  initialMatchBreakdown?: MatchBreakdown;
+  /**
    * Current user's plan (`free` | `pro`). Server-authoritative;
    * the server-side `requirePro()` re-checks at every action call.
    * This prop is cosmetic — drives whether the popover opens and
@@ -101,6 +111,9 @@ export function ScorecardClient({
   );
   const [dynamicTips, setDynamicTips] =
     useState<DynamicTips>(initialDynamicTips);
+  const [matchBreakdown, setMatchBreakdown] = useState<MatchBreakdown>(
+    initialMatchBreakdown
+  );
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -109,7 +122,15 @@ export function ScorecardClient({
     enrichAction: enrichBulletAction,
     resumeId,
     isPro,
-    dynamicTips
+    dynamicTips,
+    /**
+     * When the server pre-computed a MatchBreakdown, look up the
+     * path there; otherwise fall back to the heuristic. Pass the
+     * whole array so the controller can also pick the
+     * weight-aware "primary leaf" per criterion in a future
+     * slice.
+     */
+    matchBreakdown
   });
 
   function handleRecompute() {
@@ -122,6 +143,7 @@ export function ScorecardClient({
       }
       setBreakdown(result.data.breakdown);
       setDynamicTips(result.data.tips);
+      setMatchBreakdown(result.data.matchBreakdown);
     });
   }
 
