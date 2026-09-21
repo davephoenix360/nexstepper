@@ -15,6 +15,7 @@ import {
   getSubscription,
   listResumes
 } from '@/lib/db/queries';
+import { isProEffective } from '@/lib/billing';
 import type { Resume } from '@/lib/db/schema';
 
 import { RecentVariants } from './_components/recent-variants';
@@ -53,8 +54,12 @@ export default async function DashboardHome() {
           Welcome{user ? `, ${user.name || user.email}` : ''}.
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          You&apos;re on the <strong>{sub.plan === 'pro' ? 'Pro' : 'Free'}</strong>{' '}
-          plan.
+          You&apos;re on the{' '}
+          <strong>{isProEffective(sub) ? 'Pro' : 'Free'}</strong> plan.
+          {/* `isProEffective` is the canonical "is this user Pro right now?"
+              predicate (lib/billing/types.ts). Use it instead of
+              `sub.plan === 'pro'` so canceled / past_due / unpaid users
+              see "Free", matching what `requirePro()` enforces server-side. */}
         </p>
       </div>
 
