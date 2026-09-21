@@ -11,7 +11,10 @@ import {
 } from '@/lib/db/queries';
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil'
+  // SDK 22.x requires the dahlia API version — basil was dropped.
+  // Brief: docs/setup/stripe.md §"Managed Payments gotcha" still applies
+  // (do NOT pass `payment_method_types`; Stripe auto-selects).
+  apiVersion: '2026-08-26.dahlia'
 });
 
 /**
