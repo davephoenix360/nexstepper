@@ -40,7 +40,13 @@ export async function createCheckoutSession({
   const sub = await getSubscription();
 
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
+    // NOTE: do NOT pass `payment_method_types` here. Stripe's
+    // "Managed Payments" feature (enabled by default on API version
+    // 2025-04-30.basil and later) auto-selects payment methods
+    // based on the customer's locale + your Dashboard settings.
+    // Passing `payment_method_types: ['card']` triggers a 400
+    // `Unsupported parameter: payment_method_types` error.
+    // See `docs/setup/stripe.md` §"Managed Payments gotcha".
     line_items: [{ price: priceId, quantity: 1 }],
     mode: 'subscription',
     success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
