@@ -70,3 +70,8 @@ output/
 # for end-to-end verification).
 .mavis-agent.md
 .mavis-agent.local.md
+
+# Mavis agent skills directory (per-machine tooling, not part of the
+# Nextep repo — it lives under C:/Users/.../.mavis/agents/* and
+# happens to show up in the Nextep workspace via the agent context).
+.agents/
