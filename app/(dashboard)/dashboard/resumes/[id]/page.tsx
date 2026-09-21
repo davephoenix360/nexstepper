@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { getUser, getResume, getShareStatus } from '@/lib/db/queries';
+import { getUser, getResume, getShareStatus, getSubscription } from '@/lib/db/queries';
 import { EditableResume } from '@/components/editable';
 
 import { CreateVariantButton } from '../_components/create-variant-button';
@@ -14,6 +14,7 @@ import { ScorecardClient } from './_components/scorecard-client';
 import { RenameResumeControl } from './_components/rename-resume-button';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { buildDynamicTips } from '@/lib/scoring/tips';
+import { isProEffective, type PlanId } from '@/lib/billing';
 
 /**
  * Resume editor page — RSC.
@@ -93,6 +94,14 @@ export default async function ResumeEditorPage({
     ? buildDynamicTips(breakdown, data, data.jobContext ?? null)
     : {};
 
+  // Resolve the user's plan for the inline-issue surface (Free vs
+  // Pro split). Server-authoritative — we read the subscription
+  // row directly so a devtools-tampered client can't trick the
+  // scorecard into showing the Pro UI. The same data drives
+  // `requirePro()` at every action call.
+  const subscription = await getSubscription();
+  const planId: PlanId = isProEffective(subscription) ? 'pro' : 'free';
+
   return (
     <section className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
       <header className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -137,6 +146,7 @@ export default async function ResumeEditorPage({
             resumeId={resume.id}
             initialData={data}
             isMaster={resume.isMaster}
+            initialDynamicTips={dynamicTips}
           />
         </div>
 
@@ -148,6 +158,7 @@ export default async function ResumeEditorPage({
               jobContext={data.jobContext ?? null}
               initialBreakdown={breakdown}
               initialDynamicTips={dynamicTips}
+              planId={planId}
             />
           </div>
         )}

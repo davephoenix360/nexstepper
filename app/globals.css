@@ -371,3 +371,36 @@
 .page-break-before { break-before: page; }
 .page-break-after  { break-after: page; }
 .avoid-break       { break-inside: avoid; }
+
+/*
+  Inline-issue pulse (Playwright:
+
+  The scorecard dims add + remove a `.issue-pulse` class to a
+  section header (id="section-{slug}") for ~1.5s when the user
+  clicks a dim bar. The animation pulses a soft indigo glow that
+  fades back to the page's natural surface — it's the visual
+  "look here" cue. The animation lives in print-unaffected CSS
+  (no `@media print` wrapper needed; the scorecard itself is
+  hidden in print via `.no-print` so the pulse never appears in
+  PDFs even if a dim-bar click happened to fire during a print
+  operation).
+
+  Keyframes (instead of Tailwind utilities) because Tailwind's
+  animation library doesn't ship a 2-pulse "flash then settle"
+  shape that we can re-use with `animation-iteration-count: 2`.
+  The class is removed after the animation finishes via JS so
+  the next click restarts the pulse cleanly (re-running an
+  animation on the same node requires removing + re-adding the
+  class — the JS handles this in `lib/inline-issue/issue-pulse.tsx`).
+*/
+@keyframes pulse-accent {
+  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.0); background-color: transparent; }
+  20%  { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.18); background-color: rgba(99, 102, 241, 0.06); }
+  60%  { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.10); background-color: rgba(99, 102, 241, 0.04); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.0); background-color: transparent; }
+}
+
+.issue-pulse {
+  animation: pulse-accent 1.5s ease-out 0s 2;
+  border-radius: 6px;
+}

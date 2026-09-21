@@ -166,27 +166,35 @@ function ExecutiveSummary({ mode }: { mode: FieldMode }) {
 function ExecutiveBody({ mode }: { mode: FieldMode }) {
   return (
     <div className="space-y-6">
-      <ExecutiveSection mode={mode} title="Experience">
+      <ExecutiveSection mode={mode} title="Experience" id="section-experience">
         <ExecutiveExperience mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Education">
+      <ExecutiveSection mode={mode} title="Education" id="section-education">
         <ExecutiveEducation mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Skills">
+      <ExecutiveSection mode={mode} title="Skills" id="section-skills">
         <ExecutiveSkills mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Projects">
+      <ExecutiveSection mode={mode} title="Projects" id="section-projects">
         <ExecutiveProjects mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Publications & Speaking">
+      <ExecutiveSection
+        mode={mode}
+        title="Publications & Speaking"
+        id="section-publications"
+      >
         <ExecutivePublications mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Board & Advisory Roles">
+      <ExecutiveSection
+        mode={mode}
+        title="Board & Advisory Roles"
+        id="section-volunteer"
+      >
         <ExecutiveVolunteer mode={mode} />
       </ExecutiveSection>
     </div>
@@ -200,10 +208,17 @@ function ExecutiveBody({ mode }: { mode: FieldMode }) {
 function ExecutiveSection({
   mode,
   title,
+  id,
   children
 }: {
   mode: FieldMode;
   title: string;
+  /**
+   * Stable DOM id for the inline-issue surface (e.g.
+   * "section-experience"). Optional — callers that don't pass
+   * it get the legacy un-anchored header.
+   */
+  id?: string;
   children: React.ReactNode;
 }) {
   // Suppress the entire section (header + content) when the child
@@ -217,7 +232,10 @@ function ExecutiveSection({
   }
   return (
     <section>
-      <h2 className="mb-2 border-b border-zinc-300 pb-1 text-[10pt] font-serif font-semibold uppercase tracking-[0.18em] text-zinc-800">
+      <h2
+        id={id}
+        className="mb-2 border-b border-zinc-300 pb-1 text-[10pt] font-serif font-semibold uppercase tracking-[0.18em] text-zinc-800"
+      >
         {title}
       </h2>
       {children}

@@ -276,7 +276,7 @@ function ClassicWithForm({
 
         {/* Summary */}
         {showSummary && (
-          <Section title="Summary" className={printHiddenIf(!isSet(b.summary))}>
+          <Section id="section-summary" title="Summary" className={printHiddenIf(!isSet(b.summary))}>
             {editable ? (
               <EditableTextarea
                 path="sections.basics.summary"
@@ -293,6 +293,7 @@ function ClassicWithForm({
         {/* Experience */}
         {showWork && (
           <Section
+            id="section-experience"
             title="Experience"
             className={printHiddenIf(!has(sections.work))}
           >
@@ -393,6 +394,7 @@ function ClassicWithForm({
         {/* Projects */}
         {showProjects && (
           <Section
+            id="section-projects"
             title="Projects"
             className={printHiddenIf(!has(sections.projects))}
           >
@@ -438,6 +440,7 @@ function ClassicWithForm({
         {/* Skills */}
         {showSkills && (
           <Section
+            id="section-skills"
             title="Skills"
             className={printHiddenIf(!has(sections.skills))}
           >
@@ -465,6 +468,7 @@ function ClassicWithForm({
         {/* Education */}
         {showEducation && (
           <Section
+            id="section-education"
             title="Education"
             className={printHiddenIf(!has(sections.education))}
           >
@@ -510,6 +514,7 @@ function ClassicWithForm({
         {/* Volunteer */}
         {showVolunteer && (
           <Section
+            id="section-volunteer"
             title="Volunteer"
             className={printHiddenIf(!has(sections.volunteer))}
           >
@@ -552,6 +557,7 @@ function ClassicWithForm({
         {/* Awards */}
         {showAwards && (
           <Section
+            id="section-awards"
             title="Awards"
             className={printHiddenIf(!has(sections.awards))}
           >
@@ -590,6 +596,7 @@ function ClassicWithForm({
         {/* Certificates */}
         {showCertificates && (
           <Section
+            id="section-certificates"
             title="Certificates"
             className={printHiddenIf(!has(sections.certificates))}
           >
@@ -625,6 +632,7 @@ function ClassicWithForm({
         {/* Publications */}
         {showPublications && (
           <Section
+            id="section-publications"
             title="Publications"
             className={printHiddenIf(!has(sections.publications))}
           >
@@ -663,6 +671,7 @@ function ClassicWithForm({
         {/* Languages */}
         {showLanguages && (
           <Section
+            id="section-languages"
             title="Languages"
             className={printHiddenIf(!has(sections.languages))}
           >
@@ -691,6 +700,7 @@ function ClassicWithForm({
         {/* Interests */}
         {showInterests && (
           <Section
+            id="section-interests"
             title="Interests"
             className={printHiddenIf(!has(sections.interests))}
           >
@@ -721,6 +731,7 @@ function ClassicWithForm({
         {/* References */}
         {showReferences && (
           <Section
+            id="section-references"
             title="References"
             className={printHiddenIf(!has(sections.references))}
           >
@@ -767,16 +778,26 @@ function ClassicWithForm({
  */
 function Section({
   title,
+  id,
   children,
   className,
 }: {
   title: string;
+  /**
+   * Stable DOM id for the inline-issue surface (e.g.
+   * "section-experience"). Optional — callers that don't pass
+   * it get the legacy un-anchored header.
+   */
+  id?: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <section className={cn("mb-5 last:mb-0", className)}>
-      <h2 className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700">
+      <h2
+        id={id}
+        className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700"
+      >
         {title}
       </h2>
       {children}

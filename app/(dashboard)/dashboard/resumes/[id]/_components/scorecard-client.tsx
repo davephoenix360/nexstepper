@@ -6,25 +6,38 @@ import { ScorecardPanel } from '@/components/scorecard/scorecard';
 import type { JobPosting } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring';
 import type { DynamicTips } from '@/lib/scoring/tips';
+import {
+  InlineIssuePopover,
+  useInlineIssueController,
+  defaultPathForCriterion,
+  defaultPathForSkill
+} from '@/lib/inline-issue';
+import type { SubCriterionKey } from '@/lib/inline-issue/types';
+import type { PlanId } from '@/lib/billing';
 
 import { recomputeScoreAction } from '../score-actions';
+import { enrichBulletAction } from './enrich-bullet-action';
 
 /**
- * Client wrapper around <ScorecardPanel> that owns the "Recompute"
- * interaction.
+ * Client wrapper around <ScorecardPanel> that owns:
+ *   1. Recompute (BM25 + semantic hybrid).
+ *   2. The inline-issue surface (Free vs Pro split).
  *
- * Plan: docs/plans/ats-scoring.md acceptance criterion #7:
- *   "Refresh score button calls recomputeScoreAction via
- *    useTransition, shows a spinner, and updates the bars in
- *    place."
+ * Plan: docs/plans/ats-scoring.md acceptance criterion #7 +
+ * docs/plans/inline-issue-surface.md §"What you'll build" #7.
  *
  * Drift: Phase 3 post-ship engine review consolidated the two-button
  * UX into a single "Recompute" button. `recomputeScoreAction` now
  * calls the hybrid (BM25 + semantic) path internally, so there's no
  * longer a separate semantic action for the UI to call.
  *
- * The page Server Component passes the first-render breakdown +
- * the variant's resumeId. This wrapper:
+ * Drift: Phase 3.5 ships the inline-issue surface. The page Server
+ * Component passes:
+ *   - the first-render breakdown + dynamic tips
+ *   - the variant's resumeId
+ *   - the user's plan (`planId: 'free' | 'pro'`)
+ *
+ * This wrapper:
  *   1. Holds the breakdown + dynamic tips in local state (initial =
  *      the server-rendered value).
  *   2. On Recompute click, calls the hybrid Server Action and
@@ -33,6 +46,25 @@ import { recomputeScoreAction } from '../score-actions';
  *      without freezing the surrounding UI.
  *   4. Surfaces error messages inline below the panel (no toast —
  *      we keep the right rail self-contained).
+ *   5. Owns the Free/Pro split:
+ *      - Free: dim-bar click → scroll + pulse + inline tip.
+ *      - Pro:  same + "Rewrite with AI" CTA per dim bar + AI
+ *              popover on click.
+ *
+ * The popover writes back to the editor via the
+ * `dispatchInlineIssueApply` window event (see
+ * `lib/inline-issue/apply-bridge.ts`). The editor subscribes in
+ * its own `useEffect` and updates its own RHF form + triggers
+ * its own save. The scorecard never touches the editor's form
+ * directly — the bridge keeps the two components decoupled.
+ *
+ * Drift 2026-09-21: the inline tip itself is now rendered by the
+ * editor (via `<InlineIssueTip />` mounted in `editable-resume.tsx`)
+ * anchored to the section header — not at the bottom of the
+ * scorecard. The scorecard fires `dispatchInlineIssueTip` on every
+ * dim-bar click; the editor's component scrolls + pulses + renders
+ * the tip in a portal. This split keeps the right rail clean and
+ * the tip "at the point of interest" per the user's UX feedback.
  *
  * The Recompute button is hidden entirely when there's no JD to
  * score against — matches the visual contract from the earlier
@@ -43,7 +75,8 @@ export function ScorecardClient({
   resumeId,
   jobContext,
   initialBreakdown,
-  initialDynamicTips = {}
+  initialDynamicTips = {},
+  planId
 }: {
   resumeId: string;
   jobContext: JobPosting | null;
@@ -55,6 +88,13 @@ export function ScorecardClient({
    * (post-Recompute) also returns a `tips` map that overrides this.
    */
   initialDynamicTips?: DynamicTips;
+  /**
+   * Current user's plan (`free` | `pro`). Server-authoritative;
+   * the server-side `requirePro()` re-checks at every action call.
+   * This prop is cosmetic — drives whether the popover opens and
+   * whether the "Rewrite with AI" CTAs render.
+   */
+  planId: PlanId;
 }) {
   const [breakdown, setBreakdown] = useState<ScoreBreakdown | null>(
     initialBreakdown
@@ -63,6 +103,14 @@ export function ScorecardClient({
     useState<DynamicTips>(initialDynamicTips);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const isPro = planId === 'pro';
+  const controller = useInlineIssueController({
+    enrichAction: enrichBulletAction,
+    resumeId,
+    isPro,
+    dynamicTips
+  });
 
   function handleRecompute() {
     setError(null);
@@ -74,6 +122,24 @@ export function ScorecardClient({
       }
       setBreakdown(result.data.breakdown);
       setDynamicTips(result.data.tips);
+    });
+  }
+
+  function handleIssueDimClick(input: { criterion: SubCriterionKey }) {
+    controller.trigger({
+      path: defaultPathForCriterion(input.criterion),
+      criterion: input.criterion
+    });
+  }
+
+  function handleIssueSkillClick(input: {
+    skill: string;
+    bucket: 'mustHave' | 'niceToHave' | 'implicit';
+    criterion: 'Intent Coverage';
+  }) {
+    controller.trigger({
+      path: defaultPathForSkill(),
+      criterion: input.criterion
     });
   }
 
@@ -90,7 +156,27 @@ export function ScorecardClient({
         dynamicTips={dynamicTips}
         onRecompute={handleRecompute}
         computing={pending}
+        onIssueDimClick={handleIssueDimClick}
+        onIssueSkillClick={handleIssueSkillClick}
+        showProRewriteCta={isPro}
       />
+
+      {/*
+        The popover — only for Pro. `controller.popoverProps` is
+        `null` when nothing is active; the inner popover short-
+        circuits to nothing in that case.
+
+        The inline tip itself is no longer mounted here — the
+        editor owns it via `<InlineIssueTip />` (mounted in
+        `components/editable/editable-resume.tsx`). The scorecard
+        publishes a `dispatchInlineIssueTip` event on every
+        trigger; the editor subscribes and renders the tip portal
+        anchored to the affected section header.
+      */}
+      {controller.popoverProps && (
+        <InlineIssuePopover {...controller.popoverProps} />
+      )}
+
       {error && (
         <p
           className="text-xs text-destructive"

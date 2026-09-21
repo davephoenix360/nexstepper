@@ -140,7 +140,7 @@ function MinimalHeader({ mode, accent }: { mode: FieldMode; accent: string }) {
 function MinimalBody({ mode }: { mode: FieldMode }) {
   return (
     <div className="space-y-7">
-      <SmartSection mode={mode} title="Summary">
+      <SmartSection mode={mode} title="Summary" id="section-summary">
         <FieldArea
           mode={mode}
           path="sections.basics.summary"
@@ -150,23 +150,23 @@ function MinimalBody({ mode }: { mode: FieldMode }) {
         />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Experience">
+      <SmartSection mode={mode} title="Experience" id="section-experience">
         <MinimalExperience mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Skills">
+      <SmartSection mode={mode} title="Skills" id="section-skills">
         <MinimalSkills mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Education">
+      <SmartSection mode={mode} title="Education" id="section-education">
         <MinimalEducation mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Projects">
+      <SmartSection mode={mode} title="Projects" id="section-projects">
         <MinimalProjects mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Volunteer">
+      <SmartSection mode={mode} title="Volunteer" id="section-volunteer">
         <MinimalVolunteer mode={mode} />
       </SmartSection>
     </div>

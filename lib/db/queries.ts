@@ -1098,13 +1098,59 @@ export async function deleteApplication(
 // ─── Resume-variant queries (Phase 2.4a) ────────────────────────────────────
 
 /**
- * Placeholder for a future per-axis breakdown (e.g. when we add
- * an inline issue-surface tool that calls out specific resume
- * sections). Kept as `unknown` JSONB so future shape changes
- * don't require a migration. Not currently written by any app
- * path — reserved for the next-session inline design work.
+ * Per-axis breakdown of how a particular resume scored against a JD.
+ *
+ * Each entry says "this resume leaf contributed X% weight to the
+ * Y sub-criterion". The shape is intentionally minimal — the
+ * inline-issue surface (lib/inline-issue/) reads it to drive the
+ * per-leaf popovers + dynamic tips. The DB column stays a JSONB
+ * blob so the shape can evolve without a migration; only the
+ * in-process TypeScript shape is tightened here.
+ *
+ * Adding a new field is a backward-compatible change because
+ * every consumer already treats unknown keys as a no-op (the
+ * typed `unknown[]` pattern lets us add/remove without breaking
+ * callers in either direction).
+ *
+ * Plan: docs/plans/inline-issue-surface.md §"What you'll build" #9.
+ * ADR: docs/decisions/0006-inline-issue-surface.md (the "MatchBreakdown
+ * becomes a real shape" decision).
  */
-export type MatchBreakdown = unknown;
+export type MatchBreakdown = Array<{
+  /** RHF path to the EditableText leaf this entry targets. */
+  path: string;
+  /** 0..1 — how much this leaf contributes to the overall score. */
+  weight: number;
+  /** Sub-criterion the entry is scored against. */
+  criterion: SubCriterionKeyForBreakdown;
+  /**
+   * Whether the rewrite prompt should frame this as "weave a missing
+   * skill in" (`gap`) or "sharpen the existing bullet" (`rewrite`).
+   * Mirrors `lib/inline-issue/types.TipKind` but kept distinct so
+   * this module doesn't pull a feature-only dep.
+   */
+  tipKind: 'gap' | 'rewrite';
+}>;
+
+/**
+ * Subset of `SubCriterionKey` that the breakdown can carry. Matches
+ * the keys the inline-issue surface maps to a leaf — the breakdown
+ * is the source of truth that the scorecard + popover read from.
+ */
+type SubCriterionKeyForBreakdown =
+  | 'ATS Keyword Match'
+  | 'ATS Similarity'
+  | 'ATS Coverage'
+  | 'Intent Coverage'
+  | 'Section Completeness'
+  | 'Optimal Length'
+  | 'Accomplishment Focus'
+  | 'Action Verb Usage'
+  | 'Tailoring'
+  | 'Unique Value'
+  | 'Soft Skills'
+  | 'Role Fit'
+  | 'Seniority Fit';
 
 /**
  * List the resume variants for an Application, most recent first.

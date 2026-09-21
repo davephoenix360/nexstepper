@@ -119,13 +119,31 @@ re-discovering the boundary.
 
 **Next (queued, priority order)**
 
-1. **Inline issue surface implementation** —
-   `docs/plans/inline-issue-surface.md` is the spec; the next
-   session builds it. New `lib/inline-issue/` module,
-   `enrichBulletAction` server action with `requirePro()` gate,
-   `ScorecardClient` owns the Free/Pro split, `<InlineIssuePopover />`
-   anchored to the affected leaf via RHF path.
-2. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
+Inline issue surface implementation (shipped 2026-09-21, branch
+`feat/inline-issue-surface`): dim-bar click → scroll + pulse +
+inline dynamic tip (Free) + AI-rewrite popover (Pro). New
+`lib/inline-issue/` module (orchestration + path-to-section
+mapper + prompt template + dynamic-tip-inline + apply bridge);
+new server action `enrichBulletAction` Pro-gated via the
+existing `requirePro()` + Mistral Nemo (`PARSER_MODEL` +
+`PARSE_FALLBACKS`, no new model constant); new client
+components `<InlineIssuePopover />` + `<IssuePulse />`;
+`DimensionBar` + `MissList` (skill-gap rows) accept
+`onIssueClick` and get a Free "Show me" / Pro "Rewrite with AI"
+CTA; `ScorecardClient` owns the Free/Pro split via the
+existing `usePlanFromProps()` / `useIsPro()` cosmetic hint
+threaded from the page RSC; `editable-resume.tsx` listens to
+the `dispatchInlineIssueApply` window event so the scorecard
+can write back to the editor's RHF form without lifting
+shared state. All five resume templates gained stable
+`id="section-{slug}"` headers (`section-experience`,
+`section-skills`, etc.) for scroll anchoring + pulse target.
+`MatchBreakdown` JSONB type tightened from `unknown` to the
+real shape `{ path, weight, criterion, tipKind }[]`. New
+`@keyframes pulse-accent` + `.issue-pulse` utility in
+`globals.css`. ADR: `docs/decisions/0006-inline-issue-surface.md`.
+
+1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier
    capped at 20 chat messages / day per user; unlimited on Pro.
 3. **Seniority Fit calibration fix** — drift memo

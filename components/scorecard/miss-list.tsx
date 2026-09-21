@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye } from 'lucide-react';
 
 import type { IntentCoverageBreakdown } from '@/lib/scoring/dimensions/intent-coverage';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,9 @@ const BUCKET_LIMIT = 20;
 
 type Bucket = {
   label: string;
+  /** Bucket key — used by the inline-issue surface to pick the
+   *  right path mapping. */
+  key: 'mustHave' | 'niceToHave' | 'implicit';
   items: string[];
   /** Tailwind color tokens for the section header + the checkmark. */
   tone: 'rose' | 'amber' | 'sky';
@@ -52,13 +55,29 @@ const TONE_CLASSES = {
 } as const;
 
 export function MissList({
-  breakdown
+  breakdown,
+  /**
+   * Inline-issue surface integration. When provided, each row gets
+   * a "Show me" button that triggers `onIssueClick({ skill, bucket })`
+   * — the parent (ScorecardClient) scrolls to the Skills section,
+   * pulses it, and (Pro only) opens an AI rewrite popover.
+   *
+   * Plan: docs/plans/inline-issue-surface.md §"User-visible behavior
+   * (Free + Pro)" + "What you'll build" #6.
+   */
+  onIssueClick
 }: {
   breakdown: IntentCoverageBreakdown;
+  onIssueClick?: (input: {
+    skill: string;
+    bucket: 'mustHave' | 'niceToHave' | 'implicit';
+    criterion: 'Intent Coverage';
+  }) => void;
 }) {
   const buckets: Bucket[] = [
     {
       label: 'Must-have',
+      key: 'mustHave' as const,
       items: breakdown.missed.mustHave.slice(0, BUCKET_LIMIT),
       tone: 'rose',
       hint:
@@ -67,6 +86,7 @@ export function MissList({
     },
     {
       label: 'Nice-to-have',
+      key: 'niceToHave' as const,
       items: breakdown.missed.niceToHave.slice(0, BUCKET_LIMIT),
       tone: 'amber',
       hint:
@@ -75,6 +95,7 @@ export function MissList({
     },
     {
       label: 'Implicit',
+      key: 'implicit' as const,
       items: breakdown.missed.implicit.slice(0, BUCKET_LIMIT),
       tone: 'sky',
       hint:
@@ -107,13 +128,27 @@ export function MissList({
         Skill gaps
       </p>
       {visibleBuckets.map((bucket) => (
-        <BucketSection key={bucket.label} bucket={bucket} />
+        <BucketSection
+          key={bucket.label}
+          bucket={bucket}
+          onIssueClick={onIssueClick}
+        />
       ))}
     </div>
   );
 }
 
-function BucketSection({ bucket }: { bucket: Bucket }) {
+function BucketSection({
+  bucket,
+  onIssueClick
+}: {
+  bucket: Bucket;
+  onIssueClick?: (input: {
+    skill: string;
+    bucket: 'mustHave' | 'niceToHave' | 'implicit';
+    criterion: 'Intent Coverage';
+  }) => void;
+}) {
   const tone = TONE_CLASSES[bucket.tone];
   const headingId = `miss-bucket-${bucket.label.toLowerCase().replace(/\s+/g, '-')}`;
 
@@ -149,6 +184,24 @@ function BucketSection({ bucket }: { bucket: Bucket }) {
               aria-hidden
             />
             <span className="leading-tight">{skill}</span>
+            {onIssueClick && (
+              <button
+                type="button"
+                onClick={() =>
+                  onIssueClick({
+                    skill,
+                    bucket: bucket.key,
+                    criterion: 'Intent Coverage'
+                  })
+                }
+                className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md bg-background px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-indigo-200 transition-colors hover:bg-indigo-50 dark:text-indigo-300 dark:ring-indigo-800 dark:hover:bg-indigo-950"
+                data-testid={`miss-list-show-${bucket.key}-${skill.toLowerCase().replace(/\s+/g, '-')}`}
+                aria-label={`Show me where to add ${skill}`}
+              >
+                <Eye className="h-3 w-3" aria-hidden />
+                Show me
+              </button>
+            )}
           </li>
         ))}
       </ul>

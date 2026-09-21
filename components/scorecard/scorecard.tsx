@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ScoreBreakdown } from '@/lib/scoring';
 import { CRITERIA_TIPS, type DynamicTips } from '@/lib/scoring/tips';
+import type { SubCriterionKey } from '@/lib/inline-issue/types';
 
 import {
   DimensionBar,
@@ -46,7 +47,25 @@ export function ScorecardPanel({
   breakdown,
   dynamicTips = {},
   onRecompute,
-  computing = false
+  computing = false,
+  /**
+   * Inline-issue surface integration — passed straight through to
+   * each <DimensionBar>. When provided, each dim bar becomes a
+   * button that triggers `onIssueDimClick({ criterion, path })`.
+   * The parent (ScorecardClient) decides what to do (Free: pulse
+   * + inline tip. Pro: pulse + inline tip + AI popover).
+   *
+   * Plan: docs/plans/inline-issue-surface.md §"User-visible behavior".
+   */
+  onIssueDimClick,
+  onIssueSkillClick,
+  /**
+   * Whether to show the "Rewrite with AI" CTA next to each dim
+   * bar. The CTAs themselves live in the bar; this just toggles
+   * visibility. Server-side `requirePro()` is the authoritative
+   * gate — this is cosmetic.
+   */
+  showProRewriteCta = false
 }: {
   breakdown?: ScoreBreakdown | null;
   /**
@@ -60,6 +79,13 @@ export function ScorecardPanel({
   /** Triggers the hybrid (BM25 + semantic) recompute. */
   onRecompute?: () => void;
   computing?: boolean;
+  onIssueDimClick?: (input: { criterion: SubCriterionKey }) => void;
+  onIssueSkillClick?: (input: {
+    skill: string;
+    bucket: 'mustHave' | 'niceToHave' | 'implicit';
+    criterion: 'Intent Coverage';
+  }) => void;
+  showProRewriteCta?: boolean;
 }) {
   if (!breakdown) {
     return (
@@ -80,6 +106,14 @@ export function ScorecardPanel({
   // breakdown's `fallback` flag tells us to either show the miss
   // list or hide it.
   const hasIntentSignals = !breakdown.intentCoverageBreakdown.fallback;
+
+  // Inline click factory — only creates the handler when the parent
+  // provided `onIssueDimClick`. Keeps the JSX terse and the
+  // `interactive` decision in one place per bar.
+  const dimHandler =
+    onIssueDimClick &&
+    ((criterion: SubCriterionKey) => () =>
+      onIssueDimClick({ criterion }));
 
   return (
     <aside
@@ -128,24 +162,32 @@ export function ScorecardPanel({
           score={breakdown.dimensionScores.atsMatching}
           testId="score-dim-keywords"
           tip={dynamicTips['ATS Keyword Match'] ?? CRITERIA_TIPS['ATS Keyword Match']}
+          onIssueClick={dimHandler?.('ATS Coverage')}
+          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Format"
           score={breakdown.dimensionScores.structure}
           testId="score-dim-format"
           tip={dynamicTips['Section Completeness'] ?? CRITERIA_TIPS['Section Completeness']}
+          onIssueClick={dimHandler?.('Section Completeness')}
+          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Impact"
           score={breakdown.dimensionScores.contentQuality}
           testId="score-dim-impact"
           tip={dynamicTips['Accomplishment Focus'] ?? CRITERIA_TIPS['Accomplishment Focus']}
+          onIssueClick={dimHandler?.('Accomplishment Focus')}
+          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Experience match"
           score={breakdown.dimensionScores.alignment}
           testId="score-dim-experience-match"
           tip={dynamicTips['Tailoring'] ?? CRITERIA_TIPS['Tailoring']}
+          onIssueClick={dimHandler?.('Tailoring')}
+          showProRewriteCta={showProRewriteCta}
         />
         {/* v2 dimensions — always rendered; fall back to neutral 50
             when no signal is available (legacy rows, failed extractions,
@@ -155,18 +197,24 @@ export function ScorecardPanel({
           score={breakdown.dimensionScores.intentCoverage}
           testId="score-dim-intent-coverage"
           tip={dynamicTips['Intent Coverage'] ?? CRITERIA_TIPS['Intent Coverage']}
+          onIssueClick={dimHandler?.('Intent Coverage')}
+          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Role fit"
           score={breakdown.dimensionScores.roleFit}
           testId="score-dim-role-fit"
           tip={dynamicTips['Role Fit'] ?? CRITERIA_TIPS['Role Fit']}
+          onIssueClick={dimHandler?.('Role Fit')}
+          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Seniority fit"
           score={breakdown.dimensionScores.seniorityFit}
           testId="score-dim-seniority-fit"
           tip={dynamicTips['Seniority Fit'] ?? CRITERIA_TIPS['Seniority Fit']}
+          onIssueClick={dimHandler?.('Seniority Fit')}
+          showProRewriteCta={showProRewriteCta}
         />
       </ul>
 
@@ -174,7 +222,12 @@ export function ScorecardPanel({
           Hidden when the v2 intent extractor produced no signal
           (legacy JDs / failed extractions) so we don't show an
           empty-state UI for every user that hasn't run v2 yet. */}
-      {hasIntentSignals && <MissList breakdown={breakdown.intentCoverageBreakdown} />}
+      {hasIntentSignals && (
+        <MissList
+          breakdown={breakdown.intentCoverageBreakdown}
+          onIssueClick={onIssueSkillClick}
+        />
+      )}
 
       <p className="mt-4 text-xs text-muted-foreground">
         Computed in {breakdown.computedInMs} ms.

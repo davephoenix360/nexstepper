@@ -53,19 +53,28 @@ import type { FieldMode } from './field';
 interface SmartSectionProps {
   mode: FieldMode;
   title: string;
+  /**
+   * Stable DOM id for the section header (e.g. "section-skills").
+   * Used by the inline-issue surface (`lib/inline-issue/`) to
+   * scroll to + pulse the affected section. Optional — older
+   * callers that don't yet pass it get the default `no id`
+   * behavior. The legacy Minimal/Executive/Creative templates
+   * that render SmartSection without an explicit id still work.
+   */
+  id?: string;
   /** Children may be null when the section renderer found no data
    *  in read-only mode. SmartSection suppresses the whole section
    *  in that case. */
   children: React.ReactNode;
 }
 
-export function SmartSection({ mode, title, children }: SmartSectionProps) {
+export function SmartSection({ mode, title, id, children }: SmartSectionProps) {
   if (!mode.editable && (children === null || children === undefined)) {
     return null;
   }
   return (
     <section>
-      <SectionTitle title={title} />
+      <SectionTitle title={title} id={id} />
       {children}
     </section>
   );
@@ -81,9 +90,12 @@ export function SmartSection({ mode, title, children }: SmartSectionProps) {
  * via the section's own h2 inside their body — SmartSection's default
  * is "no rule", which matches the Minimal template's editorial feel.
  */
-function SectionTitle({ title }: { title: string }) {
+function SectionTitle({ title, id }: { title: string; id?: string }) {
   return (
-    <h2 className="mb-2 text-[10pt] font-medium uppercase tracking-[0.18em] text-zinc-500">
+    <h2
+      id={id}
+      className="mb-2 text-[10pt] font-medium uppercase tracking-[0.18em] text-zinc-500"
+    >
       {title}
     </h2>
   );

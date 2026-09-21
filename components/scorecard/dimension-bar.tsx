@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Wand2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -98,7 +98,22 @@ export function DimensionBar({
    * provided, an Info icon appears next to the label and clicking
    * / hovering it reveals the tip.
    */
-  tip
+  tip,
+  /**
+   * Inline-issue surface integration. When provided, the bar row
+   * becomes a clickable button that triggers `onIssueClick()` —
+   * the parent (ScorecardClient) decides what to do (Free: pulse
+   * + inline tip. Pro: pulse + inline tip + open the AI popover).
+   *
+   * `showProRewriteCta` is the upgrade-gated "Rewrite with AI"
+   * button. When true, a small Wand icon appears next to the
+   * score number and the click bubbles up to `onIssueClick`.
+   *
+   * Plan: docs/plans/inline-issue-surface.md §"User-visible
+   * behavior (Free + Pro)".
+   */
+  onIssueClick,
+  showProRewriteCta = false
 }: {
   label: string;
   score: number;
@@ -112,6 +127,10 @@ export function DimensionBar({
    * `buildDynamicTips` helper).
    */
   tip?: ReactNode;
+  /** Click handler for the inline-issue surface (Free + Pro). */
+  onIssueClick?: () => void;
+  /** Show the Pro "Rewrite with AI" CTA next to the score. */
+  showProRewriteCta?: boolean;
 }) {
   const safeScore = Math.max(0, Math.min(100, score));
   const tier = tierFor(safeScore);
@@ -142,11 +161,19 @@ export function DimensionBar({
     </span>
   );
 
-  return (
-    <li
-      data-testid={testId ?? `score-dim-${label.toLowerCase().replace(/\s+/g, '-')}`}
-      className="flex items-center gap-3 py-1"
-    >
+  const interactive = !!onIssueClick;
+
+  // When `onIssueClick` is provided, the entire row is a button.
+  // Otherwise it's a static <li>. The interactive variant keeps
+  // a hover affordance (`hover:bg-muted/40`) so the user can see
+  // the row is clickable.
+  const rowClassName = cn(
+    'flex items-center gap-3 py-1',
+    interactive && 'cursor-pointer rounded-md transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400'
+  );
+
+  const content = (
+    <>
       <span className="w-28 shrink-0 text-xs text-muted-foreground">
         {labelContent}
       </span>
@@ -169,6 +196,42 @@ export function DimensionBar({
       >
         {Math.round(safeScore)}
       </span>
+      {showProRewriteCta && (
+        <span
+          className="flex shrink-0 items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+          data-testid={testId ? `${testId}-rewrite-cta` : 'score-dim-rewrite-cta'}
+        >
+          <Wand2 className="h-3 w-3" aria-hidden />
+          Rewrite with AI
+        </span>
+      )}
+    </>
+  );
+
+  if (interactive) {
+    return (
+      <li
+        data-testid={testId ?? `score-dim-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        className="list-none"
+      >
+        <button
+          type="button"
+          className={cn(rowClassName, 'w-full')}
+          onClick={onIssueClick}
+          aria-label={`${label}: show me how to improve this dimension`}
+        >
+          {content}
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li
+      data-testid={testId ?? `score-dim-${label.toLowerCase().replace(/\s+/g, '-')}`}
+      className={rowClassName}
+    >
+      {content}
     </li>
   );
 }

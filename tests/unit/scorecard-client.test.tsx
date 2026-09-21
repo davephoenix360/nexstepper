@@ -85,6 +85,7 @@ describe('ScorecardClient', () => {
         resumeId="r1"
         jobContext={JD}
         initialBreakdown={BREAKDOWN}
+        planId="free"
       />
     );
     expect(html).toContain('data-testid="scorecard"');
@@ -99,6 +100,7 @@ describe('ScorecardClient', () => {
         resumeId="r1"
         jobContext={null}
         initialBreakdown={null}
+        planId="free"
       />
     );
     expect(html).toContain('data-testid="scorecard-empty-wrapper"');
@@ -111,6 +113,7 @@ describe('ScorecardClient', () => {
         resumeId="r1"
         jobContext={JD}
         initialBreakdown={null}
+        planId="free"
       />
     );
     // The wrapper is still rendered (so the layout doesn't shift).

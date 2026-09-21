@@ -202,7 +202,7 @@ function ModernBody({ mode }: { mode: FieldMode }) {
   return (
     <main className="space-y-5">
       {hasSummary && (
-        <ModernSection title="Summary">
+        <ModernSection title="Summary" id="section-summary">
           <FieldArea
             mode={mode}
             path="sections.basics.summary"
@@ -234,14 +234,24 @@ function ModernBody({ mode }: { mode: FieldMode }) {
 
 function ModernSection({
   title,
+  id,
   children
 }: {
   title: string;
+  /**
+   * Stable DOM id for the inline-issue surface (e.g.
+   * "section-experience"). Optional — callers that don't pass
+   * it get the legacy un-anchored header.
+   */
+  id?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="break-inside-avoid print:break-inside-avoid">
-      <h2 className="mb-2 flex items-center gap-2 text-[11pt] font-bold uppercase tracking-[0.12em] text-zinc-900">
+      <h2
+        id={id}
+        className="mb-2 flex items-center gap-2 text-[11pt] font-bold uppercase tracking-[0.12em] text-zinc-900"
+      >
         <span
           aria-hidden="true"
           className="inline-block h-3 w-1 rounded-sm bg-zinc-900"
@@ -264,7 +274,7 @@ function has<T>(arr: T[] | undefined | null): arr is T[] {
 function ModernExperience({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.work)) return null;
   return (
-    <ModernSection title="Experience">
+    <ModernSection title="Experience" id="section-experience">
       <div className="space-y-4">
         {mode.data.sections.work.map((_, i) => (
           <ModernWorkEntry key={`w-${i}`} mode={mode} index={i} />
@@ -368,7 +378,7 @@ function ModernWorkPosition({
 function ModernProjects({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.projects)) return null;
   return (
-    <ModernSection title="Projects">
+    <ModernSection title="Projects" id="section-projects">
       <div className="space-y-3">
         {mode.data.sections.projects.map((p, i) => {
           const hasKeywords = has(p.keywords);
@@ -424,7 +434,7 @@ function ModernProjects({ mode }: { mode: FieldMode }) {
 function ModernEducation({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.education)) return null;
   return (
-    <ModernSection title="Education">
+    <ModernSection title="Education" id="section-education">
       <div className="space-y-3">
         {mode.data.sections.education.map((e, i) => (
           <div key={`e-${i}`}>
@@ -477,7 +487,7 @@ function ModernEducation({ mode }: { mode: FieldMode }) {
 function ModernSkills({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.skills)) return null;
   return (
-    <ModernSection title="Skills">
+    <ModernSection title="Skills" id="section-skills">
       <div className="space-y-2">
         {mode.data.sections.skills.map((_, i) => (
           <div
@@ -510,7 +520,7 @@ function ModernSkills({ mode }: { mode: FieldMode }) {
 function ModernVolunteer({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.volunteer)) return null;
   return (
-    <ModernSection title="Volunteer">
+    <ModernSection title="Volunteer" id="section-volunteer">
       <div className="space-y-3">
         {mode.data.sections.volunteer.map((v, i) => (
           <div key={`v-${i}`}>
@@ -555,7 +565,7 @@ function ModernVolunteer({ mode }: { mode: FieldMode }) {
 function ModernAwards({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.awards)) return null;
   return (
-    <ModernSection title="Awards">
+    <ModernSection title="Awards" id="section-awards">
       <div className="space-y-2">
         {mode.data.sections.awards.map((a, i) => (
           <div
@@ -597,7 +607,7 @@ function ModernAwards({ mode }: { mode: FieldMode }) {
 function ModernCertificates({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.certificates)) return null;
   return (
-    <ModernSection title="Certificates">
+    <ModernSection title="Certificates" id="section-certificates">
       <div className="space-y-2">
         {mode.data.sections.certificates.map((c, i) => (
           <div
@@ -639,7 +649,7 @@ function ModernCertificates({ mode }: { mode: FieldMode }) {
 function ModernPublications({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.publications)) return null;
   return (
-    <ModernSection title="Publications">
+    <ModernSection title="Publications" id="section-publications">
       <div className="space-y-2">
         {mode.data.sections.publications.map((_, i) => (
           <div key={`p-${i}`}>
@@ -669,7 +679,7 @@ function ModernPublications({ mode }: { mode: FieldMode }) {
 function ModernLanguages({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.languages)) return null;
   return (
-    <ModernSection title="Languages">
+    <ModernSection title="Languages" id="section-languages">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11pt]">
         {mode.data.sections.languages.map((_, i) => (
           <span key={`l-${i}`} className="flex items-center gap-1">
@@ -705,7 +715,7 @@ function ModernInterests({ mode }: { mode: FieldMode }) {
     .filter(Boolean);
   const preview = keywords.join(' · ');
   return (
-    <ModernSection title="Interests">
+    <ModernSection title="Interests" id="section-interests">
       {preview ? (
         <p className="text-[11pt] text-zinc-700">{preview}</p>
       ) : (
@@ -720,7 +730,7 @@ function ModernInterests({ mode }: { mode: FieldMode }) {
 function ModernReferences({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.references)) return null;
   return (
-    <ModernSection title="References">
+    <ModernSection title="References" id="section-references">
       <div className="space-y-2">
         {mode.data.sections.references.map((r, i) => (
           <div key={`r-${i}`}>

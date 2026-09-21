@@ -159,7 +159,7 @@ function CreativeBody({
 }) {
   return (
     <div className="space-y-7">
-      <CreativeSection mode={mode} title="Summary" accent={accent}>
+      <CreativeSection mode={mode} title="Summary" accent={accent} id="section-summary">
         <FieldArea
           mode={mode}
           path="sections.basics.summary"
@@ -169,27 +169,27 @@ function CreativeBody({
         />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Experience" accent={accent}>
+      <CreativeSection mode={mode} title="Experience" accent={accent} id="section-experience">
         <CreativeExperience mode={mode} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Skills" accent={accent}>
+      <CreativeSection mode={mode} title="Skills" accent={accent} id="section-skills">
         <CreativeSkills mode={mode} accent={accent} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Education" accent={accent}>
+      <CreativeSection mode={mode} title="Education" accent={accent} id="section-education">
         <CreativeEducation mode={mode} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Projects" accent={accent}>
+      <CreativeSection mode={mode} title="Projects" accent={accent} id="section-projects">
         <CreativeProjects mode={mode} accent={accent} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Portfolio & Tools" accent={accent}>
+      <CreativeSection mode={mode} title="Portfolio & Tools" accent={accent} id="section-projects">
         <CreativePortfolio mode={mode} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Volunteer" accent={accent}>
+      <CreativeSection mode={mode} title="Volunteer" accent={accent} id="section-volunteer">
         <CreativeVolunteer mode={mode} />
       </CreativeSection>
     </div>
@@ -204,11 +204,18 @@ function CreativeSection({
   mode,
   title,
   accent,
+  id,
   children
 }: {
   mode: FieldMode;
   title: string;
   accent: string;
+  /**
+   * Stable DOM id for the inline-issue surface (e.g.
+   * "section-experience"). Optional — callers that don't pass
+   * it get the legacy un-anchored header.
+   */
+  id?: string;
   children: React.ReactNode;
 }) {
   // Suppress the entire section (header + colored rule + content)
@@ -222,7 +229,10 @@ function CreativeSection({
   return (
     <section>
       <div className="mb-3 flex items-center gap-3">
-        <h2 className="text-[11pt] font-bold uppercase tracking-[0.2em] text-zinc-900">
+        <h2
+          id={id}
+          className="text-[11pt] font-bold uppercase tracking-[0.2em] text-zinc-900"
+        >
           {title}
         </h2>
         <div
