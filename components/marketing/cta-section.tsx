@@ -18,11 +18,12 @@ export function CtaSection({
       <section className="border-y bg-muted/30 py-20 sm:py-24">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Free to start. $12/mo when you&apos;re ready.
+            Free to start. The price of a coffee when you&apos;re ready.
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Unlimited resumes on the free plan. Upgrade for AI Optimize, peer
-            reviews, and real-time collaboration. 7-day trial, cancel anytime.
+            Unlimited resumes on the free plan. Upgrade for inline AI
+            rewrites, peer reviews, and real-time collaboration. 7-day
+            trial, cancel anytime.
           </p>
           <div className="mt-8">
             <Button asChild size="lg" className="h-11 px-6 text-base">

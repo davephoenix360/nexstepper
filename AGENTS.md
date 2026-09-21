@@ -47,7 +47,7 @@ Adding any of these needs a discussion, not a drive-by edit:
 | Database | Postgres (Neon in prod, postgres-js locally — driver auto-detected) |
 | ORM | Drizzle (no Prisma) |
 | Auth | Better Auth 1.6+ (no NextAuth, no Clerk) |
-| Billing | Stripe (Free + Pro $12/mo) |
+| Billing | Stripe (Free + Pro ≈ the price of a coffee; see `docs/setup/stripe.md` for the actual amount + brand-voice rationale) |
 | AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`; free-tier primary `inclusionai/ling-3.0-flash-fin-free` with 4-model fallback chain (see `docs/ai-models-reference.md`) |
 | Email | Resend |
 | File storage | Vercel Blob |

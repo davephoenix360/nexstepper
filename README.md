@@ -20,7 +20,7 @@ collaboration.
 | Database | Postgres (any Postgres-protocol endpoint: local, Neon, RDS) | ✅ postgres-js driver |
 | ORM | Drizzle | ✅ |
 | Auth | Better Auth 1.6 + Drizzle adapter | ✅ email/password |
-| Billing | Stripe (Free + Pro $12/mo, 7-day trial) | ✅ |
+| Billing | Stripe (Free + Pro — coffee-tier pricing, 7-day trial) | ✅ |
 | AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); free-tier primary `inclusionai/ling-3.0-flash-fin-free` + 4-model fallback chain | ✅ wired into JD parser, Resume parser, Optimize v0 |
 | Email | Resend | ✅ wrapper, ready for keys |
 | Observability | Sentry (errors) + PostHog (analytics) | ✅ init files, ready for keys |
