@@ -113,8 +113,30 @@ export async function handleSubscriptionChange(
     throw new LocalSubscriptionNotFoundError(customerId);
   }
 
-  const item = subscription.items.data[0];
-  const priceId = item?.price.id ?? null;
+  // Defensive checks for unusual subscription shapes. Stripe normally
+  // delivers subscriptions with exactly one item, but the API permits
+  // multiple (bundles, add-ons). The first item is the headline price
+  // we sync — anything else is out of scope for our single-plan model.
+  const items = subscription.items.data;
+  if (items.length === 0) {
+    // Shouldn't happen — a Stripe subscription with no items is malformed.
+    // Log and return; throwing would trigger Stripe's 3-day retry loop
+    // for a data-shape issue we can't fix from our end.
+    console.error(
+      `[stripe] handleSubscriptionChange: subscription ${subscriptionId} ` +
+      `has 0 items; nothing to sync. Dropping event.`
+    );
+    return;
+  }
+  if (items.length > 1) {
+    console.warn(
+      `[stripe] handleSubscriptionChange: subscription ${subscriptionId} ` +
+      `has ${items.length} items; syncing only the first one (${items[0].price.id}). ` +
+      `Nextep's pricing model is single-plan; extra items are ignored.`
+    );
+  }
+  const item = items[0];
+  const priceId = item.price.id;
   const plan: PlanKey =
     priceId === PRICE_IDS.pro ? 'pro' : priceId === PRICE_IDS.free ? 'free' : 'free';
 
@@ -124,7 +146,7 @@ export async function handleSubscriptionChange(
       stripePriceId: priceId,
       plan,
       status,
-      currentPeriodEnd: item?.current_period_end
+      currentPeriodEnd: item.current_period_end
         ? new Date(item.current_period_end * 1000)
         : null
     });
