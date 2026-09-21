@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import { PRICE_IDS, getStripePrices } from '@/lib/payments/stripe';
 import { getSubscription } from '@/lib/db/queries';
 import { isProEffective } from '@/lib/billing';
+import { formatPrice } from '@/lib/format/currency';
 
 // Render at request time so the build doesn't depend on a live Stripe API key.
 // Phase 0: this lets Vercel deploys succeed without configuring Stripe yet.
@@ -195,29 +196,4 @@ export default async function PricingPage() {
       </p>
     </main>
   );
-}
-
-/**
- * Format a Stripe `unit_amount` + `currency` into a display string.
- *
- * Stripe convention: amounts are in the smallest currency unit
- * (cents for USD/CAD, yen for JPY, etc.). `Intl.NumberFormat` handles
- * the scaling automatically when we pass the major-unit value, so
- * we divide by 10^currencyFractionDigits. For our supported tiers
- * (USD, CAD, EUR), that's /100.
- */
-function formatPrice(unitAmount: number, currency: string): string {
-  // USD/CAD/EUR/GBP/AUD all use 2 fraction digits. JPY/KRW use 0.
-  // Stripe's `currency` is always lowercase ISO 4217.
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-      // No decimals for "the price of a coffee" — round to whole units.
-      maximumFractionDigits: 0
-    }).format(unitAmount / 100);
-  } catch {
-    // Unknown currency code (Stripe test mode can have funky ones).
-    return `${currency.toUpperCase()} ${(unitAmount / 100).toFixed(0)}`;
-  }
 }
