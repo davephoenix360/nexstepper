@@ -358,3 +358,71 @@ export type Application = typeof applications.$inferSelect;
 export type NewApplication = typeof applications.$inferInsert;
 export type ResumeVariant = typeof resumeVariants.$inferSelect;
 export type NewResumeVariant = typeof resumeVariants.$inferInsert;
+
+/**
+ * `score_snapshots` — point-in-time capture of an ATS scoring
+ * pass for a single resume variant.
+ *
+ * One row per `recomputeScoreAction` invocation. The page RSC
+ * reads the LATEST snapshot for the resume and uses it to:
+ *
+ *   1. Hydrate the scorecard's `initialMatchBreakdown` so the
+ *      inline-issue surface knows the right per-leaf paths
+ *      without re-deriving them from a heuristic on every click.
+ *   2. (Future) Track score trajectory across edits — "you
+ *      went from 72 → 78 after rewriting the Stripe bullet".
+ *
+ * The table is intentionally narrow. It does NOT duplicate the
+ * full `ScoreBreakdown` (which is deterministically
+ * recomputable from `resumes.revisions.data + jobContext`); it
+ * only persists what the score pass PRODUCED that the next page
+ * load needs to surface WITHOUT recomputing — primarily the
+ * MatchBreakdown, plus the headline score + tips so the
+ * scorecard can short-circuit the recompute on cold loads.
+ *
+ * Drift: this table was added in `feat/inline-issue-surface`
+ * (commit a7e9c91-era) when the MatchBreakdown writer was
+ * promoted from a returned-only value to a persisted snapshot.
+ * See `docs/drift/2026-09-21-inline-issue-surface-shipped.md`
+ * §"MatchBreakdown writer is not wired" (action item closed).
+ */
+export const scoreSnapshots = pgTable(
+  'score_snapshots',
+  {
+    id: text('id').primaryKey(),
+    resumeId: text('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    /** Headline 0-100 match percentage at this snapshot. */
+    matchScore: integer('match_score').notNull(),
+    /**
+     * Per-leaf MatchBreakdown JSONB the inline-issue surface
+     * reads to anchor its popovers. Shape pinned at
+     * `lib/db/queries.ts > MatchBreakdown`.
+     */
+    matchBreakdown: jsonb('match_breakdown').$type<unknown>(),
+    /**
+     * Dynamic improvement tips computed in the same pass as
+     * `matchScore`. Server-rendered map (Partial<Record<key,
+     * ReactNode>) used by `<DynamicTipInline />`. Stored as
+     * `unknown` JSONB because the ReactNode shape serializes
+     * cleanly but isn't a value type we want to model in SQL.
+     */
+    dynamicTips: jsonb('dynamic_tips').$type<unknown>(),
+    /** Engine latency in milliseconds — for the "Computed in X ms" footer. */
+    computedInMs: integer('computed_in_ms').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [
+    // "Latest snapshot per resume" lookups — used by the page
+    // RSC on every cold load. DESC match supports
+    // `ORDER BY created_at DESC LIMIT 1` without a sort step.
+    index('score_snapshots_resume_created_idx').on(
+      table.resumeId,
+      table.createdAt.desc()
+    )
+  ]
+);
+
+export type ScoreSnapshot = typeof scoreSnapshots.$inferSelect;
+export type NewScoreSnapshot = typeof scoreSnapshots.$inferInsert;

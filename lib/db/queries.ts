@@ -6,6 +6,7 @@ import {
   resumes,
   resumeRevisions,
   resumeVariants,
+  scoreSnapshots,
   stripeEventsProcessed,
   subscriptions,
   user,
@@ -13,6 +14,7 @@ import {
   type Resume,
   type ResumeRevision,
   type ResumeVariant,
+  type ScoreSnapshot,
   type Subscription,
   type User
 } from './schema';
@@ -1202,4 +1204,89 @@ export async function createResumeVariant(
     tailoringNotes
   });
   return { id };
+}
+
+// ─── Score-snapshot queries (Phase 3.5) ──────────────────────────────────────
+//
+// The inline-issue surface reads `matchBreakdown` server-side via
+// `getLatestScoreSnapshot()` on every variant page load. The
+// recompute flow writes a fresh snapshot via
+// `recordScoreSnapshot()` — keeping the persisted state
+// authoritative for the per-leaf popover anchors without forcing
+// the page to re-run the scoring engine on every cold load.
+
+/**
+ * Insert a new score snapshot for a resume. Called from the
+ * `recomputeScoreAction` Server Action after the score + tips +
+ * matchBreakdown are computed. Returns the inserted row's id.
+ *
+ * We don't do an UPSERT here because the snapshots are append-
+ * only — the "latest" is always the most-recent `createdAt`.
+ * Older snapshots are retained for the future "score trajectory"
+ * feature (docs/drift/2026-09-21-inline-issue-surface-shipped.md
+ * §"MatchBreakdown writer is not wired" follow-up #1).
+ *
+ * Throws on ownership-violation: callers MUST pass a `userId`
+ * (typically the session user) and we re-verify via a `resumes`
+ * join before writing. Returns `null` when the resume is
+ * missing or not owned by `userId` — callers can treat that as
+ * "silently skip the write" without surfacing an error to the
+ * user (the recompute still returned the score, just didn't
+ * persist it).
+ */
+export async function recordScoreSnapshot(
+  resumeId: string,
+  userId: string,
+  snapshot: {
+    matchScore: number;
+    matchBreakdown: unknown;
+    dynamicTips: unknown;
+    computedInMs: number;
+  }
+): Promise<{ id: string } | null> {
+  // Ownership guard — silently no-op when the resume isn't
+  // owned. Cheaper than throwing because the recompute flow
+  // already validated ownership at the top.
+  const owned = await db
+    .select({ id: resumes.id })
+    .from(resumes)
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .limit(1);
+  if (owned.length === 0) return null;
+
+  const id = crypto.randomUUID();
+  await db.insert(scoreSnapshots).values({
+    id,
+    resumeId,
+    matchScore: snapshot.matchScore,
+    matchBreakdown: snapshot.matchBreakdown,
+    dynamicTips: snapshot.dynamicTips,
+    computedInMs: snapshot.computedInMs
+  });
+  return { id };
+}
+
+/**
+ * Read the most-recent score snapshot for a resume. Returns
+ * `null` when no snapshot has ever been written (legacy rows +
+ * never-recomputed variants). Used by the variant page RSC to
+ * hydrate the scorecard's `initialMatchBreakdown` on first
+ * render — without this, the inline-issue surface would have to
+ * fall back to the `defaultPathForCriterion` heuristic on every
+ * click until the user manually hits Recompute.
+ *
+ * Index hit: `score_snapshots_resume_created_idx` (composite
+ * on `resumeId` ASC + `createdAt` DESC). The ORDER BY + LIMIT 1
+ * is satisfied by a single index scan.
+ */
+export async function getLatestScoreSnapshot(
+  resumeId: string
+): Promise<ScoreSnapshot | null> {
+  const rows = await db
+    .select()
+    .from(scoreSnapshots)
+    .where(eq(scoreSnapshots.resumeId, resumeId))
+    .orderBy(desc(scoreSnapshots.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
 }

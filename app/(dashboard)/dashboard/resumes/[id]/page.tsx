@@ -3,7 +3,14 @@ import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { getUser, getResume, getShareStatus, getSubscription } from '@/lib/db/queries';
+import {
+  getUser,
+  getResume,
+  getShareStatus,
+  getSubscription,
+  getLatestScoreSnapshot
+} from '@/lib/db/queries';
+import type { MatchBreakdown } from '@/lib/db/queries';
 import { EditableResume } from '@/components/editable';
 
 import { CreateVariantButton } from '../_components/create-variant-button';
@@ -94,6 +101,17 @@ export default async function ResumeEditorPage({
     ? buildDynamicTips(breakdown, data, data.jobContext ?? null)
     : {};
 
+  // Read the latest persisted score snapshot so the inline-issue
+  // surface has authoritative per-leaf paths on FIRST render (no
+  // need to wait for the user to click Recompute). Empty array
+  // when no snapshot has been written yet — the controller
+  // falls back to the `defaultPathForCriterion` heuristic.
+  const scoreSnapshot = !resume.isMaster
+    ? await getLatestScoreSnapshot(resume.id)
+    : null;
+  const initialMatchBreakdown: MatchBreakdown =
+    (scoreSnapshot?.matchBreakdown as MatchBreakdown | null) ?? [];
+
   // Resolve the user's plan for the inline-issue surface (Free vs
   // Pro split). Server-authoritative — we read the subscription
   // row directly so a devtools-tampered client can't trick the
@@ -158,6 +176,7 @@ export default async function ResumeEditorPage({
               jobContext={data.jobContext ?? null}
               initialBreakdown={breakdown}
               initialDynamicTips={dynamicTips}
+              initialMatchBreakdown={initialMatchBreakdown}
               planId={planId}
             />
           </div>

@@ -64,6 +64,18 @@ No DB migration was needed — only the in-process TypeScript
 shape was tightened. Adding new fields stays a backward-
 compatible change because consumers treat unknown keys as no-ops.
 
+**Drift 2a — the MatchBreakdown is now persisted.** Closed in
+the follow-up commit `7f1f4cd` + later. The recompute flow
+writes a new row to `score_snapshots` (FK → `resumes`, cascade)
+on every `recomputeScoreAction` call. The page RSC reads the
+latest snapshot via `getLatestScoreSnapshot()` and threads it
+into `ScorecardClient` as `initialMatchBreakdown`, so the
+inline-issue surface has authoritative per-leaf paths on first
+render — no need to wait for the user to click Recompute.
+Append-only (no `UPDATE`) so the table doubles as a score
+trajectory audit log for the future "you went from 72 → 78"
+feature.
+
 **Drift 3 — five templates now carry stable section ids.**
 `classic.tsx`, `minimal.tsx` (via `SmartSection`), `executive.tsx`,
 `creative.tsx`, and `modern.tsx` each got an optional `id` prop
@@ -277,9 +289,14 @@ should verify these end-to-end before merging.)
 
 ## Action items
 
-- [ ] (next session) Wire `MatchBreakdown` writer in
+- [x] (this session) Wire `MatchBreakdown` writer in
   `recomputeScoreAction` and assert it in the existing
-  `tests/unit/score-actions.test.ts`.
+  `tests/unit/score-actions.test.ts`. — closed in `7f1f4cd`.
+- [x] (this session) Persist the `MatchBreakdown` to a new
+  `score_snapshots` table and read it back on the page RSC so
+  the inline-issue surface has authoritative per-leaf paths on
+  first render. — closed in the follow-up commit (this
+  change).
 - [ ] (next session) Run the manual smoke checklist above on
   dev before merging the PR.
 - [ ] (post-launch) Move the inline-issue surface behind a

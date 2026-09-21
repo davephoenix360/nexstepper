@@ -5,7 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 import { auth } from '@/lib/auth';
-import { getResume, type MatchBreakdown } from '@/lib/db/queries';
+import {
+  getResume,
+  recordScoreSnapshot,
+  type MatchBreakdown
+} from '@/lib/db/queries';
 import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
 import { buildDynamicTips, type DynamicTips } from '@/lib/scoring/tips';
 import type { ScoreBreakdown } from '@/lib/scoring';
@@ -112,6 +116,16 @@ export async function recomputeScoreAction(
       buildMatchBreakdown(breakdown),
       breakdown
     );
+    // Persist a snapshot so the next page load has authoritative
+    // per-leaf paths without re-running the scoring engine.
+    // Silently no-ops if the resume ownership re-check fails
+    // (defensive — the action already validated above).
+    await recordScoreSnapshot(parsed.data.resumeId, session.user.id, {
+      matchScore: breakdown.overallScore,
+      matchBreakdown,
+      dynamicTips: tips,
+      computedInMs: breakdown.computedInMs
+    });
     revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
     return { ok: true, data: { breakdown, tips, matchBreakdown } };
   } catch (err) {

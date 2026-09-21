@@ -16,8 +16,11 @@ vi.mock('@/lib/auth', () => ({
 
 // Mock the DB layer so we can script ownership + data shape.
 const mockGetResume = vi.fn();
+const mockRecordScoreSnapshot = vi.fn();
 vi.mock('@/lib/db/queries', () => ({
-  getResume: (...args: unknown[]) => mockGetResume(...args)
+  getResume: (...args: unknown[]) => mockGetResume(...args),
+  recordScoreSnapshot: (...args: unknown[]) =>
+    mockRecordScoreSnapshot(...args)
 }));
 
 // Mock next/cache's revalidatePath (no-op in tests).
@@ -141,6 +144,7 @@ describe('recomputeScoreAction', () => {
   beforeEach(() => {
     mockSession.mockReset();
     mockGetResume.mockReset();
+    mockRecordScoreSnapshot.mockReset();
   });
 
   it('returns an error when not signed in', async () => {
@@ -280,5 +284,20 @@ describe('recomputeScoreAction', () => {
     }
     // Confirm the hybrid (not sync-only) engine was invoked.
     expect(scoreResumeHybridFromEnvelope).toHaveBeenCalled();
+    // Confirm the score snapshot was persisted for the inline-issue
+    // surface to read on the next cold load. The shape contract
+    // (resumeId + userId + score + matchBreakdown + tips +
+    // computedInMs) is locked — `score_snapshots` is
+    // append-only, ordered by createdAt DESC.
+    expect(mockRecordScoreSnapshot).toHaveBeenCalledTimes(1);
+    const persistArgs = mockRecordScoreSnapshot.mock.calls[0];
+    expect(persistArgs[0]).toBe('r1');
+    expect(persistArgs[1]).toBe('u1');
+    expect(persistArgs[2]).toMatchObject({
+      matchScore: 75,
+      computedInMs: 3
+    });
+    expect(Array.isArray(persistArgs[2].matchBreakdown)).toBe(true);
+    expect(typeof persistArgs[2].dynamicTips).toBe('object');
   });
 });
