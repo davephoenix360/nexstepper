@@ -186,7 +186,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showSummary && (
-          <Section title="Summary" id="section-basics" data={data}>
+          <Section title="Summary" id="section-summary" sectionSlug="summary" data={data}>
             <p className="text-[11pt]">{b.summary}</p>
           </Section>
         )}

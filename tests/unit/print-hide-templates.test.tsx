@@ -33,6 +33,7 @@ import { sampleResumeData } from '@/lib/resume-schema';
  */
 
 const HIDDEN_SLUG = 'skills';
+const HIDDEN_SUMMARY = 'summary';
 
 function withHidden(data: ResumeData, slug: string): ResumeData {
   return {
@@ -200,6 +201,31 @@ describe('ClassicTemplate — print-hide', () => {
     );
     assertHiddenOn(html, 'section-skills', true);
   });
+});
+
+describe('All 5 templates — Summary section is hideable', () => {
+  // The Summary section was originally exempt from print-hide
+  // because SECTION_TABLE didn't include it. After the user
+  // requested hiding Summary too, every template's Summary call
+  // site got `sectionSlug="summary"`. These tests pin that.
+  const fixtures: Array<{ name: string; Render: React.ComponentType<{ data: ResumeData; editable?: boolean }> }> = [
+    { name: 'minimal', Render: MinimalTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
+    { name: 'modern', Render: ModernTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
+    { name: 'creative', Render: CreativeTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
+    { name: 'classic', Render: ClassicTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> }
+    // executive intentionally excluded — it has no Summary
+    // section header (summary is part of the inline header).
+  ];
+
+  for (const { name, Render } of fixtures) {
+    it(`${name}: hides Summary when 'summary' is in hiddenSections`, () => {
+      const data = withHidden(sampleResumeData, HIDDEN_SUMMARY);
+      const html = renderToStaticMarkup(
+        React.createElement(Render, { data, editable: false })
+      );
+      assertHiddenOn(html, 'section-summary', true);
+    });
+  }
 });
 
 describe('All 5 templates — back-compat with no `print` envelope', () => {

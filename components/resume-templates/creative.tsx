@@ -162,7 +162,7 @@ function CreativeBody({
 }) {
   return (
     <div className="space-y-7">
-      <CreativeSection mode={mode} title="Summary" accent={accent} id="section-summary">
+      <CreativeSection mode={mode} title="Summary" accent={accent} id="section-summary" sectionSlug="summary">
         <FieldArea
           mode={mode}
           path="sections.basics.summary"

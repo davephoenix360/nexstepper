@@ -278,7 +278,7 @@ function ClassicWithForm({
 
         {/* Summary */}
         {showSummary && (
-          <Section id="section-summary" title="Summary" className={printHiddenIf(!isSet(b.summary))}>
+          <Section id="section-summary" sectionSlug="summary" title="Summary" className={printHiddenIf(!isSet(b.summary))}>
             {editable ? (
               <EditableTextarea
                 path="sections.basics.summary"

@@ -205,7 +205,7 @@ function ModernBody({ mode }: { mode: FieldMode }) {
   return (
     <main className="space-y-5">
       {hasSummary && (
-        <ModernSection mode={mode} title="Summary" id="section-summary">
+        <ModernSection mode={mode} title="Summary" id="section-summary" sectionSlug="summary">
           <FieldArea
             mode={mode}
             path="sections.basics.summary"
