@@ -73,14 +73,17 @@ export function PrintPrefsBar({ sectionSlug, mode, className }: PrintPrefsBarPro
         data-slug={sectionSlug}
         // `.no-print` hides the button in the PDF + browser
         // print preview so the editor controls never leak
-        // into the export. Hover-reveal keeps the button from
-        // cluttering the editor view; the visible badge (when
-        // hidden=true) is the always-on signal.
+        // into the export. The button is **always visible** in
+        // the editor — an earlier `opacity-0 group-hover` reveal
+        // required the parent to carry a `group` class, which
+        // none of the section wrappers have, so the toggle was
+        // effectively invisible. Hover still deepens the
+        // background for affordance.
         className={cn(
           'no-print inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors',
           hidden
             ? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-800 dark:text-amber-100'
-            : 'bg-muted text-muted-foreground opacity-0 hover:bg-muted/60 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100'
+            : 'bg-muted text-muted-foreground hover:bg-muted/60 hover:text-foreground'
         )}
       >
         {hidden ? (
