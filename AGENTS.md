@@ -117,7 +117,7 @@ renewal date + Upgrade / Manage billing CTAs. Inline-issue
 surface's `enrichBulletAction` can now call `requirePro()` without
 re-discovering the boundary.
 
-**Next (queued, priority order)**
+**Now (in flight)** — what this session is shipping.
 
 Inline issue surface implementation (shipped 2026-09-21, branch
 `feat/inline-issue-surface`): dim-bar click → scroll + pulse +
@@ -142,6 +142,41 @@ shared state. All five resume templates gained stable
 real shape `{ path, weight, criterion, tipKind }[]`. New
 `@keyframes pulse-accent` + `.issue-pulse` utility in
 `globals.css`. ADR: `docs/decisions/0006-inline-issue-surface.md`.
+
+Inline issue follow-ups (shipped 2026-09-21, same branch):
+**Suppression notice** + **print-hide section toggle**.
+The first was a UX fix — clicking "Rewrite with AI" on a
+Free-tier dim bar (or on an empty bullet) previously opened
+the popover silently suppressed, leaving the user staring at a
+"dead button". Now the scorecard renders an inline banner
+(`role="status" aria-live="polite"` data-tone="info|warn") above
+the dim bars whenever the popover is suppressed, naming the
+reason (upgrade-to-Pro / empty-bullet / unknown-path). The
+notice auto-dismisses after 4s, with cancel-and-replace
+semantics on rapid re-clicks so the freshest message gets the
+full window. Logic extracted to
+`lib/inline-issue/suppression-notice.ts` (pure, unit-tested).
+The second was a new product feature — a per-section "Hide from
+print" toggle in the editor that gets a `print:hidden` CSS
+class on the section wrapper, so the user can hide e.g.
+"References" from the PDF without deleting the data. New
+`print.hiddenSections: string[]` on the `ResumeData` envelope
+(Zod schema in `lib/resume-schema/resume-data.ts`); new
+`useSectionPrint(slug, mode)` hook in
+`components/editable/use-section-print.ts` that branches on
+`mode.editable` (RHF) vs `mode.editable=false` (data-driven,
+preview/print path) so the hook survives being called from a
+server component; new `<PrintPrefsBar />` client component
+(eye toggle + "Hidden from print" amber badge) mounted in every
+Section helper across all 5 templates (minimal, classic +
+classic-readonly, executive, creative, modern) — the print
+side already had `print-color-adjust: exact` so the visible
+"hidden" state is honored in the rendered PDF. 934 tests pass
+(+44 net new across `use-section-print.test.tsx`,
+`suppression-notice.test.ts`, `print-hide-schema.test.ts`,
+`print-hide-templates.test.tsx`).
+
+**Next (queued, priority order)**
 
 1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
    registry + daily-quota enforcement (`usage` table). Free tier

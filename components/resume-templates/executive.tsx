@@ -42,6 +42,9 @@ import {
 import { SmartSection } from './section';
 import { EXECUTIVE_TEMPLATE_META } from './meta';
 import type { ResumeData } from '@/lib/resume-schema';
+import { useSectionPrint } from '@/components/editable/use-section-print';
+import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
+import { cn } from '@/lib/utils';
 
 /* -------------------------------------------------------------------------- */
 /*  Root                                                                       */
@@ -166,19 +169,19 @@ function ExecutiveSummary({ mode }: { mode: FieldMode }) {
 function ExecutiveBody({ mode }: { mode: FieldMode }) {
   return (
     <div className="space-y-6">
-      <ExecutiveSection mode={mode} title="Experience" id="section-experience">
+      <ExecutiveSection mode={mode} title="Experience" id="section-experience" sectionSlug="experience">
         <ExecutiveExperience mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Education" id="section-education">
+      <ExecutiveSection mode={mode} title="Education" id="section-education" sectionSlug="education">
         <ExecutiveEducation mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Skills" id="section-skills">
+      <ExecutiveSection mode={mode} title="Skills" id="section-skills" sectionSlug="skills">
         <ExecutiveSkills mode={mode} />
       </ExecutiveSection>
 
-      <ExecutiveSection mode={mode} title="Projects" id="section-projects">
+      <ExecutiveSection mode={mode} title="Projects" id="section-projects" sectionSlug="projects">
         <ExecutiveProjects mode={mode} />
       </ExecutiveSection>
 
@@ -186,6 +189,7 @@ function ExecutiveBody({ mode }: { mode: FieldMode }) {
         mode={mode}
         title="Publications & Speaking"
         id="section-publications"
+        sectionSlug="publications"
       >
         <ExecutivePublications mode={mode} />
       </ExecutiveSection>
@@ -194,6 +198,7 @@ function ExecutiveBody({ mode }: { mode: FieldMode }) {
         mode={mode}
         title="Board & Advisory Roles"
         id="section-volunteer"
+        sectionSlug="volunteer"
       >
         <ExecutiveVolunteer mode={mode} />
       </ExecutiveSection>
@@ -209,6 +214,7 @@ function ExecutiveSection({
   mode,
   title,
   id,
+  sectionSlug,
   children
 }: {
   mode: FieldMode;
@@ -219,6 +225,13 @@ function ExecutiveSection({
    * it get the legacy un-anchored header.
    */
   id?: string;
+  /**
+   * Print-hide slug from `SECTION_TABLE`. When provided, the
+   * section gets `print:hidden opacity-60` when the slug is
+   * in `data.print.hiddenSections`, and the editor's view
+   * renders a `<PrintPrefsBar>` next to the title.
+   */
+  sectionSlug?: string;
   children: React.ReactNode;
 }) {
   // Suppress the entire section (header + content) when the child
@@ -230,14 +243,27 @@ function ExecutiveSection({
   if (!mode.editable && (children === null || children === undefined)) {
     return null;
   }
+  const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
+  const sectionClassName = cn(
+    sectionSlug && hidden && 'print:hidden opacity-60'
+  );
   return (
-    <section>
-      <h2
-        id={id}
-        className="mb-2 border-b border-zinc-300 pb-1 text-[10pt] font-serif font-semibold uppercase tracking-[0.18em] text-zinc-800"
-      >
-        {title}
-      </h2>
+    <section className={sectionClassName}>
+      <div className="mb-2 flex items-center justify-between gap-2 border-b border-zinc-300 pb-1">
+        <h2
+          id={id}
+          className="text-[10pt] font-serif font-semibold uppercase tracking-[0.18em] text-zinc-800"
+        >
+          {title}
+        </h2>
+        {sectionSlug && mode.editable && (
+          <PrintPrefsBar
+            sectionSlug={sectionSlug}
+            mode={mode}
+            className="no-print"
+          />
+        )}
+      </div>
       {children}
     </section>
   );

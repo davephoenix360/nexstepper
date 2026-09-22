@@ -38,6 +38,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 import type { ResumeData } from '@/lib/resume-schema';
+import { isSectionHiddenFromPrint } from '@/lib/resume-schema/resume-data';
 
 import { DateRange } from './date-range';
 import { read } from './field';
@@ -57,15 +58,44 @@ function arr(data: unknown, path: string): string[] {
 
 function Section({
   title,
+  id,
+  sectionSlug,
+  data,
   children,
   className
 }: {
   title: string;
+  /**
+   * Stable DOM id for the inline-issue surface's scroll-to +
+   * pulse target. Optional — callers that don't pass it get
+   * the legacy un-anchored header.
+   */
+  id?: string;
+  /**
+   * Print-hide slug from `SECTION_TABLE`. When provided AND
+   * present in `data.print.hiddenSections`, the section gets
+   * `print:hidden opacity-60`. The read-only path uses the
+   * synchronous `isSectionHiddenFromPrint()` predicate (no
+   * RHF — this template renders server-side without
+   * `<FormProvider>`).
+   */
+  sectionSlug?: string;
+  data: ResumeData;
   children: React.ReactNode;
   className?: string;
 }) {
+  const isHidden = sectionSlug
+    ? isSectionHiddenFromPrint(data, sectionSlug)
+    : false;
   return (
-    <section className={cn('mb-5 last:mb-0', className)}>
+    <section
+      id={id}
+      className={cn(
+        'mb-5 last:mb-0',
+        className,
+        sectionSlug && isHidden && 'print:hidden opacity-60'
+      )}
+    >
       <h2 className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700">
         {title}
       </h2>
@@ -156,13 +186,13 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showSummary && (
-          <Section title="Summary">
+          <Section title="Summary" id="section-basics" data={data}>
             <p className="text-[11pt]">{b.summary}</p>
           </Section>
         )}
 
         {showWork && (
-          <Section title="Experience">
+          <Section title="Experience" id="section-experience" sectionSlug="experience" data={data}>
             {sections.work.map((w, i) => (
               <div
                 key={`work-${i}`}
@@ -206,7 +236,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showProjects && (
-          <Section title="Projects">
+          <Section title="Projects" id="section-projects" sectionSlug="projects" data={data}>
             {sections.projects.map((p, i) => (
               <div
                 key={`proj-${i}`}
@@ -239,7 +269,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showSkills && (
-          <Section title="Skills">
+          <Section title="Skills" id="section-skills" sectionSlug="skills" data={data}>
             <div className="space-y-1">
               {sections.skills.map((s, i) => (
                 <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
@@ -256,7 +286,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showEducation && (
-          <Section title="Education">
+          <Section title="Education" id="section-education" sectionSlug="education" data={data}>
             {sections.education.map((e, i) => (
               <div
                 key={`edu-${i}`}
@@ -289,7 +319,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showVolunteer && (
-          <Section title="Volunteer">
+          <Section title="Volunteer" id="section-volunteer" sectionSlug="volunteer" data={data}>
             {sections.volunteer.map((v, i) => (
               <div
                 key={`vol-${i}`}
@@ -317,7 +347,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showAwards && (
-          <Section title="Awards">
+          <Section title="Awards" id="section-awards" sectionSlug="awards" data={data}>
             {sections.awards.map((a, i) => (
               <div
                 key={`award-${i}`}
@@ -339,7 +369,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showCertificates && (
-          <Section title="Certificates">
+          <Section title="Certificates" id="section-certificates" sectionSlug="certificates" data={data}>
             {sections.certificates.map((c, i) => (
               <div
                 key={`cert-${i}`}
@@ -360,7 +390,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showPublications && (
-          <Section title="Publications">
+          <Section title="Publications" id="section-publications" sectionSlug="publications" data={data}>
             {sections.publications.map((p, i) => (
               <div
                 key={`pub-${i}`}
@@ -382,7 +412,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showLanguages && (
-          <Section title="Languages">
+          <Section title="Languages" id="section-languages" sectionSlug="languages" data={data}>
             <div className="space-y-1">
               {sections.languages.map((l, i) => (
                 <div
@@ -402,7 +432,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showInterests && (
-          <Section title="Interests">
+          <Section title="Interests" id="section-interests" sectionSlug="interests" data={data}>
             <div className="space-y-1">
               {sections.interests.map((it, i) => (
                 <div
@@ -422,7 +452,7 @@ export function ClassicReadOnly({ data }: Props) {
         )}
 
         {showReferences && (
-          <Section title="References">
+          <Section title="References" id="section-references" sectionSlug="references" data={data}>
             {sections.references.map((r, i) => (
               <div
                 key={`ref-${i}`}

@@ -13,6 +13,7 @@ import {
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { MatchBreakdown } from '@/lib/db/queries';
 import { defaultPathForCriterion } from '@/lib/inline-issue/criterion-to-path';
+import { buildSuppressionNotice } from './suppression-notice';
 
 /**
  * Controller hook — owns the open/close state of the popover
@@ -87,6 +88,30 @@ export function useInlineIssueController({
   // Sequence counter — bumped on every trigger. Exposed via the
   // returned `pulseSequence` so callers can correlate logs/tests.
   const [pulseSequence, setPulseSequence] = React.useState(0);
+  /**
+   * Transient suppression notice — shown when the user clicked a
+   * dim bar but the popover was suppressed (empty bullet, not Pro,
+   * unknown path, etc). The pulse + tip still fire, so this
+   * notice is the *only* feedback when the AI half can't run.
+   * Without it the click feels dead ("I pressed the button and
+   * nothing happened"). Auto-dismisses after 4s.
+   */
+  const [notice, setNotice] = React.useState<{
+    message: string;
+    tone: 'info' | 'warn';
+    sequence: number;
+  } | null>(null);
+
+  // Ref to the dismiss timer so a new notice cancels the prior
+  // timer (no stale-dismissal of the fresh message).
+  const noticeTimerRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current !== null) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
+    };
+  }, []);
 
   const trigger = React.useCallback(
     ({ path, criterion }: TriggerInput) => {
@@ -127,14 +152,43 @@ export function useInlineIssueController({
       }
       setPulseSequence((n) => n + 1);
 
-      // Empty-bullet guard — don't open the popover if there's
-      // nothing to rewrite. The pulse + tip still fire so the
-      // user gets visual feedback that the click registered.
-      if (isPro && text.trim().length > 0) {
+      // Decided whether the AI popover can open + what feedback to
+      // show if not. Three outcomes:
+      //   a) Pro user + leaf has text + known target → open the popover.
+      //   b) Free user → show "Upgrade to use AI rewrites" notice.
+      //   c) Pro user + empty leaf → show "Add some content first"
+      //      notice (so the user knows the click registered but
+      //      the leaf had nothing to rewrite).
+      //   d) Pro user + unknown path → show "Couldn't locate a
+      //      bullet for this criterion" notice.
+      // In all cases the pulse + tip fire so the user sees visual
+      // confirmation the click was received.
+      const suppression = buildSuppressionNotice({
+        isPro,
+        text,
+        hasTarget: target !== null
+      });
+      if (suppression === null) {
         setPopoverOpen(true);
+        setNotice(null);
+      } else {
+        const sequence = pulseSequence + 1;
+        setNotice({ message: suppression.message, tone: suppression.tone, sequence });
+        // Auto-dismiss after 4s. Cancel any prior timer so a
+        // rapid second click shows the fresh message for a full
+        // 4s.
+        if (noticeTimerRef.current !== null) {
+          window.clearTimeout(noticeTimerRef.current);
+        }
+        noticeTimerRef.current = window.setTimeout(() => {
+          setNotice((current) =>
+            current?.sequence === sequence ? null : current
+          );
+          noticeTimerRef.current = null;
+        }, 4000);
       }
     },
-    [isPro, matchBreakdown]
+    [isPro, matchBreakdown, pulseSequence]
   );
 
   const popoverProps = React.useMemo(() => {
@@ -179,7 +233,14 @@ export function useInlineIssueController({
      * The actual scroll / pulse / tip rendering is now driven
      * by the bridge event, not this number.
      */
-    pulseSequence
+    pulseSequence,
+    /**
+     * Suppression notice — populated when a click did NOT open
+     * the popover. The scorecard renders this as a transient
+     * inline banner so the user always sees a result (never a
+     * dead click). `null` when no recent suppression.
+     */
+    notice
   };
 }
 

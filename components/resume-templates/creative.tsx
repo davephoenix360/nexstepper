@@ -46,6 +46,9 @@ import {
 } from './field';
 import { CREATIVE_TEMPLATE_META } from './meta';
 import type { ResumeData } from '@/lib/resume-schema';
+import { useSectionPrint } from '@/components/editable/use-section-print';
+import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
+import { cn } from '@/lib/utils';
 
 /* -------------------------------------------------------------------------- */
 /*  Root                                                                       */
@@ -169,27 +172,27 @@ function CreativeBody({
         />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Experience" accent={accent} id="section-experience">
+      <CreativeSection mode={mode} title="Experience" accent={accent} id="section-experience" sectionSlug="experience">
         <CreativeExperience mode={mode} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Skills" accent={accent} id="section-skills">
+      <CreativeSection mode={mode} title="Skills" accent={accent} id="section-skills" sectionSlug="skills">
         <CreativeSkills mode={mode} accent={accent} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Education" accent={accent} id="section-education">
+      <CreativeSection mode={mode} title="Education" accent={accent} id="section-education" sectionSlug="education">
         <CreativeEducation mode={mode} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Projects" accent={accent} id="section-projects">
+      <CreativeSection mode={mode} title="Projects" accent={accent} id="section-projects" sectionSlug="projects">
         <CreativeProjects mode={mode} accent={accent} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Portfolio & Tools" accent={accent} id="section-projects">
+      <CreativeSection mode={mode} title="Portfolio & Tools" accent={accent} id="section-projects" sectionSlug="projects">
         <CreativePortfolio mode={mode} />
       </CreativeSection>
 
-      <CreativeSection mode={mode} title="Volunteer" accent={accent} id="section-volunteer">
+      <CreativeSection mode={mode} title="Volunteer" accent={accent} id="section-volunteer" sectionSlug="volunteer">
         <CreativeVolunteer mode={mode} />
       </CreativeSection>
     </div>
@@ -205,6 +208,7 @@ function CreativeSection({
   title,
   accent,
   id,
+  sectionSlug,
   children
 }: {
   mode: FieldMode;
@@ -216,6 +220,13 @@ function CreativeSection({
    * it get the legacy un-anchored header.
    */
   id?: string;
+  /**
+   * Print-hide slug from `SECTION_TABLE`. When provided, the
+   * section gets `print:hidden opacity-60` when the slug is
+   * in `data.print.hiddenSections`, and the editor's view
+   * renders a `<PrintPrefsBar>` next to the title.
+   */
+  sectionSlug?: string;
   children: React.ReactNode;
 }) {
   // Suppress the entire section (header + colored rule + content)
@@ -226,8 +237,12 @@ function CreativeSection({
   if (!mode.editable && (children === null || children === undefined)) {
     return null;
   }
+  const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
+  const sectionClassName = cn(
+    sectionSlug && hidden && 'print:hidden opacity-60'
+  );
   return (
-    <section>
+    <section className={sectionClassName}>
       <div className="mb-3 flex items-center gap-3">
         <h2
           id={id}
@@ -240,6 +255,13 @@ function CreativeSection({
           style={{ background: `var(--accent-${accent}, #f43f5e)` }}
           data-testid={`creative-rule-${title.toLowerCase().replace(/\s+/g, '-')}`}
         />
+        {sectionSlug && mode.editable && (
+          <PrintPrefsBar
+            sectionSlug={sectionSlug}
+            mode={mode}
+            className="no-print"
+          />
+        )}
       </div>
       {children}
     </section>

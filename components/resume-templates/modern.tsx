@@ -59,6 +59,9 @@ import {
 } from './field';
 import { MODERN_TEMPLATE_META } from './meta';
 import type { ResumeData } from '@/lib/resume-schema';
+import { useSectionPrint } from '@/components/editable/use-section-print';
+import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
+import { cn } from '@/lib/utils';
 
 /* -------------------------------------------------------------------------- */
 /*  Root                                                                       */
@@ -202,7 +205,7 @@ function ModernBody({ mode }: { mode: FieldMode }) {
   return (
     <main className="space-y-5">
       {hasSummary && (
-        <ModernSection title="Summary" id="section-summary">
+        <ModernSection mode={mode} title="Summary" id="section-summary">
           <FieldArea
             mode={mode}
             path="sections.basics.summary"
@@ -233,10 +236,13 @@ function ModernBody({ mode }: { mode: FieldMode }) {
 /* -------------------------------------------------------------------------- */
 
 function ModernSection({
+  mode,
   title,
   id,
+  sectionSlug,
   children
 }: {
+  mode: FieldMode;
   title: string;
   /**
    * Stable DOM id for the inline-issue surface (e.g.
@@ -244,20 +250,41 @@ function ModernSection({
    * it get the legacy un-anchored header.
    */
   id?: string;
+  /**
+   * Print-hide slug from `SECTION_TABLE`. When provided, the
+   * section gets `print:hidden opacity-60` when the slug is
+   * in `data.print.hiddenSections`, and the editor's view
+   * renders a `<PrintPrefsBar>` next to the title.
+   */
+  sectionSlug?: string;
   children: React.ReactNode;
 }) {
+  const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
+  const sectionClassName = cn(
+    'break-inside-avoid print:break-inside-avoid',
+    sectionSlug && hidden && 'print:hidden opacity-60'
+  );
   return (
-    <section className="break-inside-avoid print:break-inside-avoid">
-      <h2
-        id={id}
-        className="mb-2 flex items-center gap-2 text-[11pt] font-bold uppercase tracking-[0.12em] text-zinc-900"
-      >
-        <span
-          aria-hidden="true"
-          className="inline-block h-3 w-1 rounded-sm bg-zinc-900"
-        />
-        {title}
-      </h2>
+    <section className={sectionClassName}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2
+          id={id}
+          className="flex items-center gap-2 text-[11pt] font-bold uppercase tracking-[0.12em] text-zinc-900"
+        >
+          <span
+            aria-hidden="true"
+            className="inline-block h-3 w-1 rounded-sm bg-zinc-900"
+          />
+          {title}
+        </h2>
+        {sectionSlug && mode.editable && (
+          <PrintPrefsBar
+            sectionSlug={sectionSlug}
+            mode={mode}
+            className="no-print"
+          />
+        )}
+      </div>
       <div className="text-zinc-800">{children}</div>
     </section>
   );
@@ -274,7 +301,7 @@ function has<T>(arr: T[] | undefined | null): arr is T[] {
 function ModernExperience({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.work)) return null;
   return (
-    <ModernSection title="Experience" id="section-experience">
+    <ModernSection mode={mode} title="Experience" id="section-experience" sectionSlug="experience">
       <div className="space-y-4">
         {mode.data.sections.work.map((_, i) => (
           <ModernWorkEntry key={`w-${i}`} mode={mode} index={i} />
@@ -378,7 +405,7 @@ function ModernWorkPosition({
 function ModernProjects({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.projects)) return null;
   return (
-    <ModernSection title="Projects" id="section-projects">
+    <ModernSection mode={mode} title="Projects" id="section-projects" sectionSlug="projects">
       <div className="space-y-3">
         {mode.data.sections.projects.map((p, i) => {
           const hasKeywords = has(p.keywords);
@@ -434,7 +461,7 @@ function ModernProjects({ mode }: { mode: FieldMode }) {
 function ModernEducation({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.education)) return null;
   return (
-    <ModernSection title="Education" id="section-education">
+    <ModernSection mode={mode} title="Education" id="section-education" sectionSlug="education">
       <div className="space-y-3">
         {mode.data.sections.education.map((e, i) => (
           <div key={`e-${i}`}>
@@ -487,7 +514,7 @@ function ModernEducation({ mode }: { mode: FieldMode }) {
 function ModernSkills({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.skills)) return null;
   return (
-    <ModernSection title="Skills" id="section-skills">
+    <ModernSection mode={mode} title="Skills" id="section-skills" sectionSlug="skills">
       <div className="space-y-2">
         {mode.data.sections.skills.map((_, i) => (
           <div
@@ -520,7 +547,7 @@ function ModernSkills({ mode }: { mode: FieldMode }) {
 function ModernVolunteer({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.volunteer)) return null;
   return (
-    <ModernSection title="Volunteer" id="section-volunteer">
+    <ModernSection mode={mode} title="Volunteer" id="section-volunteer" sectionSlug="volunteer">
       <div className="space-y-3">
         {mode.data.sections.volunteer.map((v, i) => (
           <div key={`v-${i}`}>
@@ -565,7 +592,7 @@ function ModernVolunteer({ mode }: { mode: FieldMode }) {
 function ModernAwards({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.awards)) return null;
   return (
-    <ModernSection title="Awards" id="section-awards">
+    <ModernSection mode={mode} title="Awards" id="section-awards" sectionSlug="awards">
       <div className="space-y-2">
         {mode.data.sections.awards.map((a, i) => (
           <div
@@ -607,7 +634,7 @@ function ModernAwards({ mode }: { mode: FieldMode }) {
 function ModernCertificates({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.certificates)) return null;
   return (
-    <ModernSection title="Certificates" id="section-certificates">
+    <ModernSection mode={mode} title="Certificates" id="section-certificates" sectionSlug="certificates">
       <div className="space-y-2">
         {mode.data.sections.certificates.map((c, i) => (
           <div
@@ -649,7 +676,7 @@ function ModernCertificates({ mode }: { mode: FieldMode }) {
 function ModernPublications({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.publications)) return null;
   return (
-    <ModernSection title="Publications" id="section-publications">
+    <ModernSection mode={mode} title="Publications" id="section-publications" sectionSlug="publications">
       <div className="space-y-2">
         {mode.data.sections.publications.map((_, i) => (
           <div key={`p-${i}`}>
@@ -679,7 +706,7 @@ function ModernPublications({ mode }: { mode: FieldMode }) {
 function ModernLanguages({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.languages)) return null;
   return (
-    <ModernSection title="Languages" id="section-languages">
+    <ModernSection mode={mode} title="Languages" id="section-languages" sectionSlug="languages">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11pt]">
         {mode.data.sections.languages.map((_, i) => (
           <span key={`l-${i}`} className="flex items-center gap-1">
@@ -715,7 +742,7 @@ function ModernInterests({ mode }: { mode: FieldMode }) {
     .filter(Boolean);
   const preview = keywords.join(' · ');
   return (
-    <ModernSection title="Interests" id="section-interests">
+    <ModernSection mode={mode} title="Interests" id="section-interests" sectionSlug="interests">
       {preview ? (
         <p className="text-[11pt] text-zinc-700">{preview}</p>
       ) : (
@@ -730,7 +757,7 @@ function ModernInterests({ mode }: { mode: FieldMode }) {
 function ModernReferences({ mode }: { mode: FieldMode }) {
   if (!has(mode.data.sections.references)) return null;
   return (
-    <ModernSection title="References" id="section-references">
+    <ModernSection mode={mode} title="References" id="section-references" sectionSlug="references">
       <div className="space-y-2">
         {mode.data.sections.references.map((r, i) => (
           <div key={`r-${i}`}>

@@ -150,23 +150,23 @@ function MinimalBody({ mode }: { mode: FieldMode }) {
         />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Experience" id="section-experience">
+      <SmartSection mode={mode} title="Experience" id="section-experience" sectionSlug="experience">
         <MinimalExperience mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Skills" id="section-skills">
+      <SmartSection mode={mode} title="Skills" id="section-skills" sectionSlug="skills">
         <MinimalSkills mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Education" id="section-education">
+      <SmartSection mode={mode} title="Education" id="section-education" sectionSlug="education">
         <MinimalEducation mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Projects" id="section-projects">
+      <SmartSection mode={mode} title="Projects" id="section-projects" sectionSlug="projects">
         <MinimalProjects mode={mode} />
       </SmartSection>
 
-      <SmartSection mode={mode} title="Volunteer" id="section-volunteer">
+      <SmartSection mode={mode} title="Volunteer" id="section-volunteer" sectionSlug="volunteer">
         <MinimalVolunteer mode={mode} />
       </SmartSection>
     </div>

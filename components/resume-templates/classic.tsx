@@ -17,6 +17,8 @@ import {
   BulletList,
   KeywordChips,
 } from "@/components/editable";
+import { useSectionPrint } from "@/components/editable/use-section-print";
+import { PrintPrefsBar } from "@/components/editable/print-prefs-bar";
 import { DateRange } from "./date-range";
 import { ContactLineEditable, LocationLineEditable } from "./header-lines";
 
@@ -294,6 +296,7 @@ function ClassicWithForm({
         {showWork && (
           <Section
             id="section-experience"
+            sectionSlug="experience"
             title="Experience"
             className={printHiddenIf(!has(sections.work))}
           >
@@ -395,6 +398,7 @@ function ClassicWithForm({
         {showProjects && (
           <Section
             id="section-projects"
+            sectionSlug="projects"
             title="Projects"
             className={printHiddenIf(!has(sections.projects))}
           >
@@ -441,6 +445,7 @@ function ClassicWithForm({
         {showSkills && (
           <Section
             id="section-skills"
+            sectionSlug="skills"
             title="Skills"
             className={printHiddenIf(!has(sections.skills))}
           >
@@ -469,6 +474,7 @@ function ClassicWithForm({
         {showEducation && (
           <Section
             id="section-education"
+            sectionSlug="education"
             title="Education"
             className={printHiddenIf(!has(sections.education))}
           >
@@ -515,6 +521,7 @@ function ClassicWithForm({
         {showVolunteer && (
           <Section
             id="section-volunteer"
+            sectionSlug="volunteer"
             title="Volunteer"
             className={printHiddenIf(!has(sections.volunteer))}
           >
@@ -558,6 +565,7 @@ function ClassicWithForm({
         {showAwards && (
           <Section
             id="section-awards"
+            sectionSlug="awards"
             title="Awards"
             className={printHiddenIf(!has(sections.awards))}
           >
@@ -597,6 +605,7 @@ function ClassicWithForm({
         {showCertificates && (
           <Section
             id="section-certificates"
+            sectionSlug="certificates"
             title="Certificates"
             className={printHiddenIf(!has(sections.certificates))}
           >
@@ -633,6 +642,7 @@ function ClassicWithForm({
         {showPublications && (
           <Section
             id="section-publications"
+            sectionSlug="publications"
             title="Publications"
             className={printHiddenIf(!has(sections.publications))}
           >
@@ -672,6 +682,7 @@ function ClassicWithForm({
         {showLanguages && (
           <Section
             id="section-languages"
+            sectionSlug="languages"
             title="Languages"
             className={printHiddenIf(!has(sections.languages))}
           >
@@ -701,6 +712,7 @@ function ClassicWithForm({
         {showInterests && (
           <Section
             id="section-interests"
+            sectionSlug="interests"
             title="Interests"
             className={printHiddenIf(!has(sections.interests))}
           >
@@ -732,6 +744,7 @@ function ClassicWithForm({
         {showReferences && (
           <Section
             id="section-references"
+            sectionSlug="references"
             title="References"
             className={printHiddenIf(!has(sections.references))}
           >
@@ -779,6 +792,7 @@ function ClassicWithForm({
 function Section({
   title,
   id,
+  sectionSlug,
   children,
   className,
 }: {
@@ -789,17 +803,48 @@ function Section({
    * it get the legacy un-anchored header.
    */
   id?: string;
+  /**
+   * Print-hide slug from `SECTION_TABLE` (e.g. "experience",
+   * "skills"). When provided, the section renders a
+   * `<PrintPrefsBar>` next to the title and gets
+   * `print:hidden opacity-60` when the user toggles the slug
+   * into `data.print.hiddenSections`. The Classic template
+   * renders inside `<FormProvider>` (see `ClassicWithForm`),
+   * so the hook reads from the live RHF form.
+   */
+  sectionSlug?: string;
   children: React.ReactNode;
   className?: string;
 }) {
+  // `editable: true` — Classic's `Section` is only ever
+  // rendered inside `ClassicWithForm` (which provides
+  // `<FormProvider>`). The hook reads from RHF, the toggle
+  // writes back through `setValue`.
+  const { hidden } = useSectionPrint(sectionSlug ?? "__no_section__", {
+    editable: true,
+  });
+  const sectionClassName = cn(
+    "mb-5 last:mb-0",
+    className,
+    sectionSlug && hidden && "print:hidden opacity-60"
+  );
   return (
-    <section className={cn("mb-5 last:mb-0", className)}>
-      <h2
-        id={id}
-        className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700"
-      >
-        {title}
-      </h2>
+    <section className={sectionClassName}>
+      <div className="mb-2 flex items-center justify-between gap-2 border-b border-zinc-300 pb-0.5">
+        <h2
+          id={id}
+          className="text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700"
+        >
+          {title}
+        </h2>
+        {sectionSlug && (
+          <PrintPrefsBar
+            sectionSlug={sectionSlug}
+            mode={{ editable: true }}
+            className="no-print"
+          />
+        )}
+      </div>
       {children}
     </section>
   );

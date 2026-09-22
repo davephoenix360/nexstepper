@@ -184,6 +184,36 @@ export function ScorecardClient({
       />
 
       {/*
+        Suppression notice — visible feedback when a dim-bar
+        click did NOT open the popover (Free user / empty
+        bullet / unknown path). The user otherwise sees the
+        pulse + inline tip fire normally, which is a confusing
+        "I clicked, something happened, but the AI feature
+        didn't" UX. The notice names the reason so the user
+        always sees a concrete result.
+
+        Only renders when the controller's `notice` is non-null,
+        which happens ~immediately after a suppressed click and
+        auto-clears after 4s (see useInlineIssueController).
+      */}
+      {controller.notice && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="inline-issue-notice"
+          data-tone={controller.notice.tone}
+          data-sequence={controller.notice.sequence}
+          className={
+            controller.notice.tone === 'warn'
+              ? 'rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200'
+              : 'rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs leading-snug text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200'
+          }
+        >
+          {controller.notice.message}
+        </div>
+      )}
+
+      {/*
         The popover — only for Pro. `controller.popoverProps` is
         `null` when nothing is active; the inner popover short-
         circuits to nothing in that case.
