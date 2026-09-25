@@ -1371,6 +1371,31 @@ export async function updateChatSessionTitle(
 }
 
 /**
+ * Normalise the `tool_calls` JSONB column back into the
+ * `Array<{ name, args }>` shape the client / model prompt expect.
+ *
+ * The DB column is declared as `jsonb`, but Drizzle + `postgres-js`
+ * round-trips it through a string for some adapter / driver combos,
+ * so callers may see either `string` or already-parsed value. Be
+ * defensive: JSON.parse if it's a string, type-guard the result,
+ * and return `undefined` on any failure (corrupt JSON, wrong root
+ * type, missing field). Callers should treat `undefined` as
+ * "no tool calls for this row" rather than an error.
+ */
+export function parseChatToolCalls(
+  raw: unknown
+): Array<{ name: string; args: unknown }> | undefined {
+  if (raw === null || raw === undefined) return undefined;
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(value)) return undefined;
+    return value as Array<{ name: string; args: unknown }>;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Fetch all messages for a session, in chronological order.
  * Used to reconstruct conversation history for display or re-streaming.
  */

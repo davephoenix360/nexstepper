@@ -19,6 +19,9 @@ import type { ScoreBreakdown } from '@/lib/scoring/score';
 function makeScore(overrides: Partial<ScoreBreakdown['dimensionScores']> = {}): ScoreBreakdown {
   return {
     overallScore: 47,
+    // Wall-clock for the engine footer — unused by buildAtsContext but
+    // required since `wire scoreSeniorityFitFromEnvelope` (323ab7b).
+    computedInMs: 12,
     dimensionScores: {
       atsMatching: 42,
       structure: 78,
