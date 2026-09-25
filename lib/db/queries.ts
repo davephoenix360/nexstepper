@@ -3,6 +3,9 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from './drizzle';
 import {
   applications,
+  chatMessages,
+  chatSessions,
+  chatUsage,
   resumes,
   resumeRevisions,
   resumeVariants,
@@ -11,6 +14,12 @@ import {
   subscriptions,
   user,
   type Application,
+  type ChatMessage,
+  type ChatSession,
+  type ChatUsage,
+  type NewChatMessage,
+  type NewChatSession,
+  type NewChatUsage,
   type Resume,
   type ResumeRevision,
   type ResumeVariant,
@@ -1289,4 +1298,184 @@ export async function getLatestScoreSnapshot(
     .orderBy(desc(scoreSnapshots.createdAt))
     .limit(1);
   return rows[0] ?? null;
+}
+
+// ─── Chat queries (Phase 4) ────────────────────────────────────────────────────
+
+/**
+ * Create a new chat session for a user + resume.
+ * A user can have multiple sessions per resume (one per "conversation thread").
+ */
+export async function createChatSession(
+  userId: string,
+  resumeId: string,
+  title = 'New conversation'
+): Promise<ChatSession> {
+  const id = crypto.randomUUID();
+  const [row] = await db
+    .insert(chatSessions)
+    .values({ id, userId, resumeId, title })
+    .returning();
+  return row;
+}
+
+/**
+ * List a user's chat sessions for a resume, most recent first.
+ * Used by the chat sidebar.
+ */
+export async function listChatSessions(
+  userId: string,
+  resumeId: string
+): Promise<ChatSession[]> {
+  return db
+    .select()
+    .from(chatSessions)
+    .where(and(eq(chatSessions.userId, userId), eq(chatSessions.resumeId, resumeId)))
+    .orderBy(desc(chatSessions.updatedAt));
+}
+
+/**
+ * Get a single chat session. Ownership-checked. Returns null if
+ * the session doesn't exist or isn't owned by this user.
+ */
+export async function getChatSession(
+  sessionId: string,
+  userId: string
+): Promise<ChatSession | null> {
+  const [row] = await db
+    .select()
+    .from(chatSessions)
+    .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Update a session's title. Ownership-checked via the userId filter.
+ * Returns the updated row, or null if the session didn't exist / wasn't owned.
+ *
+ * Used by the chat route to auto-title a brand-new session with a preview
+ * of the first user message (instead of leaving it as "New conversation").
+ */
+export async function updateChatSessionTitle(
+  sessionId: string,
+  userId: string,
+  title: string
+): Promise<ChatSession | null> {
+  const [row] = await db
+    .update(chatSessions)
+    .set({ title, updatedAt: new Date() })
+    .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * Fetch all messages for a session, in chronological order.
+ * Used to reconstruct conversation history for display or re-streaming.
+ */
+export async function getChatMessages(
+  sessionId: string
+): Promise<ChatMessage[]> {
+  return db
+    .select()
+    .from(chatMessages)
+    .where(eq(chatMessages.sessionId, sessionId))
+    .orderBy(chatMessages.createdAt);
+}
+
+/**
+ * Append a message to a session + bump the session's `updated_at`.
+ * `toolCalls` and `toolResult` are optional — only populated when
+ * the assistant row invoked at least one tool.
+ */
+export async function appendChatMessage(
+  sessionId: string,
+  input: {
+    role: 'user' | 'assistant';
+    content: string;
+    toolCalls?: NewChatMessage['toolCalls'];
+    toolResult?: NewChatMessage['toolResult'];
+    tokensIn?: number;
+    tokensOut?: number;
+  }
+): Promise<ChatMessage> {
+  const [row] = await db
+    .insert(chatMessages)
+    .values({
+      id: crypto.randomUUID(),
+      sessionId,
+      role: input.role,
+      content: input.content,
+      toolCalls: input.toolCalls ?? null,
+      toolResult: input.toolResult ?? null,
+      tokensIn: input.tokensIn ?? 0,
+      tokensOut: input.tokensOut ?? 0
+    })
+    .returning();
+
+  // Bump session updated_at so sidebar sort stays correct.
+  await db
+    .update(chatSessions)
+    .set({ updatedAt: new Date() })
+    .where(eq(chatSessions.id, sessionId));
+
+  return row;
+}
+
+/**
+ * Upsert a daily usage row: increments `turns_used` by 1 and adds
+ * `tokens_used` by the given delta. The primary key on
+ * `(user_id, date)` makes the upsert a single query with no
+ * application-level race window.
+ *
+ * Returns the updated (or created) row.
+ */
+export async function upsertChatUsage(
+  userId: string,
+  tokensDelta: number
+): Promise<ChatUsage> {
+  const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+
+  const [row] = await db
+    .insert(chatUsage)
+    .values({
+      userId,
+      date: today,
+      tokensUsed: tokensDelta,
+      turnsUsed: 1
+    })
+    .onConflictDoUpdate({
+      target: [chatUsage.userId, chatUsage.date],
+      set: {
+        tokensUsed: sql`${chatUsage.tokensUsed} + ${tokensDelta}`,
+        turnsUsed: sql`${chatUsage.turnsUsed} + 1`
+      }
+    })
+    .returning();
+
+  return row;
+}
+
+/**
+ * Read today's usage for a user. Returns a row with all-zero
+ * counts if no usage record exists yet.
+ */
+export async function getChatUsage(userId: string): Promise<ChatUsage> {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [row] = await db
+    .select()
+    .from(chatUsage)
+    .where(and(eq(chatUsage.userId, userId), eq(chatUsage.date, today)))
+    .limit(1);
+
+  return (
+    row ?? {
+      userId,
+      date: today,
+      tokensUsed: 0,
+      turnsUsed: 0
+    }
+  );
 }
