@@ -48,7 +48,7 @@ Adding any of these needs a discussion, not a drive-by edit:
 | ORM | Drizzle (no Prisma) |
 | Auth | Better Auth 1.6+ (no NextAuth, no Clerk) |
 | Billing | Stripe (Free + Pro ≈ the price of a coffee; see `docs/setup/stripe.md` for the actual amount + brand-voice rationale) |
-| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`; free-tier primary `inclusionai/ling-3.0-flash-fin-free` with 4-model fallback chain (see `docs/ai-models-reference.md`) |
+| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`; free-tier primary `mistral/mistral-nemo` with 4-model fallback chain (see `docs/ai-models-reference.md`) |
 | Email | Resend |
 | File storage | Vercel Blob |
 | Observability | Sentry (errors) + PostHog (analytics) |
@@ -65,147 +65,103 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — what this session is shipping.
+**Now (in flight)** — `main` is clean as of **2026-09-24**;
+no in-flight branches. Awaiting the next session's work.
 
-Phase 3 v2 ATS scoring UI (shipped 2026-09-20, branch
-`feat/ats-scoring-v2-phase3`, PR to main): 5-tier Greenhouse
-scorecard badge, 7-dimension bars (4 v1 + 3 v2), 7-axis Recharts
-radar, per-skill miss list grouped by priority bucket.
-`ScoreBreakdown.dimensionScores` and `WEIGHTS_V2` (sum = 1.00) are
-the production contract. Existing scores stay on v1 weights until
-the user explicitly Recomputes (the action picks `WEIGHTS_V2` when
-the JD has v2 intent-extraction fields, else falls back to
-`WEIGHTS`).
+**Recently shipped (for context, last 7 days)**
 
-Phase 3 v2 ATS scoring validation corpus (shipped 2026-09-20,
-branch `feat/ats-scoring-v2-validation`, PR to main): 50
-manually-curated `(resume, job, idealScore)` triples committed to
-`tests/fixtures/ats-corpus.json` (~245 KB, 11 role families, 5
-match-quality tiers). Pearson r vs `engine.overallScore` =
-**0.907** (after Seniority Fit was wired into the sync engine
-2026-09-20 — was 0.923 with seniority locked at 50) — well above
-the 0.7 acceptance gate. Methodology decision (manual curation over
-public / synthetic) in `docs/decisions/0005-ats-validation-corpus.md`.
-Drift memo in `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
-(plus follow-up §"Seniority Fit wired into the sync engine"). CI
-gate: `pnpm test tests/unit/scoring/validation-corpus.test.ts` must
-stay green.
-
-Inline issue surface — research + design (shipped 2026-09-20,
-branch `plan/inline-issue-surface`, doc-only PR to main): the
-replacement for the retired Optimize tool v0. Plan lives at
-`docs/plans/inline-issue-surface.md`; ADR at
-`docs/decisions/0006-inline-issue-surface.md`. Chosen direction:
-**dim-bar click → scroll + pulse + inline dynamic tip (Free) +
-AI-rewrite popover (Pro)**. Lazy AI (per popover open, not per
-scorecard render), Mistral Nemo at `PARSER_MODEL`/`PARSE_FALLBACKS`
-(no new model constant), `MatchBreakdown` JSONB type migrates from
-`unknown` to a real shape. The next session ships it.
-
-Subscription / billing — auth/billing boundary layer (shipped
-2026-09-20, branch `feat/subscription-billing-complete`): the
-trust-boundary helpers every Pro-only feature will share. Plan at
-`docs/plans/subscription-billing.md`; ADR at
-`docs/decisions/0007-tier-gating.md`. New module
-`lib/billing/` with `requirePro()` (server-authoritative gate;
-typed `ProRequiredError`), `usePlanFromProps()` / `useIsPro()`
-(client cosmetic hints), `isProEffective()` predicate covering
-`'active' | 'trialing'` Pro-effective statuses (canceled-but-in-
-period and past-due handled per Stripe semantics). New Billing
-card on `/dashboard/general` surfaces current plan + status +
-renewal date + Upgrade / Manage billing CTAs. Inline-issue
-surface's `enrichBulletAction` can now call `requirePro()` without
-re-discovering the boundary.
-
-**Now (in flight)** — what this session is shipping.
-
-Inline issue surface implementation (shipped 2026-09-21, branch
-`feat/inline-issue-surface`): dim-bar click → scroll + pulse +
-inline dynamic tip (Free) + AI-rewrite popover (Pro). New
-`lib/inline-issue/` module (orchestration + path-to-section
-mapper + prompt template + dynamic-tip-inline + apply bridge);
-new server action `enrichBulletAction` Pro-gated via the
-existing `requirePro()` + Mistral Nemo (`PARSER_MODEL` +
-`PARSE_FALLBACKS`, no new model constant); new client
-components `<InlineIssuePopover />` + `<IssuePulse />`;
-`DimensionBar` + `MissList` (skill-gap rows) accept
-`onIssueClick` and get a Free "Show me" / Pro "Rewrite with AI"
-CTA; `ScorecardClient` owns the Free/Pro split via the
-existing `usePlanFromProps()` / `useIsPro()` cosmetic hint
-threaded from the page RSC; `editable-resume.tsx` listens to
-the `dispatchInlineIssueApply` window event so the scorecard
-can write back to the editor's RHF form without lifting
-shared state. All five resume templates gained stable
-`id="section-{slug}"` headers (`section-experience`,
-`section-skills`, etc.) for scroll anchoring + pulse target.
-`MatchBreakdown` JSONB type tightened from `unknown` to the
-real shape `{ path, weight, criterion, tipKind }[]`. New
-`@keyframes pulse-accent` + `.issue-pulse` utility in
-`globals.css`. ADR: `docs/decisions/0006-inline-issue-surface.md`.
-
-Inline issue follow-ups (shipped 2026-09-21, same branch):
-**Suppression notice** + **print-hide section toggle**.
-The first was a UX fix — clicking "Rewrite with AI" on a
-Free-tier dim bar (or on an empty bullet) previously opened
-the popover silently suppressed, leaving the user staring at a
-"dead button". Now the scorecard renders an inline banner
-(`role="status" aria-live="polite"` data-tone="info|warn") above
-the dim bars whenever the popover is suppressed, naming the
-reason (upgrade-to-Pro / empty-bullet / unknown-path). The
-notice auto-dismisses after 4s, with cancel-and-replace
-semantics on rapid re-clicks so the freshest message gets the
-full window. Logic extracted to
-`lib/inline-issue/suppression-notice.ts` (pure, unit-tested).
-The second was a new product feature — a per-section "Hide from
-print" toggle in the editor that gets a `print:hidden` CSS
-class on the section wrapper, so the user can hide e.g.
-"References" from the PDF without deleting the data. New
-`print.hiddenSections: string[]` on the `ResumeData` envelope
-(Zod schema in `lib/resume-schema/resume-data.ts`); new
-`useSectionPrint(slug, mode)` hook in
-`components/editable/use-section-print.ts` that branches on
-`mode.editable` (RHF) vs `mode.editable=false` (data-driven,
-preview/print path) so the hook survives being called from a
-server component; new `<PrintPrefsBar />` client component
-(eye toggle + "Hidden from print" amber badge) mounted in every
-Section helper across all 5 templates (minimal, classic +
-classic-readonly, executive, creative, modern) — the print
-side already had `print-color-adjust: exact` so the visible
-"hidden" state is honored in the rendered PDF. 934 tests pass
-(+44 net new across `use-section-print.test.tsx`,
-`suppression-notice.test.ts`, `print-hide-schema.test.ts`,
-`print-hide-templates.test.tsx`).
+- **AI chat assistant (Phase 4)** — shipped 2026-09-24, branches
+  `feat/ai-chat-assistant` + `feat/chat-ats-context`. Streaming
+  SSE (`streamText` + custom `useChatStream` hook), tool registry
+  with `edit_section` / `switch_template` / `noop`, 20-turn/day
+  Free quota enforced server-side via the `chat_usage` table,
+  ATS score fed into the system prompt so the model sees current
+  numbers, raw `fetch` + `ReadableStream` (no `@ai-sdk/react`).
+  Plan: `docs/plans/ai-chat-assistant.md`.
+- **Chat cleanup + `parseChatToolCalls` helper** — shipped 2026-09-24,
+  branch `fix/chat-cleanup`. Stripped the `[chat-server]` /
+  `[chat-client]` / `[chat-bubble]` debug logs from `app/api/chat/route.ts`,
+  `components/chat/use-chat-stream.ts`, `components/chat/chat-bubble.tsx`
+  (along with their `LOG_PREFIX` constants and the now-dead
+  `reqStartedAt`). Extracted `parseChatToolCalls(raw: unknown)` to
+  `lib/db/queries.ts` next to `getChatMessages` — handles string-OR-object
+  JSONB round-trip + JSON.parse + non-array + corruption (all return
+  `undefined`). Also fixed a pre-existing `computedInMs` typecheck gap
+  in `tests/unit/chat/ats-context.test.ts`. 949 → 954 tests.
+- **Production deploy checklist** — shipped 2026-09-24, branch
+  `docs/production-deploy-checklist`. `docs/setup/production.md` —
+  11-section operational runbook: Neon DB bring-up, Stripe live mode,
+  Resend domain verification, AI Gateway auth, Sentry/PostHog
+  wiring, custom domain + SSL, Vercel env-var wiring, **16-step
+  end-to-end smoke test on prod**, post-deploy monitoring, **5-scenario
+  rollback playbook**, done-criteria gate. **Defaults to Neon Free
+  tier** with an explicit 5-signal upgrade table (storage >400MB,
+  compute hours capped >3 days early, slow first-paint, >100 paying
+  users, first data-loss scare) — the $19/mo Launch upgrade is a
+  trigger, not a launch cost.
+- **Legal pages + GDPR data rights + landing polish** — shipped
+  2026-09-24, branch `feat/pre-launch-compliance`. `/privacy`,
+  `/terms`, `/cookies` under `app/(legal)/` (each opens with a
+  `<PolicyNotice>` "last updated + not lawyer-reviewed" banner —
+  generated from Termly CC0 templates adapted to Nextep facts).
+  New `lib/data-rights/` module: `purgeUserAccount({ password })`
+  orchestrator cancels Stripe subscription → deletes Stripe customer
+  → scrubs PostHog via `$delete_user` → writes a hashed `erasure_log`
+  row → calls Better Auth `deleteUser` (cascade FKs handle every
+  user-owned table); `exportUserData()` returns a JSON bundle
+  satisfying GDPR Art. 20 portability (profile + subscriptions +
+  every resume + every revision + every application + every score
+  snapshot + every chat session + every chat usage day + active
+  shares), validated against a Zod schema versioned at `1.0.0`.
+  `/dashboard/security` gained an "Export your data" button + the
+  delete flow routes through the server-authoritative action. New
+  query `getSubscriptionByUserId(userId)` (companion to session-
+  scoped `getSubscription()`). Landing hero tightened, secondary
+  CTA demoted to a text link, `<TrustStrip>` added with three
+  real, defensible claims (GDPR-ready / Export & delete anytime /
+  Stripe-secured). Plan: `docs/plans/pre-launch-compliance.md`.
+  954 → 970 tests.
+- **No-fake-testimonials policy** — shipped 2026-09-24, branch
+  `fix/no-fake-testimonials`. Block comment in `components/marketing/hero.tsx`
+  makes the policy explicit so a future TODO can't be misread as
+  a green light for fabricated quotes. Real testimonials go in a
+  separate `<TestimonialBlock />` component below the hero, never
+  in the trust strip.
 
 **Next (queued, priority order)**
 
-1. **AI chat assistant (Phase 4)** — `streamText` + `useChat` + tool
-   registry + daily-quota enforcement (`usage` table). Free tier
-   capped at 20 chat messages / day per user; unlimited on Pro.
-3. **Seniority Fit calibration fix** — drift memo
+1. **Production env bring-up** — the launch-gate work from §11 in
+   `docs/setup/production.md`. *Do this before shipping anything else.*
+   Neon prod DB + Stripe live mode + custom domain + Resend
+   verification + Sentry/PostHog real keys. Wall-time: 3–5 days.
+2. **Seniority Fit calibration fix** — drift memo
    `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
-   §"Seniority Fit wired into the sync engine" exposes that the
-   asymmetric penalty (`OVER_QUALIFIED_SLOPE = 7.5` past a ±2
-   year tolerance band) penalizes senior candidates on senior-track
+   §"Seniority Fit wired into the sync engine" exposes the
+   asymmetric penalty (`OVER_QUALIFIED_SLOPE = 7.5` past a ±2-year
+   tolerance band) penalizes senior candidates on senior-track
    JDs. Pearson r dropped from 0.923 → 0.907 once seniority was
-   wired in. Two proposed fixes (flatten over-qualified penalty to
-   0 past tolerance, or widen `TOLERANCE_YEARS` to 3-4). Single-
-   line constant change in `lib/scoring/dimensions/seniority-fit.ts`;
-   the corpus serves as the regression test.
+   wired in. Two proposed fixes (flatten over-qualified penalty
+   to 0 past tolerance, or widen `TOLERANCE_YEARS` to 3-4).
+   Single-line constant change in
+   `lib/scoring/dimensions/seniority-fit.ts`; the corpus serves
+   as the regression test. **Ship before launch** — visible quality
+   issue for senior candidates.
+3. **Reviews (Phase 5)** — invite-link flow, inline comments,
+   thumbs verdict. Strong differentiator, but not launch-blocking.
 4. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
-5. **Reviews (Phase 5)** — invite-link flow, inline comments, thumbs
-   verdict.
-6. **`/api/job-contexts` + extension-ready API tokens** — so
+5. **`/api/job-contexts` + extension-ready API tokens** — so
    `nextep-ext` has a clean contract.
-7. **Template studio (Phase 6)** — admin-only template authoring.
-8. **Monorepo split** — defer until it actually bites (likely after
-   collab, when packages like `lib/scoring/` start to feel cramped).
+6. **Template studio (Phase 6)** — admin-only template authoring.
+7. **Monorepo split** — defer until it actually bites (likely
+   after collab, when packages like `lib/scoring/` start to feel
+   cramped).
 
 **Later / parked** — see the locked non-goals above. Note: the
 "Optimize" feature as a class of work is now parked. The inline
-issue surface replaces it; no "Optimize" plan will be written. The
-dead `lib/optimize/` was already deleted (2026-09-20) to prevent
-naive re-use of the v0 modal-diff.
+issue surface replaces it; no "Optimize" plan will be written.
+The dead `lib/optimize/` was already deleted (2026-09-20) to
+prevent naive re-use of the v0 modal-diff.
 
 ## Architectural principles (non-negotiable)
 
@@ -313,46 +269,64 @@ nextep-saas/
 │   ├── plans/                 # Feature plans: docs/plans/<slug>.md
 │   ├── decisions/             # ADRs: docs/decisions/NNNN-<slug>.md
 │   ├── drift/                 # Phase-boundary drift audits
+│   ├── setup/                 # Operational runbooks (production.md, stripe.md)
 │   └── ai-models-reference.md # Free-tier + paid AI model reference
 ├── app/                       # Next.js App Router
 │   ├── (marketing)/           # Public site (landing, pricing)
-│   ├── (auth)/                # Sign in / sign up
+│   ├── (auth)/                # Sign in / sign up / forgot / reset
 │   ├── (dashboard)/           # Authed app surface
 │   │   └── dashboard/
-│   │       ├── page.tsx       # Overview (Phase 0 welcome)
-│   │       ├── resumes/       # Phase 1: resume list + edit
-│   │       ├── general/       # Profile settings
-│   │       └── security/      # Password / delete account
+│   │       ├── page.tsx       # Overview + recent variants
+│   │       ├── resumes/       # Resume list + edit + variant + optimize
+│   │       ├── general/       # Profile settings + Billing card
+│   │       └── security/      # Password + Export + Delete Account
+│   ├── (legal)/               # /privacy, /terms, /cookies (shared layout)
 │   ├── api/                   # Route handlers
 │   │   ├── auth/[...all]/     # Better Auth catch-all
+│   │   ├── chat/              # AI chat SSE stream
 │   │   ├── stripe/            # Webhooks + checkout
 │   │   ├── inngest/           # Background-job webhook
 │   │   └── user/
+│   ├── r/[token]/             # Public share-link route (no auth)
 │   ├── layout.tsx             # Root layout (PostHog provider, font, etc.)
 │   └── globals.css
 ├── components/
 │   ├── ui/                    # shadcn primitives (Input, Button, Card, etc.)
-│   ├── schema-form/           # Phase 1: Zod-driven dynamic form
-│   ├── resume/                # Phase 1: resume-specific UI
+│   ├── schema-form/           # Zod-driven dynamic form
+│   ├── resume/                # Resume-specific UI
+│   ├── scorecard/             # ATS scorecard surface (radar + bars + miss list)
+│   ├── inline-issue/          # Inline-issue popover + pulse + apply bridge
+│   ├── chat/                  # Chat bubble + SSE stream hook
+│   ├── marketing/             # Hero / features / CTA / footer / preview
 │   └── posthog-provider.tsx
 ├── lib/
 │   ├── auth.ts                # Better Auth server instance
 │   ├── auth-client.ts         # Better Auth React client
-│   ├── resume-schema/         # Phase 1: the canonical ResumeData Zod schema
+│   ├── resume-schema/         # Canonical ResumeData Zod schema
 │   ├── db/
 │   │   ├── schema.ts          # All Drizzle tables in one file
 │   │   ├── queries.ts         # Query helpers (one per table/feature)
-│   │   └── drizzle.ts         # Driver selection (Neon vs postgres-js)
-│   ├── payments/              # Stripe integration
-│   ├── email/                 # Resend wrapper
-│   ├── inngest/               # Inngest client + serve functions
-│   ├── liveblocks/            # Liveblocks server client
-│   ├── posthog/               # PostHog server + client
+│   │   ├── drizzle.ts         # Driver selection (Neon vs postgres-js)
+│   │   └── migrations/        # Drizzle journal + SQL files
+│   ├── data-rights/           # GDPR Art. 17 (purge) + Art. 20 (export)
+│   ├── billing/               # Pro-gating helpers (requirePro, useIsPro)
+│   ├── chat/                  # Chat system prompt + tools + tool executor
+│   ├── inline-issue/          # Orchestration + path-to-section mapper + prompts
+│   ├── scoring/               # Pure ATS scoring engine + 7 dimensions
+│   ├── scoring-async/         # Async scoring (db-touched) wrapper
+│   ├── jd-parser/             # JD → structured JobPostingData (incl. Markdown formatter)
 │   ├── resume-parser/         # PDF/DOCX/TXT → AI-parsed ResumeSections
-│   ├── share/                 # public-link tokens (gen, hash, URL build)
-│   ├── ai/                    # Vercel AI Gateway providers + model constants
-│   ├── email/                 # Resend wrapper + password-reset template
+│   ├── share/                 # Public-link tokens (gen, hash, URL build)
+│   ├── payments/              # Stripe SDK singleton + helpers
+│   ├── email/                 # Resend wrapper + reset-password template
+│   ├── inngest/               # Inngest client + serve functions
+│   ├── liveblocks/            # Liveblocks server client (Phase 5 stub)
+│   ├── posthog/               # PostHog server + client (analytics)
+│   ├── ai/                    # Vercel AI Gateway providers + model constants + fallback
+│   ├── format/                # Misc formatters
 │   └── utils.ts
+├── scripts/
+│   └── coderabbit-review.ps1  # CodeRabbit launcher (PowerShell)
 ├── sentry.client.config.ts
 ├── sentry.server.config.ts
 ├── instrumentation.ts         # Next 16 instrumentation hook
@@ -585,7 +559,7 @@ re-litigating settled decisions.
 pnpm typecheck       # must be clean
 pnpm build           # must produce all routes
 pnpm dev             # smoke-test any new UI
-pnpm test            # 766+ unit tests must stay green (incl. ATS validation corpus, Pearson r > 0.7)
+pnpm test            # 970+ unit tests must stay green (incl. ATS validation corpus, Pearson r > 0.7)
 ```
 
 If you add a new env var: add it to `.env.example` with a placeholder value and
@@ -643,7 +617,7 @@ references (and the launcher's own banner output) intentionally
 avoid mentioning `/home/<user>/` paths so this doc reads for
 any collaborator.
 
-## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session), refreshed 2026-09-19 (variant-first UX shipped), refreshed 2026-09-19 (JD Markdown formatting shipped), refreshed 2026-09-19 (ATS scoring shipped))
+## Phase handoff (close-out 2026-07-13, refreshed 2026-09-01, refreshed 2026-09-18, refreshed 2026-09-18 (Optimize shipped), refreshed 2026-09-18 (planning session), refreshed 2026-09-19 (variant-first UX shipped), refreshed 2026-09-19 (JD Markdown formatting shipped), refreshed 2026-09-19 (ATS scoring shipped), refreshed 2026-09-20 (Phase 3 v2 ATS + inline-issue + subscription/billing), refreshed 2026-09-21 (inline-issue surface + print-hide), refreshed 2026-09-24 (AI chat assistant + launch-readiness batch: cleanup, deploy checklist, legal/data rights, landing polish))
 
 > Per-phase **drift audits** live at `docs/drift/`. Architecture
 > **decisions** are recorded as ADRs at `docs/decisions/`. This section
@@ -680,6 +654,96 @@ action now also kicks off the Markdown formatter, so the very
 first open of the variant editor shows formatted Markdown.
 Plan B (JD Markdown) is shipped; Plan C (ATS scoring) is next
 and has a home on the new right rail.
+
+### Launch-readiness batch (shipped 2026-09-24)
+
+Five branches merged in one working session to close the
+v1-launch gate defined in `docs/setup/production.md` §11.
+The first three are product features; the last two are
+operational.
+
+- **AI chat assistant (Phase 4)** — `feat/ai-chat-assistant`
+  + `feat/chat-ats-context` (PR to main). The fourth end-user
+  feature that consumes the AI Gateway. Streaming SSE via raw
+  `fetch` + `ReadableStream` (no `@ai-sdk/react` dependency
+  added). Tool registry with `edit_section`, `switch_template`,
+  `noop` — server-authoritative execution through
+  `lib/chat/execute-tool.ts`. 20-turn/day Free quota enforced
+  server-side via the `chat_usage` table. ATS score fed into
+  the system prompt so the model sees current numbers per
+  turn. The follow-up commit wires the score in and tightens
+  the assistant-message shape so tool-call events that arrive
+  before any text-delta still attach to the assistant bubble.
+  Plan: `docs/plans/ai-chat-assistant.md`.
+- **Chat cleanup + `parseChatToolCalls` helper** —
+  `fix/chat-cleanup`. The chat assistant shipped with
+  `LOG_PREFIX`-tagged debug logs across three files
+  (`route.ts`, `use-chat-stream.ts`, `chat-bubble.tsx`) that
+  were needed to diagnose SSE / tool-call / history-loading
+  bugs — all fixed by ship time. Stripped every console call
+  plus the `LOG_PREFIX` constants, and extracted the
+  `toolCalls` JSONB round-trip parsing into
+  `parseChatToolCalls(raw: unknown)` next to `getChatMessages`
+  in `lib/db/queries.ts`. Also fixed a pre-existing
+  typecheck regression: `tests/unit/chat/ats-context.test.ts`
+  was missing the new `computedInMs` field on `ScoreBreakdown`
+  (added by `3233ab7 feat(scoring-v2): wire scoreSeniorityFitFromEnvelope`).
+  949 → 954 tests.
+- **Production deploy checklist** —
+  `docs/production-deploy-checklist`. `docs/setup/production.md`
+  is an 11-section operational runbook that walks a fresh
+  operator through Neon prod DB → Stripe live mode → Resend
+  domain verification → AI Gateway auth → Sentry/PostHog →
+  custom domain → Vercel env-var wiring → **16-step end-to-end
+  smoke test on prod** → post-deploy monitoring → **5-scenario
+  rollback playbook** → done criteria. The two opinionated
+  calls baked into the doc: (a) **start on Neon Free tier** with
+  an explicit 5-signal upgrade table — the $19/mo Launch upgrade
+  is a trigger, not a launch cost; (b) "apex canonical, www →
+  apex redirect" as the cookie-scoping default.
+- **Legal pages + GDPR data rights + landing polish** —
+  `feat/pre-launch-compliance`. Three new routes
+  (`/privacy`, `/terms`, `/cookies`) under `app/(legal)/` with
+  a shared minimalist layout (no nav rail) and a `<PolicyNotice>`
+  banner on each that discloses "generated from open templates,
+  not lawyer-reviewed" with a $300-500 lawyer-review
+  recommendation. Footer 404s resolved. New `lib/data-rights/`
+  module: `purgeUserAccount({ password })` orchestrator cancels
+  Stripe subscription → deletes Stripe customer → scrubs PostHog
+  via the `$delete_user` GDPR endpoint → writes a hashed
+  `erasure_log` row → calls Better Auth `deleteUser` (whose
+  cascade FKs handle every user-owned table); `exportUserData()`
+  returns a Zod-validated JSON bundle satisfying GDPR Art. 20
+  portability, versioned at `EXPORT_SCHEMA_VERSION = "1.0.0"`.
+  New `getSubscriptionByUserId(userId)` companion query so the
+  purge orchestrator can look up Stripe linkage without a session.
+  New `erasure_log` table added in migration
+  `0006_chat_sessions_and_erasure_log.sql` (consolidated with
+  the previously hand-added 0006). `/dashboard/security` gained
+  an "Export your data" button. Landing hero tightened ("Land
+  your next role, faster" → "Tailored, ATS-scored resumes for
+  every job you apply to."); "See pricing" demoted to a text
+  link; new `<TrustStrip>` with three real, defensible claims.
+  Plan: `docs/plans/pre-launch-compliance.md`. 954 → 970 tests.
+- **No-fake-testimonials policy** — `fix/no-fake-testimonials`.
+  Follow-up to the TrustStrip work: the original block comment
+  floated a future TODO to "swap the middle item for a real
+  testimonial" which could be misread as a green light for
+  fabricated quotes. Replaced with an explicit policy comment:
+  no fake testimonials, ever; if/when real user quotes land,
+  they go in a separate `<TestimonialBlock />` component below
+  the hero, never in the trust strip.
+
+**Why this matters** — the v1 product loop (master → JD parse →
+score → optimize → share → review → collab) is now feature-
+complete. The four remaining "hard requirements" from
+`docs/setup/production.md` §11 are operational: Neon prod DB,
+Stripe live mode, Resend domain verification, Vercel env-var
+wiring. Roughly 3–5 working days of focused cloud-console
+work, no new architecture decisions. Everything else (Reviews,
+Liveblocks, extension API, template studio) is post-launch
+polish that earns its keep once there are users telling us
+what they actually want.
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
 
