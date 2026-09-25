@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { ResumeData } from '@/lib/resume-schema';
+import type { ScoreBreakdown } from '@/lib/scoring/score';
 
 /**
  * Available resume template IDs. Keep in sync with the Zod schema default.
@@ -137,13 +138,81 @@ export function buildResumeContext(data: ResumeData): string {
 }
 
 /**
+ * Build a plain-text block summarising the latest ATS score for the
+ * resume vs the attached JD, so the chat model can reason against
+ * actual numbers instead of inferring them from the resume text.
+ *
+ * Returns an empty string when no usable score is available (no JD,
+ * fallback scoring, etc.) — caller decides whether to omit the
+ * section entirely.
+ */
+export function buildAtsContext(score: ScoreBreakdown): string {
+  const dim = score.dimensionScores;
+  const ic = score.intentCoverageBreakdown;
+
+  // Format dimension rows in a fixed, sorted-by-weight order so the
+  // model can quickly find the weakest one.
+  const dims: Array<[string, number]> = [
+    ['atsMatching', dim.atsMatching],
+    ['structure', dim.structure],
+    ['contentQuality', dim.contentQuality],
+    ['alignment', dim.alignment],
+    ['intentCoverage', dim.intentCoverage],
+    ['roleFit', dim.roleFit],
+    ['seniorityFit', dim.seniorityFit]
+  ];
+  // Sort descending so the model's eye lands on strengths first.
+  const dimLines = [...dims]
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `  ${k.padEnd(16, ' ')} ${Math.round(v).toString().padStart(3)}`)
+    .join('\n');
+
+  const missedMust = ic.missed.mustHave ?? [];
+  const missedNice = ic.missed.niceToHave ?? [];
+  const missedImplicit = ic.missed.implicit ?? [];
+
+  const missedLines: string[] = [];
+  if (missedMust.length > 0) {
+    missedLines.push(
+      `  ✗ MUST-HAVE missing (${missedMust.length}): ${missedMust.slice(0, 12).join(', ')}`
+    );
+  }
+  if (missedNice.length > 0) {
+    missedLines.push(
+      `  ~ nice-to-have missing (${missedNice.length}): ${missedNice.slice(0, 12).join(', ')}`
+    );
+  }
+  if (missedImplicit.length > 0) {
+    missedLines.push(
+      `  · implicit missing (${missedImplicit.length}): ${missedImplicit.slice(0, 8).join(', ')}`
+    );
+  }
+  const missedSection = missedLines.length > 0
+    ? '\n\nTop missed keywords / skills (priority order):\n' + missedLines.join('\n')
+    : '\n\nTop missed keywords / skills: (none — full coverage)';
+
+  const fallbackNote = ic.fallback
+    ? '\n\nNote: intent coverage is at the neutral default because v2 intent extraction was unavailable for this JD. Prioritise keyword coverage from the JD text.'
+    : '';
+
+  return `=== ATS SCORE (latest, vs current JD) ===
+Overall match: ${score.overallScore} / 100
+
+Dimension scores (0–100, sorted by strength):
+${dimLines}${missedSection}${fallbackNote}
+
+Use these numbers to prioritise edits — fixing a 38 in intentCoverage typically lifts the overall match more than tweaking a 78. Don't invent missing skills; only surface gaps the score actually reports.`;
+}
+
+/**
  * Build the system prompt for the chat assistant.
  * The resume context is built fresh on every call so the model
  * always sees the current state.
  */
 export function buildSystemPrompt(
   data: ResumeData,
-  jobContext?: ResumeData['jobContext']
+  jobContext?: ResumeData['jobContext'],
+  atsScore?: ScoreBreakdown | null
 ): string {
   const resumeText = buildResumeContext(data);
   const templateName = data.template ?? 'classic';
@@ -169,6 +238,12 @@ export function buildSystemPrompt(
         '\nPreferred Skills: ' + jobContext.niceToHaveSkills.slice(0, 10).join(', ');
   }
 
+  // Only feed the ATS section when both a JD is attached AND a usable
+  // score exists. The score is meaningless without a JD to compare
+  // against, and a neutral fallback is just noise.
+  const atsSection =
+    atsScore && jobSection ? '\n\n' + buildAtsContext(atsScore) : '';
+
   return `You are Nextep — a helpful resume assistant. You help users refine their resume, understand how it matches a job description, and switch between resume templates.
 
 You have two tools:
@@ -180,12 +255,12 @@ You have two tools:
 Guidelines:
 - Be concise and actionable. Give specific suggestions, not generic advice.
 - When editing, preserve the user's voice and accomplishments exactly — don't hallucinate details.
-- If asked to tailor for a job, reference the job description context when available.
+- If asked to tailor for a job, reference the job description context when available — and use the ATS SCORE block (when present) to prioritise edits by leverage.
 - If asked to switch templates, use switchTemplate and briefly describe the result.
 - If the user asks something outside resume help, politely redirect.
 
 Current resume state:
-${resumeText}${jobSection}
+${resumeText}${jobSection}${atsSection}
 
 Current active template: ${templateName} (${TEMPLATE_DESCRIPTIONS[templateName as TemplateId] ?? 'Unknown'}).`;
 }

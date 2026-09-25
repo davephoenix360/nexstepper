@@ -21,6 +21,7 @@ import {
 } from '@/lib/db/queries';
 import { PLANS } from '@/lib/db/schema';
 import { buildSystemPrompt } from '@/lib/chat/system-prompt';
+import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
 import { getModel } from '@/lib/ai/providers';
@@ -202,7 +203,38 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Build system prompt (fresh context every turn) ────────────────────────
-  const system = buildSystemPrompt(resume.data, resume.data.jobContext ?? undefined);
+  //
+  // The ATS score is re-computed here from the envelope rather than read
+  // from the latest `score_snapshots` row, so the model sees numbers
+  // that reflect any in-memory edits the user just made (the snapshot
+  // is only written by `recomputeScoreAction`, which the user may not
+  // have clicked since their last edit). The engine is pure/sync and
+  // runs in ~10–50ms — negligible next to the model call.
+  //
+  // Gated on `resume.resume.isMaster` (master resumes don't have JDs)
+  // and on a non-null `jobContext` (the score is meaningless without one).
+  const atsScore =
+    !resume.resume.isMaster && resume.data.jobContext
+      ? scoreResumeFromEnvelope(
+          resume.data,
+          resume.data.jobContext,
+          new Date()
+        )
+      : null;
+  if (atsScore) {
+    console.log(LOG_PREFIX, 'ATS score computed', {
+      overall: atsScore.overallScore,
+      weakest: Object.entries(atsScore.dimensionScores).sort(
+        (a, b) => a[1] - b[1]
+      )[0]
+    });
+  }
+
+  const system = buildSystemPrompt(
+    resume.data,
+    resume.data.jobContext ?? undefined,
+    atsScore
+  );
 
   // ── Load chat history (last 20 messages to keep prompt size manageable) ───
   const history = await getChatMessages(sessionId);
