@@ -515,6 +515,35 @@ export const chatUsage = pgTable(
   (table) => [index('chat_usage_user_date_idx').on(table.userId, table.date)]
 );
 
+// ─── GDPR Art. 17 erasure log ──────────────────────────────────────────────────
+//
+// Append-only audit trail proving an erasure request was honored. One row
+// per `purgeUserAccount()` call. We hash the user_id at write time so:
+//   - The row is non-reversible (you can't derive the original user_id
+//     from `user_hash` without brute-forcing SHA-256).
+//   - We can still demonstrate "yes, we erased a specific user at a
+//     specific timestamp" without putting PII into the log.
+//
+// `processors_notified` records which third parties we called during the
+// purge (stripe, posthog, etc.) — also as plain strings, no PII.
+
+export const erasureLog = pgTable(
+  'erasure_log',
+  {
+    id: text('id').primaryKey(),
+    /** SHA-256 of user_id at the moment of erasure. Stable, non-reversible. */
+    userHash: text('user_hash').notNull(),
+    /** When the purge action ran (UTC). */
+    erasedAt: timestamp('erased_at').notNull().defaultNow(),
+    /** Which third-party processors were notified, e.g. `["stripe","posthog"]`. */
+    processorsNotified: jsonb('processors_notified')
+      .$type<string[]>()
+      .notNull()
+      .default([])
+  },
+  (table) => [index('erasure_log_erased_at_idx').on(table.erasedAt)]
+);
+
 // ─── Inferred types ────────────────────────────────────────────────────────────
 
 export type ChatSession = typeof chatSessions.$inferSelect;
@@ -523,3 +552,5 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
 export type ChatUsage = typeof chatUsage.$inferSelect;
 export type NewChatUsage = typeof chatUsage.$inferInsert;
+export type ErasureLog = typeof erasureLog.$inferSelect;
+export type NewErasureLog = typeof erasureLog.$inferInsert;

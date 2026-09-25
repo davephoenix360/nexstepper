@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Sparkles, CheckCircle2, Shield } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,16 +32,16 @@ export function Hero() {
         </Badge>
 
         <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-          Land your next role,{' '}
+          Tailored, ATS-scored resumes for{' '}
           <span className="bg-gradient-to-br from-primary to-primary/70 bg-clip-text text-transparent">
-            faster.
+            every job you apply to.
           </span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl text-balance text-lg leading-relaxed text-muted-foreground sm:text-xl">
-          Nextep turns one master resume into tailored, ATS-scored variants for every
-          job you apply to. Built for job-seekers who want to spend less time formatting
-          and more time interviewing.
+          One master resume. A score against the role&apos;s actual ATS rubric.
+          AI rewrites that drop directly into your variants. Built for
+          job-seekers who&apos;d rather be interviewing than formatting.
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -51,9 +51,12 @@ export function Hero() {
               <ArrowRight className="ml-2 size-4" />
             </Link>
           </Button>
-          <Button asChild size="lg" variant="outline" className="h-11 px-6 text-base">
-            <Link href="/pricing">See pricing</Link>
-          </Button>
+          <Link
+            href="/pricing"
+            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            or see pricing
+          </Link>
         </div>
 
         <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
@@ -71,8 +74,42 @@ export function Hero() {
           </li>
         </ul>
 
+        <TrustStrip />
+
         <ResumePreview />
       </div>
     </section>
+  );
+}
+
+/**
+ * TrustStrip — three small badges under the CTA. Differentiator vs
+ * competitors who only show feature lists: signals that data handling
+ * + privacy is part of the product, not an afterthought.
+ *
+ * TODO (post-launch): when we have paying users, swap the middle item
+ * for a real testimonial or a stat like "X job-seekers built Y variants
+ * this month". For now, the data-handling angle is a stronger pitch
+ * than anonymous "thousands of users" copy.
+ */
+function TrustStrip() {
+  return (
+    <div
+      className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs text-muted-foreground"
+      aria-label="Trust signals"
+    >
+      <span className="inline-flex items-center gap-1.5">
+        <Shield className="size-3.5 text-primary" />
+        GDPR-ready
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Shield className="size-3.5 text-primary" />
+        Export &amp; delete anytime
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Shield className="size-3.5 text-primary" />
+        Stripe-secured payments
+      </span>
+    </div>
   );
 }

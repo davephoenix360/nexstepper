@@ -124,6 +124,29 @@ export async function getSubscriptionByStripeCustomerId(customerId: string) {
   return rows[0] ?? null;
 }
 
+/**
+ * Get the subscription row for an explicit userId (no session required).
+ *
+ * Companion to `getSubscription()`, which reads the current session.
+ * The `getSubscription()` helper is for UI code; this one is for
+ * server actions / orchestrators that already have the userId in hand
+ * (e.g. the GDPR purge flow, which needs to look up the user's Stripe
+ * linkage before deleting the local user row).
+ *
+ * Returns `null` if the user has never had a subscription row — which
+ * is fine; the caller treats it as "nothing to do on Stripe".
+ */
+export async function getSubscriptionByUserId(
+  userId: string
+): Promise<Subscription | null> {
+  const rows = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function upsertSubscription(
   userId: string,
   data: Partial<Omit<Subscription, 'id' | 'userId' | 'createdAt'>>
@@ -1503,4 +1526,171 @@ export async function getChatUsage(userId: string): Promise<ChatUsage> {
       turnsUsed: 0
     }
   );
+}
+
+// ─── GDPR Art. 20 export bundle ───────────────────────────────────────────────
+//
+// Single-query orchestrator that fetches every user-owned row into a
+// shape ready for `lib/data-rights/export-user.ts` to package into
+// the JSON bundle. Owned by queries.ts (not the action) because:
+//   - It's all Drizzle selects
+//   - It's testable in isolation against a real DB
+//   - Keeps the action file focused on Zod assembly + auth
+
+/**
+ * Raw data fetched for an export bundle, grouped by table. The action
+ * in `lib/data-rights/export-user.ts` maps this into the Zod-validated
+ * bundle the user downloads.
+ */
+export type UserExportBundle = {
+  user: User | null;
+  subscriptions: Subscription[];
+  resumes: Array<Resume & { revisions: ResumeRevision[] }>;
+  applications: Application[];
+  scoreSnapshots: ScoreSnapshot[];
+  chatSessions: Array<ChatSession & { messages: ChatMessage[] }>;
+  chatUsage: ChatUsage[];
+  shares: Array<{
+    resumeId: string;
+    resumeName: string;
+    shareViewCount: number;
+    shareLastViewedAt: Date | null;
+    shareCreatedAt: Date | null;
+  }>;
+};
+
+/**
+ * Fetch every user-owned row across the platform. Used by the data
+ * export action. Excludes (by design, per `lib/data-rights/schema.ts`):
+ *   - `stripe_events_processed` — internal idempotency log
+ *   - Better Auth `account.access_token` / `refresh_token` — credentials
+ *   - ephemeral `session` rows
+ *
+ * Performs N+1 selects per relationship. Acceptable for a once-per-
+ * export operation; the action runs at most a few times per user per
+ * year, not on a hot path. If this becomes a perf concern (e.g. a user
+ * with 10,000 chat messages), switch to a streaming approach.
+ */
+export async function getUserExportBundle(userId: string): Promise<UserExportBundle> {
+  // 1. User row
+  const [userRow] = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+
+  // 2. Subscriptions (typically 0 or 1; the schema enforces 1-per-user)
+  const subscriptionRows = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId));
+
+  // 3. Resumes + their revisions
+  const resumeRows = await db
+    .select()
+    .from(resumes)
+    .where(eq(resumes.userId, userId));
+
+  const revisionsByResume = new Map<string, ResumeRevision[]>();
+  if (resumeRows.length > 0) {
+    const allRevisions = await db
+      .select()
+      .from(resumeRevisions)
+      .where(
+        sql`${resumeRevisions.resumeId} IN ${sql.join(
+          resumeRows.map((r) => sql`${r.id}`),
+          sql`, `
+        )}`
+      )
+      .orderBy(resumeRevisions.createdAt);
+    for (const rev of allRevisions) {
+      const list = revisionsByResume.get(rev.resumeId) ?? [];
+      list.push(rev);
+      revisionsByResume.set(rev.resumeId, list);
+    }
+  }
+  const resumesWithRevisions = resumeRows.map((r) => ({
+    ...r,
+    revisions: revisionsByResume.get(r.id) ?? []
+  }));
+
+  // 4. Applications
+  const applicationRows = await db
+    .select()
+    .from(applications)
+    .where(eq(applications.userId, userId));
+
+  // 5. Score snapshots — across all the user's resumes
+  const scoreRows =
+    resumeRows.length === 0
+      ? []
+      : await db
+          .select()
+          .from(scoreSnapshots)
+          .where(
+            sql`${scoreSnapshots.resumeId} IN ${sql.join(
+              resumeRows.map((r) => sql`${r.id}`),
+              sql`, `
+            )}`
+          )
+          .orderBy(scoreSnapshots.createdAt);
+
+  // 6. Chat sessions + their messages
+  const chatSessionRows = await db
+    .select()
+    .from(chatSessions)
+    .where(eq(chatSessions.userId, userId))
+    .orderBy(chatSessions.updatedAt);
+
+  const messagesBySession = new Map<string, ChatMessage[]>();
+  if (chatSessionRows.length > 0) {
+    const allMessages = await db
+      .select()
+      .from(chatMessages)
+      .where(
+        sql`${chatMessages.sessionId} IN ${sql.join(
+          chatSessionRows.map((s) => sql`${s.id}`),
+          sql`, `
+        )}`
+      )
+      .orderBy(chatMessages.createdAt);
+    for (const msg of allMessages) {
+      const list = messagesBySession.get(msg.sessionId) ?? [];
+      list.push(msg);
+      messagesBySession.set(msg.sessionId, list);
+    }
+  }
+  const sessionsWithMessages = chatSessionRows.map((s) => ({
+    ...s,
+    messages: messagesBySession.get(s.id) ?? []
+  }));
+
+  // 7. Chat usage
+  const usageRows = await db
+    .select()
+    .from(chatUsage)
+    .where(eq(chatUsage.userId, userId))
+    .orderBy(chatUsage.date);
+
+  // 8. Shares — derived from resumes where shareEnabled = true
+  const shareEntries = resumeRows
+    .filter((r) => r.shareEnabled)
+    .map((r) => ({
+      resumeId: r.id,
+      resumeName: r.name,
+      shareViewCount: r.shareViewCount,
+      shareLastViewedAt: r.shareLastViewedAt,
+      shareCreatedAt: r.shareCreatedAt
+    }));
+
+  return {
+    user: userRow ?? null,
+    subscriptions: subscriptionRows,
+    resumes: resumesWithRevisions,
+    applications: applicationRows,
+    scoreSnapshots: scoreRows,
+    chatSessions: sessionsWithMessages,
+    chatUsage: usageRows,
+    shares: shareEntries
+  };
 }

@@ -43,6 +43,13 @@
       "when": 1790029443203,
       "tag": "0005_supreme_luminals",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790300854131,
+      "tag": "0006_chat_sessions_and_erasure_log",
+      "breakpoints": true
     }
   ]
 }
