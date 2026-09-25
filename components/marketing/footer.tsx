@@ -45,7 +45,8 @@ export function MarketingFooter() {
             title="Legal"
             links={[
               { href: '/privacy', label: 'Privacy' },
-              { href: '/terms', label: 'Terms' }
+              { href: '/terms', label: 'Terms' },
+              { href: '/cookies', label: 'Cookies' }
             ]}
           />
         </div>
