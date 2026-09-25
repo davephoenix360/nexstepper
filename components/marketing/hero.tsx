@@ -87,10 +87,10 @@ export function Hero() {
  * competitors who only show feature lists: signals that data handling
  * + privacy is part of the product, not an afterthought.
  *
- * TODO (post-launch): when we have paying users, swap the middle item
- * for a real testimonial or a stat like "X job-seekers built Y variants
- * this month". For now, the data-handling angle is a stronger pitch
- * than anonymous "thousands of users" copy.
+ * Policy: no fake testimonials. When we eventually have paying users
+ * willing to be quoted by name + role, add a real `<TestimonialBlock />`
+ * component as a separate section below the hero — never a fabricated
+ * quote in this strip.
  */
 function TrustStrip() {
   return (
