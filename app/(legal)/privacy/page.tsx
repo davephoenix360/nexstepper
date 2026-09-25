@@ -120,8 +120,34 @@ export default function PrivacyPage() {
         <li><strong>Resend</strong> — transactional email (password reset, receipts).</li>
         <li><strong>PostHog</strong> — product analytics. Receives usage events keyed by an opaque user ID. We scrub user properties on account deletion (§7).</li>
         <li><strong>Sentry</strong> — error monitoring. Errors are automatically scrubbed of PII by Sentry&apos;s default data-scrubbing rules.</li>
-        <li><strong>Vercel AI Gateway</strong> — routes AI requests to model providers (Anthropic, Mistral, OpenAI, others). Receives your resume content + your prompt; the gateway returns the model&apos;s response. See §8 for retention behaviour.</li>
+        <li>
+          <strong>Vercel AI Gateway</strong> — routes AI requests to model providers (see below).
+          Receives your resume content + your prompt; the gateway returns the model&apos;s
+          response. See §8 for retention behaviour.
+          <br />
+          <strong>Actual model providers</strong> (configured in{' '}
+          <code>lib/ai/providers.ts</code>):
+          <ul>
+            <li><strong>Mistral</strong> (<code>mistral/mistral-nemo</code>) — primary. Free-tier.</li>
+            <li><strong>Meta</strong> (<code>meta/llama-3.1-8b</code>) — first fallback.</li>
+            <li><strong>Amazon</strong> (<code>amazon/nova-micro</code>) — second fallback.</li>
+            <li><strong>OpenAI</strong> (<code>openai/gpt-4o-mini</code>) — third fallback.</li>
+          </ul>
+          The fallback chain kicks in only when the previous model fails or
+          times out. Your prompt is sent to at most one provider per
+          request. We may swap the primary or fallbacks without notice
+          (e.g. if a provider&apos;s free tier changes); the current
+          configuration is always visible at the GitHub link in §11.
+        </li>
       </ul>
+      <p>
+        <strong>Configured but not currently active.</strong> We have
+        client SDKs wired for <strong>Inngest</strong> (background
+        jobs) and <strong>Liveblocks</strong> (real-time collaboration,
+        planned for Phase 5). Neither processes user data today. When
+        either ships, we will update this list before the change takes
+        effect.
+      </p>
       <p>
         We will give you 30 days&apos; notice via email before adding a new
         subprocessor that handles personal data. Continued use of the
