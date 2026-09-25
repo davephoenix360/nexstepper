@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true }
 };
 
-const LAST_UPDATED = '2026-09-24';
+const LAST_UPDATED = '2026-09-25';
 
 const toc = [
   { id: 'summary', label: 'Summary' },
@@ -118,7 +118,44 @@ export default function PrivacyPage() {
         <li><strong>Vercel</strong> — hosting + edge network.</li>
         <li><strong>Stripe</strong> — payment processing. Receives your email and billing details; never receives your resume content.</li>
         <li><strong>Resend</strong> — transactional email (password reset, receipts).</li>
-        <li><strong>PostHog</strong> — product analytics. Receives usage events keyed by an opaque user ID. We scrub user properties on account deletion (§7).</li>
+        <li>
+          <strong>PostHog</strong> — product analytics, AI observability, and
+          (potentially) session replay. Three capabilities, same vendor:
+          <ul>
+            <li>
+              <strong>Product analytics.</strong> Autocaptured pageviews,
+              button clicks, form submissions, and custom events
+              (<code>$pageview</code>, <code>$autocapture</code>, and our
+              own events). Events are keyed by an opaque user ID, not your
+              email or any resume content. We scrub user properties on
+              account deletion (§7).
+            </li>
+            <li>
+              <strong>AI observability.</strong> Every AI request (chat
+              assistant, bullet rewrite, JD parser) sends PostHog the model
+              name, latency, token counts, cost, error status, and a
+              synthetic trace ID.{' '}
+              <strong>We do not send your prompts or model responses.</strong>{' '}
+              The SDK runs in privacy mode (configured in{' '}
+              <code>lib/ai/providers.ts</code>), which excludes{' '}
+              <code>$ai_input</code> and <code>$ai_output_choices</code> from
+              captured events. PostHog otherwise retains large{' '}
+              <code>$ai_*</code> properties for 30 days, then deletes them.
+              Even with privacy mode off, this 30-day window applies.
+            </li>
+            <li>
+              <strong>Session replay.</strong> <em>Not currently active.</em>{' '}
+              The PostHog JS SDK ships with the recorder included but does
+              not record sessions unless the feature is enabled in our
+              PostHog project settings. If we turn it on in the future,
+              form input values are masked by default (
+              <code>maskAllInputs: true</code>), so passwords, resume
+              content typed into form fields, and other sensitive inputs
+              appear as <code>*</code> in replays. We will update this
+              section before enabling recording.
+            </li>
+          </ul>
+        </li>
         <li><strong>Sentry</strong> — error monitoring. Errors are automatically scrubbed of PII by Sentry&apos;s default data-scrubbing rules.</li>
         <li>
           <strong>Vercel AI Gateway</strong> — routes AI requests to model providers (see below).
@@ -290,6 +327,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
         <li><strong>2026-09-24</strong> — added §11 &ldquo;Open-source + self-hosting&rdquo; scope clarification (the Nexstepper hosted service and your self-hosted instance have separate data-controller relationships).</li>
+        <li><strong>2026-09-25</strong> — expanded §4 PostHog entry into three sub-capabilities (product analytics, AI observability, session replay) and clarified that AI observability runs in privacy mode so prompts and responses are never sent to PostHog.</li>
       </ul>
 
       <h2 id="contact">13. Contact</h2>

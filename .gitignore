@@ -75,3 +75,16 @@ output/
 # Nexstepper repo — it lives under C:/Users/.../.mavis/agents/* and
 # happens to show up in the Nexstepper workspace via the agent context).
 .agents/
+.env.local
+
+# PostHog wizard transient artifacts (skills + cache dropped into the
+# workspace by the PostHog AI Observability setup wizard). Safe to
+# regenerate by re-running the wizard. Never commit.
+.claude/
+.posthog-wizard-cache/
+
+# Disposable scratch / "trash" files. Local safety policy blocks
+# Remove-Item, so the working pattern is to move stale or experimental
+# files into .trash/ instead of deleting them outright.
+.trash/
+*.trash

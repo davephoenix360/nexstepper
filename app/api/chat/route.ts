@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { streamText, type ModelMessage, type ToolSet, type TextStreamPart } from 'ai';
@@ -276,7 +277,11 @@ export async function POST(req: NextRequest) {
   ) as unknown as ToolSet;
 
   // ── Stream response ────────────────────────────────────────────────────────
-  const model = getModel(PARSER_MODEL);
+  const model = getModel(PARSER_MODEL, {
+    distinctId: userId,
+    sessionId,
+    traceId: randomUUID()
+  });
 
   const result = await streamText({
     model,

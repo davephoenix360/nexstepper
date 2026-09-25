@@ -1,9 +1,11 @@
 import 'server-only';
 
+import { randomUUID } from 'node:crypto';
 import { generateObject, generateText, type LanguageModel } from 'ai';
 import type { ZodType } from 'zod';
 
 import { aiStrict } from '@/lib/ai/ai-strict-schema';
+import { observeModel, type AiObservabilityContext } from '@/lib/ai/providers';
 
 /**
  * Try a list of models in order, returning the first successful
@@ -85,7 +87,8 @@ export async function generateObjectWithFallbacks<T>({
   prompt,
   schema,
   temperature = 0,
-  abortSignal
+  abortSignal,
+  observability
 }: {
   models: readonly (LanguageModel | string)[];
   system: string;
@@ -93,14 +96,22 @@ export async function generateObjectWithFallbacks<T>({
   schema: ZodType<T>;
   temperature?: number;
   abortSignal?: AbortSignal;
+  observability?: AiObservabilityContext;
 }): Promise<ModelWithFallbackResult<T>> {
   let lastError: unknown = null;
+  const traceContext = {
+    ...observability,
+    traceId: observability?.traceId ?? randomUUID()
+  };
 
   for (const modelEntry of models) {
     // The caller can pass either a resolved LanguageModel OR a
     // model ID string. The string form is a hint that the caller
     // didn't bother resolving; we resolve here.
-    const model = typeof modelEntry === 'string' ? await resolveModel(modelEntry) : modelEntry;
+    const model =
+      typeof modelEntry === 'string'
+        ? await resolveModel(modelEntry, traceContext)
+        : observeModel(modelEntry, traceContext);
     const modelName = typeof modelEntry === 'string' ? modelEntry : '<resolved>';
 
     // OpenAI needs schema-level strict JSON for its validator; the
@@ -377,9 +388,12 @@ function debugError(err: unknown): string {
 // Lazy import of the providers module to avoid a circular dep -
 // this file is imported by the parsers, and the parsers already
 // import the providers.
-async function resolveModel(modelId: string): Promise<LanguageModel> {
+async function resolveModel(
+  modelId: string,
+  observability: AiObservabilityContext
+): Promise<LanguageModel> {
   const { getModel } = await import('./providers');
-  return getModel(modelId) as LanguageModel;
+  return getModel(modelId, observability) as LanguageModel;
 }
 
 /**
@@ -406,7 +420,8 @@ export async function generateTextWithFallbacks({
   prompt,
   temperature = 0,
   abortSignal,
-  maxOutputTokens
+  maxOutputTokens,
+  observability
 }: {
   models: readonly (LanguageModel | string)[];
   system: string;
@@ -415,14 +430,19 @@ export async function generateTextWithFallbacks({
   abortSignal?: AbortSignal;
   /** Per-call output cap. Defaults to 4K — text-formatting jobs are small. */
   maxOutputTokens?: number;
+  observability?: AiObservabilityContext;
 }): Promise<TextWithFallbackResult> {
   let lastError: unknown = null;
+  const traceContext = {
+    ...observability,
+    traceId: observability?.traceId ?? randomUUID()
+  };
 
   for (const modelEntry of models) {
     const model =
       typeof modelEntry === 'string'
-        ? await resolveModel(modelEntry)
-        : modelEntry;
+        ? await resolveModel(modelEntry, traceContext)
+        : observeModel(modelEntry, traceContext);
     const modelName =
       typeof modelEntry === 'string' ? modelEntry : '<resolved>';
 

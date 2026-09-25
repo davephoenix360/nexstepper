@@ -1,6 +1,11 @@
 import 'server-only';
 
+import { randomUUID } from 'node:crypto';
+import { withTracing } from '@posthog/ai';
 import { gateway } from '@ai-sdk/gateway';
+import type { LanguageModel } from 'ai';
+
+import { posthogServer } from '@/lib/posthog/server';
 
 /**
  * Centralized AI model registry.
@@ -183,6 +188,50 @@ export const JD_INTENT_EXTRACTOR_FALLBACKS: readonly string[] = PARSE_FALLBACKS;
  * mock one thing in unit tests (`@ai-sdk/gateway` → the `gateway`
  * function), not three.
  */
-export function getModel(modelId: string) {
-  return gateway(modelId);
+export type AiObservabilityContext = {
+  distinctId?: string;
+  sessionId?: string;
+  traceId?: string;
+};
+
+const processAiSessionId = `process-${randomUUID()}`;
+
+export function observeModel<T extends LanguageModel>(
+  model: T,
+  context: AiObservabilityContext
+): T {
+  if (!posthogServer) {
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error(
+        'POSTHOG_KEY variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_KEY is configured'
+      );
+    }
+    return model;
+  }
+
+  return withTracing(model as never, posthogServer, {
+    posthogDistinctId: context.distinctId,
+    posthogTraceId: context.traceId ?? randomUUID(),
+    posthogProperties: {
+      $ai_session_id: context.sessionId ?? processAiSessionId
+    },
+    // Privacy mode ON: capture metadata only (model, latency, tokens,
+    // errors). Do NOT capture prompt inputs or model outputs.
+    // Rationale: Nextep is a resume builder — users paste job
+    // descriptions that may contain internal company info, salary
+    // ranges, or other confidential data, and resume content with
+    // personal PII. Sending prompt/response content to PostHog would
+    // create a second processor receiving that data, expanding the
+    // privacy surface area without operational benefit. Cost tracking
+    // and reliability still work in privacy mode. Flip to false only
+    // if you intentionally need prompt capture for AI quality eval.
+    posthogPrivacyMode: true
+  });
+}
+
+export function getModel(
+  modelId: string,
+  observability: AiObservabilityContext = {}
+): LanguageModel {
+  return observeModel(gateway(modelId), observability) as LanguageModel;
 }

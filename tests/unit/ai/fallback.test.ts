@@ -7,7 +7,12 @@ vi.mock('ai', () => ({
   generateObject: vi.fn()
 }));
 vi.mock('@/lib/ai/providers', () => ({
-  getModel: vi.fn(() => 'mock-resolved-model')
+  getModel: vi.fn(() => 'mock-resolved-model'),
+  // observeModel is the PostHog-AI tracing wrapper. In tests we pass
+  // models through unchanged — the tracing side-effect is exercised
+  // in integration tests, not unit tests, and we don't want a unit
+  // test to silently fail when @posthog/ai is missing in CI.
+  observeModel: vi.fn((model) => model)
 }));
 
 import { generateObject } from 'ai';

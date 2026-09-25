@@ -2,6 +2,7 @@
 
 import 'server-only';
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { headers } from 'next/headers';
 
@@ -172,7 +173,12 @@ export async function enrichBulletAction(
       system,
       prompt,
       schema: rewriteSchema,
-      temperature: 0.4
+      temperature: 0.4,
+      observability: {
+        distinctId: session.user.id,
+        sessionId: resumeId,
+        traceId: randomUUID()
+      }
     });
 
     // Light post-validation — the schema already enforces shape,
