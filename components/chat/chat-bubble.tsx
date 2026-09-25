@@ -73,11 +73,12 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
         // Drop the result if the user has since switched sessions.
         if (targetId !== activeSessionIdRef.current) return;
         setMessages(data.messages ?? []);
-        console.log(LOG_PREFIX, 'loaded session messages', { sessionId: targetId, count: data.messages?.length ?? 0 });
       })
       .catch((err) => {
         if (err?.name !== 'AbortError') {
-          console.error(LOG_PREFIX, 'failed to load session messages', err);
+          // Silent — switching sessions mid-load is the common case,
+          // and the next session click will retry.
+          void err;
         }
       });
   }, [isOpen, activeSessionId, resumeId]);
@@ -177,5 +178,3 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
   if (!mounted) return null;
   return createPortal(floatingUi, document.body);
 }
-
-const LOG_PREFIX = '[chat-bubble]';

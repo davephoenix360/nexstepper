@@ -92,8 +92,6 @@ function makeId() {
   return `msg_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const LOG_PREFIX = '[chat-client]';
-
 /**
  * Hook that sends a message and streams the AI response.
  */
@@ -118,12 +116,6 @@ export function useChatStream({
     sessionId: string | null,
     message: string
   ): Promise<string | null> {
-    console.log(LOG_PREFIX, 'sendMessage() called', {
-      sessionId,
-      resumeId,
-      messageLength: message.length
-    });
-
     // Cancel any in-flight request
     if ((sendMessage as any)._abortController) {
       (sendMessage as any)._abortController.abort();
@@ -147,11 +139,9 @@ export function useChatStream({
       { id: assistantId, role: 'assistant', content: '' }
     ];
     messages = currentMessages;
-    console.log(LOG_PREFIX, 'seeded messages', currentMessages.map((m) => ({ id: m.id, role: m.role, contentLen: m.content.length })));
     onMessage([...currentMessages]);
 
     try {
-      console.log(LOG_PREFIX, 'fetch POST /api/chat →');
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -159,18 +149,9 @@ export function useChatStream({
         signal: abortController.signal
       });
 
-      console.log(LOG_PREFIX, 'fetch ← response', {
-        status: res.status,
-        ok: res.ok,
-        xSessionId: res.headers.get('X-Session-Id'),
-        xTitle: res.headers.get('X-Title'),
-        contentType: res.headers.get('Content-Type')
-      });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         const code = (err as { code?: string }).code;
-        console.error(LOG_PREFIX, 'response not OK', { status: res.status, err });
         onError?.(err.error ?? 'Request failed', code ?? undefined);
         messages = [];
         onMessage([]);
@@ -179,10 +160,8 @@ export function useChatStream({
       }
 
       const resolvedSessionId = res.headers.get('X-Session-Id') ?? sessionId;
-      console.log(LOG_PREFIX, 'resolved session id', resolvedSessionId);
 
       if (!res.body) {
-        console.error(LOG_PREFIX, 'no response body');
         onError?.('No response body');
         messages = [];
         onMessage([]);
@@ -194,19 +173,12 @@ export function useChatStream({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let eventCount = 0;
-
-      console.log(LOG_PREFIX, 'streaming started, reading SSE…');
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          console.log(LOG_PREFIX, 'reader done (stream closed)');
-          break;
-        }
+        if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        console.log(LOG_PREFIX, 'chunk received', { bytes: value?.byteLength, bufferLen: buffer.length });
 
         // Process complete SSE messages ("data: <json>\n\n")
         while (buffer.includes('\n\n')) {
@@ -221,13 +193,10 @@ export function useChatStream({
           let event: Record<string, unknown>;
           try {
             event = JSON.parse(line) as Record<string, unknown>;
-          } catch (err) {
-            console.warn(LOG_PREFIX, 'failed to parse SSE line, skipping', { rawLine, err: (err as Error).message });
+          } catch {
+            // Malformed SSE line — drop it and keep parsing the stream.
             continue;
           }
-
-          eventCount++;
-          console.log(LOG_PREFIX, `SSE event #${eventCount}`, event);
 
           switch (event.type) {
             case 'text-delta': {
@@ -240,11 +209,6 @@ export function useChatStream({
                 content: assistant.content + delta
               };
               messages = mapReplaceById(nextMessages, assistantId, updatedAssistant);
-              console.log(LOG_PREFIX, '  text-delta applied', {
-                deltaLen: delta.length,
-                assistantContentLen: updatedAssistant.content.length,
-                preview: updatedAssistant.content.slice(0, 80)
-              });
               onMessage([...messages]);
               break;
             }
@@ -260,10 +224,6 @@ export function useChatStream({
                 toolCalls: [...state.toolCalls]
               };
               messages = mapReplaceById(nextMessages, assistantId, updatedAssistant);
-              console.log(LOG_PREFIX, '  tool_call attached', {
-                toolName: String(event.toolName ?? ''),
-                toolCallsCount: state.toolCalls.length
-              });
               onMessage([...messages]);
               onToolCall?.(String(event.toolName), event.args as unknown);
               break;
@@ -277,39 +237,27 @@ export function useChatStream({
                 toolResult: state.toolResult
               };
               messages = mapReplaceById(nextMessages, assistantId, updatedAssistant);
-              console.log(LOG_PREFIX, '  tool_result attached', {
-                resultType: typeof event.result,
-                resultKeys: typeof event.result === 'object' && event.result ? Object.keys(event.result) : []
-              });
               onMessage([...messages]);
               break;
             }
 
             case 'done':
-              console.log(LOG_PREFIX, '  done event', { finishReason: event.finishReason });
               isStreaming = false;
               onDone?.(event.finishReason as string | null);
               break;
 
             default:
-              console.warn(LOG_PREFIX, '  unhandled event type', event.type);
+              // Unknown event type — ignore. Forward-compat for new server events.
+              break;
           }
         }
       }
 
-      console.log(LOG_PREFIX, 'streaming finished', {
-        totalEvents: eventCount,
-        finalAssistantContentLen: messages.find((m) => m.id === assistantId)?.content.length ?? 0,
-        finalAssistantToolCalls: state.toolCalls.length,
-        finalToolResult: state.toolResult ? 'present' : 'null'
-      });
       isStreaming = false;
       return resolvedSessionId;
     } catch (err) {
-      console.error(LOG_PREFIX, 'fetch/stream error', err);
       isStreaming = false;
       if ((err as Error).name === 'AbortError') {
-        console.log(LOG_PREFIX, 'aborted by user');
         return null;
       }
       onError?.((err as Error).message ?? 'Stream failed');
@@ -320,7 +268,6 @@ export function useChatStream({
   }
 
   function cancel() {
-    console.log(LOG_PREFIX, 'cancel() invoked');
     if ((sendMessage as any)._abortController) {
       (sendMessage as any)._abortController.abort();
     }
