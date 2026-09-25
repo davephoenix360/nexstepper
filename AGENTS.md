@@ -67,25 +67,27 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `feat/rebrand-nexstepper` pending merge;
-`main` is clean as of **2026-09-24**. Awaiting rebrand merge +
-GitHub repo rename.
+**Now (in flight)** — `main` is at `9f8be47` as of **2026-09-25**;
+rebrand merged + repo renamed. Next session should pick up the
+production env bring-up from `docs/setup/production.md` §11, OR the
+Seniority Fit calibration fix from
+`docs/drift/2026-09-20-ats-v2-validation-corpus.md`.
 
 **Recently shipped (for context, last 7 days)**
 
-- **Rebrand: Nextep → Nexstepper** — in flight 2026-09-25, branch
-  `feat/rebrand-nexstepper` + drift memo
+- **Rebrand: Nextep → Nexstepper** — shipped 2026-09-25, branch
+  `feat/rebrand-nexstepper` (merged as PR #2) + drift memo
   `docs/drift/2026-09-25-nextep-rename.md`. Third party owns the
   "Nextep" / `.com` / `.app` namespace, so we shipped a one-word
-  mashup of the original brand. Updates repo (pending rename to
+  mashup of the original brand. Updates repo (renamed to
   `nexstepper`), `package.json` name, all marketing surfaces, legal
   pages, email templates, Better Auth cookie prefix (`nextep.*`
   → `nexstepper.*`; sessions invalidated once at merge boundary —
   acceptable because the product isn't yet public), Inngest app id,
   localStorage theme key, share-link event names, and the AI system
-  prompt's brand voice. **Deferred** to follow-up: GitHub repo name,
-  DNS cutover for hosted URL, Stripe product metadata, PostHog/Sentry
-  project name, trademark ITM filing. Plan: `docs/drift/2026-09-25-nextep-rename.md`.
+  prompt's brand voice. **Deferred** to follow-up: DNS cutover for
+  hosted URL, Stripe product metadata, PostHog/Sentry project name,
+  trademark ITM filing. Plan: `docs/drift/2026-09-25-nextep-rename.md`.
 
 - **AI chat assistant (Phase 4)** — shipped 2026-09-24, branches
   `feat/ai-chat-assistant` + `feat/chat-ats-context`. Streaming
