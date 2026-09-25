@@ -312,3 +312,77 @@ signal.
 **Still cleared.** Pearson r = 0.907 > 0.7. The corpus now
 exercises 7 of 7 v2 dimensions with real signal (no shim). The
 next follow-up is the Seniority Fit calibration fix above.
+
+---
+
+# 2026-09-24 — Seniority Fit calibration fix shipped
+
+Follow-up #1 (above) closed. The asymmetric over-qualification penalty
+was inverting the rank order for senior-track JDs. The fix removes
+the penalty in the main over-qualification path past the tolerance
+band — recruiters treat "too much experience" as a neutral signal,
+not a small negative.
+
+## New Pearson r = 0.9238 (was 0.907)
+
+The acceptance gate was never in danger (the floor is 0.7), but the
+drop from 0.923 → 0.907 was a real quality regression for senior-track
+JDs. With the fix, the r value recovers to **0.9238** — slightly above
+the pre-regression value.
+
+| | Pearson r | Notes |
+|---|---|---|
+| Seniority locked at 50 (pre-wire) | 0.923 | 6 of 7 dimensions contributing signal |
+| Seniority wired, asymmetric slope | 0.907 | rank-order inversion on senior-track JDs |
+| **Seniority fix (post)** | **0.9238** | over-qualification past tolerance is neutral |
+
+## What changed in the engine
+
+Single-branch change in `lib/scoring/dimensions/seniority-fit.ts`:
+
+```ts
+} else {
+  // Over-qualified by more than the tolerance. No penalty — see
+  // the doc comment at the top of the file. The corpus (Pearson r
+  // analysis) confirmed that any over-qualification penalty here
+  // was inverting the rank order for senior-track JDs.
+  value = MAX_SCORE;
+}
+```
+
+The `OVER_QUALIFIED_SLOPE` constant stays defined because the
+`jdYearsMax` ceiling branch (when a JD explicitly states an upper
+bound like "5-8 years") still uses it. That branch is exercised
+infrequently (rare JDs state a max) but is conceptually distinct:
+explicit-max means "this is a cap, not a soft hint."
+
+## What changed in tests
+
+- "penalizes over-qualification at 7.5 pts/year beyond tolerance" →
+  "does NOT penalize over-qualification past tolerance (neutral signal)",
+  assertion changed from `25` to `100`, comment updated to reference
+  this drift memo
+- "asymmetry: 4 years over-qualified scores HIGHER than 4 years under-qualified" →
+  expected over-qualified value changed from `85` to `100`; under-
+  qualified assertion unchanged (50)
+- "caps resume years at MAX_YEARS (30) to prevent runaway totals" →
+  renamed to "...and treats extreme over-qualification as neutral",
+  assertion changed from `0` to `100`
+- "honors a JD-explicit max years" → unchanged (jdYearsMax ceiling
+  still applies; OVER_QUALIFIED_SLOPE still used by that branch)
+
+## Files touched
+
+- `lib/scoring/dimensions/seniority-fit.ts` — over-qualification no-
+  penalty past tolerance; updated rationale doc comment; updated
+  inline comment on the OVER_QUALIFIED_SLOPE constant
+- `tests/unit/scoring/dimensions/seniority-fit.test.ts` — 3 tests
+  updated for the new behavior; rationale comments link back to
+  this drift memo
+
+## Acceptance gate status
+
+**Cleared with margin.** Pearson r = 0.9238 > 0.7. The corpus is the
+regression test against any future change to seniority-fit.ts (or to
+the WEIGHTS_V2 weights). A regression that drops r below 0.7 will fail
+CI loudly with a per-row delta table.

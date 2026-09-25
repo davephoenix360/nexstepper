@@ -15,15 +15,23 @@ import type { JobPosting, ResumeData } from '@/lib/resume-schema';
  * computation is pure math — no model call, no async, no IO. Years
  * are inferred from the work-history dates already on the envelope.
  *
- * Asymmetric penalty rationale (per the research report):
+ * Asymmetric penalty rationale (per the research report + 50-row corpus):
  *   - Under-qualified: a JD asking for 5 years but the candidate
  *     has 2 should drop the score substantially — the candidate
  *     genuinely can't evidence the experience.
  *   - Over-qualified: a JD asking for 5 years but the candidate
- *     has 12 is a soft signal at best; many senior candidates
- *     happily apply to mid-level roles. Penalize lightly.
+ *     has 12 is a **neutral signal**, not a small negative. The
+ *     corpus (Pearson r = 0.907 → 0.92+ after this fix) revealed
+ *     that any over-qualification penalty was inverting the rank
+ *     order for senior-track JDs: the BEST candidates were getting
+ *     the LOWEST seniority scores because they were the most over-
+ *     qualified. Recruiters don't penalize "too much experience"
+ *     beyond the tolerance band.
  *   - Sweet spot: within ±TOLERANCE_YEARS of the requirement is 100.
- *   - Beyond the tolerance: linear penalty, asymmetric slopes.
+ *   - Beyond the tolerance: linear penalty on the UNDER-qualified
+ *     side; **no penalty** on the OVER-qualified side.
+ *   - jdYearsMax ceiling: still penalizes if a JD explicitly states
+ *     an upper bound (rare). Same OVER_QUALIFIED_SLOPE is reused.
  *
  * **Purity discipline.** This module is checked by
  * `tests/unit/scoring/purity.test.ts` which bans `Date`, `Date.now`,
@@ -66,11 +74,20 @@ export const NEUTRAL_SENIORITY_FIT_SCORE = 50;
  */
 const TOLERANCE_YEARS = 2;
 /**
- * Penalty slope per year OUTSIDE the tolerance band. Under-qualified
- * gets the full 1.0× slope; over-qualified gets 0.3× (mild signal).
- * The 25 / 7.5 numbers are chosen so a 4-year gap under-qualified
- * scores 0 (100 - 4×25 = 0), while a 4-year gap over-qualified
- * scores 70 (100 - 4×7.5 = 70).
+ * Penalty slope per year OUTSIDE the tolerance band.
+ *
+ * - UNDER_QUALIFIED_SLOPE = 25: a 4-year gap under-qualified scores 0
+ *   (100 - 4×25 = 0). Steep, because the candidate genuinely can't
+ *   evidence the experience the JD asks for.
+ *
+ * - OVER_QUALIFIED_SLOPE: only used by the `jdYearsMax` ceiling branch
+ *   below (when a JD explicitly states an upper bound, e.g.
+ *   "5-8 years"). The main over-qualification path past the
+ *   tolerance band is a **no-op** — recruiters don't penalize
+ *   "too much experience" beyond the tolerance. The 7.5 figure is
+ *   kept here only for the rare JD-explicit-max case; if your
+ *   corpus ever suggests it should be 0 too, the ceiling branch
+ *   can be removed entirely.
  */
 const UNDER_QUALIFIED_SLOPE = 25;
 const OVER_QUALIFIED_SLOPE = 7.5;
@@ -139,9 +156,11 @@ export function scoreSeniorityFit(
     const yearsShort = -gap - TOLERANCE_YEARS;
     value = Math.max(MIN_SCORE, 100 - yearsShort * UNDER_QUALIFIED_SLOPE);
   } else {
-    // Over-qualified by more than the tolerance. Soft penalty.
-    const yearsOver = gap - TOLERANCE_YEARS;
-    value = Math.max(MIN_SCORE, 100 - yearsOver * OVER_QUALIFIED_SLOPE);
+    // Over-qualified by more than the tolerance. No penalty — see
+    // the doc comment at the top of the file. The corpus (Pearson r
+    // analysis) confirmed that any over-qualification penalty here
+    // was inverting the rank order for senior-track JDs.
+    value = MAX_SCORE;
   }
 
   // Optional ceiling: when JD explicitly states a max (rare), treat

@@ -307,10 +307,16 @@ describe('scoreSeniorityFit — penalty math', () => {
     expect(result.gap).toBe(-5);
   });
 
-  it('penalizes over-qualification at 7.5 pts/year beyond tolerance (3x cheaper)', () => {
+  it('does NOT penalize over-qualification past tolerance (neutral signal)', () => {
     // Resume = 20 years. JD asks for 8 years. Gap = +12. Beyond tolerance = 10.
-    // Penalty = 10 × 7.5 = 75. Score = 25. Same result as the under-qualification
-    // case, but for a very different reason — 12 years over.
+    // Pre-fix: Penalty = 10 × 7.5 = 75 → score 25 (rank-inverting for senior JDs).
+    // Post-fix (2026-09-24 calibration): no penalty — over-qualification is
+    // a neutral signal past tolerance. Score = 100. Verified empirically:
+    // the 50-row validation corpus showed recruiters don't penalize
+    // "too much experience" beyond the tolerance band; the old slope
+    // was inverting the rank order for senior-track JDs.
+    // See docs/drift/2026-09-20-ats-v2-validation-corpus.md §"Seniority Fit
+    // wired into the sync engine" for the analysis.
     const resume = makeResume({
       sections: {
         work: [
@@ -332,13 +338,13 @@ describe('scoreSeniorityFit — penalty math', () => {
       }
     });
     const result = scoreSeniorityFit(resume, makeJob({ yearsRequiredMin: 8 }), NOW);
-    expect(result.value).toBe(25);
+    expect(result.value).toBe(100);
     expect(result.gap).toBe(12);
   });
 
   it('asymmetry: 4 years over-qualified scores HIGHER than 4 years under-qualified', () => {
     // Resume = 12 years, JD = 8 years. Gap = +4. Beyond tolerance = 2.
-    // Penalty = 2 × 7.5 = 15. Score = 85.
+    // Post-fix: no penalty for over-qualification → score = 100.
     const overQ = makeResume({
       sections: {
         work: [
@@ -385,7 +391,7 @@ describe('scoreSeniorityFit — penalty math', () => {
     });
     const underQResult = scoreSeniorityFit(underQ, makeJob({ yearsRequiredMin: 8 }), NOW);
 
-    expect(overQResult.value).toBe(85);
+    expect(overQResult.value).toBe(100);
     expect(underQResult.value).toBe(50);
     expect(overQResult.value).toBeGreaterThan(underQResult.value);
   });
@@ -424,8 +430,11 @@ describe('scoreSeniorityFit — penalty math', () => {
 // ---------------------------------------------------------------------------
 
 describe('scoreSeniorityFit — edge cases', () => {
-  it('caps resume years at MAX_YEARS (30) to prevent runaway totals', () => {
+  it('caps resume years at MAX_YEARS (30) and treats extreme over-qualification as neutral', () => {
     // 1980-01 → present (2026-01) = 46 years, but capped to 30.
+    // JD asks for 8 years. Gap = 22. Beyond tolerance = 20.
+    // Pre-fix: 20 × 7.5 = 150, clamped to 0 (rank-inverting for senior JDs).
+    // Post-fix: no penalty for over-qualification past tolerance → score = 100.
     const resume = makeResume({
       sections: {
         work: [
@@ -448,8 +457,9 @@ describe('scoreSeniorityFit — edge cases', () => {
     });
     const result = scoreSeniorityFit(resume, makeJob({ yearsRequiredMin: 8 }), NOW);
     expect(result.resumeYears).toBe(30);
-    // Capped at 30 → gap = 22 → beyond tolerance = 20 → penalty = 150, clamped to 0.
-    expect(result.value).toBe(0);
+    // MAX_YEARS caps resume tenure; over-qualification past tolerance
+    // has no penalty → score = 100.
+    expect(result.value).toBe(100);
   });
 
   it('honors a JD-explicit max years (treats resume-years above max as over-qualified)', () => {
