@@ -426,3 +426,100 @@ export const scoreSnapshots = pgTable(
 
 export type ScoreSnapshot = typeof scoreSnapshots.$inferSelect;
 export type NewScoreSnapshot = typeof scoreSnapshots.$inferInsert;
+
+// ─── Chat tables (Phase 4) ────────────────────────────────────────────────────
+
+/**
+ * One conversation thread per user per resume.
+ *
+ * `updated_at` is bumped on every new message so the sidebar can sort
+ * "most recent first" without touching `chat_messages`.
+ */
+export const chatSessions = pgTable(
+  'chat_sessions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    resumeId: text('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default('New conversation'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+  },
+  (table) => [
+    index('chat_sessions_user_idx').on(table.userId, table.updatedAt.desc())
+  ]
+);
+
+/**
+ * Append-only per-session message history. One row per turn.
+ *
+ * `tool_calls` + `tool_result` let us reconstruct a full multi-turn
+ * conversation for re-streaming or audit. `tokens_in` / `tokens_out`
+ * are written by the API route after the stream finishes.
+ */
+export const chatMessages = pgTable(
+  'chat_messages',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => chatSessions.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(), // 'user' | 'assistant'
+    content: text('content').notNull(),
+    /**
+     * AI SDK tool-call payload.  Shape:
+     *   Array<{ id: string; name: string; args: Record<string, unknown> }>
+     * Only populated on assistant rows that invoked at least one tool.
+     */
+    toolCalls: jsonb('tool_calls').$type<
+      Array<{ id: string; name: string; args: Record<string, unknown> }>
+    >(),
+    /**
+     * Serialized return value of the tool invocation.
+     * Shape: `{ id: string; result: unknown }` per tool.
+     */
+    toolResult: jsonb('tool_result').$type<unknown>(),
+    tokensIn: integer('tokens_in').notNull().default(0),
+    tokensOut: integer('tokens_out').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [
+    index('chat_messages_session_idx').on(table.sessionId, table.createdAt.asc())
+  ]
+);
+
+/**
+ * Daily token-usage tracker for Free-tier rate limiting.
+ *
+ * PRIMARY KEY (userId, date) makes the upsert:
+ *   INSERT ... ON CONFLICT (user_id, date)
+ *     DO UPDATE SET tokens_used = tokens_used + EXCLUDED.tokens_used,
+ *                  turns_used  = turns_used  + 1
+ * The quota check uses `turns_used` (not `tokens_used`) so a user
+ * sending a single giant message still counts as one turn.
+ */
+export const chatUsage = pgTable(
+  'chat_usage',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(), // ISO date string 'YYYY-MM-DD'
+    tokensUsed: integer('tokens_used').notNull().default(0),
+    turnsUsed: integer('turns_used').notNull().default(0)
+  },
+  (table) => [index('chat_usage_user_date_idx').on(table.userId, table.date)]
+);
+
+// ─── Inferred types ────────────────────────────────────────────────────────────
+
+export type ChatSession = typeof chatSessions.$inferSelect;
+export type NewChatSession = typeof chatSessions.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type ChatUsage = typeof chatUsage.$inferSelect;
+export type NewChatUsage = typeof chatUsage.$inferInsert;

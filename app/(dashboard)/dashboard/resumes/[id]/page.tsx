@@ -19,6 +19,7 @@ import { ShareButton } from './share-button';
 import { JdPanel } from './_components/jd-panel';
 import { ScorecardClient } from './_components/scorecard-client';
 import { RenameResumeControl } from './_components/rename-resume-button';
+import { ChatBubble } from '@/components/chat/chat-bubble';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
@@ -178,6 +179,12 @@ export default async function ResumeEditorPage({
               initialDynamicTips={dynamicTips}
               initialMatchBreakdown={initialMatchBreakdown}
               planId={planId}
+            />
+            {/* AI Chat Assistant — visible on variants only */}
+            <ChatBubble
+              resumeId={resume.id}
+              resumeName={resume.name}
+              isPro={planId === 'pro'}
             />
           </div>
         )}
