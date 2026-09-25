@@ -1,5 +1,5 @@
 /**
- * Resume schema — the canonical structured-data shape for a Nextep resume.
+ * Resume schema - the canonical structured-data shape for a Nexstepper resume.
  *
  * Built on JSON Resume v1.0.0 (https://jsonresume.org/schema/) so existing
  * resume tooling, importers, and exporters stay compatible.

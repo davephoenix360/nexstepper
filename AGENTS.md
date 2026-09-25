@@ -1,4 +1,6 @@
-# AGENTS.md — Nextep SaaS
+# AGENTS.md — Nexstepper
+
+> **Take the next step.**
 
 > Loaded automatically by Mavis, Cursor, Claude Code, Aider, Codex, Devin,
 > Gemini CLI, and any tool that follows the [agents.md spec](https://agents.md/).
@@ -65,10 +67,25 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is clean as of **2026-09-24**;
-no in-flight branches. Awaiting the next session's work.
+**Now (in flight)** — `feat/rebrand-nexstepper` pending merge;
+`main` is clean as of **2026-09-24**. Awaiting rebrand merge +
+GitHub repo rename.
 
 **Recently shipped (for context, last 7 days)**
+
+- **Rebrand: Nextep → Nexstepper** — in flight 2026-09-25, branch
+  `feat/rebrand-nexstepper` + drift memo
+  `docs/drift/2026-09-25-nextep-rename.md`. Third party owns the
+  "Nextep" / `.com` / `.app` namespace, so we shipped a one-word
+  mashup of the original brand. Updates repo (pending rename to
+  `nexstepper`), `package.json` name, all marketing surfaces, legal
+  pages, email templates, Better Auth cookie prefix (`nextep.*`
+  → `nexstepper.*`; sessions invalidated once at merge boundary —
+  acceptable because the product isn't yet public), Inngest app id,
+  localStorage theme key, share-link event names, and the AI system
+  prompt's brand voice. **Deferred** to follow-up: GitHub repo name,
+  DNS cutover for hosted URL, Stripe product metadata, PostHog/Sentry
+  project name, trademark ITM filing. Plan: `docs/drift/2026-09-25-nextep-rename.md`.
 
 - **AI chat assistant (Phase 4)** — shipped 2026-09-24, branches
   `feat/ai-chat-assistant` + `feat/chat-ats-context`. Streaming
@@ -264,7 +281,7 @@ endpoint callable by anyone with the URL. Every protected action calls
 ## Folder structure (current + planned)
 
 ```
-nextep-saas/
+nexstepper/
 ├── docs/                      # Plans, ADRs, drift memos, AI model reference
 │   ├── plans/                 # Feature plans: docs/plans/<slug>.md
 │   ├── decisions/             # ADRs: docs/decisions/NNNN-<slug>.md
@@ -522,7 +539,7 @@ re-litigating settled decisions.
 - API handler lives at `app/api/auth/[...all]/route.ts` — do not duplicate.
 - Server-side session reads: `const session = await auth.api.getSession({ headers: await headers() });`
 - Client-side session: `const { data: session } = authClient.useSession();`
-- Cookies are prefixed `nextep.*` (see `lib/auth.ts` `advanced.cookiePrefix`).
+- Cookies are prefixed `nexstepper.*` (see `lib/auth.ts` `advanced.cookiePrefix`). Renamed from `nextep.*` during the 2026-09-25 rebrand; see `docs/drift/2026-09-25-nextep-rename.md`. Existing sessions were invalidated at the rename boundary — acceptable because the product isn't yet public.
 - User IDs are UUIDs (string), not numbers.
 
 ## Drizzle gotchas

@@ -21,7 +21,7 @@ export default function LegalLayout({
           <Link href="/" className="inline-flex items-center gap-2">
             <Circle className="size-5 text-primary" />
             <span className="text-base font-semibold tracking-tight">
-              Nextep
+              Nexstepper
             </span>
           </Link>
           <nav className="flex gap-4 text-sm text-muted-foreground">
@@ -42,15 +42,15 @@ export default function LegalLayout({
         <p>
           Questions? Email{' '}
           <a
-            href="mailto:privacy@nextep.app"
+            href="mailto:privacy@nexstepper.app"
             className="underline underline-offset-0"
           >
-            privacy@nextep.app
+            privacy@nexstepper.app
           </a>
           .
         </p>
         <p className="mt-2">
-          © {new Date().getFullYear()} Nextep. Generated from open legal
+          © {new Date().getFullYear()} Nexstepper. Generated from open legal
           templates; not reviewed by counsel.
         </p>
       </footer>

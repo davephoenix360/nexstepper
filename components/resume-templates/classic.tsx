@@ -1860,7 +1860,7 @@ function OnlineProfilesInline() {
 /**
  * Inline-editable per-work-entry positions list. Each `work` row
  * owns its own `positions[]` array (a user can list multiple roles at
- * one company, e.g. "Nextep: Founder → CTO → Coach"), so this
+ * one company, e.g. "Nexstepper: Founder → CTO → Coach"), so this
  * component takes a `workIndex` and runs its own `useFieldArray`
  * against `sections.work.${workIndex}.positions`.
  *

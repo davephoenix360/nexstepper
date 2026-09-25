@@ -192,7 +192,7 @@ export default async function PricingPage() {
 
       <p className="text-center text-sm text-gray-500 mt-12 max-w-md mx-auto">
         Built by a job-seeker, for job-seekers. If the price is the
-        reason you didn&apos;t upgrade, <a href="mailto:hi@nextep.app" className="underline">tell me</a> — there&apos;s a more-honest answer.
+        reason you didn&apos;t upgrade, <a href="mailto:hi@nexstepper.app" className="underline">tell me</a> — there&apos;s a more-honest answer.
       </p>
     </main>
   );

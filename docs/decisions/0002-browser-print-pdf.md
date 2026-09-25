@@ -84,11 +84,11 @@ the dead config.
 - **Self-hosted Playwright on Vercel.** Out of the question — Vercel
   doesn't run a Chromium build for you; you'd pay for a serverless
   function cold start on every export.
-- **`@react-pdf/renderer`.** Was in the legacy `nextep/` repo but
+- **`@react-pdf/renderer`.** Was in the legacy `nexstepper/` repo but
   unused. Renders PDFs in JS without a browser, but loses CSS fidelity
   (no flex, no grid, no modern CSS) and the templates would need
   parallel authoring — one for screen, one for PDF. Rejected.
-- **LaTeX export (the original `nextep/` way).** Was the legacy
+- **LaTeX export (the original `nexstepper/` way).** Was the legacy
   primary. Deferred per the rebuild plan — LaTeX is power-user export
   only if/when requested.
 

@@ -1,4 +1,4 @@
-# Nextep — Rebuild Plan v1
+# Nexstepper — Rebuild Plan v1
 
 > **Status:** Decisions confirmed 2026-07-06. Refreshed 2026-09-18 to match
 > shipped state (Phase 2.5/3 boundary). For the current priority order
@@ -9,8 +9,8 @@
 > - ✅ Auth: **Better Auth**
 > - ✅ Boilerplate: **Build from `nextjs/saas-starter`** (no Makerkit budget)
 > - ✅ Templates: **HTML+CSS** (PDF rendering later pivoted to browser print-to-PDF — see AGENTS.md Phase handoff). LaTeX is export-only / deferred.
-> - ✅ Repo: **New GitHub repo**, current `nextep` folder kept as reference
-> - 🆕 Browser extension `nextep-ext` becomes a JD-capture client for the SaaS (post-launch, but the SaaS API must support it from day one)
+> - ✅ Repo: **New GitHub repo**, current `nexstepper` folder kept as reference
+> - 🆕 Browser extension `nexstepper` becomes a JD-capture client for the SaaS (post-launch, but the SaaS API must support it from day one)
 >
 > **TL;DR:** Rebuild as a Next.js 16 + React 19 + TypeScript SaaS on a Postgres + Drizzle
 > foundation, with Better Auth, Stripe billing, Vercel AI SDK 6 → Vercel AI
@@ -154,7 +154,7 @@ templater.
 
 ### Repo structure
 ```
-nextep/
+nexstepper/
   apps/
     web/                          # Main Next.js app
       app/                        # App Router (RSC by default)
@@ -289,7 +289,7 @@ already loved it.
 ### Phase 3 — Job context + scoring (weeks 6–7) — 🟡 Partial (parsers + Optimize v0)
 - ✅ Job URL/text → structured `JobPostingData` via `generateObject` (`lib/jd-parser/`)
 - ✅ Resume text → structured `ResumeSections` via `generateObject` (`lib/resume-parser/`)
-- ❌ **Score function** — never ported from the legacy `nextep/src/lib/score.ts`. **Next priority.**
+- ❌ **Score function** — never ported from the legacy `nexstepper/src/lib/score.ts`. **Next priority.**
 - ❌ Scorecard UI in the resume editor sidebar
 - ✅ Per-section "Optimize" button (basics.summary only) — Optimize v0
 
@@ -304,7 +304,7 @@ already loved it.
 - ❌ Reviews: invite link → reviewer leaves inline comments + verdict
 - 🟡 Liveblocks for real-time collab editing — server client stub wired; UI not started
 - ~~Activity feed~~ — deferred
-- ❌ **Browser extension `nextep-ext` v1** — `/api/job-contexts` not built; the SaaS API must support it before the extension is a client
+- ❌ **Browser extension `nexstepper` v1** — `/api/job-contexts` not built; the SaaS API must support it before the extension is a client
 
 ### Phase 6 — Template studio + polish (weeks 13–14) — ❌ Not started
 - Admin-only template studio
@@ -335,25 +335,25 @@ already loved it.
    revenue. I'd recommend Free + Pro at launch: free = unlimited resumes + 20 chat
    messages/day + no Optimize tool; Pro $12/mo = unlimited chat + Optimize tool + reviews +
    collab up to N collaborators.
-6. **Brand / domain / logo — keeping the Nextep name?** I assume yes. Confirm.
+6. **Brand / domain / logo — keeping the Nexstepper name?** I assume yes. Confirm.
 7. **Where to handle `.tex` exports?** Hand user the `.tex` source, let them compile on
    Overleaf. No need for us to run a TeX engine. Confirm.
 8. **Deploy target: Vercel?** Pricing has changed in 2026. If you want to evaluate Cloudflare
    or Railway, let me know now.
-9. **Existing browser extension `nextep-ext`** — when to ship it? Recommendation: keep it on
+9. **Existing browser extension `nexstepper`** — when to ship it? Recommendation: keep it on
    its own branch / separate repo; build the SaaS first; in Phase 0 design the API so the
    extension has a clean client to talk to from day one. Re-decide ship date at end of Phase 4.
 
 ---
 
-## 8. Browser extension `nextep-ext` (your side project, will become a JD-capture client)
+## 8. Browser extension `nexstepper` (your side project, will become a JD-capture client)
 
 ### What I love about this
 - Captures JDs at the source — LinkedIn, Indeed, Lever, Greenhouse, Workday — instead of
   copy-paste. Way better UX.
 - Real differentiator vs Rezi / Teal / Kickresume. None of them have a good extension.
 - Natural top-of-funnel. Extension users without SaaS accounts funnel into the marketing site.
-- You already have `nextep-ext` (existing extension code) — repurposing costs you a fraction
+- You already have `nexstepper` (existing extension code) — repurposing costs you a fraction
   of building from scratch.
 
 ### API surface the extension will need
@@ -373,7 +373,7 @@ Build these into the SaaS in Phase 1, even before the extension exists:
 - Manifest V3, single content script, service worker for background tasks
 - Detect JD pages via URL pattern + DOM heuristics (h1 with job title, JSON-LD `JobPosting`
   schema.org block, common selectors per site)
-- Popup UI: "Save JD to Nextep" + "Save JD and start a tailored resume"
+- Popup UI: "Save JD to Nexstepper" + "Save JD and start a tailored resume"
 - Storage: chrome.storage for the API token (encrypted at rest by the browser)
 - Cross-browser: Chrome first; Firefox is a 2-day port; Safari is a longer lift (skip v1)
 

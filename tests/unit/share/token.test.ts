@@ -69,10 +69,10 @@ describe('buildShareUrl', () => {
   const originalBaseUrl = process.env.BASE_URL;
 
   it('uses NEXT_PUBLIC_APP_URL when set', () => {
-    process.env.NEXT_PUBLIC_APP_URL = 'https://nextep.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://nexstepper.example.com';
     process.env.BASE_URL = 'https://should-not-be-used.example.com';
     const url = buildShareUrl('abc123');
-    expect(url).toBe('https://nextep.example.com/r/abc123');
+    expect(url).toBe('https://nexstepper.example.com/r/abc123');
   });
 
   it('falls back to BASE_URL when NEXT_PUBLIC_APP_URL is missing', () => {
@@ -90,13 +90,13 @@ describe('buildShareUrl', () => {
   });
 
   it('strips a trailing slash from the base URL', () => {
-    process.env.NEXT_PUBLIC_APP_URL = 'https://nextep.example.com/';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://nexstepper.example.com/';
     const url = buildShareUrl('abc123');
-    expect(url).toBe('https://nextep.example.com/r/abc123');
+    expect(url).toBe('https://nexstepper.example.com/r/abc123');
   });
 
   it('uses the /r/ prefix (NOT /share/)', () => {
-    process.env.NEXT_PUBLIC_APP_URL = 'https://nextep.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://nexstepper.example.com';
     const url = buildShareUrl('abc123');
     expect(url).toContain('/r/');
     expect(url).not.toContain('/share/');

@@ -145,7 +145,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             <div className="mt-6 text-center text-sm text-muted-foreground">
               {mode === 'signin' ? (
                 <>
-                  New to Nextep?{' '}
+                  New to Nexstepper?{' '}
                   <Link
                     href="/sign-up"
                     className="font-medium text-primary hover:underline"

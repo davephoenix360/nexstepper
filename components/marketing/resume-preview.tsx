@@ -21,7 +21,7 @@ export function ResumePreview() {
           <span className="size-2.5 rounded-full bg-red-400/70" />
           <span className="size-2.5 rounded-full bg-amber-400/70" />
           <span className="size-2.5 rounded-full bg-emerald-400/70" />
-          <span className="ml-3 font-mono">nextep.app/dashboard/resumes</span>
+          <span className="ml-3 font-mono">nexstepper.app/dashboard/resumes</span>
         </div>
 
         {/* Resume content */}

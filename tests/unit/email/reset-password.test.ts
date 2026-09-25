@@ -19,7 +19,7 @@ import {
  * client itself is well-tested upstream.
  */
 
-const FAKE_URL = 'https://nextep.example.com/reset-password?token=abc123';
+const FAKE_URL = 'https://nexstepper.example.com/reset-password?token=abc123';
 
 describe('buildResetPasswordHtml', () => {
   it('contains the reset URL as a clickable button', () => {
@@ -33,7 +33,7 @@ describe('buildResetPasswordHtml', () => {
     const html = buildResetPasswordHtml({ name: 'Jane', url: FAKE_URL });
     // The URL appears twice: once in the href, once as the
     // "paste this link" fallback. Both need to be there.
-    const urlCount = (html.match(/https:\/\/nextep\.example\.com/g) ?? []).length;
+    const urlCount = (html.match(/https:\/\/nexstepper\.example\.com/g) ?? []).length;
     expect(urlCount).toBeGreaterThanOrEqual(2);
   });
 
@@ -141,9 +141,9 @@ describe('buildResetPasswordText', () => {
     expect(text).toMatch(/didn't request this/i);
   });
 
-  it('ends with the Nextep sign-off', () => {
+  it('ends with the Nexstepper sign-off', () => {
     const text = buildResetPasswordText({ name: 'Jane', url: FAKE_URL });
-    expect(text.trimEnd().endsWith('— Nextep')).toBe(true);
+    expect(text.trimEnd().endsWith('- Nexstepper')).toBe(true);
   });
 });
 

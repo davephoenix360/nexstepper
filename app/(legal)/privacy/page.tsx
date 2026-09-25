@@ -4,9 +4,9 @@ import { PolicyNotice } from '../_components/policy-notice';
 import { PolicyToc } from '../_components/policy-toc';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Nextep',
+  title: 'Privacy Policy — Nexstepper',
   description:
-    'How Nextep collects, uses, retains, and shares your personal information, and the rights you have under GDPR, CCPA, and PIPEDA.',
+    'How Nexstepper collects, uses, retains, and shares your personal information, and the rights you have under GDPR, CCPA, and PIPEDA.',
   robots: { index: true, follow: true }
 };
 
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
 
       <h2 id="summary">Summary</h2>
       <p>
-        Nextep (&ldquo;Nextep&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) is an AI-assisted resume
+        Nexstepper (&ldquo;Nexstepper&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) is an AI-assisted resume
         builder. We collect only the information we need to run the
         service, retain it only as long as we have a reason to, and give
         you tools to export or delete it on demand. We do not sell your
@@ -198,7 +198,7 @@ export default function PrivacyPage() {
         <li><strong>Portability</strong> — receive your data in a structured, machine-readable format. Same export as above.</li>
         <li><strong>Deletion</strong> — request erasure of your data. Same <code>/dashboard/security</code> page, <em>Delete Account</em> button. We erase across our database, our payment processor, and our analytics. Most deletions complete in under 60 seconds; some third-party processors may take up to 30 days.</li>
         <li><strong>Correction</strong> — edit your profile information from <code>/dashboard/general</code>.</li>
-        <li><strong>Object / restrict</strong> — email <code>privacy@nextep.app</code>. We&apos;ll respond within 30 days.</li>
+        <li><strong>Object / restrict</strong> — email <code>privacy@nexstepper.app</code>. We&apos;ll respond within 30 days.</li>
         <li><strong>Withdraw consent</strong> — for any optional processing (e.g. marketing email), unsubscribe link in the email itself or contact us.</li>
       </ul>
       <p>
@@ -230,7 +230,7 @@ export default function PrivacyPage() {
 
       <h2 id="international">8. International transfers</h2>
       <p>
-        Nextep is operated from the United States. If you use the service
+        Nexstepper is operated from the United States. If you use the service
         from outside the US, your information will be transferred to and
         processed in the US. We rely on the European Commission&apos;s
         Standard Contractual Clauses (2021/914) and the UK International
@@ -241,9 +241,9 @@ export default function PrivacyPage() {
 
       <h2 id="children">9. Children&apos;s privacy</h2>
       <p>
-        Nextep is not directed at children under 16. We do not knowingly
+        Nexstepper is not directed at children under 16. We do not knowingly
         collect personal information from children. If you believe a
-        child has signed up, email <code>privacy@nextep.app</code> and we
+        child has signed up, email <code>privacy@nexstepper.app</code> and we
         will delete the account.
       </p>
 
@@ -254,20 +254,20 @@ export default function PrivacyPage() {
         passwords (via Better Auth), strict role-based access controls on
         internal systems, and continuous monitoring via Sentry. No system
         is perfectly secure; if you discover a vulnerability, please email{' '}
-        <code>security@nextep.app</code> (PGP key on request).
+        <code>security@nexstepper.app</code> (PGP key on request).
       </p>
 
       <h2 id="open-source">11. Open-source + self-hosting</h2>
       <p>
-        The Nextep source code is released under the
+        The Nexstepper source code is released under the
         <a href="https://opensource.org/licenses/MIT" rel="noreferrer">MIT license</a>.
         This Privacy Policy covers only the <strong>hosted</strong>{' '}
-        service at <code>nextep.app</code>.
+        service at <code>nexstepper.app</code>.
       </p>
       <p>
         If you self-host the code on your own infrastructure, you are the
         data controller for any data your users put into the system. The
-        Nextep privacy policy does not apply to your instance. You are
+        Nexstepper privacy policy does not apply to your instance. You are
         responsible for:
       </p>
       <ul>
@@ -289,14 +289,14 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
-        <li><strong>2026-09-24</strong> — added §11 &ldquo;Open-source + self-hosting&rdquo; scope clarification (the Nextep hosted service and your self-hosted instance have separate data-controller relationships).</li>
+        <li><strong>2026-09-24</strong> — added §11 &ldquo;Open-source + self-hosting&rdquo; scope clarification (the Nexstepper hosted service and your self-hosted instance have separate data-controller relationships).</li>
       </ul>
 
       <h2 id="contact">13. Contact</h2>
       <p>
-        Privacy questions: <code>privacy@nextep.app</code>.
+        Privacy questions: <code>privacy@nexstepper.app</code>.
         <br />
-        Security disclosures: <code>security@nextep.app</code>.
+        Security disclosures: <code>security@nexstepper.app</code>.
         <br />
         Postal: <em>available on request</em> (we&apos;re a small team; email
         is the fastest path).

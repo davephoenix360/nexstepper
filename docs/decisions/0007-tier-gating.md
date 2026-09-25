@@ -2,7 +2,7 @@
 
 ## Context
 
-Nextep's Stripe subscription infrastructure is partially built
+Nexstepper's Stripe subscription infrastructure is partially built
 (`subscriptions` table, checkout, webhook, pricing page, `PLANS`
 schema constants). What is missing is the **auth/billing boundary
 layer** that every Pro-only feature will share — and the inline-issue

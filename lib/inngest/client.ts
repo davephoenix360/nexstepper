@@ -8,7 +8,7 @@ export type AppEvents = {
 };
 
 export const inngest = new Inngest({
-  id: 'nextep-saas'
+  id: 'nexstepper'
 });
 
 /**

@@ -16,7 +16,7 @@ Drives the last of the "Hard requirements for v1 deploy" from `docs/setup/produc
 
 - Footer "Privacy / Terms / Cookies" links render real pages instead of 404.
 - Each policy page shows the policy text + a clearly-marked "Last updated: 2026-09-24" and "This document is generated from open templates; it has not been reviewed by a lawyer. Review before relying on it commercially." notice at the top.
-- `/dashboard/security` gains an **"Export your data"** button (next to "Delete Account"). Clicking it downloads a `nextep-export-<userId>-<date>.json` file containing everything the user has on our platform.
+- `/dashboard/security` gains an **"Export your data"** button (next to "Delete Account"). Clicking it downloads a `nexstepper<userId>-<date>.json` file containing everything the user has on our platform.
 - **"Delete Account"** now cancels any active Stripe subscription + deletes the Stripe customer record + scrubs PostHog user properties, in addition to the existing Better Auth user deletion. User is signed out and bounced to `/`.
 - Landing page: tighter hero headline + a 3-item trust strip ("GDPR-ready · Export & delete anytime · Stripe-secured payments") directly under the CTA.
 
@@ -44,9 +44,9 @@ Drives the last of the "Hard requirements for v1 deploy" from `docs/setup/produc
 
 ## Architecture + locked tradeoffs
 
-### 1. Policy text source: open templates adapted to Nextep
+### 1. Policy text source: open templates adapted to Nexstepper
 
-Generate each policy from the Termly open-source CC0 templates (https://termly.io/resources/templates/), rewritten to Nextep's actual data practices. Every section that involves Nextep-specific facts (subprocessors, retention, plan details) gets the real values from `.env.example` + `lib/db/schema.ts` + the Stripe setup doc.
+Generate each policy from the Termly open-source CC0 templates (https://termly.io/resources/templates/), rewritten to Nexstepper's actual data practices. Every section that involves Nexstepper-specific facts (subprocessors, retention, plan details) gets the real values from `.env.example` + `lib/db/schema.ts` + the Stripe setup doc.
 
 Each page has a `<PolicyNotice>` banner:
 

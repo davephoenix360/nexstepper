@@ -65,7 +65,7 @@ export function FeaturesSection() {
           <FeatureCard
             icon={<FileText className="size-5" />}
             title="One master, many variants"
-            description="Maintain a single source-of-truth resume. Nextep spins off tailored variants for each role in one click — your history, projects, and voice stay consistent."
+            description="Maintain a single source-of-truth resume. Nexstepper spins off tailored variants for each role in one click — your history, projects, and voice stay consistent."
           />
           <FeatureCard
             icon={<Sparkles className="size-5" />}
@@ -80,7 +80,7 @@ export function FeaturesSection() {
           <FeatureCard
             icon={<GitBranch className="size-5" />}
             title="Job context attached"
-            description="Paste a job URL or text, and Nextep parses the requirements, must-haves, and seniority. Your variant adapts to match."
+            description="Paste a job URL or text, and Nexstepper parses the requirements, must-haves, and seniority. Your variant adapts to match."
           />
           <FeatureCard
             icon={<Users className="size-5" />}

@@ -21,7 +21,7 @@ import { sendEmail } from './resend';
  * leak existence at the email layer either.
  */
 
-const SUBJECT = 'Reset your Nextep password';
+const SUBJECT = 'Reset your Nexstepper password';
 
 /**
  * Default expiry for the reset link, in minutes.
@@ -68,13 +68,13 @@ export function buildResetPasswordHtml({
             <tr>
               <td>
                 <h1 style="margin:0 0 16px 0;font-size:20px;font-weight:600;color:#18181b;">
-                  Reset your Nextep password
+                  Reset your Nexstepper password
                 </h1>
                 <p style="margin:0 0 16px 0;font-size:15px;line-height:1.5;color:#3f3f46;">
                   Hi ${escapeHtml(greeting)},
                 </p>
                 <p style="margin:0 0 24px 0;font-size:15px;line-height:1.5;color:#3f3f46;">
-                  We received a request to reset the password for your Nextep account.
+                  We received a request to reset the password for your Nexstepper account.
                   Click the button below to choose a new one. This link expires in
                   ${expiryMinutes} minutes and can only be used once.
                 </p>
@@ -99,7 +99,7 @@ export function buildResetPasswordHtml({
             </tr>
           </table>
           <p style="margin:16px 0 0 0;font-size:12px;color:#a1a1aa;">
-            Nextep · AI-assisted resume builder
+            Nexstepper · AI-assisted resume builder
           </p>
         </td>
       </tr>
@@ -126,14 +126,14 @@ export function buildResetPasswordText({
   return [
     `Hi ${greeting},`,
     '',
-    'We received a request to reset the password for your Nextep account.',
+    'We received a request to reset the password for your Nexstepper account.',
     `Click the link below to choose a new one. This link expires in ${expiryMinutes} minutes and can only be used once.`,
     '',
     url,
     '',
     "If you didn't request this, you can safely ignore this email — your password will stay the same.",
     '',
-    '— Nextep'
+    '- Nexstepper'
   ].join('\n');
 }
 

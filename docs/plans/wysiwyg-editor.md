@@ -112,7 +112,7 @@ Notes:
 
 ## Print fidelity (the question the user asked)
 
-The user reported the **Nextep topbar surviving into the print** and asked whether the PDF will look exactly like the editor. Both addressed in this slice.
+The user reported the **Nexstepper topbar surviving into the print** and asked whether the PDF will look exactly like the editor. Both addressed in this slice.
 
 **Already shipped (this turn):**
 

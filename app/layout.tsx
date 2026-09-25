@@ -7,9 +7,9 @@ import { PostHogProvider } from '@/components/posthog-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Nextep — AI-assisted resume builder',
+  title: 'Nexstepper — AI-assisted resume builder',
   description:
-    'Master-resume → tailored variants, ATS-style scoring, peer reviews, and real-time collaboration.'
+    'Take the next step. Master-resume → tailored variants, ATS-style scoring, peer reviews, and real-time collaboration.'
 };
 
 export const viewport: Viewport = {
@@ -24,7 +24,7 @@ const manrope = Manrope({ subsets: ['latin'] });
 
 /**
  * Inline no-FOUC script — runs before paint to apply the right theme class.
- * Reads localStorage('nextep-theme'), falls back to prefers-color-scheme.
+ * Reads localStorage('nexstepper-theme'), falls back to prefers-color-scheme.
  *
  * The script is intentionally tiny (no deps) and uses try/catch because
  * localStorage may be unavailable in private browsing / sandboxed iframes.
@@ -36,7 +36,7 @@ const manrope = Manrope({ subsets: ['latin'] });
  * beforeInteractive is the supported pattern for FOUC-prevention scripts
  * that must run before React hydrates.
  */
-const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('nextep-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(s==='dark'||((!s||s==='system')&&d)){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}}catch(e){}})();`;
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('nexstepper-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(s==='dark'||((!s||s==='system')&&d)){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}}catch(e){}})();`;
 
 export default async function RootLayout({
   children
@@ -51,7 +51,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={manrope.className}>
       <head>
-        <Script id="nextep-theme-init" strategy="beforeInteractive">
+        <Script id="nexstepper-theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
         </Script>
       </head>

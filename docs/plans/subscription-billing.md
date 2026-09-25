@@ -2,7 +2,7 @@
 
 ## Objective
 
-Close the gaps in Nextep's Stripe subscription infrastructure so the
+Close the gaps in Nexstepper's Stripe subscription infrastructure so the
 product can convert free users to Pro and gate Pro-only features
 (starting with the inline-issue surface). The lower plumbing — Stripe
 client, checkout, webhook, `subscriptions` table, pricing page, `PLANS`

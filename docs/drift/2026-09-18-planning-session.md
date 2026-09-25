@@ -46,7 +46,7 @@ collab. The differentiator is the score + the real-time layer.
 ## Drift callouts
 
 1. **ATS scoring never ported.** Rebuild plan §6 calls for Phase 3
-   scoring; legacy `nextep/src/lib/score.ts` has the algorithm; new
+   scoring; legacy `nexstepper/src/lib/score.ts` has the algorithm; new
    repo has no `lib/scoring/`. Without it, we're "AI resume builder
    without the AI scoring" — weaker than the legacy.
 

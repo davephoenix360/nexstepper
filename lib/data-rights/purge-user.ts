@@ -15,7 +15,7 @@ import {
 import { scrubPosthogUser } from './posthog-user-delete';
 
 /**
- * `purgeUserAccount` — server action that erases a Nextep user's PII
+ * `purgeUserAccount` - server action that erases a Nexstepper user's PII
  * across every system we own + every third-party processor we route
  * data through.
  *

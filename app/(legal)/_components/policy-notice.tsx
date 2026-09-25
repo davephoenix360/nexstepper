@@ -1,6 +1,6 @@
 /**
  * The "not lawyer-reviewed" notice displayed at the top of every legal
- * page. Honest disclosure: Nextep's policy text is generated from
+ * page. Honest disclosure: Nexstepper's policy text is generated from
  * open templates adapted to our actual data practices. Before relying
  * on these documents commercially — or before opening to EU/UK
  * traffic — the user must commission a one-time legal review
@@ -13,7 +13,7 @@ export function PolicyNotice({ lastUpdated }: { lastUpdated: string }) {
       <p className="mt-1">
         This document was last updated <strong>{lastUpdated}</strong> and was
         generated from open legal templates (Termly CC0 base), adapted to
-        Nextep&apos;s actual data practices. It has <strong>not</strong>{' '}
+        Nexstepper&apos;s actual data practices. It has <strong>not</strong>{' '}
         been reviewed by a lawyer. Before relying on this document
         commercially — or before launching to EU/UK traffic — commission a
         one-time legal review. Expect $300–500 for a SaaS policy package

@@ -15,11 +15,11 @@ export function MarketingFooter() {
             <Link href="/" className="inline-flex items-center gap-2">
               <Circle className="size-5 text-primary" />
               <span className="text-base font-semibold tracking-tight">
-                Nextep
+                Nexstepper
               </span>
             </Link>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              AI-assisted resumes for people who&apos;d rather be interviewing
+              Take the next step. AI-assisted resumes for people who&apos;d rather be interviewing
               than formatting.
             </p>
           </div>
@@ -53,7 +53,7 @@ export function MarketingFooter() {
 
         <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t pt-6 sm:flex-row sm:items-center">
           <p className="text-xs text-muted-foreground">
-            &copy; {year} Nextep. All rights reserved.
+            &copy; {year} Nexstepper. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
             Built with Next.js, Better Auth, Drizzle, and a lot of coffee.

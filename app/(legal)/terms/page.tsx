@@ -4,9 +4,9 @@ import { PolicyNotice } from '../_components/policy-notice';
 import { PolicyToc } from '../_components/policy-toc';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Nextep',
+  title: 'Terms of Service — Nexstepper',
   description:
-    'The terms that govern your use of Nextep — account rules, billing, AI-generated content disclaimer, and acceptable use.',
+    'The terms that govern your use of Nexstepper — account rules, billing, AI-generated content disclaimer, and acceptable use.',
   robots: { index: true, follow: true }
 };
 
@@ -43,16 +43,16 @@ export default function TermsPage() {
 
       <h2 id="acceptance">1. Acceptance</h2>
       <p>
-        By creating an account or otherwise using Nextep
-        (&ldquo;Nextep&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;), you agree to these Terms
+        By creating an account or otherwise using Nexstepper
+        (&ldquo;Nexstepper&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;), you agree to these Terms
         of Service (&ldquo;Terms&rdquo;). If you don&apos;t agree, do not use the
         service. These Terms form a binding agreement between you and
-        Nextep.
+        Nexstepper.
       </p>
 
       <h2 id="service">2. The service</h2>
       <p>
-        Nextep is an AI-assisted resume builder. We let you create a
+        Nexstepper is an AI-assisted resume builder. We let you create a
         master resume, generate tailored variants against a job
         description, score your resume against an ATS rubric, share
         resumes via a public link, and converse with an AI chat assistant.
@@ -64,7 +64,7 @@ export default function TermsPage() {
 
       <h2 id="open-source">3. Open-source + hosted</h2>
       <p>
-        The Nextep source code is released under the
+        The Nexstepper source code is released under the
         <a href="https://opensource.org/licenses/MIT" rel="noreferrer">
         MIT license
         </a>
@@ -74,7 +74,7 @@ export default function TermsPage() {
       </p>
       <p>
         These Terms apply specifically to the <strong>hosted</strong>
-        service offered at <code>nextep.app</code> and any other domain we
+        service offered at <code>nexstepper.app</code> and any other domain we
         operate. If you self-host the code under your own infrastructure,
         you are responsible for your own terms of service, privacy
         policy, and legal compliance — see our
@@ -165,9 +165,9 @@ export default function TermsPage() {
         content.
       </p>
       <p>
-        <strong>Our service is ours.</strong> The Nextep name, logo,
+        <strong>Our service is ours.</strong> The Nexstepper name, logo,
         templates, scoring engine, and any other proprietary technology
-        are owned by Nextep. Your use of the service does not transfer
+        are owned by Nexstepper. Your use of the service does not transfer
         any ownership to you.
       </p>
       <p>
@@ -178,7 +178,7 @@ export default function TermsPage() {
 
       <h2 id="ai-disclaimer">8. AI-generated content</h2>
       <p>
-        Nextep includes AI features that generate, rewrite, or score
+        Nexstepper includes AI features that generate, rewrite, or score
         resume content. AI suggestions are provided <em>as-is</em> and are
         <em>not professional career advice</em>. You are solely
         responsible for reviewing AI suggestions before using them in a
@@ -197,22 +197,22 @@ export default function TermsPage() {
       </p>
       <p>
         <strong>Hosted service vs self-hosted AI.</strong> On the hosted
-        version (<code>nextep.app</code>), AI requests route through our
+        version (<code>nexstepper.app</code>), AI requests route through our
         Vercel AI Gateway account and are subject to the provider&apos;s
         terms. If you self-host the software, AI requests route through{' '}
         <em>your</em> AI provider account and are subject to{' '}
-        <em>your</em> agreement with that provider. Nextep has no
+        <em>your</em> agreement with that provider. Nexstepper has no
         visibility into prompts or outputs on a self-hosted instance.
       </p>
 
       <h2 id="trademarks">9. Trademarks</h2>
       <p>
-        <strong>&ldquo;Nextep&rdquo;</strong>, the Nextep logo, the Nextep
-        wordmark, and any related marks are trademarks of Nextep. They
+        <strong>&ldquo;Nexstepper&rdquo;</strong>, the Nexstepper logo, the Nexstepper
+        wordmark, and any related marks are trademarks of the Nexstepper project. They
         are <em>not</em> licensed under the MIT license that covers the
         source code. The MIT license gives you the right to run, modify,
         and distribute the code; it does not give you the right to use
-        the Nextep name, logo, or any confusingly similar mark to
+        the Nexstepper name, logo, or any confusingly similar mark to
         identify or market your service.
       </p>
       <p>
@@ -220,9 +220,9 @@ export default function TermsPage() {
       </p>
       <ul>
         <li>Choose a different name and logo for your service.</li>
-        <li>Not market your service as &ldquo;Nextep&rdquo; or as officially affiliated with, endorsed by, or sponsored by Nextep.</li>
-        <li>Not use the Nextep logo in any promotional material for your service.</li>
-        <li>Make clear in your service&apos;s documentation that your instance is independently operated, not affiliated with Nextep.</li>
+        <li>Not market your service as &ldquo;Nexstepper&rdquo; or as officially affiliated with, endorsed by, or sponsored by Nexstepper.</li>
+        <li>Not use the Nexstepper logo in any promotional material for your service.</li>
+        <li>Make clear in your service&apos;s documentation that your instance is independently operated, not affiliated with Nexstepper.</li>
       </ul>
       <p>
         See <a href="/SELF_HOSTING">self-hosting guide</a> and the
@@ -231,11 +231,11 @@ export default function TermsPage() {
 
       <h2 id="liability">10. Limitation of liability</h2>
       <p>
-        To the maximum extent permitted by law, Nextep&apos;s total
+        To the maximum extent permitted by law, Nexstepper&apos;s total
         liability to you for any claim arising from your use of the
         service is limited to the greater of (a) the total amount you
-        paid Nextep in the 12 months before the claim arose, or (b) USD
-        $100. Nextep is not liable for indirect, incidental, special,
+        paid Nexstepper in the 12 months before the claim arose, or (b) USD
+        $100. Nexstepper is not liable for indirect, incidental, special,
         consequential, or punitive damages, including lost profits,
         lost data, or reputational harm.
       </p>
@@ -289,9 +289,9 @@ export default function TermsPage() {
 
       <h2 id="contact">15. Contact</h2>
       <p>
-        Questions about these Terms: <code>legal@nextep.app</code>.
+        Questions about these Terms: <code>legal@nexstepper.app</code>.
         <br />
-        Account issues: <code>support@nextep.app</code>.
+        Account issues: <code>support@nexstepper.app</code>.
       </p>
     </article>
   );

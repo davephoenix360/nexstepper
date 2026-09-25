@@ -23,7 +23,7 @@ export const printPrefsSchema = z.object({
 });
 
 /**
- * The full resume envelope - JSON Resume sections + Nextep metadata.
+ * The full resume envelope - JSON Resume sections + Nexstepper metadata.
  *
  * This is the canonical `data` shape stored in `resume_revisions.data`
  * (JSONB column). Every read/write of resume content goes through
@@ -31,7 +31,7 @@ export const printPrefsSchema = z.object({
  *
  * Layout:
  *   - **sections** - the JSON Resume body
- *   - **envelope fields** - Nextep metadata (display name, status, template,
+ *   - **envelope fields** - Nexstepper metadata (display name, status, template,
  *     optional job context, master/variant pointer, print prefs)
  *
  * The DB columns `id`, `userId`, `parentResumeId`, `isMaster`, `createdAt`,

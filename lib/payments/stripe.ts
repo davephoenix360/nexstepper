@@ -159,7 +159,7 @@ export async function handleSubscriptionChange(
       console.warn(
         `[stripe] LocalSubscriptionNotFoundError for customer ${customerId} ` +
         `exceeded ${NOT_FOUND_RETRY_CAP} retries; dropping event. ` +
-        `This usually means the Stripe customer was never linked to a Nextep user.`
+        `This usually means the Stripe customer was never linked to a Nexstepper user.`
       );
       return;
     }
@@ -185,7 +185,7 @@ export async function handleSubscriptionChange(
     console.warn(
       `[stripe] handleSubscriptionChange: subscription ${subscriptionId} ` +
       `has ${items.length} items; syncing only the first one (${items[0].price.id}). ` +
-      `Nextep's pricing model is single-plan; extra items are ignored.`
+      `Nexstepper's pricing model is single-plan; extra items are ignored.`
     );
   }
   const item = items[0];
