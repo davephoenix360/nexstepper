@@ -14,7 +14,24 @@
  * the app keeps working without analytics. Same shape as the server
  * singleton's lazy-init guard.
  */
+import * as Sentry from '@sentry/nextjs';
 import posthog from 'posthog-js';
+
+/**
+ * Sentry App Router navigation instrumentation. Next.js calls this
+ * hook before each client-side route transition; Sentry uses it to
+ * create a span + breadcrumb so navigations show up in the trace
+ * waterfall and error breadcrumbs. Without it, Sentry prints
+ * `[@sentry/nextjs] ACTION REQUIRED: To instrument navigations,
+ * the Sentry SDK requires you to export an onRouterTransitionStart
+ * hook from your instrumentation-client file`.
+ *
+ * Safe to export unconditionally — if NEXT_PUBLIC_SENTRY_DSN /
+ * SENTRY_DSN is not set, Sentry isn't initialized (see
+ * `sentry.client.config.ts`) and `captureRouterTransitionStart`
+ * is a no-op.
+ */
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 
 if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
