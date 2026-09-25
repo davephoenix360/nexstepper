@@ -24,8 +24,9 @@ const toc = [
   { id: 'international', label: '8. International transfers' },
   { id: 'children', label: '9. Children&apos;s privacy' },
   { id: 'security', label: '10. Security' },
-  { id: 'changes', label: '11. Changes to this policy' },
-  { id: 'contact', label: '12. Contact' }
+  { id: 'open-source', label: '11. Open-source + self-hosting' },
+  { id: 'changes', label: '12. Changes to this policy' },
+  { id: 'contact', label: '13. Contact' }
 ];
 
 export default function PrivacyPage() {
@@ -230,7 +231,31 @@ export default function PrivacyPage() {
         <code>security@nextep.app</code> (PGP key on request).
       </p>
 
-      <h2 id="changes">11. Changes to this policy</h2>
+      <h2 id="open-source">11. Open-source + self-hosting</h2>
+      <p>
+        The Nextep source code is released under the
+        <a href="https://opensource.org/licenses/MIT" rel="noreferrer">MIT license</a>.
+        This Privacy Policy covers only the <strong>hosted</strong>{' '}
+        service at <code>nextep.app</code>.
+      </p>
+      <p>
+        If you self-host the code on your own infrastructure, you are the
+        data controller for any data your users put into the system. The
+        Nextep privacy policy does not apply to your instance. You are
+        responsible for:
+      </p>
+      <ul>
+        <li>Publishing your own privacy policy that names you as the controller.</li>
+        <li>Listing the subprocessors <em>you</em> actually use (Stripe, Resend, AI providers, etc. — likely the same as ours, but it&apos;s your call).</li>
+        <li>Responding to user data-access, deletion, and portability requests within the timelines required by your jurisdiction.</li>
+        <li>Compliance with GDPR, CCPA, PIPEDA, or any other applicable privacy laws based on where your users live.</li>
+      </ul>
+      <p>
+        See <a href="/SELF_HOSTING">self-hosting guide</a> for the full
+        checklist.
+      </p>
+
+      <h2 id="changes">12. Changes to this policy</h2>
       <p>
         We will post material changes here at least 14 days before they
         take effect and email active users. Non-material changes (typo
@@ -238,9 +263,10 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
+        <li><strong>2026-09-24</strong> — added §11 &ldquo;Open-source + self-hosting&rdquo; scope clarification (the Nextep hosted service and your self-hosted instance have separate data-controller relationships).</li>
       </ul>
 
-      <h2 id="contact">12. Contact</h2>
+      <h2 id="contact">13. Contact</h2>
       <p>
         Privacy questions: <code>privacy@nextep.app</code>.
         <br />

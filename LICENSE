@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 Vercel
+Copyright (c) 2026 Nextep
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## Trademark notice
+
+The MIT license above covers the **source code** in this repository. It does
+NOT grant any rights to the "Nextep" name, logo, or other trademarks. Those
+are reserved by Nextep. If you self-host or fork this code, please use a
+different name and logo for your service — don't market it as "Nextep" or
+"use the Nextep brand". See `docs/SELF_HOSTING.md` for the rules.

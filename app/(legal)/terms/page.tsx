@@ -15,17 +15,19 @@ const LAST_UPDATED = '2026-09-24';
 const toc = [
   { id: 'acceptance', label: '1. Acceptance' },
   { id: 'service', label: '2. The service' },
-  { id: 'accounts', label: '3. Your account' },
-  { id: 'subscription', label: '4. Subscriptions + billing' },
-  { id: 'acceptable-use', label: '5. Acceptable use' },
-  { id: 'ip', label: '6. Intellectual property' },
-  { id: 'ai-disclaimer', label: '7. AI-generated content' },
-  { id: 'liability', label: '8. Limitation of liability' },
-  { id: 'disclaimers', label: '9. Disclaimers + warranties' },
-  { id: 'termination', label: '10. Termination' },
-  { id: 'changes', label: '11. Changes to these terms' },
-  { id: 'governing-law', label: '12. Governing law' },
-  { id: 'contact', label: '13. Contact' }
+  { id: 'open-source', label: '3. Open-source + hosted' },
+  { id: 'accounts', label: '4. Your account' },
+  { id: 'subscription', label: '5. Subscriptions + billing' },
+  { id: 'acceptable-use', label: '6. Acceptable use' },
+  { id: 'ip', label: '7. Intellectual property' },
+  { id: 'ai-disclaimer', label: '8. AI-generated content' },
+  { id: 'trademarks', label: '9. Trademarks' },
+  { id: 'liability', label: '10. Limitation of liability' },
+  { id: 'disclaimers', label: '11. Disclaimers + warranties' },
+  { id: 'termination', label: '12. Termination' },
+  { id: 'changes', label: '13. Changes to these terms' },
+  { id: 'governing-law', label: '14. Governing law' },
+  { id: 'contact', label: '15. Contact' }
 ];
 
 export default function TermsPage() {
@@ -60,7 +62,34 @@ export default function TermsPage() {
         refund.
       </p>
 
-      <h2 id="accounts">3. Your account</h2>
+      <h2 id="open-source">3. Open-source + hosted</h2>
+      <p>
+        The Nextep source code is released under the
+        <a href="https://opensource.org/licenses/MIT" rel="noreferrer">
+        MIT license
+        </a>
+        and is available at our GitHub repository. The MIT license gives
+        you the right to run, modify, and distribute the code, including
+        for commercial purposes.
+      </p>
+      <p>
+        These Terms apply specifically to the <strong>hosted</strong>
+        service offered at <code>nextep.app</code> and any other domain we
+        operate. If you self-host the code under your own infrastructure,
+        you are responsible for your own terms of service, privacy
+        policy, and legal compliance — see our
+        <a href="/SELF_HOSTING">self-hosting guide</a> for the rules.
+        This document does not govern your relationship with users of your
+        self-hosted instance.
+      </p>
+      <p>
+        We charge for the hosted version because we manage authentication,
+        billing, AI provider keys, error monitoring, and security patches
+        on your behalf. You can run the same code yourself for free
+        (subject to your own infrastructure costs).
+      </p>
+
+      <h2 id="accounts">4. Your account</h2>
       <ul>
         <li>You must be at least 16 years old to use the service.</li>
         <li>You&apos;re responsible for keeping your password secure and for activity on your account.</li>
@@ -68,7 +97,7 @@ export default function TermsPage() {
         <li>You may close your account at any time from <code>/dashboard/security</code>. Closure is non-reversible and erases your data per our <a href="/privacy">Privacy Policy</a>.</li>
       </ul>
 
-      <h2 id="subscription">4. Subscriptions + billing</h2>
+      <h2 id="subscription">5. Subscriptions + billing</h2>
       <p>
         <strong>Free tier.</strong> The Free tier is free of charge and
         includes unlimited resume creation and ATS feedback, plus up to
@@ -111,7 +140,7 @@ export default function TermsPage() {
         takes effect.
       </p>
 
-      <h2 id="acceptable-use">5. Acceptable use</h2>
+      <h2 id="acceptable-use">6. Acceptable use</h2>
       <p>You agree not to:</p>
       <ul>
         <li>Use the service to harass, defame, or harm anyone.</li>
@@ -126,7 +155,7 @@ export default function TermsPage() {
         severe that warning would defeat the purpose.
       </p>
 
-      <h2 id="ip">6. Intellectual property</h2>
+      <h2 id="ip">7. Intellectual property</h2>
       <p>
         <strong>Your content is yours.</strong> You retain all rights to
         the resume content, applications, and chat messages you create.
@@ -147,7 +176,7 @@ export default function TermsPage() {
         any moral rights to that feedback.
       </p>
 
-      <h2 id="ai-disclaimer">7. AI-generated content</h2>
+      <h2 id="ai-disclaimer">8. AI-generated content</h2>
       <p>
         Nextep includes AI features that generate, rewrite, or score
         resume content. AI suggestions are provided <em>as-is</em> and are
@@ -166,8 +195,41 @@ export default function TermsPage() {
         so is grounds for account termination and may have legal
         consequences in your jurisdiction.
       </p>
+      <p>
+        <strong>Hosted service vs self-hosted AI.</strong> On the hosted
+        version (<code>nextep.app</code>), AI requests route through our
+        Vercel AI Gateway account and are subject to the provider&apos;s
+        terms. If you self-host the software, AI requests route through{' '}
+        <em>your</em> AI provider account and are subject to{' '}
+        <em>your</em> agreement with that provider. Nextep has no
+        visibility into prompts or outputs on a self-hosted instance.
+      </p>
 
-      <h2 id="liability">8. Limitation of liability</h2>
+      <h2 id="trademarks">9. Trademarks</h2>
+      <p>
+        <strong>&ldquo;Nextep&rdquo;</strong>, the Nextep logo, the Nextep
+        wordmark, and any related marks are trademarks of Nextep. They
+        are <em>not</em> licensed under the MIT license that covers the
+        source code. The MIT license gives you the right to run, modify,
+        and distribute the code; it does not give you the right to use
+        the Nextep name, logo, or any confusingly similar mark to
+        identify or market your service.
+      </p>
+      <p>
+        If you self-host, fork, or modify this code, you must:
+      </p>
+      <ul>
+        <li>Choose a different name and logo for your service.</li>
+        <li>Not market your service as &ldquo;Nextep&rdquo; or as officially affiliated with, endorsed by, or sponsored by Nextep.</li>
+        <li>Not use the Nextep logo in any promotional material for your service.</li>
+        <li>Make clear in your service&apos;s documentation that your instance is independently operated, not affiliated with Nextep.</li>
+      </ul>
+      <p>
+        See <a href="/SELF_HOSTING">self-hosting guide</a> and the
+        trademark notice in <a href="/LICENSE">LICENSE</a> for details.
+      </p>
+
+      <h2 id="liability">10. Limitation of liability</h2>
       <p>
         To the maximum extent permitted by law, Nextep&apos;s total
         liability to you for any claim arising from your use of the
@@ -183,7 +245,7 @@ export default function TermsPage() {
         caused by negligence).
       </p>
 
-      <h2 id="disclaimers">9. Disclaimers + warranties</h2>
+      <h2 id="disclaimers">11. Disclaimers + warranties</h2>
       <p>
         The service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo;,
         without warranty of any kind, express or implied, including the
@@ -192,17 +254,17 @@ export default function TermsPage() {
         service will be uninterrupted, error-free, or secure.
       </p>
 
-      <h2 id="termination">10. Termination</h2>
+      <h2 id="termination">12. Termination</h2>
       <p>
         You may terminate at any time by closing your account from{' '}
         <code>/dashboard/security</code>. We may terminate or suspend your
-        account for violation of these Terms (per §5) or for non-payment
-        after the 7-day grace period (§4). Upon termination, we erase
+        account for violation of these Terms (per §6) or for non-payment
+        after the 7-day grace period (§5). Upon termination, we erase
         your personal data per our Privacy Policy §7; we retain only
         records we are legally required to keep (e.g. tax invoices).
       </p>
 
-      <h2 id="changes">11. Changes to these terms</h2>
+      <h2 id="changes">13. Changes to these terms</h2>
       <p>
         Material changes are announced via email at least 14 days before
         they take effect. Continued use after the effective date
@@ -212,9 +274,10 @@ export default function TermsPage() {
       </p>
       <ul>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
+        <li><strong>2026-09-24</strong> — added §3 &ldquo;Open-source + hosted&rdquo; scope, §8 hosted-vs-self-host AI disclaimer, §9 trademark clause.</li>
       </ul>
 
-      <h2 id="governing-law">12. Governing law</h2>
+      <h2 id="governing-law">14. Governing law</h2>
       <p>
         These Terms are governed by the laws of the State of Delaware,
         United States, without regard to its conflict-of-laws
@@ -224,7 +287,7 @@ export default function TermsPage() {
         mandatory laws of their country of residence.
       </p>
 
-      <h2 id="contact">13. Contact</h2>
+      <h2 id="contact">15. Contact</h2>
       <p>
         Questions about these Terms: <code>legal@nextep.app</code>.
         <br />

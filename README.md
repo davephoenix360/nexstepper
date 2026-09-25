@@ -1,139 +1,139 @@
-# nextep-saas
+# Nextep
 
 AI-assisted resume builder. Master-resume → tailored variants, ATS-style
-scoring against a parsed job description, peer reviews, sharing, and real-time
-collaboration.
+scoring against a parsed job description, AI chat assistant, public share
+links, and (planned) peer reviews + real-time collaboration.
 
-> **Status:** Phase 2.5/3 — foundation, resume CRUD, WYSIWYG editor,
-> import flow, share link, Optimize v0, AI Gateway migration, and password
-> reset all shipped. See [Roadmap](./AGENTS.md#roadmap) in `AGENTS.md` for
-> the live priority order and [`NEXTEP_REBUILD_PLAN.md`](./NEXTEP_REBUILD_PLAN.md)
-> for the long-form rebuild plan.
+> **Open source under the [MIT license](./LICENSE)** — free to use, modify,
+> and self-host. We charge for the hosted version at `nextep.app` (Free +
+> Pro tiers). The Nextep name and logo are reserved trademarks; if you
+> self-host, please rebrand your instance. See
+> [`docs/SELF_HOSTING.md`](./docs/SELF_HOSTING.md) for the rules.
+
+## What's in the product
+
+| Feature | Status | Where |
+|---|---|---|
+| Email + password auth (Better Auth) | ✅ | `lib/auth.ts` |
+| **Master + variant** resume model with schema-driven form | ✅ | `components/schema-form/`, `lib/db/queries.ts` |
+| WYSIWYG inline editor with per-section print-hide | ✅ | `docs/plans/wysiwyg-editor.md`, `docs/plans/inline-issue-surface.md` |
+| Import from PDF / DOCX / pasted text | ✅ | `lib/resume-parser/` |
+| JD parser → structured `JobPostingData` | ✅ | `lib/jd-parser/` |
+| ATS scoring v2 — 7 dimensions (Pearson r = 0.907 on 50-row validation corpus) | ✅ | `lib/scoring/`, `docs/plans/ats-scoring-v2.md` |
+| Inline issue surface — dim-bar click → Free tip or Pro AI rewrite | ✅ | `lib/inline-issue/`, `docs/plans/inline-issue-surface.md` |
+| AI chat assistant — streaming SSE + tool registry + 20-turn/day Free quota | ✅ | `app/api/chat/`, `lib/chat/`, `docs/plans/ai-chat-assistant.md` |
+| Public share link at `/r/{token}` (SHA-256-hashed, 3 revocation modes) | ✅ | `lib/share/`, `app/r/[token]/page.tsx` |
+| PDF export via browser print-to-PDF | ✅ | AGENTS.md Phase handoff |
+| Stripe Free + Pro tiers with 7-day trial | ✅ | `lib/billing/`, `docs/setup/stripe.md` |
+| GDPR Art. 17 erasure (`/dashboard/security`) + Art. 20 export | ✅ | `lib/data-rights/`, `docs/plans/pre-launch-compliance.md` |
+| `/privacy`, `/terms`, `/cookies` pages | ✅ | `app/(legal)/` (Termly-template-derived, not lawyer-reviewed) |
+| Reviews (peer feedback) | 📋 Phase 5 | AGENTS.md |
+| Liveblocks real-time collab UI | 📋 Phase 5 | server stub wired |
+| `/api/job-contexts` for browser extension | 📋 post-launch | — |
+
+**Test count:** **970/970 green** across 78 files. Run `pnpm test`.
 
 ## Stack
 
-| Layer | Pick | Status |
-|---|---|---|
-| Framework | Next.js 16.2 (App Router, Turbopack default) | ✅ |
-| Language | TypeScript 5.x strict | ✅ |
-| UI | shadcn/ui + Tailwind v4 | ✅ |
-| Database | Postgres (any Postgres-protocol endpoint: local, Neon, RDS) | ✅ postgres-js driver |
-| ORM | Drizzle | ✅ |
-| Auth | Better Auth 1.6 + Drizzle adapter | ✅ email/password |
-| Billing | Stripe (Free + Pro — coffee-tier pricing, 7-day trial) | ✅ |
-| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); free-tier primary `inclusionai/ling-3.0-flash-fin-free` + 4-model fallback chain | ✅ wired into JD parser, Resume parser, Optimize v0 |
-| Email | Resend | ✅ wrapper, ready for keys |
-| Observability | Sentry (errors) + PostHog (analytics) | ✅ init files, ready for keys |
-| Background jobs | Inngest | ✅ client + serve route, dev server-ready |
-| Realtime collab | Liveblocks (Phase 5) | ✅ server client stub; collab UI pending |
-| File storage | Vercel Blob | 📦 env placeholder (not yet used) |
-| Deployment | Vercel | — |
-| Package mgr | pnpm 11 | ✅ |
+| Layer | Pick |
+|---|---|
+| Framework | Next.js 16.2 (App Router, Turbopack default) |
+| Language | TypeScript 5.x strict |
+| UI | shadcn/ui + Tailwind v4 |
+| Database | Postgres (Neon in prod, postgres-js locally — driver auto-detected) |
+| ORM | Drizzle (no Prisma) |
+| Auth | Better Auth 1.6 |
+| Billing | Stripe |
+| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); free-tier primary `mistral/mistral-nemo` + 4-model fallback chain |
+| Email | Resend |
+| Observability | Sentry (errors) + PostHog (analytics) |
+| Background jobs | Inngest |
+| Realtime | Liveblocks (Phase 5) |
+| Package mgr | pnpm 11 |
+| Deployment | Vercel |
 
-## Foundation source
-
-Bootstrapped from [`nextjs/saas-starter`](https://github.com/nextjs/saas-starter)
-(MIT) in commit `88e1995`. The starter provided routing, layouts, build config,
-Drizzle wiring, shadcn primitives, and Stripe plumbing — all of which we've
-since customized.
-
-## Phase 0 — done
-
-| # | Item | Commit |
-|---|---|---|
-| 1 | Replace DIY JWT auth with Better Auth + Drizzle adapter | `d5947eb` |
-| 2 | Drop team/multi-tenant scaffold (solo-only v1) | `d5947eb` |
-| 3 | Stripe Free + Pro $12 tiers with 7-day trial | `d5947eb` |
-| 4 | Upgrade Next.js 15.6 canary → 16.2 (CVE-2026-44578 fix) | `512d9b2` |
-| 5 | Wire Neon serverless driver (prod) + postgres-js (local) | this PR |
-| 6 | Sentry init + `withSentryConfig` wrap | this PR |
-| 7 | PostHog server + client providers | this PR |
-| 8 | Resend + Inngest + Liveblocks stubs | this PR |
-
-## What's shipped since Phase 0
-
-Each entry below is a feature + the doc that captures the design rationale.
-
-| Feature | Status | Notes |
-|---|---|---|
-| Resume CRUD + master/variant + schema-driven edit form | ✅ | `lib/db/queries.ts`, `components/schema-form/` |
-| **WYSIWYG inline editor** (Basics + Work inline; rest via section dialogs) | ✅ | Plan: [`docs/plans/wysiwyg-editor.md`](./docs/plans/wysiwyg-editor.md) |
-| **Import from file** (PDF / DOCX / pasted text) | ✅ | `lib/resume-parser/` |
-| **JD parser** → structured `JobPostingData` | ✅ | `lib/jd-parser/` |
-| **Resume parser** → structured `ResumeSections` | ✅ | `lib/resume-parser/` |
-| **Template registry** (Modern, Classic, Classic-Readonly) | ✅ | `components/resume-templates/` |
-| **PDF export** via browser print-to-PDF | ✅ | Pivoted from Playwright-managed-API mid-session. See AGENTS.md Phase handoff. |
-| **Public share link** at `/r/{token}` (SHA-256-hashed token, 3 revocation modes) | ✅ | `lib/share/`, `app/r/[token]/page.tsx` |
-| **Optimize v0** — rewrite `basics.summary` against a pasted JD (side-by-side accept/dismiss) | ✅ | `lib/optimize/`, `app/(dashboard)/dashboard/resumes/[id]/optimize/` |
-| **AI Gateway migration** — all AI routes through `@ai-sdk/gateway@3` | ✅ | [`docs/ai-models-reference.md`](./docs/ai-models-reference.md) |
-| **Password reset** flow (Better Auth + Resend) | ✅ | `app/(auth)/reset-password/`, `lib/email/reset-password.ts` |
-| **CI** — typecheck + tests on push and PR | ✅ | `.github/workflows/ci.yml` |
-
-Tests: **379 across 24 files** (all green). See `AGENTS.md` Phase handoff
-for the institutional journal — what shipped, when, and why.
+> The locked stack is documented in [`AGENTS.md`](./AGENTS.md). Changing
+> anything in this table is a discussion, not a drive-by edit.
 
 ## Local development
 
 ```bash
 pnpm install
-cp .env.example .env   # then fill in real keys
+cp .env.example .env.local        # then fill in real keys
 
-# Local Postgres (Docker example):
-docker run --name nextep-pg -e POSTGRES_PASSWORD=dev -p 5432:5432 -d postgres:16
+# Local Postgres (Docker):
+docker run --name nextep-pg \
+  -e POSTGRES_PASSWORD=dev \
+  -p 5432:5432 -d postgres:16
 
-pnpm db:push           # apply schema to local Postgres (use migrate for prod)
-pnpm dev
+# Or use Neon (free tier) — paste the pooled connection string into .env.local
+pnpm db:migrate                   # apply migrations to your DB
+pnpm dev                          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+> **`pnpm db:push` was deliberately removed** — it bypasses the migration
+> journal and has caused drift in dev DBs. Use `db:generate` + `db:migrate`
+> from now on. See AGENTS.md for the post-mortem.
 
-## Scripts
+### Verification (before you commit)
 
-| Script | Purpose |
-|---|---|
-| `pnpm dev` | Next dev server (Turbopack) |
-| `pnpm build` | Production build |
-| `pnpm start` | Run production build |
-| `pnpm typecheck` | `tsc --noEmit` |
-| `pnpm db:generate` | Drizzle Kit: generate migration from schema diff |
-| `pnpm db:migrate` | Drizzle Kit: apply pending migrations |
-| `pnpm db:studio` | Drizzle Studio GUI |
+```bash
+pnpm typecheck       # tsc --noEmit — must be clean
+pnpm test            # 970+ unit tests must stay green
+pnpm build           # all routes must compile
+```
 
-> **`db:push` was removed on 2026-09-18** — it bypasses the migration
-> journal and caused drift in the dev DB. Use `db:generate` + `db:migrate`.
-> See AGENTS.md Phase handoff for the full post-mortem.
+## Self-hosting
 
-## Required env vars (production)
+If you want to run this for yourself or your team without using
+`nextep.app`:
 
-See `.env.example` for the full list. The minimum to boot:
+- **`docs/SELF_HOSTING.md`** — full checklist: accounts you need,
+  legal responsibilities, what's different from the hosted version
+- **`LICENSE`** — MIT terms + trademark notice
+- **`docs/setup/production.md`** — operational runbook (same steps as
+  launching the hosted version, minus the DNS/Stripe setup if you
+  already have those)
 
-- `POSTGRES_URL` — Postgres connection string (local docker, Neon, or any Postgres-protocol endpoint)
-- `BETTER_AUTH_SECRET` — `openssl rand -base64 32`
-- `BETTER_AUTH_URL` — e.g. `https://nextep.app`
-- `NEXT_PUBLIC_APP_URL` — same
-- `BASE_URL` — same (used by Stripe redirects)
-- `AI_GATEWAY_API_KEY` — Vercel AI Gateway key. Free tier covers current usage.
+Quick version: clone the repo, fill in `.env.local` with your own
+Stripe / Resend / AI Gateway / Sentry / PostHog keys, run migrations,
+ship. The hosted version is "the same codebase with our keys"; a
+self-host is the same codebase with yours.
 
-Stripe + Sentry + PostHog + Resend + Liveblocks keys are needed for full
-functionality but the app boots without them (each integration is
-lazy-initialized).
+> Don't use the Nextep name or logo on a self-hosted instance. Pick
+> your own brand.
+
+## Project structure
+
+```
+nextep-saas/
+├── app/                       # Next.js App Router (marketing, auth, dashboard, legal, public share)
+├── components/                # UI primitives + feature components (resume, scorecard, chat, inline-issue, marketing)
+├── lib/                       # auth, db, billing, data-rights, chat, scoring, jd-parser, share, ai, ...
+├── docs/                      # plans, decisions, drift memos, operational runbooks
+├── AGENTS.md                  # the single source of truth for how to write code in this repo
+├── NEXTEP_REBUILD_PLAN.md     # the 14-week / 6-phase rebuild plan
+└── LICENSE                    # MIT
+```
+
+`AGENTS.md` is the **operating doc** — architecture, locked stack,
+naming conventions, planning discipline, and the phase handoff journal
+of what shipped when. Read it before you touch code.
 
 ## Reference
 
-- [`AGENTS.md`](./AGENTS.md) — operating doc: architecture principles, locked stack, roadmap, planning discipline
-- [`NEXTEP_REBUILD_PLAN.md`](./NEXTEP_REBUILD_PLAN.md) — full 14-week plan + rationale
-- [`docs/plans/`](./docs/plans/) — feature plans (e.g. `wysiwyg-editor.md`)
-- [`docs/decisions/`](./docs/decisions/) — architecture decision records (ADRs)
+- [`AGENTS.md`](./AGENTS.md) — operating doc (architecture + planning discipline + phase handoff)
+- [`NEXTEP_REBUILD_PLAN.md`](./NEXTEP_REBUILD_PLAN.md) — long-form rebuild plan
+- [`docs/plans/`](./docs/plans/) — feature plans
+- [`docs/decisions/`](./docs/decisions/) — ADRs
 - [`docs/drift/`](./docs/drift/) — drift audits at phase boundaries
+- [`docs/setup/`](./docs/setup/) — operational runbooks (production.md, stripe.md)
 - [`docs/ai-models-reference.md`](./docs/ai-models-reference.md) — free-tier + paid AI model reference
-- Legacy repo: `nextep-legacy` on GitHub (local clone at `Documents/nextep/`). Scoring algorithm reference: `nextep/RESUME_SCORING_PLAN.md`. JD parsing reference: `nextep/JOB_DESCRIPTION_PLAN.md`.
-
-## Next on deck
-
-The **headline next feature** is the **ATS scoring engine + scorecard UI**
-(see [Roadmap](./AGENTS.md#roadmap)). The plan will land at
-[`docs/plans/ats-scoring.md`](./docs/plans/) before any code.
+- [`docs/SELF_HOSTING.md`](./docs/SELF_HOSTING.md) — self-hoster's checklist
+- [`LICENSE`](./LICENSE) — MIT + trademark notice
+- Legacy repo: [`nextep-legacy`](https://github.com/davephoenix360/nextep-legacy) — reference implementation, not port verbatim
 
 ## License
 
-MIT.
+[MIT](./LICENSE) — for source code. The Nextep name, logo, and wordmark
+are reserved trademarks; see LICENSE for details.
