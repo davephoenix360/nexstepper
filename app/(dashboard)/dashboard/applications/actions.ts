@@ -15,6 +15,7 @@ import {
   updateApplicationInputSchema
 } from '@/lib/jd-parser';
 import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 /**
  * Server Actions for Applications — the create flow calls the JD parser
@@ -62,9 +63,8 @@ export async function createApplicationAction(
 
   const result = await parseJd(parsed.data.jdText);
   if (!result.ok) {
-    trackServer(session.user.id, 'application_parse_failed', {
+    trackServer(session.user.id, PostHogEvents.APPLICATION_PARSE_FAILED, {
       errorCode: result.code,
-      errorMessage: result.error,
       jdLength: parsed.data.jdText.length
     });
     return {
@@ -84,12 +84,16 @@ export async function createApplicationAction(
     notes: parsed.data.notes ?? ''
   });
 
-  trackServer(session.user.id, 'application_created', {
+  trackServer(session.user.id, PostHogEvents.JD_PARSED, {
+    applicationId: created.id,
+    jdLength: parsed.data.jdText.length,
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens
+  });
+  trackServer(session.user.id, PostHogEvents.APPLICATION_CREATED, {
     applicationId: created.id,
     sourceBoard: parsed.data.sourceBoard ?? 'unknown',
-    jdLength: parsed.data.jdText.length,
-    parseInputTokens: result.usage.inputTokens,
-    parseOutputTokens: result.usage.outputTokens
+    jdLength: parsed.data.jdText.length
   });
 
   revalidatePath('/dashboard/applications');

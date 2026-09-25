@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { getResumeByShareToken, recordShareView } from '@/lib/db/queries';
 import { hashShareToken } from '@/lib/share';
 import { getTemplate } from '@/components/resume-templates';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 /**
  * Public, read-only resume view.
@@ -77,6 +79,15 @@ export default async function SharedResumePage({
   // shouldn't be blocked on the counter write, and the function
   // already swallows its own errors.
   void recordShareView(result.resume.id);
+
+  // Same fire-and-forget pattern for the analytics event. No distinctId
+  // — the viewer is anonymous (no auth on the public share route). PostHog
+  // will fall back to its session/anonymous id; the analytics property bag
+  // is keyed by the OWNER's resume id so we can attribute views to the
+  // publisher, not the visitor.
+  void trackServer(result.resume.userId, PostHogEvents.SHARE_LINK_VIEWED, {
+    ownerResumeId: result.resume.id
+  });
 
   return (
     <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0">

@@ -37,6 +37,8 @@ import {
 } from '@/lib/share';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
 import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 /**
  * Discriminated union for Server Action results — see AGENTS.md §3.
@@ -74,6 +76,10 @@ export async function createMasterResumeAction(
   }
 
   const created = await createMasterResume(session.user.id, parsed.data.name);
+  trackServer(session.user.id, PostHogEvents.RESUME_CREATED, {
+    resumeId: created.id,
+    isMaster: true
+  });
   revalidatePath('/dashboard/resumes');
   return { ok: true, data: { id: created.id } };
 }
@@ -211,6 +217,13 @@ export async function importResumeAction(
       name,
       parsed.data
     );
+    trackServer(session.user.id, PostHogEvents.RESUME_IMPORTED, {
+      resumeId: created.id,
+      source: fileType,
+      ...(extracted.pageCount !== undefined
+        ? { pageCount: extracted.pageCount }
+        : {})
+    });
     revalidatePath('/dashboard/resumes');
     return {
       ok: true,
@@ -306,6 +319,11 @@ export async function saveResumeAction(
     dataResult.data
   );
 
+  trackServer(session.user.id, PostHogEvents.RESUME_UPDATED, {
+    resumeId: parsed.data.id,
+    revisionId: revision.id
+  });
+
   revalidatePath('/dashboard/resumes');
   revalidatePath(`/dashboard/resumes/${parsed.data.id}`);
 
@@ -349,6 +367,11 @@ export async function createVariantAction(
   if (!variant) {
     return { ok: false, error: 'Master resume not found' };
   }
+
+  trackServer(session.user.id, PostHogEvents.VARIANT_CREATED, {
+    resumeId: variant.id,
+    masterId: parsed.data.masterId
+  });
 
   revalidatePath('/dashboard/resumes');
   revalidatePath(`/dashboard/resumes/${parsed.data.masterId}`);
@@ -452,6 +475,12 @@ export async function createVariantFromJdAction(
     return { ok: false, error: 'Master resume not found' };
   }
 
+  trackServer(session.user.id, PostHogEvents.VARIANT_CREATED_FROM_JD, {
+    resumeId: variant.id,
+    masterId: parsed.data.masterId,
+    jdLength: parsed.data.jdText.length
+  });
+
   revalidatePath('/dashboard/resumes');
   revalidatePath(`/dashboard/resumes/${parsed.data.masterId}`);
   revalidatePath(`/dashboard/resumes/${variant.id}`);
@@ -499,6 +528,10 @@ export async function renameResumeAction(
   if (!ok) {
     return { ok: false, error: 'Could not rename resume' };
   }
+
+  trackServer(session.user.id, PostHogEvents.RESUME_RENAMED, {
+    resumeId: parsed.data.resumeId
+  });
 
   revalidatePath('/dashboard/resumes');
   revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
@@ -628,6 +661,10 @@ export async function enableShareAction(
     return { ok: false, code: 'db_failure', error: 'Could not enable sharing' };
   }
 
+  trackServer(session.user.id, PostHogEvents.SHARE_LINK_CREATED, {
+    resumeId: parsed.data.id
+  });
+
   return {
     ok: true,
     data: {
@@ -669,6 +706,10 @@ export async function disableShareAction(
       error: 'Could not stop sharing'
     };
   }
+
+  trackServer(session.user.id, PostHogEvents.SHARE_LINK_DISABLED, {
+    resumeId: parsed.data.id
+  });
 
   // No URL on disable — the client just closes the dialog.
   return {
@@ -735,6 +776,10 @@ export async function rotateShareTokenAction(
       error: 'Could not rotate the share link'
     };
   }
+
+  trackServer(session.user.id, PostHogEvents.SHARE_LINK_ROTATED, {
+    resumeId: parsed.data.id
+  });
 
   return {
     ok: true,

@@ -9,6 +9,8 @@ import {
   getUser,
   upsertSubscription
 } from '@/lib/db/queries';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   // SDK 22.x requires the dahlia API version — basil was dropped.
@@ -194,6 +196,7 @@ export async function handleSubscriptionChange(
     priceId === PRICE_IDS.pro ? 'pro' : priceId === PRICE_IDS.free ? 'free' : 'free';
 
   if (status === 'active' || status === 'trialing') {
+    const previousPlan = existing.plan;
     await upsertSubscription(existing.userId, {
       stripeSubscriptionId: subscriptionId,
       stripePriceId: priceId,
@@ -203,7 +206,30 @@ export async function handleSubscriptionChange(
         ? new Date(item.current_period_end * 1000)
         : null
     });
+    // Product analytics — only fire on transitions, not every webhook
+    // reconciliation (Stripe re-fires the same status on every price
+    // change). Compare against the previously-stored plan; emit one
+    // of the upgrade / downgrade events when it actually moved.
+    if (previousPlan !== plan) {
+      if (plan === 'pro' && previousPlan !== 'pro') {
+        trackServer(existing.userId, PostHogEvents.SUBSCRIPTION_UPGRADED, {
+          fromPlan: previousPlan,
+          toPlan: plan,
+          stripePriceId: priceId
+        });
+      } else if (plan !== 'pro' && previousPlan === 'pro') {
+        trackServer(
+          existing.userId,
+          PostHogEvents.SUBSCRIPTION_DOWNGRADED,
+          {
+            fromPlan: previousPlan,
+            toPlan: plan
+          }
+        );
+      }
+    }
   } else if (status === 'canceled' || status === 'unpaid') {
+    const previousPlan = existing.plan;
     await upsertSubscription(existing.userId, {
       stripeSubscriptionId: null,
       stripePriceId: null,
@@ -211,6 +237,11 @@ export async function handleSubscriptionChange(
       status,
       currentPeriodEnd: null
     });
+    if (previousPlan === 'pro') {
+      trackServer(existing.userId, PostHogEvents.SUBSCRIPTION_CANCELED, {
+        plan: previousPlan
+      });
+    }
   }
 }
 

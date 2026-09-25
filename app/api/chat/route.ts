@@ -28,6 +28,8 @@ import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
 import { getModel } from '@/lib/ai/providers';
 import { PARSER_MODEL } from '@/lib/ai/providers';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 // ─── Request / response types ─────────────────────────────────────────────────
 
@@ -151,6 +153,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve or create session ─────────────────────────────────────────────
   let sessionId = existingSessionId;
   let title = 'New conversation';
+  let isNewSession = false;
   if (sessionId) {
     const existing = await getChatSession(sessionId, userId);
     if (!existing || existing.userId !== userId || existing.resumeId !== resumeId) {
@@ -160,7 +163,14 @@ export async function POST(req: NextRequest) {
   } else {
     const created = await createChatSession(userId, resumeId, title);
     sessionId = created.id;
+    isNewSession = true;
   }
+
+  trackServer(userId, PostHogEvents.CHAT_MESSAGE_SENT, {
+    sessionId,
+    resumeId,
+    isNewSession
+  });
 
   // ── Build system prompt (fresh context every turn) ────────────────────────
   //

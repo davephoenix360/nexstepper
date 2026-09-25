@@ -17,6 +17,8 @@ import {
   buildMatchBreakdown,
   maybeAppendSkillGapEntry
 } from '@/lib/inline-issue/build-match-breakdown';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 /**
  * Server Action: re-run the ATS scoring engine for a variant using
@@ -124,6 +126,11 @@ export async function recomputeScoreAction(
       matchScore: breakdown.overallScore,
       matchBreakdown,
       dynamicTips: tips,
+      computedInMs: breakdown.computedInMs
+    });
+    trackServer(session.user.id, PostHogEvents.SCORE_COMPUTED, {
+      resumeId: parsed.data.resumeId,
+      overallScore: breakdown.overallScore,
       computedInMs: breakdown.computedInMs
     });
     revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);

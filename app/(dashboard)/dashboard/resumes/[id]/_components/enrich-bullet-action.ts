@@ -19,6 +19,8 @@ import type {
   EnrichBulletResult,
   SubCriterionKey
 } from '@/lib/inline-issue/types';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 /**
  * Server Action: AI rewrite a single bullet to better match the JD.
@@ -187,6 +189,11 @@ export async function enrichBulletAction(
     const rewrites = dedupeRewrites(
       ai.data.rewrites.map((s) => s.trim()).filter((s) => s.length > 0)
     );
+
+    trackServer(session.user.id, PostHogEvents.BULLET_ENRICHED, {
+      resumeId,
+      modelUsed: ai.modelUsed
+    });
 
     return {
       ok: true,

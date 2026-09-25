@@ -12,6 +12,8 @@ import {
   exportBundleSchema,
   type ExportBundle
 } from './schema';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 /**
  * `exportUserData` — server action that produces a JSON bundle
@@ -169,6 +171,10 @@ export async function exportUserData(): Promise<ExportUserResult> {
 
   const isoDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const filename = `nexstepper-export-${userId.slice(0, 8)}-${isoDate}.json`;
+
+  trackServer(userId, PostHogEvents.EXPORT_DATA, {
+    exportedAt: new Date().toISOString()
+  });
 
   return { ok: true, json, filename };
 }

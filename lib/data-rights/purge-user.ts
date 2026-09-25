@@ -13,6 +13,8 @@ import {
   deleteStripeCustomer
 } from './stripe-customer';
 import { scrubPosthogUser } from './posthog-user-delete';
+import { trackServer } from '@/lib/posthog/server';
+import { PostHogEvents } from '@/lib/posthog/events';
 
 /**
  * `purgeUserAccount` - server action that erases a Nexstepper user's PII
@@ -114,6 +116,14 @@ export async function purgeUserAccount(
       error: `Local account deletion failed: ${(err as Error).message}. Stripe + PostHog cleanup completed; please retry.`
     };
   }
+
+  // Fire the analytics event AFTER the local delete succeeds — if the
+  // delete had failed we wouldn't want to claim it happened. The
+  // `$delete_user` event from scrubPosthogUser (above) is the GDPR
+  // scrub signal; this is the product-analytics funnel signal.
+  trackServer(userId, PostHogEvents.DELETE_ACCOUNT, {
+    erasedAt: new Date().toISOString()
+  });
 
   return {
     ok: true,

@@ -4,6 +4,7 @@ import { Manrope } from 'next/font/google';
 import Script from 'next/script';
 import { getUser } from '@/lib/db/queries';
 import { PostHogProvider } from '@/components/posthog-provider';
+import { PostHogIdentify } from '@/components/posthog-identify';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
@@ -57,7 +58,10 @@ export default async function RootLayout({
       </head>
       <body className="min-h-[100dvh] bg-background font-sans text-foreground antialiased">
         <ThemeProvider>
-          <PostHogProvider>{children}</PostHogProvider>
+          <PostHogProvider>
+            <PostHogIdentify />
+            {children}
+          </PostHogProvider>
         </ThemeProvider>
       </body>
     </html>
