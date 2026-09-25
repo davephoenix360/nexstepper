@@ -9,13 +9,13 @@ export function HowItWorks() {
       number: '01',
       title: 'Drop in your background once',
       description:
-        'Import your existing resume or fill in the structured form. Nextep captures the full picture — work history, projects, skills, education.'
+        'Import your existing resume or fill in the structured form. Nexstepper captures the full picture — work history, projects, skills, education.'
     },
     {
       number: '02',
       title: 'Paste a job description',
       description:
-        'From LinkedIn, the company site, anywhere. Nextep parses it into structured requirements, must-haves, and seniority. Works on URLs or pasted text.'
+        'From LinkedIn, the company site, anywhere. Nexstepper parses it into structured requirements, must-haves, and seniority. Works on URLs or pasted text.'
     },
     {
       number: '03',

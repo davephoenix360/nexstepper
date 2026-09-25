@@ -1,4 +1,4 @@
-# AI model reference for nextep-saas
+# AI model reference for nexstepper
 
 > Reference doc, not code. Captures which models we can / can't use
 > via Vercel AI Gateway, with pricing, and which are confirmed

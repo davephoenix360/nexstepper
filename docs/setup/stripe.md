@@ -1,6 +1,6 @@
 # Stripe Setup
 
-One-time setup for Nextep's Stripe integration — both local dev and
+One-time setup for Nexstepper's Stripe integration — both local dev and
 production. Read top to bottom; each section builds on the previous
 one.
 
@@ -25,7 +25,7 @@ one.
 ### 1.2 Create the Pro product
 
 1. Products → **Add product**:
-   - **Name:** `Nextep Pro`
+   - **Name:** `Nexstepper Pro`
    - **Description:** (optional)
    - **Pricing model:** Recurring
    - **Price:** set your amount + currency + interval
@@ -146,7 +146,7 @@ each other. Whatever you do, the Price ID for live goes in
 1. Stripe Dashboard → Developers → **Webhooks** → **Add endpoint**.
 2. **Endpoint URL:** `https://<your-prod-domain>/api/stripe/webhook`
    (the Vercel auto-generated domain, or your custom domain if set).
-3. **Description:** `Nextep production subscription events`
+3. **Description:** `Nexstepper production subscription events`
 4. **API version:** `2026-08-26.dahlia` (matches
    `lib/payments/stripe.ts:14`). Stripe will warn if the Dashboard
    version differs from the SDK version — match it to suppress.

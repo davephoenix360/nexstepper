@@ -32,7 +32,7 @@ export default function DashboardLayout({
           className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground"
         >
           <CircleIcon className="size-5 text-primary" />
-          Nextep
+          Nextepper
         </Link>
         <div className="flex items-center gap-1">
           <ThemeToggle />
@@ -61,7 +61,7 @@ export default function DashboardLayout({
               className="flex items-center gap-2 mb-6 text-base font-semibold tracking-tight text-foreground"
             >
               <CircleIcon className="size-6 text-primary" />
-              Nextep
+              Nexstepper
             </Link>
             {navItems.map((item) => (
               <Link key={item.href} href={item.href} passHref>

@@ -89,7 +89,7 @@ ${jdText}
  *     version:", no closing "Let me know if…" sign-off.
  *
  * Faithfulness is non-negotiable: a hiring manager who pastes their
- * company's actual JD into Nextep must see their words back, not a
+ * company's actual JD into Nexstepper must see their words back, not a
  * paraphrase.
  */
 export const JD_FORMATTER_SYSTEM_PROMPT = `You are a Markdown formatter for job descriptions.

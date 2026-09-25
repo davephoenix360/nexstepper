@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Nextep
+Copyright (c) 2026 Nexstepper
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,8 @@ SOFTWARE.
 ## Trademark notice
 
 The MIT license above covers the **source code** in this repository. It does
-NOT grant any rights to the "Nextep" name, logo, or other trademarks. Those
-are reserved by Nextep. If you self-host or fork this code, please use a
-different name and logo for your service — don't market it as "Nextep" or
-"use the Nextep brand". See `docs/SELF_HOSTING.md` for the rules.
+NOT grant any rights to the "Nexstepper" name, logo, or other trademarks.
+Those are reserved by the Nexstepper project. If you self-host or fork this
+code, please use a different name and logo for your service — don't market
+it as "Nexstepper" or "use the Nexstepper brand". See
+`docs/SELF_HOSTING.md` for the rules.

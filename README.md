@@ -1,12 +1,14 @@
-# Nextep
+# Nexstepper
+
+> *Take the next step.*
 
 AI-assisted resume builder. Master-resume → tailored variants, ATS-style
 scoring against a parsed job description, AI chat assistant, public share
 links, and (planned) peer reviews + real-time collaboration.
 
 > **Open source under the [MIT license](./LICENSE)** — free to use, modify,
-> and self-host. We charge for the hosted version at `nextep.app` (Free +
-> Pro tiers). The Nextep name and logo are reserved trademarks; if you
+> and self-host. We charge for the hosted version at `nexstepper.app` (Free +
+> Pro tiers). The Nexstepper name and logo are reserved trademarks; if you
 > self-host, please rebrand your instance. See
 > [`docs/SELF_HOSTING.md`](./docs/SELF_HOSTING.md) for the rules.
 
@@ -62,7 +64,7 @@ pnpm install
 cp .env.example .env.local        # then fill in real keys
 
 # Local Postgres (Docker):
-docker run --name nextep-pg \
+docker run --name nexstepper-pg \
   -e POSTGRES_PASSWORD=dev \
   -p 5432:5432 -d postgres:16
 
@@ -86,7 +88,7 @@ pnpm build           # all routes must compile
 ## Self-hosting
 
 If you want to run this for yourself or your team without using
-`nextep.app`:
+`nexstepper.app`:
 
 - **`docs/SELF_HOSTING.md`** — full checklist: accounts you need,
   legal responsibilities, what's different from the hosted version
@@ -100,13 +102,13 @@ Stripe / Resend / AI Gateway / Sentry / PostHog keys, run migrations,
 ship. The hosted version is "the same codebase with our keys"; a
 self-host is the same codebase with yours.
 
-> Don't use the Nextep name or logo on a self-hosted instance. Pick
+> Don't use the Nexstepper name or logo on a self-hosted instance. Pick
 > your own brand.
 
 ## Project structure
 
 ```
-nextep-saas/
+nexstepper/
 ├── app/                       # Next.js App Router (marketing, auth, dashboard, legal, public share)
 ├── components/                # UI primitives + feature components (resume, scorecard, chat, inline-issue, marketing)
 ├── lib/                       # auth, db, billing, data-rights, chat, scoring, jd-parser, share, ai, ...
@@ -131,9 +133,9 @@ of what shipped when. Read it before you touch code.
 - [`docs/ai-models-reference.md`](./docs/ai-models-reference.md) — free-tier + paid AI model reference
 - [`docs/SELF_HOSTING.md`](./docs/SELF_HOSTING.md) — self-hoster's checklist
 - [`LICENSE`](./LICENSE) — MIT + trademark notice
-- Legacy repo: [`nextep-legacy`](https://github.com/davephoenix360/nextep-legacy) — reference implementation, not port verbatim
+- Legacy repo: [`nextep-legacy`](https://github.com/davephoenix360/nextep-legacy) — the deprecated v1 build (Next.js 15 / Firebase / LangChain). Reference only, do not port verbatim.
 
 ## License
 
-[MIT](./LICENSE) — for source code. The Nextep name, logo, and wordmark
+[MIT](./LICENSE) — for source code. The Nexstepper name, logo, and wordmark
 are reserved trademarks; see LICENSE for details.

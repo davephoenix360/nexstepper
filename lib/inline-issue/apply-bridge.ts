@@ -40,7 +40,7 @@ export type InlineIssueApplyEvent = {
 };
 
 export const INLINE_ISSUE_APPLY_EVENT =
-  'nextep:inline-issue:apply';
+  'nexstepper:inline-issue:apply';
 
 /**
  * Tip-event payload — fired by the scorecard when the user
@@ -63,7 +63,7 @@ export type InlineIssueTipEvent = {
   criterion: import('./types').SubCriterionKey;
 };
 
-export const INLINE_ISSUE_TIP_EVENT = 'nextep:inline-issue:tip';
+export const INLINE_ISSUE_TIP_EVENT = 'nexstepper:inline-issue:tip';
 
 /**
  * Publish an Apply event. Called by the scorecard's

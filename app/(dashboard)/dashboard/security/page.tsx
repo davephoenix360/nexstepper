@@ -196,7 +196,7 @@ export default function SecurityPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-500 mb-4">
-            Download a JSON file containing every Nextep record linked to
+            Download a JSON file containing every Nexstepper record linked to
             your account — profile, subscriptions, resumes and revisions,
             applications, score history, chat sessions and messages, and
             any active share links. This is your copy of your data; you

@@ -14,7 +14,7 @@
  *     match sub-criterion filters out before scoring. Prevents "the",
  *     "and", "with", etc. from polluting the keyword hit count.
  *
- * Inherited from the legacy `nextep/src/lib/score.ts` lines 92-216
+ * Inherited from the legacy `nextep-legacy/src/lib/score.ts` lines 92-216
  * (verbs) and from `keyword-extractor`'s default English stop-word
  * list (STOP_WORDS). Easy to extend here — just add an entry. Easy
  * to A/B test — just `import` the new set and pass it in.

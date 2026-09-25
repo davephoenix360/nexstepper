@@ -17,7 +17,7 @@
 ## Objective
 
 Port the 4-dimension weighted ATS scoring algorithm from the legacy
-`nextep/src/lib/score.ts` into a **pure, deterministic, server-side
+`nexstepper/src/lib/score.ts` into a **pure, deterministic, server-side
 TypeScript module**, and surface it in the **variant editor** as a
 **Scorecard panel that sits next to the JD panel** (provided by
 [Plan A](./variant-first-ux.md)) so users can see, at a glance, how
@@ -372,7 +372,7 @@ A reviewer can verify each of these from the diff alone.
 5. ✅ Golden-fixture regression: for one fixed `ResumeData` +
    `JobPostingData` pair, the new function returns the same
    per-dimension and overall scores (within ±1 rounding) as the
-   legacy `nextep/src/lib/score.ts` would have produced. Documented
+   legacy `nexstepper/src/lib/score.ts` would have produced. Documented
    in `tests/unit/scoring/golden.test.ts`.
 6. ✅ `<ScorecardPanel>` renders 4 dimension bars + overall, color-
    coded (green ≥ 80, amber 50–79, red < 50).

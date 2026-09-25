@@ -1,48 +1,48 @@
-# Self-Hosting Nextep
+# Self-Hosting Nexstepper
 
 This is an open-source project under the MIT license. You can run it for
 yourself or your team for free. This document covers what you need to do
 **beyond just running the code** — the legal, billing, and operational
-bits that the hosted version (`nextep.app`) handles for you but a
+bits that the hosted version (`nexstepper.app`) handles for you but a
 self-host is responsible for themselves.
 
 > **TL;DR** — the MIT license gives you the right to run, modify, and
 > distribute the code. It does not give you the right to use the
-> "Nextep" name or logo. You'll need your own accounts with every
+> "Nexstepper" name or logo. You'll need your own accounts with every
 > third-party service, your own privacy policy, and your own compliance
 > posture.
 
 ## What's the same vs what's different
 
-| | Hosted (`nextep.app`) | Your self-host |
+| | Hosted (`nexstepper.app`) | Your self-host |
 |---|---|---|
 | Source code | Closed (not yet) | Yours to inspect |
-| Privacy policy | Nextep's | Yours |
-| Terms of service | Nextep's | Yours |
-| Stripe account | Nextep's | Yours |
-| Resend account | Nextep's | Yours |
-| AI provider key | Nextep's | Yours |
-| Database backups | Nextep's | Yours |
-| Security patches | Nextep rolls them out | You apply them |
-| "Nextep" brand | ✓ | ✗ — pick your own name |
+| Privacy policy | Nexstepper's | Yours |
+| Terms of service | Nexstepper's | Yours |
+| Stripe account | Nexstepper's | Yours |
+| Resend account | Nexstepper's | Yours |
+| AI provider key | Nexstepper's | Yours |
+| Database backups | Nexstepper's | Yours |
+| Security patches | Nexstepper rolls them out | You apply them |
+| "Nexstepper" brand | ✓ | ✗ — pick your own name |
 
 ## Trademark (read this)
 
-The MIT license covers **source code only**. The "Nextep" name, logo,
-and wordmark are trademarks reserved by Nextep. When you self-host:
+The MIT license covers **source code only**. The "Nexstepper" name, logo,
+and wordmark are trademarks reserved by Nexstepper. When you self-host:
 
 - ✅ Pick your own name and logo for your service
 - ✅ Run the code under your own brand
-- ❌ Don't market it as "Nextep" or any near-derivative
-- ❌ Don't use the Nextep logo
-- ❌ Don't claim official affiliation with Nextep
+- ❌ Don't market it as "Nexstepper" or any near-derivative
+- ❌ Don't use the Nexstepper logo
+- ❌ Don't claim official affiliation with Nexstepper
 
 This is the standard "open-core SaaS" split — code is open, brand is
 protected. See `LICENSE` for the full text.
 
 ## What you need to bring
 
-To run a working instance of Nextep, you need accounts + keys for:
+To run a working instance of Nexstepper, you need accounts + keys for:
 
 | Service | Used for | Free tier? |
 |---|---|---|
@@ -60,13 +60,13 @@ All required env vars are listed in `.env.example` with placeholders.
 ## Legal responsibilities (your checklist)
 
 When you self-host, **you become the data controller** for any data your
-users put into the system. The Nextep privacy policy at
-`nextep.app/privacy` does NOT cover your self-hosted instance. You need
+users put into the system. The Nexstepper privacy policy at
+`nexstepper.app/privacy` does NOT cover your self-hosted instance. You need
 your own:
 
 - [ ] **Privacy policy** — published on your self-hosted URL, naming
       yourself as the controller, listing the subprocessors you actually
-      use (most are the same as Nextep's, but you're the one accountable
+      use (most are the same as Nexstepper's, but you're the one accountable
       to your users)
 - [ ] **Terms of service** — covering what your users can/can't do with
       the system, billing terms if you charge, and your acceptable-use
@@ -79,9 +79,9 @@ your own:
       download one on demand
 - [ ] **Data export + delete endpoints** — already implemented in
       `lib/data-rights/` — but the legal responsibility for responding
-      to user requests in a timely way is on **you**, not Nextep
+      to user requests in a timely way is on **you**, not Nexstepper
 - [ ] **GDPR / CCPA / PIPEDA** compliance — depending on where your
-      users live. The Nextep legal pages only cover Nextep's hosted
+      users live. The Nexstepper legal pages only cover Nexstepper's hosted
       service; they don't transfer to your self-host
 
 ## Operational responsibilities
@@ -112,9 +112,9 @@ Under MIT, you can:
 
 You **cannot**:
 
-- Use the "Nextep" name or logo
-- Claim endorsement by Nextep
-- Hold Nextep liable for issues with your modified version
+- Use the "Nexstepper" name or logo
+- Claim endorsement by Nexstepper
+- Hold Nexstepper liable for issues with your modified version
 
 ## Getting help
 
@@ -122,7 +122,7 @@ You **cannot**:
   this codebase works
 - **File an issue** — GitHub Issues are open. Bug reports and feature
   requests welcome
-- **Don't expect Nextep to support your fork** — Nextep supports the
+- **Don't expect Nexstepper to support your fork** — Nexstepper supports the
   hosted version. Self-host support is community-driven
 
 ## See also

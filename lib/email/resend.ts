@@ -11,7 +11,7 @@ export const resend = process.env.RESEND_API_KEY
   : null;
 
 export const FROM_ADDRESS =
-  process.env.RESEND_FROM_ADDRESS ?? 'Nextep <onboarding@resend.dev>';
+  process.env.RESEND_FROM_ADDRESS ?? 'Nexstepper <onboarding@resend.dev>';
 
 /**
  * Send a transactional email. No-op if Resend isn't configured yet (Phase 0

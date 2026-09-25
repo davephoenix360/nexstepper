@@ -13,7 +13,7 @@ import { subscribeToInlineIssueTip } from '@/lib/inline-issue/apply-bridge';
  * surface. The scorecard (right rail) and the editor (left
  * column) are sibling Client Components under the same Server
  * Component page; the controller on the scorecard side fires a
- * `nextep:inline-issue:tip` window event when the user clicks a
+ * `nexstepper:inline-issue:tip` window event when the user clicks a
  * dim bar or "Show me" affordance, and this component subscribes
  * to handle the visual response:
  *

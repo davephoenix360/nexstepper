@@ -4,13 +4,13 @@ import { PolicyNotice } from '../_components/policy-notice';
 import { PolicyToc } from '../_components/policy-toc';
 
 export const metadata: Metadata = {
-  title: 'Cookie Policy — Nextep',
+  title: 'Cookie Policy — Nexstepper',
   description:
-    'Every cookie Nextep sets, why we set it, how long it lasts, and how to control it.',
+    'Every cookie Nexstepper sets, why we set it, how long it lasts, and how to control it.',
   robots: { index: true, follow: true }
 };
 
-const LAST_UPDATED = '2026-09-24';
+const LAST_UPDATED = '2026-09-25';
 
 const toc = [
   { id: 'what-are-cookies', label: '1. What are cookies' },
@@ -43,7 +43,7 @@ export default function CookiesPage() {
 
       <h2 id="cookies-we-use">2. Cookies we use</h2>
       <p>
-        The table below lists every cookie Nextep sets. &ldquo;Essential&rdquo;
+        The table below lists every cookie Nexstepper sets. &ldquo;Essential&rdquo;
         cookies are required for the service to work and are always set.
         &ldquo;Analytics&rdquo; cookies are only set after you accept the cookie
         banner (EU/UK visitors) or by default in regions where consent is
@@ -63,21 +63,21 @@ export default function CookiesPage() {
           </thead>
           <tbody className="divide-y">
             <tr>
-              <td className="py-2 pr-4 font-mono text-xs">nextep.session_token</td>
+              <td className="py-2 pr-4 font-mono text-xs">nexstepper.session_token</td>
               <td className="py-2 pr-4">Authentication — keeps you signed in.</td>
-              <td className="py-2 pr-4">Nextep (Better Auth)</td>
+              <td className="py-2 pr-4">Nexstepper (Better Auth)</td>
               <td className="py-2">Session (cleared on logout)</td>
             </tr>
             <tr>
-              <td className="py-2 pr-4 font-mono text-xs">nextep.csrf_token</td>
+              <td className="py-2 pr-4 font-mono text-xs">nexstepper.csrf_token</td>
               <td className="py-2 pr-4">CSRF protection on Server Actions.</td>
               <td className="py-2 pr-4">Next.js</td>
               <td className="py-2">Session</td>
             </tr>
             <tr>
-              <td className="py-2 pr-4 font-mono text-xs">nextep.share_token</td>
+              <td className="py-2 pr-4 font-mono text-xs">nexstepper.share_token</td>
               <td className="py-2 pr-4">Remembers a shared resume link the user visited.</td>
-              <td className="py-2 pr-4">Nextep</td>
+              <td className="py-2 pr-4">Nexstepper</td>
               <td className="py-2">7 days</td>
             </tr>
           </tbody>
@@ -153,12 +153,13 @@ export default function CookiesPage() {
         email and require renewed consent in the cookie banner.
       </p>
       <ul>
+        <li><strong>2026-09-25</strong> — Rebrand: cookie prefix updated from <code>nextep.*</code> to <code>nexstepper.*</code>; site name updated; URL references now point at <code>nexstepper.app</code>. Existing sessions were invalidated at the rename boundary.</li>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
       </ul>
 
       <h2 id="contact">6. Contact</h2>
       <p>
-        Questions about cookies: <code>privacy@nextep.app</code>.
+        Questions about cookies: <code>privacy@nexstepper.app</code>.
       </p>
     </article>
   );

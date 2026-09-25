@@ -25,7 +25,7 @@ export default function AuthLayout({
             className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground"
           >
             <CircleIcon className="size-6 text-primary" />
-            Nextep
+            Nexstepper
           </Link>
           <ThemeToggle />
         </div>

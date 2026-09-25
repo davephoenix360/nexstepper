@@ -1,6 +1,6 @@
 # Production Deploy Checklist
 
-One-time setup for launching Nextep to real users. Walk top to bottom; each
+One-time setup for launching Nexstepper to real users. Walk top to bottom; each
 section produces a verifiable artifact before you move on. Most of this is
 cloud-console work, not code.
 
@@ -37,8 +37,8 @@ cloud-console work, not code.
 
 Pick before you start so you can fill it in once and not revisit:
 
-- **Apex** (`nextep.app`) + **www** redirect → apex
-- Or **subdomain** (`app.nextep.com`) under a domain you already own
+- **Apex** (`nexstepper.app`) + **www** redirect → apex
+- Or **subdomain** (`app.nexstepper.com`) under a domain you already own
 
 You'll need this for: Stripe webhook URL, Resend domain verification,
 Better Auth `BETTER_AUTH_URL`, the `NEXT_PUBLIC_APP_URL` exposed to the
@@ -59,7 +59,7 @@ editor so you know exactly which env vars need which value.
 ### 1.1 Create the Neon project
 
 1. <https://console.neon.tech> → **Create project**.
-2. Name: `nextep-production`. Region: closest to your Vercel region
+2. Name: `nexstepper`. Region: closest to your Vercel region
    (Vercel auto-selects `iad1` / `fra1` etc. on Pro; pick the matching
    Neon region to keep latency low).
 3. **Postgres version**: 16 (matches the local docker image per README).
@@ -163,7 +163,7 @@ Open Drizzle Studio, confirm all the expected tables exist:
 Per [`docs/setup/stripe.md`](./stripe.md) §1.2, in **live mode** this time:
 
 1. **Products → Add product**:
-   - **Name:** `Nextep Pro`
+   - **Name:** `Nexstepper Pro`
    - **Pricing model:** Recurring
    - **Price:** same amount + currency as test mode (per AGENTS.md
      locked stack, "Pro ≈ the price of a coffee")
@@ -243,14 +243,14 @@ If you serve EU/UK users, Stripe Tax handles VAT collection automatically:
 
 ### 3.1 Verify your sending domain
 
-1. <https://resend.com/domains> → **Add domain** → enter `nextep.app`
+1. <https://resend.com/domains> → **Add domain** → enter `nexstepper.app`
    (or whatever you're using).
 2. Resend shows the DNS records you need to add. Go to your registrar /
    DNS host (Cloudflare, Namecheap, Route53, …) and create:
    - **SPF** (`TXT` at apex): `v=spf1 include:resend.com ~all`
    - **DKIM** (`CNAME`s at the three subdomains Resend shows)
-   - **DMARC** (`TXT` at `_dmarc.nextep.app`):
-     `v=DMARC1; p=quarantine; rua=mailto:dmarc@nextep.app`
+   - **DMARC** (`TXT` at `_dmarc.nexstepper.app`):
+     `v=DMARC1; p=quarantine; rua=mailto:dmarc@nexstepper.app`
 3. Back in Resend → **Verify**. Usually takes < 5 min once the records
    propagate.
 
@@ -348,13 +348,13 @@ cap keeps the bill bounded until you notice.
 
 ## 6. Custom domain + SSL (Vercel handles most of this)
 
-> Goal: users hit `https://nextep.app`, not `nextep-<hash>.vercel.app`.
+> Goal: users hit `https://nexstepper.app`, not `nexstepper<hash>.vercel.app`.
 
 ### 6.1 Add domain to Vercel
 
 1. Vercel project → **Settings → Domains → Add** → enter your apex.
 2. Vercel shows the records you need. At your registrar / DNS host:
-   - **Apex** (`nextep.app`): either A record to Vercel's IP, or
+   - **Apex** (`nexstepper.app`): either A record to Vercel's IP, or
      ALIAS/ANAME if your registrar supports it (Cloudflare does).
    - **www**: CNAME to `cname.vercel-dns.com`.
 3. Vercel auto-provisions a Let's Encrypt cert — wait a few minutes
@@ -371,18 +371,18 @@ canonical. Recommendation: **apex canonical, www → apex redirect**.
 In Vercel project env vars:
 
 ```
-BASE_URL=https://nextep.app
-NEXT_PUBLIC_APP_URL=https://nextep.app
-BETTER_AUTH_URL=https://nextep.app
+BASE_URL=https://nexstepper.app
+NEXT_PUBLIC_APP_URL=https://nexstepper.app
+BETTER_AUTH_URL=https://nexstepper.app
 ```
 
 These three must agree exactly (no trailing slash, https not http).
 
 ### 6.4 Verify
 
-- [ ] `https://nextep.app` resolves to your Vercel deploy
-- [ ] SSL Labs or `curl -I https://nextep.app` returns a valid cert
-- [ ] `https://www.nextep.app` redirects to apex (or vice versa, your pick)
+- [ ] `https://nexstepper.app` resolves to your Vercel deploy
+- [ ] SSL Labs or `curl -I https://nexstepper.app` returns a valid cert
+- [ ] `https://www.nexstepper.app` redirects to apex (or vice versa, your pick)
 - [ ] Better Auth login flow works on the prod domain (cookies are
       scoped correctly, no SameSite warnings in browser devtools)
 
@@ -412,9 +412,9 @@ test-mode Stripe, Preview should use Neon dev branch + test-mode Stripe).
 | Variable | Production value | Preview value |
 |---|---|---|
 | `POSTGRES_URL` | Neon prod pooler | Neon dev branch pooler |
-| `BASE_URL` | `https://nextep.app` | `https://<preview>.vercel.app` |
-| `NEXT_PUBLIC_APP_URL` | `https://nextep.app` | same as BASE_URL |
-| `BETTER_AUTH_URL` | `https://nextep.app` | same as BASE_URL |
+| `BASE_URL` | `https://nexstepper.app` | `https://<preview>.vercel.app` |
+| `NEXT_PUBLIC_APP_URL` | `https://nexstepper.app` | same as BASE_URL |
+| `BETTER_AUTH_URL` | `https://nexstepper.app` | same as BASE_URL |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32` (new, prod-only) | new, preview-only |
 | `NODE_ENV` | `production` | `preview` |
 | `STRIPE_SECRET_KEY` | `sk_live_…` | `sk_test_…` |
@@ -458,7 +458,7 @@ Do this in an **incognito window** so you exercise the unauthenticated
 
 | # | Step | Expected |
 |---|---|---|
-| 1 | Visit `https://nextep.app` | Landing renders, no console errors |
+| 1 | Visit `https://nexstepper.app` | Landing renders, no console errors |
 | 2 | Click **Sign up** | Form loads, no errors |
 | 3 | Sign up with your real email | Redirects to `/dashboard`, empty state |
 | 4 | **Create master resume** (manual or import PDF) | Resume saves, appears in list |

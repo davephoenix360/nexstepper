@@ -55,7 +55,7 @@ export default function MarketingLayout({
             className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground"
           >
             <CircleIcon className="size-6 text-primary" />
-            Nextep
+            Nexstepper
           </Link>
           <MarketingNavLinks />
           <div className="flex items-center gap-1">

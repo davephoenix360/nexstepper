@@ -72,7 +72,13 @@ export const auth = betterAuth({
     additionalFields: {}
   },
   advanced: {
-    cookiePrefix: 'nextep'
+    // Cookie prefix `nexstepper` set during 2026-09-25 rebrand; see
+    // `docs/drift/2026-09-25-nextep-rename.md`. Renaming the cookie
+    // prefix invalidates every live session — acceptable here because
+    // the product is not yet public (see `docs/setup/production.md`
+    // §11 launch gate). Self-hosters upgrading through this commit
+    // will be signed out once; behaviour expected.
+    cookiePrefix: 'nexstepper'
   },
   plugins: [nextCookies()]
 });

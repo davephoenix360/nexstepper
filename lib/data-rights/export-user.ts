@@ -17,7 +17,7 @@ import {
  * `exportUserData` — server action that produces a JSON bundle
  * satisfying GDPR Art. 20 (right to data portability).
  *
- * The bundle is the user's portable copy of everything Nextep holds
+ * The bundle is the user's portable copy of everything Nexstepper holds
  * about them. Format: JSON (EDPB explicitly cites JSON as a suitable
  * format — see `lib/data-rights/schema.ts` for the rationale).
  *
@@ -39,7 +39,7 @@ import {
  *
  *   - The action returns a string (JSON). The client (dashboard
  *     security page) wraps it in a `Blob` and downloads it as
- *     `nextep-export-<userId>-<iso-date>.json`.
+ *     `nexstepper-export-<userId>-<iso-date>.json`.
  */
 
 export type ExportUserInput = void;
@@ -168,7 +168,7 @@ export async function exportUserData(): Promise<ExportUserResult> {
   const json = JSON.stringify(parsed.data, null, 2);
 
   const isoDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const filename = `nextep-export-${userId.slice(0, 8)}-${isoDate}.json`;
+  const filename = `nexstepper-export-${userId.slice(0, 8)}-${isoDate}.json`;
 
   return { ok: true, json, filename };
 }

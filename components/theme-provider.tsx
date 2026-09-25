@@ -6,8 +6,12 @@
  *
  * Why no `next-themes`: the dep is overkill for two theme values. Our
  * implementation is ~80 lines and reads/writes the same shape
- * (nextep-theme in localStorage). When we need viewport-match-on-system,
+ * (nexstepper-theme in localStorage). When we need viewport-match-on-system,
  * FOUC-prevention, or color-scheme meta — those are already handled here.
+ *
+ * Renamed from `nextep-theme` during the 2026-09-25 rebrand; existing
+ * users' theme preference will reset to `system` on next visit (minor,
+ * self-resolving).
  */
 
 import * as React from 'react';
@@ -23,7 +27,7 @@ interface ThemeContextValue {
 
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = 'nextep-theme';
+const STORAGE_KEY = 'nexstepper-theme';
 const DARK_CLASS = 'dark';
 
 function getSystemTheme(): ResolvedTheme {

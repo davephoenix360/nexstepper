@@ -71,7 +71,7 @@ describe('apply-bridge', () => {
   });
 
   it('exports a stable event name', () => {
-    expect(INLINE_ISSUE_APPLY_EVENT).toBe('nextep:inline-issue:apply');
+    expect(INLINE_ISSUE_APPLY_EVENT).toBe('nexstepper:inline-issue:apply');
   });
 
   it('dispatch + subscribe round-trips the payload', () => {
@@ -122,7 +122,7 @@ describe('apply-bridge', () => {
 
   describe('tip-event bridge', () => {
     it('exports a stable tip event name', () => {
-      expect(INLINE_ISSUE_TIP_EVENT).toBe('nextep:inline-issue:tip');
+      expect(INLINE_ISSUE_TIP_EVENT).toBe('nexstepper:inline-issue:tip');
     });
 
     it('dispatch + subscribe round-trips the tip payload', () => {
