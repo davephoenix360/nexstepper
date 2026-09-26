@@ -61,17 +61,88 @@ Adding any of these needs a discussion, not a drive-by edit:
 | Package mgr | pnpm 11 |
 | Deployment | Vercel |
 
+## Deployment + production keys (cheat sheet)
+
+Full operational runbook lives at **`docs/setup/production.md`** (11
+sections: Neon DB → Stripe live → Resend → AI Gateway → Sentry/PostHog
+→ domain → Vercel env vars → 16-step smoke test → monitoring → 5-scenario
+rollback → done criteria). The summary below is what to wire in Vercel
+project settings before going live.
+
+**Topology** — Single Vercel project (production), single Neon DB
+(US or EU region), all third-party services bound by env vars. No
+multi-region, no read replicas. Free-tier defaults throughout; the
+`docs/setup/production.md` §3 has an explicit upgrade-trigger table.
+
+| Service | Env vars (server-only unless marked public) | Where to get |
+|---|---|---|
+| **Neon** | `POSTGRES_URL` | neon.tech → project → connection string (pooled endpoint, `-pooler` suffix) |
+| **Vercel AI Gateway** | `AI_GATEWAY_API_KEY` (or `VERCEL_OIDC_TOKEN` in prod — auto-provisioned on Vercel) | vercel.com → AI Gateway → API Keys |
+| **Better Auth** | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | `openssl rand -base64 32` for the secret |
+| **Stripe (live mode)** | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_PRO` | dashboard.stripe.com → Developers → API keys + Webhooks + Products |
+| **Resend** | `RESEND_API_KEY` | resend.com → API Keys |
+| **Vercel Blob** | `BLOB_READ_WRITE_TOKEN` | vercel.com → Storage → Create Blob store |
+| **Sentry** | `SENTRY_DSN` (server), `NEXT_PUBLIC_SENTRY_DSN` (client), `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` (build-time, for sourcemap upload) | sentry.io → Settings → Projects → Client Keys + Auth Tokens |
+| **PostHog** | `POSTHOG_KEY` (server), `NEXT_PUBLIC_POSTHOG_KEY` (client), `POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_HOST` | posthog.com → Project Settings → API Keys |
+| **Liveblocks** | `LIVEBLOCKS_SECRET_KEY` (server), `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` | liveblocks.io → Dashboard → API Keys |
+| **Inngest** | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | inngest.com → Apps → Manage → Keys |
+
+**Public env vars (`NEXT_PUBLIC_*`)** are exposed to the browser — they
+must be safe to publish. Sentry DSNs, PostHog keys, and Liveblocks
+public keys are all designed to be public; the rest are server-only.
+
+**Vercel-specific wiring**
+
+- **Production branch**: `main` (auto-deploys on push; PR previews get
+  their own ephemeral URLs with their own env-var subset if you set
+  them up under "Preview" environment).
+- **Build command**: `pnpm build` (Next.js default; no custom command).
+- **Custom domain**: wire `nexstepper.app` (or whatever you buy) via
+  Vercel → Domains; SSL is auto-provisioned via Let's Encrypt.
+- **Postgres**: `POSTGRES_URL` is a Neon pooled connection string.
+  Neon works from serverless Vercel functions out of the box because
+  the pooled endpoint speaks the standard Postgres wire protocol.
+
+**Smoke-test order** (after deploying; matches §9 of production.md):
+
+1. Sign up → sign in → land on dashboard
+2. Create master resume, edit + save (revisions)
+3. Create variant from JD (AI parser + intent extractor fire)
+4. Compute ATS score (score snapshot writes)
+5. Send a chat message (AI observability trace fires)
+6. Enable share link → open in private tab → view counter increments
+7. Upgrade to Pro (Stripe Checkout → webhook → plan tier flips)
+8. Export data (GDPR Art. 20)
+9. Delete account (GDPR Art. 17 → erasure_log writes → PostHog scrubs)
+
+**Free-tier-first launch defaults** — Neon Free, Stripe $0/mo
+monthly fee (2.9% + 30¢ per transaction), Vercel Free (100 GB
+bandwidth, hobby-tier limits), Resend Free (3k emails/mo, 100/day),
+PostHog Free (1M events/mo), Sentry Free (5k errors/mo). Pro plan
+($1-2/mo per user) is well above the per-user cost of all the above,
+so even at 10 paying users we're gross-margin positive.
+
+**Don't ship without** — `BETTER_AUTH_URL` set to your production
+URL (cookie scoping depends on it), `SENTRY_DSN` + `POSTHOG_KEY` set
+(observability is the only signal you'll have when something breaks
+at 3am), and the Stripe webhook endpoint registered in live mode
+(`https://nexstepper.app/api/stripe/webhook`).
+
 ## Roadmap
 
 The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `9f8be47` as of **2026-09-25**;
-rebrand merged + repo renamed. Next session should pick up the
-production env bring-up from `docs/setup/production.md` §11, OR the
-Seniority Fit calibration fix from
-`docs/drift/2026-09-20-ats-v2-validation-corpus.md`.
+**Now (in flight)** — `main` is at `0c2ee60` as of **2026-09-25**;
+launch-readiness batch landed (legal pages, GDPR data rights,
+PostHog AI observability + privacy mode, Open-source MIT setup,
+Seniority Fit calibration fix, PostHog business-event catalog,
+Sentry 11 wizard cleanup). The next session's sole job is the
+production env bring-up from `docs/setup/production.md` §11 — Neon
+prod DB, Stripe live mode, custom domain, Resend verification,
+real Sentry/PostHog keys. **3–5 days wall-time; nothing else
+should ship in the meantime.**
 
 **Recently shipped (for context, last 7 days)**
 
@@ -146,6 +217,59 @@ Seniority Fit calibration fix from
   a green light for fabricated quotes. Real testimonials go in a
   separate `<TestimonialBlock />` component below the hero, never
   in the trust strip.
+- **Seniority Fit calibration fix** — shipped 2026-09-25, commit
+  `f5c462c`. Over-qualification past the ±2-year tolerance band
+  now sets the dimension to `MAX_SCORE` instead of applying the
+  asymmetric `OVER_QUALIFIED_SLOPE = 7.5` penalty. Senior
+  candidates on senior-track JDs were being penalized for being
+  too senior. Pearson r recovered from 0.907 → **0.9238**
+  (matches pre-regression baseline). Drift memo:
+  `docs/drift/2026-09-20-ats-v2-validation-corpus.md` §"Seniority
+  Fit calibration fix shipped".
+- **Open-source + LICENSE + SELF_HOSTING** — shipped 2026-09-25,
+  commit `1908601`. MIT license at repo root with a Nextepper
+  trademark notice (the "Nexstepper" name + logo are reserved);
+  `docs/SELF_HOSTING.md` for self-hosters (legal responsibilities,
+  their own privacy policy, their own subprocessors list). Terms
+  page gained §3 (Open-source + hosted), §8 (hosted-vs-self-host
+  AI disclaimer), §9 (Trademark clause). Privacy page gained §11
+  (Open-source + self-hosting scope).
+- **PostHog AI observability + privacy mode** — shipped 2026-09-25,
+  commit `e75a1dd`. Wired `@posthog/ai` (`withTracing`) around
+  every gateway model call. Privacy mode ON: PostHog captures
+  metadata only (model, latency, tokens, errors, trace ID) — no
+  prompts or responses. Privacy Policy §4 PostHog entry expanded
+  into three sub-capabilities (product analytics, AI observability,
+  session replay). 970/970 tests, .gitignore additions for wizard
+  transient artifacts.
+- **PostHog client init + Sentry nav hook** — shipped 2026-09-25,
+  commits `3e1e4e9` + `e151f5d`. Migrated client init to
+  `instrumentation-client.ts` (Next.js 15.3+ pattern, captures
+  first $pageview before React mounts). Wired
+  `onRouterTransitionStart = Sentry.captureRouterTransitionStart`
+  to silence Sentry's `ACTION REQUIRED` warning. `.env.example`
+  documents the server/client env var split.
+- **Sentry 11 wizard cleanup** — shipped 2026-09-25, commit
+  `0c2ee60`. Upgraded `@sentry/nextjs` 10.63 → 11.0 (replaced
+  deprecated `sendDefaultPii` with `dataCollection` config). Fixed
+  three things the wizard got wrong: hardcoded Sentry DSN in three
+  files (moved to env vars), hardcoded org/project in
+  `next.config.ts` (env vars), dropped sourcemap-upload guard
+  (restored). Deleted wizard tutorial scaffolds
+  (`app/sentry-example-page/`, `app/api/sentry-example-api/`).
+  Kept `app/global-error.tsx` (real value) and
+  `sentry.edge.config.ts` (needed for edge runtime).
+- **PostHog identify + business-event catalog** — shipped
+  2026-09-25, commits `e9a0829` + `c4a2cbc`. Wired
+  `posthog.identify(userId)` on sign-in + `posthog.reset()` on
+  sign-out via a tiny no-render client component. Created
+  `lib/posthog/events.ts` as the single source of truth for 24
+  event names across 6 categories (resume/variant lifecycle,
+  scoring/AI, sharing, subscription, data rights, auth). Wired
+  `trackServer(...)` calls across 10 action/route files. Subscription
+  events fire only on actual plan transitions, not every webhook
+  reconciliation (avoids double-counting on Stripe price-change
+  replays).
 
 **Next (queued, priority order)**
 
@@ -153,26 +277,14 @@ Seniority Fit calibration fix from
    `docs/setup/production.md`. *Do this before shipping anything else.*
    Neon prod DB + Stripe live mode + custom domain + Resend
    verification + Sentry/PostHog real keys. Wall-time: 3–5 days.
-2. **Seniority Fit calibration fix** — drift memo
-   `docs/drift/2026-09-20-ats-v2-validation-corpus.md`
-   §"Seniority Fit wired into the sync engine" exposes the
-   asymmetric penalty (`OVER_QUALIFIED_SLOPE = 7.5` past a ±2-year
-   tolerance band) penalizes senior candidates on senior-track
-   JDs. Pearson r dropped from 0.923 → 0.907 once seniority was
-   wired in. Two proposed fixes (flatten over-qualified penalty
-   to 0 past tolerance, or widen `TOLERANCE_YEARS` to 3-4).
-   Single-line constant change in
-   `lib/scoring/dimensions/seniority-fit.ts`; the corpus serves
-   as the regression test. **Ship before launch** — visible quality
-   issue for senior candidates.
-3. **Reviews (Phase 5)** — invite-link flow, inline comments,
+2. **Reviews (Phase 5)** — invite-link flow, inline comments,
    thumbs verdict. Strong differentiator, but not launch-blocking.
-4. **Liveblocks real-time collab UI** — presence + cursors on the
+3. **Liveblocks real-time collab UI** — presence + cursors on the
    variant editor surface; Liveblocks server stub already wired.
-5. **`/api/job-contexts` + extension-ready API tokens** — so
+4. **`/api/job-contexts` + extension-ready API tokens** — so
    `nextep-ext` has a clean contract.
-6. **Template studio (Phase 6)** — admin-only template authoring.
-7. **Monorepo split** — defer until it actually bites (likely
+5. **Template studio (Phase 6)** — admin-only template authoring.
+6. **Monorepo split** — defer until it actually bites (likely
    after collab, when packages like `lib/scoring/` start to feel
    cramped).
 
