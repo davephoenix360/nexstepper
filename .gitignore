@@ -88,3 +88,6 @@ output/
 # files into .trash/ instead of deleting them outright.
 .trash/
 *.trash
+
+# Sentry Config File
+.env.sentry-build-plugin

@@ -17,19 +17,48 @@
 import * as Sentry from '@sentry/nextjs';
 import posthog from 'posthog-js';
 
+const sentryDsn =
+  process.env.NEXT_PUBLIC_SENTRY_DSN ?? process.env.SENTRY_DSN;
+
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    // 10% sampling — matches `sentry.server.config.ts`. Bump to 1.0
+    // once we have volume worth analyzing.
+    tracesSampleRate: 0.1,
+    debug: false,
+    // Hardening added by the Sentry 11 wizard: deny-list of header /
+    // cookie / query-param names that often carry identifying info
+    // (forwarded-for IPs, user-agent fragments, etc.). Supersedes the
+    // `sendDefaultPii` option that existed in Sentry 10. See
+    // https://docs.sentry.io/platforms/javascript/configuration/options/#dataCollection
+    dataCollection: {
+      userInfo: false,
+      graphQL: { document: false, variables: false },
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      queues: false,
+      httpBodies: [],
+      httpHeaders: {
+        deny: ['forwarded', '-ip', 'remote-', 'via', '-user']
+      },
+      cookies: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+      urlQueryParams: {
+        deny: ['forwarded', '-ip', 'remote-', 'via', '-user']
+      }
+    }
+  });
+}
+
 /**
- * Sentry App Router navigation instrumentation. Next.js calls this
- * hook before each client-side route transition; Sentry uses it to
- * create a span + breadcrumb so navigations show up in the trace
- * waterfall and error breadcrumbs. Without it, Sentry prints
- * `[@sentry/nextjs] ACTION REQUIRED: To instrument navigations,
- * the Sentry SDK requires you to export an onRouterTransitionStart
- * hook from your instrumentation-client file`.
+ * App Router navigation instrumentation. Next.js calls this hook
+ * before each client-side route transition; Sentry uses it to
+ * create a span + breadcrumb. Without it, Sentry prints the
+ * `[@sentry/nextjs] ACTION REQUIRED: ...onRouterTransitionStart...`
+ * warning every boot.
  *
- * Safe to export unconditionally — if NEXT_PUBLIC_SENTRY_DSN /
- * SENTRY_DSN is not set, Sentry isn't initialized (see
- * `sentry.client.config.ts`) and `captureRouterTransitionStart`
- * is a no-op.
+ * Safe to export unconditionally — `captureRouterTransitionStart`
+ * is a no-op when Sentry wasn't initialized above (no DSN set).
  */
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 

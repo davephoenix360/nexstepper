@@ -7,7 +7,13 @@ if (dsn) {
     dsn,
     tracesSampleRate: 0.1,
     debug: false,
-    // Don't capture PII (emails, names) by default
-    sendDefaultPii: false
+    // Sentry 11 replaced `sendDefaultPii` with the more granular
+    // `dataCollection` config (header / cookie / query-param deny
+    // lists). Defaults are conservative; we leave them as-is here and
+    // rely on the wizard-added `dataCollection` block in
+    // `instrumentation-client.ts` for client-side hardening.
+    dataCollection: {
+      userInfo: false
+    }
   });
 }

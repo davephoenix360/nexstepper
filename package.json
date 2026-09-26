@@ -22,7 +22,7 @@
     "@liveblocks/node": "^3.21.0",
     "@liveblocks/react": "^3.21.0",
     "@posthog/ai": "^8.13.2",
-    "@sentry/nextjs": "^10.63.0",
+    "@sentry/nextjs": "^11.0.0",
     "@tailwindcss/postcss": "4.1.7",
     "@types/node": "^22.15.18",
     "@types/react": "^19.2.0",
