@@ -52,7 +52,6 @@ Adding any of these needs a discussion, not a drive-by edit:
 | Billing | Stripe (Free + Pro ≈ the price of a coffee; see `docs/setup/stripe.md` for the actual amount + brand-voice rationale) |
 | AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`; free-tier primary `mistral/mistral-nemo` with 4-model fallback chain (see `docs/ai-models-reference.md`) |
 | Email | Resend |
-| File storage | Vercel Blob |
 | Observability | Sentry (errors) + PostHog (analytics) |
 | Background jobs | Inngest |
 | Realtime | Liveblocks (Phase 5) |
@@ -81,7 +80,6 @@ multi-region, no read replicas. Free-tier defaults throughout; the
 | **Better Auth** | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | `openssl rand -base64 32` for the secret |
 | **Stripe (live mode)** | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_PRO` | dashboard.stripe.com → Developers → API keys + Webhooks + Products |
 | **Resend** | `RESEND_API_KEY` | resend.com → API Keys |
-| **Vercel Blob** | `BLOB_READ_WRITE_TOKEN` | vercel.com → Storage → Create Blob store |
 | **Sentry** | `SENTRY_DSN` (server), `NEXT_PUBLIC_SENTRY_DSN` (client), `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` (build-time, for sourcemap upload) | sentry.io → Settings → Projects → Client Keys + Auth Tokens |
 | **PostHog** | `POSTHOG_KEY` (server), `NEXT_PUBLIC_POSTHOG_KEY` (client), `POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_HOST` | posthog.com → Project Settings → API Keys |
 | **Liveblocks** | `LIVEBLOCKS_SECRET_KEY` (server), `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` | liveblocks.io → Dashboard → API Keys |

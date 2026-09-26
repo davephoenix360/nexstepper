@@ -425,7 +425,6 @@ test-mode Stripe, Preview should use Neon dev branch + test-mode Stripe).
 | `SENTRY_DSN` | prod | dev (or empty) |
 | `NEXT_PUBLIC_POSTHOG_KEY` | prod | dev |
 | `NEXT_PUBLIC_POSTHOG_HOST` | prod host | dev host |
-| `BLOB_READ_WRITE_TOKEN` | prod token | preview token |
 
 > **Never commit `.env` or `.env.local`** — both are gitignored. These
 > values live in Vercel only.
