@@ -70,7 +70,7 @@ export function Hero() {
           </li>
           <li className="flex items-center gap-1.5">
             <CheckCircle2 className="size-4 text-primary" />
-            7-day Pro trial
+            Pro launching soon
           </li>
         </ul>
 

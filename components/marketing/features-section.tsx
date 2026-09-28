@@ -69,8 +69,8 @@ export function FeaturesSection() {
           />
           <FeatureCard
             icon={<Sparkles className="size-5" />}
-            title="AI Optimize, per section"
-            description="Rewrite a bullet, fill a gap, tighten the summary. Per-section AI rewrites that respect your voice — not a generic ChatGPT paste."
+            title="AI chat assistant"
+            description="Ask the AI co-pilot to rewrite a bullet, explain an ATS miss, or tighten your summary — with your current resume and score in context. Not a generic ChatGPT paste."
           />
           <FeatureCard
             icon={<Target className="size-5" />}
