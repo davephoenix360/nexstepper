@@ -13,6 +13,18 @@
  * transitions, so native is fine. If we add animated sheets later,
  * we can move this to Radix Dialog or build a Radix-backed Sheet.
  *
+ * ## Portal rendering (Phase 1c fix)
+ *
+ * Rendered via `createPortal(..., document.body)` so the `<dialog>`
+ * escapes every ancestor's CSS positioning context. Even though
+ * Tailwind sets `position: fixed; inset: 0` on the dialog, a
+ * containing block created by a transform / filter / perspective /
+ * will-change / contain: paint ancestor (the dashboard sidebar has
+ * `transform`) would otherwise make `position: fixed` position
+ * relative to that ancestor instead of the viewport — and the
+ * modal would drift to wherever the trigger button sits. Portaling
+ * to body eliminates every potential containing block at once.
+ *
  * ## Centering (Phase 1b fix)
  *
  * The native `<dialog>` UA stylesheet centers the element via
@@ -20,9 +32,7 @@
  * strip that auto-margin, AND we apply `position: fixed; inset: 0`
  * so the dialog fills the viewport. Combined with
  * `flex items-center justify-center`, the inner card is centered on
- * BOTH axes regardless of content height. Without this the modal
- * drifted to the top-left and got clipped at the viewport edge on
- * tall content.
+ * BOTH axes regardless of content height.
  *
  * ## Height cap (Phase 1b fix)
  *
@@ -30,7 +40,7 @@
  * wrapper, a sticky title header, and a `flex-1 min-h-0 overflow-y-auto`
  * body. Long content scrolls inside the body instead of pushing the
  * card past the screen edge. `100dvh` (dynamic viewport height) handles
- * mobile browser chrome that resizes the viewport on scroll.
+ * mobile browser chrome resizing the viewport on scroll.
  *
  * Usage:
  *   <Dialog open={open} onOpenChange={setOpen} title="Edit Skills">
@@ -44,6 +54,7 @@
  */
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -70,6 +81,12 @@ export function Dialog({
   closeLabel = 'Close'
 }: DialogProps) {
   const ref = React.useRef<HTMLDialogElement>(null);
+  // Guard against SSR — `document` is undefined on the server, so we
+  // can only render the portal client-side. Pre-rendering the JSX
+  // also avoids a hydration mismatch (the portal target doesn't
+  // exist on the server).
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   // Sync the imperative `showModal()` / `close()` calls with our `open`
   // prop. Native <dialog> has its own open state and won't reopen via
@@ -99,7 +116,9 @@ export function Dialog({
   const titleId = title ? 'dialog-title' : undefined;
   const descriptionId = description ? 'dialog-description' : undefined;
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <dialog
       ref={ref}
       onClose={() => onOpenChange(false)}
@@ -176,6 +195,7 @@ export function Dialog({
           {children}
         </div>
       </div>
-    </dialog>
+    </dialog>,
+    document.body
   );
 }
