@@ -40,7 +40,7 @@ export function Hero() {
 
         <p className="mx-auto mt-6 max-w-2xl text-balance text-lg leading-relaxed text-muted-foreground sm:text-xl">
           One master resume. A score against the role&apos;s actual ATS rubric.
-          AI rewrites that drop directly into your variants. Built for
+          AI chat that helps you iterate on every section. Built for
           job-seekers who&apos;d rather be interviewing than formatting.
         </p>
 
@@ -55,7 +55,7 @@ export function Hero() {
             href="/pricing"
             className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
           >
-            or see pricing
+            Pricing — Pro launching soon
           </Link>
         </div>
 
