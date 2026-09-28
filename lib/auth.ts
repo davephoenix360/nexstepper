@@ -40,13 +40,12 @@ export const auth = betterAuth({
     // still complete the reset; short enough that a leaked email
     // doesn't give an attacker much time to brute-force.
     resetPasswordTokenExpiresIn: 60 * 60,
-    /**
-     * Where Better Auth should point the email's reset link.
-     * Query param `?token=...` carries the single-use token.
-     * Our `/reset-password` page renders the form and calls
-     * `authClient.resetPassword({ token, newPassword })`.
-     */
-    resetPasswordURL: '/reset-password',
+    // `resetPasswordURL` was removed in Better Auth 1.6 (the option key
+    // moved + behaviour changed). The reset link now goes to Better
+    // Auth's default `/api/auth/reset-password` endpoint. Our
+    // /reset-password page (app/(auth)/reset-password/page.tsx) reads
+    // ?token= from the URL regardless of the issuing path, so the
+    // user-facing flow still works end-to-end.
     /**
      * Server-side email sender. Better Auth calls this with the
      * generated URL when `auth.api.forgetPassword` runs. The `url`
@@ -71,6 +70,35 @@ export const auth = betterAuth({
   user: {
     additionalFields: {}
   },
+  /**
+   * Trusted origins for inbound requests (TOP-LEVEL option, not under
+   * `advanced` — earlier 4e503e9 put it under `advanced` which silently
+   * no-ops the config in Better Auth 1.6+). Required because Vercel's
+   * domain config 308-redirects `nexstepper.com` -> `www.nexstepper.com`,
+   * so every real request hits `www.` even though `BETTER_AUTH_URL` is
+   * set to the apex. Default config rejects `www.` as "invalid origin"
+   * and the auth flow silently 500s. The list covers:
+   *  - `BETTER_AUTH_URL` (apex, what Infisical sets)
+   *  - `www.` variant (where the deployment actually serves)
+   *  - `localhost:3000` (local dev)
+   *  - `nexstepper-*.vercel.app` (PR preview deployments) — wildcard
+   *    pattern, not a regex (Better Auth's pattern syntax uses `*`,
+   *    `?`, `**`; literal RegExp objects are not supported).
+   *
+   * Self-hosters behind a different domain can fork this list and
+   * commit the result. Per-instance override via env isn't exposed
+   * because trustedOrigins config doesn't read from `BETTER_AUTH_*`
+   * in 1.6+ (regression from v1.4.4 — see GitHub issue #6798).
+   */
+  trustedOrigins: (() => {
+    const list: string[] = ['http://localhost:3000', 'https://www.nexstepper.com'];
+    // Apex from env (e.g. `https://nexstepper.com`) — added only if set
+    // because `process.env.X` is `string | undefined`.
+    if (process.env.BETTER_AUTH_URL) list.push(process.env.BETTER_AUTH_URL);
+    // Wildcard pattern for PR preview deployments on Vercel
+    list.push('https://nexstepper-*.vercel.app');
+    return list;
+  })(),
   advanced: {
     // Cookie prefix `nexstepper` set during 2026-09-25 rebrand; see
     // `docs/drift/2026-09-25-nextep-rename.md`. Renaming the cookie
@@ -78,27 +106,7 @@ export const auth = betterAuth({
     // the product is not yet public (see `docs/setup/production.md`
     // §11 launch gate). Self-hosters upgrading through this commit
     // will be signed out once; behaviour expected.
-    cookiePrefix: 'nexstepper',
-    /**
-     * Trusted origins for inbound requests. Required because Vercel's
-     * domain config 308-redirects `nexstepper.com` -> `www.nexstepper.com`,
-     * so every real request hits `www.` even though `BETTER_AUTH_URL`
-     * is set to the apex. Default config rejects `www.` as "invalid
-     * origin" and the auth flow silently 500s. The list covers:
-     *  - `BETTER_AUTH_URL` (apex, what Infisical sets)
-     *  - `www.` variant (where the deployment actually serves)
-     *  - `localhost:3000` (local dev)
-     *  - `*.vercel.app` (PR preview deployments)
-     *
-     * Self-hosters can override via a custom trustedOrigins list passed
-     * through env if they put Nexstepper behind a different domain.
-     */
-    trustedOrigins: [
-      process.env.BETTER_AUTH_URL,
-      'https://www.nexstepper.com',
-      'http://localhost:3000',
-      /^https:\/\/nexstepper[a-z0-9-]*\.vercel\.app$/
-    ]
+    cookiePrefix: 'nexstepper'
   },
   plugins: [nextCookies()]
 });
