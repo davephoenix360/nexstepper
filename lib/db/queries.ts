@@ -631,6 +631,35 @@ export async function deleteResume(
 }
 
 /**
+ * Count a master's variants — used by the editor page to surface
+ * "Delete master and N variants" copy in the destructive-action
+ * dialog without the user having to scroll through the variant list.
+ *
+ * Returns 0 when the master has no variants OR when the master
+ * doesn't belong to the user (we filter by userId as the implicit
+ * ownership check; non-owned masters return 0 to avoid leaking
+ * existence).
+ */
+export async function countVariantsByMasterId(
+  masterResumeId: string,
+  userId: string
+): Promise<number> {
+  const [row] = await db
+    .select({
+      count: sql<number>`cast(count(*) as integer)`
+    })
+    .from(resumes)
+    .where(
+      and(
+        eq(resumes.parentResumeId, masterResumeId),
+        eq(resumes.userId, userId),
+        eq(resumes.isMaster, false)
+      )
+    );
+  return row?.count ?? 0;
+}
+
+/**
  * Rename a resume (master or variant) — updates only the `name`
  * column on the `resumes` row. Does NOT bump the revision history
  * (the rename isn't a content change; we don't want it to appear

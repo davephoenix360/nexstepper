@@ -18,6 +18,7 @@ import {
 
 import { CreateVariantButton } from './create-variant-button';
 import { CreateVariantFromJdButton } from './create-variant-from-jd-button';
+import { DeleteResumeButton } from './delete-resume-button';
 
 /**
  * Master→variant tree for /dashboard/resumes.
@@ -54,7 +55,12 @@ export function ResumeList({
   renderLink = defaultLink
 }: {
   families: ResumeFamily[];
-  renderVariantActions?: (master: Resume) => React.ReactNode;
+  /**
+   * Per-master actions render prop. Receives the master row and its
+   * current variant count so destructive affordances can warn about
+   * cascades (e.g. delete-master with N variants).
+   */
+  renderVariantActions?: (master: Resume, variantCount: number) => React.ReactNode;
   renderLink?: React.ComponentType<
     React.ComponentPropsWithoutRef<typeof Link> & {
       children?: React.ReactNode;
@@ -74,7 +80,7 @@ export function ResumeList({
             master={master}
             variants={variants}
             variantScores={variantScores}
-            actions={renderVariantActions(master)}
+            actions={renderVariantActions(master, variants.length)}
             renderLink={renderLink}
           />
         </li>
@@ -84,11 +90,11 @@ export function ResumeList({
 }
 
 /** Default render prop used by the dashboard route. */
-function defaultVariantActions(master: Resume) {
+function defaultVariantActions(master: Resume, variantCount: number) {
   const masterId = master.id;
   const masterName = master.name || 'Untitled master';
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button asChild variant="ghost" size="sm">
         <Link href={`/dashboard/resumes/${masterId}`}>
           Open master
@@ -97,6 +103,12 @@ function defaultVariantActions(master: Resume) {
       </Button>
       <CreateVariantFromJdButton masterId={masterId} masterName={masterName} />
       <CreateVariantButton masterId={masterId} />
+      <DeleteResumeButton
+        resumeId={masterId}
+        resumeName={masterName}
+        isMaster
+        variantCount={variantCount}
+      />
     </div>
   );
 }

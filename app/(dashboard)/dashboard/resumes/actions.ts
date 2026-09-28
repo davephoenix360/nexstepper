@@ -9,6 +9,7 @@ import { auth } from '@/lib/auth';
 import {
   createMasterResume,
   createVariant,
+  deleteResume,
   getResume,
   renameResume,
   saveResumeRevision,
@@ -544,6 +545,92 @@ const renameResumeSchema = z.object({
     .string()
     .min(1, 'Name is required')
     .max(100, 'Name must be 100 characters or fewer')
+});
+
+/**
+ * Hard-delete a resume (master or variant) plus everything that
+ * hangs off it. The query in `lib/db/queries.ts > deleteResume`
+ * owns the cascade:
+ *
+ *   - When `resumeId` is a master, all variant rows with that
+ *     `parentResumeId` are deleted first, then the master itself.
+ *   - When `resumeId` is a variant, just that one row is deleted.
+ *   - FK CASCADE on `resume_revisions`, `score_snapshots`,
+ *     `chat_sessions` (+ `chat_messages`), and `resume_variants`
+ *     cleans up the rest. We never have to delete those tables
+ *     by hand.
+ *
+ * We pass `isMaster` + `variantCount` from the client so the
+ * PostHog event captures what was actually removed. The client
+ * already knows these (the page renders them server-side); the
+ * server doesn't have to re-count them.
+ *
+ * On success from the **editor page** the caller router-pushes
+ * to `/dashboard/resumes`. From the **list view** the page just
+ * re-renders without the deleted row.
+ *
+ * Plan: docs/plans/delete-resume.md
+ */
+export async function deleteResumeAction(input: unknown): Promise<
+  ActionResult<{ id: string; isMaster: boolean; variantCount: number }>
+> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, error: 'Not signed in' };
+  }
+
+  const parsed = deleteResumeSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Invalid input',
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  const ok = await deleteResume(parsed.data.resumeId, session.user.id);
+  if (!ok) {
+    // The query returns false on "not found" OR "not owned" — same
+    // shape, no existence leak. The client surfaces this in the
+    // confirm dialog and stays open.
+    return { ok: false, error: 'Resume not found' };
+  }
+
+  trackServer(session.user.id, PostHogEvents.RESUME_DELETED, {
+    resumeId: parsed.data.resumeId,
+    isMaster: parsed.data.isMaster,
+    variantCount: parsed.data.variantCount
+  });
+
+  revalidatePath('/dashboard/resumes');
+  revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
+
+  return {
+    ok: true,
+    data: {
+      id: parsed.data.resumeId,
+      isMaster: parsed.data.isMaster,
+      variantCount: parsed.data.variantCount
+    }
+  };
+}
+
+const deleteResumeSchema = z.object({
+  resumeId: z.string().min(1, 'Resume id is required'),
+  /**
+   * Whether the row being deleted was a master. Captured by the
+   * client (page knows at render time) so the PostHog event has
+   * the right breakdown without a second round-trip to the DB.
+   */
+  isMaster: z.boolean(),
+  /**
+   * Variant count the user saw in the confirm dialog (0 for a
+   * master with no variants, 0 for a variant delete, N for a
+   * master that will cascade-delete N children). Used for
+   * analytics only — server doesn't trust it for the cascade,
+   * which it re-derives from `parentResumeId`.
+   */
+  variantCount: z.number().int().min(0)
 });
 
 /**

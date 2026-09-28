@@ -27,6 +27,7 @@ export const PostHogEvents = {
   RESUME_IMPORTED: 'resume_imported',
   RESUME_UPDATED: 'resume_updated',
   RESUME_RENAMED: 'resume_renamed',
+  RESUME_DELETED: 'resume_deleted',
   VARIANT_CREATED: 'variant_created',
   VARIANT_CREATED_FROM_JD: 'variant_created_from_jd',
 
@@ -85,6 +86,13 @@ export type EventPropsByName = {
   };
   [PostHogEvents.RESUME_RENAMED]: {
     resumeId: string;
+  };
+  [PostHogEvents.RESUME_DELETED]: {
+    resumeId: string;
+    /** true when the deleted row was a master (variants cascade with it). */
+    isMaster: boolean;
+    /** Number of variant rows that were also deleted (0 for variant deletes). */
+    variantCount: number;
   };
   [PostHogEvents.VARIANT_CREATED]: {
     resumeId: string;

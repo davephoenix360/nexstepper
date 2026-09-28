@@ -8,12 +8,14 @@ import {
   getResume,
   getShareStatus,
   getSubscription,
-  getLatestScoreSnapshot
+  getLatestScoreSnapshot,
+  countVariantsByMasterId
 } from '@/lib/db/queries';
 import type { MatchBreakdown } from '@/lib/db/queries';
 import { EditableResume } from '@/components/editable';
 
 import { CreateVariantButton } from '../_components/create-variant-button';
+import { DeleteResumeButton } from '../_components/delete-resume-button';
 import { DownloadPdfButton } from './download-pdf-button';
 import { ShareButton } from './share-button';
 import { JdPanel } from './_components/jd-panel';
@@ -86,6 +88,14 @@ export default async function ResumeEditorPage({
 
   const showRightRail = !resume.isMaster;
 
+  // Variant count for the delete-master dialog. Only meaningful when
+  // the page is rendering a master; variants themselves have no
+  // children. Counts only rows the user owns — non-owned rows return
+  // 0 so we never leak existence of another user's data.
+  const variantCount = resume.isMaster
+    ? await countVariantsByMasterId(resume.id, user.id)
+    : 0;
+
   // First-render scoring: when a variant has a JD attached, compute
   // the ATS score server-side and pass it to <AtsScorecard> so the
   // user sees real numbers on first paint (no extra round-trip).
@@ -150,6 +160,13 @@ export default async function ResumeEditorPage({
         <div className="flex items-center gap-2">
           <ShareButton resumeId={resume.id} initialStatus={shareStatusView} />
           <DownloadPdfButton resumeId={resume.id} />
+          <DeleteResumeButton
+            resumeId={resume.id}
+            resumeName={resume.name}
+            isMaster={resume.isMaster}
+            variantCount={variantCount}
+            redirectOnDelete
+          />
         </div>
       </header>
 
