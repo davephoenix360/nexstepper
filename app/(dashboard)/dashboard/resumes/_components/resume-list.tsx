@@ -234,7 +234,17 @@ function VariantRow({
           <p className="truncate text-sm font-medium">
             {variant.name || 'Untitled variant'}
           </p>
-          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          {/*
+            The meta row below MUST be a <div>, not a <p>: the
+            <StatusBadge> renders a <div> (Badge's default element)
+            and HTML5 forbids block elements inside <p>. When the
+            browser parses the server HTML it auto-closes the <p>
+            before the inner <div>, which breaks the React tree
+            and triggers a hydration mismatch. The first <p> above
+            (the variant name) stays a real paragraph because it's
+            the visible text content; only the meta row gets a <div>.
+          */}
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
             <span>
               Updated{' '}
               <time dateTime={variant.updatedAt.toISOString()}>
@@ -242,7 +252,7 @@ function VariantRow({
               </time>
             </span>
             <StatusBadge status={status} />
-          </p>
+          </div>
         </div>
         {score !== null && <ScoreBadge score={score} />}
         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
