@@ -268,6 +268,19 @@ should ship in the meantime.**
   events fire only on actual plan transitions, not every webhook
   reconciliation (avoids double-counting on Stripe price-change
   replays).
+- **Soft-launch Pro gating** — shipped 2026-09-27, commits
+  `3d01397` + `72b871b` + `282faba` + `bdb3e6d`. Stripe live-mode
+  activation requires a deployed business website, so every
+  "Upgrade to Pro" CTA across the app was rewritten to a single
+  "Pro is launching soon — get notified" mailto waitlist pattern.
+  New shared component `components/billing/pro-launching-soon-cta.tsx`
+  exports both a `<ProLaunchingSoonBadge />` (for cards) and a
+  `<ProLaunchingSoonBanner />` (top-of-dashboard for Free users).
+  Dashboard layout split into a server-side plan check + a
+  client-side shell. `UpgradeButton` moved to `.trash/` for soft
+  launch. Full restore plan in
+  `docs/drift/2026-09-27-soft-launch-pro-gating.md` — search
+  for that drift memo when you're ready to flip Pro back on.
 
 **Next (queued, priority order)**
 
