@@ -38,7 +38,18 @@ export function ResumePreview() {
         </div>
 
         {/* Real Classic template, rendered read-only against SAMPLE_RESUME */}
-        <div className="rounded-lg bg-background p-2 sm:p-4">
+        <div className="rounded-lg bg-background p-2 sm:p-4 text-left">
+          {/* `text-left` overrides the `text-center` inherited from the
+              hero container in `components/marketing/hero.tsx`. Without
+              it, the inherited alignment flows through the Classic
+              template (which doesn't set its own text-align) and
+              centers the summary, bullets, and section descriptions.
+              The canonical template is left-aligned by design — this
+              restores the true rendering so the preview matches what
+              users see in the editor. If we ever want the classic-style
+              centered header back, that needs an explicit `text-center`
+              on the <header> in classic-readonly.tsx (template-level
+              change, out of scope for a marketing-only override). */}
           <div className="overflow-hidden rounded-md">
             <ClassicReadOnly data={SAMPLE_RESUME} />
           </div>
