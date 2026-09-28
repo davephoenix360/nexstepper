@@ -13,10 +13,34 @@
  * transitions, so native is fine. If we add animated sheets later,
  * we can move this to Radix Dialog or build a Radix-backed Sheet.
  *
+ * ## Centering (Phase 1b fix)
+ *
+ * The native `<dialog>` UA stylesheet centers the element via
+ * `margin: auto` with `width: fit-content`. We override `m-0` to
+ * strip that auto-margin, AND we apply `position: fixed; inset: 0`
+ * so the dialog fills the viewport. Combined with
+ * `flex items-center justify-center`, the inner card is centered on
+ * BOTH axes regardless of content height. Without this the modal
+ * drifted to the top-left and got clipped at the viewport edge on
+ * tall content.
+ *
+ * ## Height cap (Phase 1b fix)
+ *
+ * The inner card uses `flex flex-col` with a `max-h-[calc(100dvh-3rem)]`
+ * wrapper, a sticky title header, and a `flex-1 min-h-0 overflow-y-auto`
+ * body. Long content scrolls inside the body instead of pushing the
+ * card past the screen edge. `100dvh` (dynamic viewport height) handles
+ * mobile browser chrome that resizes the viewport on scroll.
+ *
  * Usage:
  *   <Dialog open={open} onOpenChange={setOpen} title="Edit Skills">
  *     <SomeForm />
  *   </Dialog>
+ *
+ * Tip for tall inputs: pair with `<Textarea className="max-h-[60vh]
+ * overflow-y-auto">` so the textarea — not the card — owns the
+ * scroll. See `create-variant-from-jd-button.tsx` for the worked
+ * example.
  */
 
 import * as React from 'react';
@@ -83,19 +107,31 @@ export function Dialog({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       className={cn(
-        // Reset user-agent stylesheet, then dress up. We render the
-        // backdrop via @media (max-width: 0) trick? No — <dialog>'s
-        // built-in ::backdrop works in modern browsers.
-        'm-0 p-0 bg-transparent',
+        // Reset the UA stylesheet and pin the dialog to the viewport.
+        // `fixed inset-0` is what makes the flex centering below work
+        // on both axes — without it the dialog sits at top-left and
+        // gets clipped on tall content (Phase 1b regression).
+        'fixed inset-0 z-50 m-0 bg-transparent',
         'backdrop:bg-zinc-900/40 backdrop:backdrop-blur-sm',
-        // Center + slot for inner card. Tailwind's `open:` lets us
-        // animate the dialog in (browser support varies).
-        'open:flex open:items-start open:justify-center open:min-h-screen open:overflow-y-auto open:py-12 open:px-4'
+        // `open:flex` keeps the dialog hidden when closed (UA's
+        // display: none has lower specificity than author CSS, so we
+        // MUST gate `display: flex` on the [open] attribute).
+        'open:flex open:items-center open:justify-center',
+        // The dialog itself is the scroll container for the rare
+        // case where even the capped card is too tall for the
+        // viewport (small phone landscape, etc.). Padding reserves
+        // breathing room from the viewport edges.
+        'open:overflow-y-auto open:p-4 sm:open:p-6 md:open:p-8'
       )}
     >
       <div
         className={cn(
-          'relative w-full rounded-xl border bg-background p-6 shadow-xl',
+          // `relative` keeps the absolute close button anchored.
+          // `w-full` lets the card stretch up to `max-w-*`.
+          // `flex flex-col` + `max-h` keeps the card bounded and
+          // gives us a header/body layout.
+          'relative flex w-full flex-col overflow-hidden rounded-xl border bg-background shadow-xl',
+          'max-h-[calc(100dvh-3rem)]',
           widthClassName
         )}
         // Stop propagation so clicks inside the card don't bubble up
@@ -106,21 +142,39 @@ export function Dialog({
           type="button"
           onClick={() => onOpenChange(false)}
           aria-label={closeLabel}
-          className="no-print absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
+          className="no-print absolute right-3 top-3 z-10 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
         >
           <X className="size-4" />
         </button>
         {title && (
-          <h2 id="dialog-title" className="mb-1 pr-8 text-base font-semibold tracking-tight">
+          <h2
+            id="dialog-title"
+            className="shrink-0 border-b px-6 pb-3 pt-5 pr-12 text-base font-semibold tracking-tight"
+          >
             {title}
           </h2>
         )}
-        {description && (
-          <p id="dialog-description" className="mb-4 text-sm text-muted-foreground">
-            {description}
-          </p>
-        )}
-        {children}
+        <div
+          className={cn(
+            // `flex-1 min-h-0` lets this div grow to fill the card
+            // and shrink below its content height, which activates
+            // the `overflow-y-auto` scroll when content is taller
+            // than the card. Without `min-h-0`, flex children default
+            // to `min-height: auto` and refuse to shrink.
+            'min-h-0 flex-1 overflow-y-auto px-6 py-4',
+            title ? '' : 'pt-6'
+          )}
+        >
+          {description && (
+            <p
+              id="dialog-description"
+              className="mb-4 text-sm text-muted-foreground"
+            >
+              {description}
+            </p>
+          )}
+          {children}
+        </div>
       </div>
     </dialog>
   );

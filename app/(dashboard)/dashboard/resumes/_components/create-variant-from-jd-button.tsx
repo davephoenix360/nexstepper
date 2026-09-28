@@ -116,7 +116,15 @@ export function CreateVariantFromJdButton({
               required
               minLength={50}
               maxLength={20_000}
-              className="font-mono text-xs"
+              // Cap height at 50vh + internal scroll so a giant JD
+              // can't push the modal past the viewport. The base
+              // `<Textarea>` uses `field-sizing-content` (auto-grows
+              // with content) which is fine inline but wrong inside
+              // a modal — `max-h` + `overflow-y-auto` overrides
+              // that, keeping the textarea scrollable in place
+              // while the Cancel / Create-variant buttons stay
+              // visible below.
+              className="max-h-[50vh] min-h-0 overflow-y-auto font-mono text-xs"
               data-testid={`jd-input-${masterId}`}
             />
             <p className="text-xs text-muted-foreground">
