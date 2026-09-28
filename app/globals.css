@@ -404,3 +404,23 @@
   animation: pulse-accent 1.5s ease-out 0s 2;
   border-radius: 6px;
 }
+
+/*
+  Native <details>/<summary> disclosure widget (Phase 1d — collapsible
+  sections). The native disclosure triangle is browser-default and
+  differs across platforms (Chromium, Firefox, Safari each ship their
+  own marker). We hide it and render our own ChevronDown icon inside
+  the <summary>, with a `group-open:rotate-180` Tailwind utility that
+  flips it 180° when the details is in the open state.
+
+  See:
+    - app/(dashboard)/dashboard/resumes/page.tsx (Create card collapse)
+    - app/(dashboard)/dashboard/resumes/_components/resume-list.tsx
+      (per-master variant list collapse)
+*/
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}

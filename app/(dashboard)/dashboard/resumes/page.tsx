@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react';
+import { ChevronDown, FileText, Plus } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -10,11 +10,15 @@ import { ResumeList } from './_components/resume-list';
  * Resume list page — variant-first UX (plan: docs/plans/variant-first-ux.md).
  *
  *   - Masters render as compact library cards. Variants render as
- *     rows nested under their master, linking to the variant editor.
- *   - The "Create a master" affordance lives at the top of the page,
- *     not inside the list. Variant creation is per-master.
- *   - No redirect on unauthed visitors — matches the dashboard home's
- *     pattern of rendering an empty state.
+ *     rows nested under each master, with a per-master collapse
+ *     toggle (Phase 1d, plan: docs/plans/collapsible-sections.md).
+ *   - The "Create a master" affordance is itself collapsible — open
+ *     by default on the empty-state dashboard so the first resume
+ *     can be created without an extra click; closed by default on a
+ *     populated dashboard so the page reads as a library with a
+ *     "+ Create" button at the top.
+ *   - Both collapses use native `<details>` so they're keyboard
+ *     accessible, screen-reader friendly, and zero-JS.
  *
  * Server Component: `listResumes()` (lib/db/queries.ts) returns the
  * already-grouped master→variant tree in one round trip. We never
@@ -23,21 +27,61 @@ import { ResumeList } from './_components/resume-list';
 export default async function ResumesPage() {
   const user = await getUser();
   const families = user ? await listResumes(user.id) : [];
+  const isEmpty = families.length === 0;
 
   return (
     <section className="flex-1 p-4 lg:p-8 space-y-6">
       <header>
         <h1 className="text-lg lg:text-2xl font-medium">Resumes</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {families.length === 0
+          {isEmpty
             ? 'Build a master, then tailor variants for specific roles.'
             : 'Your masters are the source of truth. Variants branch off each one for specific roles.'}
         </p>
       </header>
 
-      <CreateMasterResumeForm />
+      {/*
+        Phase 1d — collapsible create card.
 
-      {families.length === 0 ? (
+        Default state:
+          - Empty dashboard: open. First-time users see the form
+            immediately.
+          - Populated dashboard: closed. The page reads as a library
+            with a single "+ Create" button affordance.
+
+        The summary is a button-styled element (Plus icon + title +
+        chevron) sitting inside a Card-shaped border. When closed the
+        user only sees that summary row; when open the form fills the
+        card below it. Native <details> handles all keyboard / ARIA
+        state for us.
+      */}
+      <details
+        open={isEmpty}
+        className="group rounded-xl border bg-card shadow-sm"
+        data-testid="create-master-collapse"
+      >
+        <summary
+          className="flex w-full cursor-pointer select-none items-center justify-between gap-3 rounded-xl px-5 py-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          data-testid="create-master-toggle"
+        >
+          <span className="flex items-center gap-3 text-sm font-medium">
+            <Plus
+              aria-hidden
+              className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-45"
+            />
+            Create a master resume
+          </span>
+          <ChevronDown
+            aria-hidden
+            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="border-t px-5 py-4">
+          <CreateMasterResumeForm />
+        </div>
+      </details>
+
+      {isEmpty ? (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
             <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />

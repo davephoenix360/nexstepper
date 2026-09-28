@@ -233,4 +233,60 @@ describe('ResumeList', () => {
     ]);
     expect(html).not.toContain('variant-score-badge');
   });
+
+  /*
+   * Phase 1d — collapsible variant list.
+   *   - When a master has ≥1 variant, the markup must contain a
+   *     <details> wrapping the variant <ul>, with a <summary> that
+   *     carries the variant count. The element ships with `open` so
+   *     users see their variants by default.
+   *   - When a master has 0 variants, no <details> is rendered (no
+   *     point in a toggle for an empty list); the header still
+   *     shows "No variants yet".
+   */
+  it('wraps the variant list in a <details open> summary row when populated', () => {
+    const html = render([
+      {
+        master: makeResume({
+          id: 'master-1',
+          name: 'Master',
+          isMaster: true
+        }),
+        variants: [
+          makeResume({ id: 'v1', parentResumeId: 'master-1' }),
+          makeResume({ id: 'v2', parentResumeId: 'master-1' })
+        ],
+        variantScores: {}
+      }
+    ]);
+
+    // The <details> wrapper is present and renders the open attribute.
+    expect(html).toMatch(
+      /<details[^>]*\bopen\b[^>]*data-testid="variants-collapse-master-1"/
+    );
+    // The toggle row carries the variant count + chevron.
+    expect(html).toContain('data-testid="variants-toggle-master-1"');
+    expect(html).toContain('data-testid="variant-count-master-1"');
+  });
+
+  it('does not render a <details> wrapper when the master has no variants', () => {
+    const html = render([
+      {
+        master: makeResume({
+          id: 'master-empty',
+          name: 'Empty Master',
+          isMaster: true
+        }),
+        variants: [],
+        variantScores: {}
+      }
+    ]);
+
+    expect(html).not.toContain('variants-collapse-master-empty');
+    expect(html).not.toContain('variants-toggle-master-empty');
+    // The "No variants yet" hint still lives in the header for the
+    // empty case (we keep it there so the meta row doesn't collapse
+    // to just the timestamp + template badge).
+    expect(html).toContain('No variants yet');
+  });
 });

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, GitBranch, Library } from 'lucide-react';
+import { ArrowRight, ChevronDown, GitBranch, Library } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -167,12 +167,12 @@ function MasterCard({
                   {formatRelativeDate(master.updatedAt)}
                 </time>
               </span>
-              <span aria-hidden>•</span>
-              <span data-testid={`variant-count-${master.id}`}>
-                {variantCount === 0
-                  ? 'No variants yet'
-                  : `${variantCount} variant${variantCount === 1 ? '' : 's'}`}
-              </span>
+              {variantCount > 0 && <span aria-hidden>•</span>}
+              {variantCount === 0 && (
+                <span data-testid={`variant-count-${master.id}`}>
+                  No variants yet
+                </span>
+              )}
               <TemplateBadge template={master.template} />
             </div>
           </div>
@@ -183,19 +183,62 @@ function MasterCard({
 
       {variantCount > 0 && (
         <CardContent className="p-0">
-          <ul
-            className="divide-y"
-            aria-label={`Variants of ${master.name}`}
+          {/*
+            Phase 1d — variant collapse. We wrap the variant <ul> in a
+            <details> element so the user can collapse / expand the
+            list with one click. Native <details> gives us keyboard
+            accessibility (Tab to focus, Space/Enter to toggle) and
+            ARIA state ("disclosure, expanded / collapsed") for free,
+            and the `open` attribute is server-rendered so there's no
+            hydration concern.
+
+            The custom summary row replaces the old variant-count
+            <span> from the header — it's the affordance AND the
+            count in one place. The ChevronDown icon flips 180° via
+            `group-open:rotate-180` when the details is open. The
+            default state is `open` so users see their variants
+            without an extra click; users with many variants collapse
+            the list to scan the master library faster.
+          */}
+          <details
+            open
+            className="group border-t"
+            data-testid={`variants-collapse-${master.id}`}
           >
-            {variants.map((variant) => (
-              <VariantRow
-                key={variant.id}
-                variant={variant}
-                score={variantScores[variant.id] ?? null}
-                renderLink={LinkEl}
+            <summary
+              className={cn(
+                'flex w-full cursor-pointer select-none items-center justify-between gap-2',
+                'px-5 py-2 text-xs font-medium text-muted-foreground',
+                'hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+              )}
+              data-testid={`variants-toggle-${master.id}`}
+            >
+              <span
+                data-testid={`variant-count-${master.id}`}
+                className="flex items-center gap-1.5"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                {variantCount} variant{variantCount === 1 ? '' : 's'}
+              </span>
+              <ChevronDown
+                aria-hidden
+                className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
               />
-            ))}
-          </ul>
+            </summary>
+            <ul
+              className="divide-y"
+              aria-label={`Variants of ${master.name}`}
+            >
+              {variants.map((variant) => (
+                <VariantRow
+                  key={variant.id}
+                  variant={variant}
+                  score={variantScores[variant.id] ?? null}
+                  renderLink={LinkEl}
+                />
+              ))}
+            </ul>
+          </details>
         </CardContent>
       )}
     </Card>
