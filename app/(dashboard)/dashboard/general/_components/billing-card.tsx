@@ -25,8 +25,8 @@ import {
 } from '@/lib/billing';
 import type { BillingCardProps } from '@/lib/billing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ProLaunchingSoonBadge } from '@/components/billing/pro-launching-soon-cta';
 import { ManageBillingButton } from './manage-billing-button';
-import { UpgradeButton } from './upgrade-button';
 
 export async function BillingCard() {
   const sub = await getSubscription();
@@ -95,9 +95,16 @@ export function BillingCardView(
 
         <div className="mt-6 flex flex-wrap gap-3">
           {pro ? (
+            // Beta-pro or grandfathered users (e.g. self-promotion in
+            // dev) still see the manage-billing button so they can
+            // reach the Stripe Customer Portal. New sign-ups land on
+            // Free + the badge below until Pro goes live.
             <ManageBillingButton />
           ) : (
-            <UpgradeButton />
+            // Soft launch: Pro is wired but not sold. Replace the
+            // dead "Upgrade to Pro" CTA with a waitlist mailto so
+            // Free users have a path forward.
+            <ProLaunchingSoonBadge />
           )}
         </div>
       </CardContent>

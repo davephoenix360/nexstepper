@@ -21,7 +21,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { BillingCardView } from '@/app/(dashboard)/dashboard/general/_components/billing-card';
 
 describe('BillingCardView', () => {
-  it('renders plan name + status for Free users and shows Upgrade button', () => {
+  it('renders plan name + status for Free users and shows Pro-launching-soon CTA', () => {
+    // Soft launch: Free users see the waitlist badge, not a live
+    // Upgrade button. When Pro goes live, this test should flip
+    // back to asserting `data-testid="upgrade-button"`.
     const html = renderToStaticMarkup(
       <BillingCardView
         plan="free"
@@ -33,7 +36,7 @@ describe('BillingCardView', () => {
 
     expect(html).toContain('Free');
     expect(html).toContain('Inactive');
-    expect(html).toContain('data-testid="upgrade-button"');
+    expect(html).toContain('data-testid="pro-launching-soon-badge"');
     expect(html).not.toContain('data-testid="manage-billing-button"');
   });
 
@@ -85,10 +88,10 @@ describe('BillingCardView', () => {
     expect(html).not.toContain('Renews on');
   });
 
-  it('shows Upgrade for Pro users in canceled state (no longer Pro-effective)', () => {
+  it('shows Pro-launching-soon CTA for Pro users in canceled state (no longer Pro-effective)', () => {
     // Edge case: user upgraded to Pro, then canceled. Status moves to
     // 'canceled'. Even though plan is 'pro', isProEffective is false,
-    // so we render the Upgrade CTA, not Manage billing.
+    // so we render the waitlist CTA, not Manage billing.
     const html = renderToStaticMarkup(
       <BillingCardView
         plan="pro"
@@ -98,7 +101,7 @@ describe('BillingCardView', () => {
       />
     );
 
-    expect(html).toContain('data-testid="upgrade-button"');
+    expect(html).toContain('data-testid="pro-launching-soon-badge"');
     expect(html).not.toContain('data-testid="manage-billing-button"');
     expect(html).toContain('Canceled');
   });
