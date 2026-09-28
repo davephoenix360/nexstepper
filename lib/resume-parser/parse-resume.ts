@@ -85,12 +85,23 @@ export async function parseResumeText(
   }
 
   try {
-    // 90s cap per model in the chain. The fallback function tries
-    // each model in order, so total wall time could be up to
-    // N * 90s in the worst case (all models timing out). For our
-    // 2-3 model chain, that's 180-270s ceiling — well within
-    // reasonable UX for a parse that we're confident will succeed
-    // on at least one of the models.
+    // Hard cap on the WHOLE AI fallback chain. The per-model 90s
+    // timeout inside `generateObjectWithFallbacks` handles a single
+    // hung model; this 180s cap handles the "every model is slow"
+    // case (e.g. provider-wide latency spike) where every model in
+    // the chain burns its full 90s before falling through. Without
+    // this, a slow-everywhere scenario could run 360s+ (4 models ×
+    // 90s) and exhaust the Server Action's Vercel maxDuration
+    // budget, returning 499 to the client.
+    //
+    // 180s is chosen because:
+    //   - Observed happy-path latency is 57-153s (Sep 28 prod audit)
+    //   - It's well under the 300s outer maxDuration set on the
+    //     resumes page (see `app/(dashboard)/dashboard/resumes/page.tsx`)
+    //   - It gives the user a clear "this took too long, please
+    //     try again" error rather than a silent timeout
+    const globalTimeout = AbortSignal.timeout(180_000);
+
     const result = await generateObjectWithFallbacks<ResumeSections>({
       models: [PARSER_MODEL, ...PARSE_FALLBACKS],
       system: PARSER_SYSTEM_PROMPT,
@@ -105,7 +116,7 @@ export async function parseResumeText(
       //     to keys the model omitted or set to `null`.
       schema: resumeSectionsSchema,
       temperature: 0,
-      abortSignal: AbortSignal.timeout(90_000)
+      abortSignal: globalTimeout
     });
 
     return {

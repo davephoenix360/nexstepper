@@ -3,10 +3,14 @@
 import { useState, useTransition, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  AlertCircle,
+  Check,
+  ChevronDown,
   FileText,
   Loader2,
   PaperclipIcon,
   Plus,
+  RefreshCw,
   Sparkles,
   Upload,
   X
@@ -33,13 +37,20 @@ const ACCEPT = '.pdf,.docx,.txt,text/plain,application/pdf,application/vnd.openx
  *
  *   1. "Start from scratch" — just a name; the editor opens blank.
  *   2. "Import from file" — name + a PDF / DOCX / plain-text file (or
- *      pasted text). Server Action extracts the text, calls Anthropic
- *      Claude to parse into the ResumeSections shape, and creates the
- *      master with the parsed data already in the first revision.
+ *      pasted text). Server Action extracts the text, calls the AI
+ *      Gateway (Mistral Nemo primary, with fallbacks) to parse into
+ *      the ResumeSections shape, and creates the master with the
+ *      parsed data already in the first revision.
  *
- * Slice 2 (editor) will swap the redirect target to
- * `/dashboard/resumes/${result.data.id}/edit`. Today both modes redirect
- * to the editor view, which is the same target.
+ * Phase 1e — UX hardening after the Sep 28 latency audit:
+ *   - Pre-submit ETA hint ("this usually takes 30-60s").
+ *   - Step indicator while pending (Reading → Analyzing → Saving).
+ *   - Error card with AlertCircle + friendly text + Try again button
+ *     + "What happened?" disclosure for the raw technical detail.
+ *   - Page-level maxDuration = 300s on the Server Action so Vercel
+ *     doesn't kill it at the default 10/15s.
+ *
+ * Plan: docs/plans/import-ux-and-timeouts.md
  */
 export function CreateMasterResumeForm() {
   const router = useRouter();
@@ -47,7 +58,10 @@ export function CreateMasterResumeForm() {
   const [mode, setMode] = useState<Mode>('scratch');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<ImportResumeErrorCode | null>(null);
+  const [technical, setTechnical] = useState<string | null>(null);
   const [stage, setStage] = useState<ImportStage>('idle');
+  const importFormRef = useRef<HTMLFormElement>(null);
 
   // Import-mode state
   const [pasteMode, setPasteMode] = useState<PasteMode>('file');
@@ -58,17 +72,24 @@ export function CreateMasterResumeForm() {
   // Reset state when the user switches modes.
   useEffect(() => {
     setError(null);
+    setErrorCode(null);
+    setTechnical(null);
     setStage('idle');
     if (mode === 'scratch') {
       setFile(null);
       setPastedText('');
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+    // Always clear the underlying <input type="file"> value so the
+    // user can re-pick the same file after toggling modes (the input
+    // element doesn't fire onChange when the value is unchanged).
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }, [mode]);
 
   function handleScratchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setErrorCode(null);
+    setTechnical(null);
 
     const trimmed = name.trim();
     if (!trimmed) {
@@ -89,9 +110,11 @@ export function CreateMasterResumeForm() {
     });
   }
 
-  function handleImportSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function handleImportSubmit(e?: React.FormEvent<HTMLFormElement>) {
+    e?.preventDefault();
     setError(null);
+    setErrorCode(null);
+    setTechnical(null);
 
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -126,9 +149,11 @@ export function CreateMasterResumeForm() {
       payload = new File([text], `${trimmedName}.txt`, { type: 'text/plain' });
     }
 
-    // Honest staged feedback. The file-read stage runs locally; the
-    // rest is server-side (extract + AI parse) and we can only show a
-    // single label for it because Server Actions don't stream progress.
+    // Two honest staged steps visible to the user (file-read runs
+    // locally, the rest is a single server-side hop because Server
+    // Actions don't stream progress). "Saving" stage is reserved for
+    // the future post-AI DB write step; today stages are reading →
+    // parsing → done.
     setStage('reading');
     startTransition(async () => {
       // Tiny client-side tick so the "Reading file" label paints
@@ -145,7 +170,13 @@ export function CreateMasterResumeForm() {
 
       if (!result.ok) {
         setStage('idle');
-        setError(formatImportError(result.code, result.error));
+        setErrorCode(result.code);
+        // For ai_failure, the action now returns a clean message;
+        // `result.technical` carries the raw SDK string for the
+        // "What happened?" disclosure. For other codes, the technical
+        // detail is the same as the user-facing message.
+        setError(result.error);
+        setTechnical(result.technical ?? null);
         return;
       }
 
@@ -153,6 +184,20 @@ export function CreateMasterResumeForm() {
       router.push(`/dashboard/resumes/${result.data.id}`);
       router.refresh();
     });
+  }
+
+  /**
+   * Try-again handler for the error card. We re-trigger the existing
+   * form submit (via `formRef.current?.requestSubmit()`) so the same
+   * validation + state-clearing logic runs; we don't have to
+   * duplicate handleImportSubmit's payload-resolution code here.
+   */
+  function handleRetry() {
+    setError(null);
+    setErrorCode(null);
+    setTechnical(null);
+    setStage('idle');
+    importFormRef.current?.requestSubmit();
   }
 
   return (
@@ -195,7 +240,11 @@ export function CreateMasterResumeForm() {
             </Button>
           </form>
         ) : (
-          <form onSubmit={handleImportSubmit} className="space-y-3">
+          <form
+            ref={importFormRef}
+            onSubmit={handleImportSubmit}
+            className="space-y-3"
+          >
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="resume-name-import">Resume name</Label>
               <Input
@@ -219,23 +268,44 @@ export function CreateMasterResumeForm() {
               fileInputRef={fileInputRef}
               onPickFile={(f) => {
                 setError(null);
+                setErrorCode(null);
+                setTechnical(null);
                 setFile(f);
               }}
-              onClearFile={() => {
-                setFile(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
+              onClearFile={() => setFile(null)}
               onPasteText={(t) => {
                 setError(null);
+                setErrorCode(null);
+                setTechnical(null);
                 setPastedText(t);
               }}
               onSwitchInput={(m) => {
                 setError(null);
+                setErrorCode(null);
+                setTechnical(null);
                 setPasteMode(m);
               }}
             />
 
             <PrivacyDisclosure />
+
+            {/*
+              Pre-submit ETA hint. We render this BEFORE the submit
+              button so the user sees it once when they land on the
+              Import tab and isn't surprised by a 60-90s spinner.
+              Once the action starts, the step indicator takes over
+              the "how's it going?" role.
+            */}
+            <p
+              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+              data-testid="import-eta-hint"
+            >
+              <Loader2 className="h-3 w-3 shrink-0 opacity-0" aria-hidden />
+              <span>
+                This usually takes 30–90 seconds — your file is processed
+                server-side, not in your browser.
+              </span>
+            </p>
 
             <Button
               type="submit"
@@ -254,18 +324,187 @@ export function CreateMasterResumeForm() {
                 </>
               )}
             </Button>
+
+            {pending && <ImportStepIndicator stage={stage} />}
           </form>
         )}
 
         {error && (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
+          <ImportErrorCard
+            code={errorCode}
+            message={error}
+            technical={technical}
+            onRetry={handleRetry}
+          />
         )}
       </CardContent>
     </Card>
   );
 }
+
+// ─── Import error card ─────────────────────────────────────────────────────
+
+/**
+ * Renders a user-facing error after an import failure. Shows a friendly
+ * headline + body, a Try again button that re-submits the form without
+ * requiring the user to re-pick the file, and an optional "What
+ * happened?" disclosure for the raw SDK error string (useful for
+ * support requests + keeps dev-facing info out of the main message).
+ *
+ * Plan: docs/plans/import-ux-and-timeouts.md §"User-visible behavior"
+ */
+function ImportErrorCard({
+  message,
+  technical,
+  onRetry
+}: {
+  code: ImportResumeErrorCode | null;
+  message: string;
+  technical: string | null;
+  onRetry: () => void;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  return (
+    <div
+      role="alert"
+      data-testid="import-error-card"
+      className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3"
+    >
+      <div className="flex items-start gap-3">
+        <AlertCircle
+          aria-hidden
+          className="h-5 w-5 shrink-0 text-destructive"
+        />
+        <div className="flex-1 space-y-1">
+          <p className="text-sm font-medium text-destructive">
+            We couldn\u2019t import your resume
+          </p>
+          <p className="text-sm text-foreground/80">{message}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 pl-8">
+        <Button
+          type="button"
+          size="sm"
+          variant="default"
+          onClick={onRetry}
+          data-testid="import-error-retry"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Try again
+        </Button>
+        {technical && technical !== message && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowDetails((v) => !v)}
+            aria-expanded={showDetails}
+            aria-controls="import-error-details"
+            data-testid="import-error-details-toggle"
+          >
+            What happened?
+            <ChevronDown
+              aria-hidden
+              className={cn(
+                'h-3.5 w-3.5 transition-transform',
+                showDetails && 'rotate-180'
+              )}
+            />
+          </Button>
+        )}
+      </div>
+
+      {technical && technical !== message && showDetails && (
+        <pre
+          id="import-error-details"
+          data-testid="import-error-details"
+          className="overflow-x-auto whitespace-pre-wrap rounded border border-destructive/20 bg-background/50 p-2 pl-8 text-xs text-muted-foreground"
+        >
+          {technical}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+// ─── Import step indicator ─────────────────────────────────────────────────
+
+/**
+ * Three-step progress indicator rendered below the submit button while
+ * the import is in flight. Each step lights up as the action advances;
+ * completed steps get a checkmark. The user gets a visible sense of
+ * progress instead of staring at a single spinner for 60-90s, which
+ * is what was driving the 499 abandonment in the Sep 28 audit.
+ *
+ * Plan: docs/plans/import-ux-and-timeouts.md
+ */
+function ImportStepIndicator({ stage }: { stage: ImportStage }) {
+  const steps: { id: ImportStage; label: string }[] = [
+    { id: 'reading', label: 'Reading file' },
+    { id: 'parsing', label: 'Analyzing with AI' },
+    { id: 'saving', label: 'Saving' }
+  ];
+
+  const currentIndex = STAGE_ORDER[stage];
+  // `parsing` is the only "active" stage the form currently sets —
+  // treat it as step 2. If we ever add an explicit "saving" stage in
+  // the future, this mapping just works.
+  const effectiveIndex = stage === 'parsing' ? 1 : currentIndex;
+
+  return (
+    <ol
+      className="flex items-center gap-3 text-xs"
+      aria-label="Import progress"
+      data-testid="import-step-indicator"
+    >
+      {steps.map((s, idx) => {
+        const done = idx < effectiveIndex;
+        const active = idx === effectiveIndex;
+        return (
+          <li
+            key={s.id}
+            className={cn(
+              'flex items-center gap-1.5',
+              done && 'text-muted-foreground',
+              active && 'text-foreground font-medium',
+              !done && !active && 'text-muted-foreground/50'
+            )}
+            data-state={active ? 'active' : done ? 'done' : 'pending'}
+          >
+            <span
+              className={cn(
+                'flex h-4 w-4 items-center justify-center rounded-full border',
+                done && 'border-primary/40 bg-primary/10 text-primary',
+                active && 'border-primary bg-primary text-primary-foreground',
+                !done && !active && 'border-muted-foreground/30'
+              )}
+            >
+              {done ? (
+                <Check className="h-2.5 w-2.5" strokeWidth={3} />
+              ) : active ? (
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              ) : (
+                <span className="h-1 w-1 rounded-full bg-current" />
+              )}
+            </span>
+            {s.label}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+const STAGE_ORDER: Record<ImportStage, number> = {
+  idle: -1,
+  reading: 0,
+  parsing: 1,
+  saving: 2,
+  done: 3
+};
 
 // ─── Import input (file OR paste) ──────────────────────────────────────────
 
@@ -396,7 +635,7 @@ function ImportInput({
 function PrivacyDisclosure() {
   return (
     <p className="text-xs text-muted-foreground">
-      We send the file text to Anthropic Claude to extract structured data.
+      We send the file text to the AI to extract structured data.
       The original file is held in memory for this request only — it is not
       stored on our servers.
     </p>
@@ -405,7 +644,7 @@ function PrivacyDisclosure() {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-type ImportStage = 'idle' | 'reading' | 'parsing' | 'done';
+type ImportStage = 'idle' | 'reading' | 'parsing' | 'saving' | 'done';
 
 function stageLabel(stage: ImportStage): string {
   switch (stage) {
@@ -414,47 +653,10 @@ function stageLabel(stage: ImportStage): string {
     case 'reading':
       return 'Reading file...';
     case 'parsing':
-      return 'Extracting & analyzing with AI...';
+      return 'Analyzing with AI...';
+    case 'saving':
+      return 'Saving...';
     case 'done':
       return 'Done!';
-  }
-}
-
-/**
- * Map a discriminated-union error code to a user-friendly message.
- * The action's `error` is included for context (esp. for ai_failure
- * where the SDK message is useful in logs); the code drives the
- * user-facing phrasing.
- */
-function formatImportError(code: ImportResumeErrorCode, detail: string): string {
-  switch (code) {
-    case 'not_signed_in':
-      return 'You need to sign in to import a resume.';
-    case 'no_name':
-      return detail;
-    case 'no_file':
-      return 'Attach a PDF, DOCX, or text file to import.';
-    case 'file_too_large':
-      return detail;
-    case 'unsupported_type':
-      return detail;
-    case 'empty_file':
-      return 'That file is empty.';
-    case 'pdf_parse_failed':
-      return "We couldn't read that PDF. If it's a scanned image, try the text-paste option instead.";
-    case 'docx_parse_failed':
-      return "We couldn't read that DOCX. Try saving as PDF or pasting the text.";
-    case 'text_too_short':
-      return 'The file did not contain enough readable text. If it is a scanned image or password-protected, paste the text instead.';
-    case 'no_api_key':
-      return 'Resume import needs a Vercel AI Gateway key. Set AI_GATEWAY_API_KEY in your environment to enable this feature. Get a free key at vercel.com/dashboard → AI Gateway.';
-    case 'ai_failure':
-      return `The AI could not parse this resume. ${detail}`;
-    case 'validation_failed':
-      return 'The AI returned data that did not match the expected resume shape. Please try again or paste the text instead.';
-    case 'resume_too_short':
-      return detail;
-    case 'db_failure':
-      return 'We could not save the imported resume. Please try again in a moment.';
   }
 }

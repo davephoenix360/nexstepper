@@ -7,6 +7,26 @@ import { CreateMasterResumeForm } from './_components/create-master-form';
 import { ResumeList } from './_components/resume-list';
 
 /**
+ * Server Action timeout budget.
+ *
+ * The import-resume flow (CreateMasterResumeForm's Import tab) makes an
+ * AI Gateway call that, in real production traffic, takes 60-150s with
+ * the current `mistral/mistral-nemo` primary. Vercel's project default
+ * `maxDuration` falls back to whatever the dashboard has set — easy to
+ * land at 10s/15s if Fluid Compute wasn't enabled, which silently
+ * kills every long import and returns 499 to the client.
+ *
+ * Setting `maxDuration: 300` explicitly on the page bumps the
+ * Server Action budget for this route to 5 minutes, matching Vercel
+ * Pro + Fluid Compute's default. The AI fallback chain has its own
+ * inner cap (180s, set in `parseResumeText`) so we never actually
+ * hit this outer limit on a happy-path import.
+ *
+ * Plan: docs/plans/import-ux-and-timeouts.md.
+ */
+export const maxDuration = 300;
+
+/**
  * Resume list page — variant-first UX (plan: docs/plans/variant-first-ux.md).
  *
  *   - Masters render as compact library cards. Variants render as

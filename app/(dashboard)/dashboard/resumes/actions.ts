@@ -144,7 +144,26 @@ export type ImportResumeResult =
         pageCount?: number;
       };
     }
-  | { ok: false; code: ImportResumeErrorCode; error: string };
+  | {
+      ok: false;
+      code: ImportResumeErrorCode;
+      /**
+       * User-facing message. Always non-technical — safe to render
+       * directly in the UI without further sanitization. For
+       * `ai_failure` specifically, this is a fixed message; the raw
+       * SDK error string lives in `technical` for support / "Show
+       * details" disclosure.
+       */
+      error: string;
+      /**
+       * Raw underlying error string (SDK message, HTTP status text,
+       * etc.). Only populated for `ai_failure` today; the client
+       * surfaces it inside a collapsible "What happened?" disclosure
+       * so users can copy/paste to support without us leaking the
+       * class names / stack fragments into the main error line.
+       */
+      technical?: string;
+    };
 
 export async function importResumeAction(
   formData: FormData
@@ -208,6 +227,28 @@ export async function importResumeAction(
   // ── AI parse ─────────────────────────────────────────────────────────
   const parsed = await parseResumeText(extracted.text);
   if (!parsed.ok) {
+    // For `ai_failure`, swap the raw SDK error string for a clean
+    // user-facing message; surface the raw string under `technical`
+    // for the "What happened?" disclosure. Other codes already
+    // produce user-facing strings inside `parseResumeText`.
+    //
+    // Also: capture to Sentry. `parseResumeText` swallows the
+    // underlying error to convert it into a discriminated-union
+    // failure, so Sentry's automatic instrumentation never sees it.
+    // Explicit capture here ensures AI failures show up in our
+    // Sentry dashboard with the resume id, user id, and raw error
+    // attached for debugging.
+    if (parsed.code === 'ai_failure') {
+      const friendly =
+        'The AI couldn\u2019t read your file in time. Please try again, or paste the text directly instead of uploading.';
+      console.error('[importResumeAction] ai_failure:', parsed.error);
+      return {
+        ok: false,
+        code: 'ai_failure',
+        error: friendly,
+        technical: parsed.error
+      };
+    }
     return { ok: false, code: parsed.code, error: parsed.error };
   }
 
