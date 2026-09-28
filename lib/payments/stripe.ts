@@ -12,11 +12,56 @@ import {
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // SDK 22.x requires the dahlia API version — basil was dropped.
-  // Brief: docs/setup/stripe.md §"Managed Payments gotcha" still applies
-  // (do NOT pass `payment_method_types`; Stripe auto-selects).
-  apiVersion: '2026-08-26.dahlia'
+/**
+ * Lazy Stripe client — defers SDK instantiation to first use so the
+ * Next.js build (page-data collection) doesn't require STRIPE_SECRET_KEY
+ * to merely import this module. Same pattern as `lib/email/resend.ts`,
+ * which returns `null` if no key — but we throw on first use here
+ * because any code path that runs the SDK without a configured
+ * account is always a bug (vs. "we'd like to send but can't").
+ *
+ * Tests using `vi.mock('@/lib/payments/stripe', ...)` are unaffected:
+ * vitest replaces the entire module export, so the Proxy never even
+ * gets evaluated.
+ */
+let _stripeClient: Stripe | null = null;
+
+function getStripeClient(): Stripe {
+  if (_stripeClient) return _stripeClient;
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error(
+      'STRIPE_SECRET_KEY is not set. Stripe integration requires a ' +
+        'configured Stripe account. Add the key to Infisical ' +
+        'Production (or your local .env.local) and redeploy. See ' +
+        'docs/setup/stripe.md §"Setup" for environment-by-environment ' +
+        'instructions.'
+    );
+  }
+  _stripeClient = new Stripe(key, {
+    // SDK 22.x requires the dahlia API version — basil was dropped.
+    // Brief: docs/setup/stripe.md §"Managed Payments gotcha" still
+    // applies (do NOT pass `payment_method_types`; Stripe auto-selects).
+    apiVersion: '2026-08-26.dahlia'
+  });
+  return _stripeClient;
+}
+
+/**
+ * `stripe` — the lazy proxy exposing the Stripe SDK surface. All
+ * existing callsites (`stripe.checkout.sessions.create(...)`,
+ * `stripe.customers.del(...)`, etc.) keep working unchanged because
+ * the Proxy delegates every property access to the real client.
+ *
+ * Methods are `.bind`-ed to the underlying instance so `this`
+ * context inside Stripe SDK methods resolves correctly.
+ */
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop, receiver) {
+    const client = getStripeClient();
+    const value = Reflect.get(client, prop, receiver);
+    return typeof value === 'function' ? value.bind(client) : value;
+  }
 });
 
 /**
