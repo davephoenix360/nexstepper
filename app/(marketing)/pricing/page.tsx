@@ -101,8 +101,12 @@ export default async function PricingPage() {
         ? 'less than your morning coffee, more useful than a LinkedIn coach'
         : null,
       features: PRO_FEATURES,
-      priceId: PRICE_IDS.pro,
-      cta: 'Start 7-day free trial',
+      // Soft launch: Pro is wired but not sold. Force `priceId: null`
+      // so the disabled-button branch below renders instead of a live
+      // <CheckoutButton>. When we enable paid Pro, restore
+      // `priceId: PRICE_IDS.pro` and update the cta below.
+      priceId: null,
+      cta: 'Get notified when Pro launches',
       highlight: true
     }
   ];
@@ -175,12 +179,25 @@ export default async function PricingPage() {
                   ))}
                 </ul>
                 {isCurrent || plan.priceId === null ? (
-                  <button
-                    disabled
-                    className="w-full py-2 px-4 rounded-full text-sm font-medium bg-gray-100 text-gray-500 cursor-not-allowed"
-                  >
-                    {isCurrent ? '✓ Your current plan' : plan.cta}
-                  </button>
+                  plan.id === 'pro' && !isCurrent ? (
+                    // Soft-launch gating: show a real (mailto) waitlist CTA
+                    // instead of a dead disabled button. The mailto is the
+                    // single source of truth for "I want Pro" until we wire
+                    // live checkout.
+                    <a
+                      href="mailto:hi@nexstepper.com?subject=Pro%20waitlist"
+                      className="block w-full py-2 px-4 rounded-full text-sm font-medium bg-primary text-primary-foreground text-center hover:bg-primary/90 transition-colors"
+                    >
+                      {plan.cta}
+                    </a>
+                  ) : (
+                    <button
+                      disabled
+                      className="w-full py-2 px-4 rounded-full text-sm font-medium bg-gray-100 text-gray-500 cursor-not-allowed"
+                    >
+                      {isCurrent ? '✓ Your current plan' : plan.cta}
+                    </button>
+                  )
                 ) : (
                   <CheckoutButton priceId={plan.priceId} label={plan.cta} />
                 )}
@@ -191,8 +208,8 @@ export default async function PricingPage() {
       </div>
 
       <p className="text-center text-sm text-gray-500 mt-12 max-w-md mx-auto">
-        Built by a job-seeker, for job-seekers. If the price is the
-        reason you didn&apos;t upgrade, <a href="mailto:hi@nexstepper.app" className="underline">tell me</a> — there&apos;s a more-honest answer.
+        Free is everything most people need. Pro is the next chapter —
+        launching soon.
       </p>
     </main>
   );
