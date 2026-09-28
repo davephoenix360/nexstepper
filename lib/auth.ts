@@ -78,7 +78,27 @@ export const auth = betterAuth({
     // the product is not yet public (see `docs/setup/production.md`
     // §11 launch gate). Self-hosters upgrading through this commit
     // will be signed out once; behaviour expected.
-    cookiePrefix: 'nexstepper'
+    cookiePrefix: 'nexstepper',
+    /**
+     * Trusted origins for inbound requests. Required because Vercel's
+     * domain config 308-redirects `nexstepper.com` -> `www.nexstepper.com`,
+     * so every real request hits `www.` even though `BETTER_AUTH_URL`
+     * is set to the apex. Default config rejects `www.` as "invalid
+     * origin" and the auth flow silently 500s. The list covers:
+     *  - `BETTER_AUTH_URL` (apex, what Infisical sets)
+     *  - `www.` variant (where the deployment actually serves)
+     *  - `localhost:3000` (local dev)
+     *  - `*.vercel.app` (PR preview deployments)
+     *
+     * Self-hosters can override via a custom trustedOrigins list passed
+     * through env if they put Nexstepper behind a different domain.
+     */
+    trustedOrigins: [
+      process.env.BETTER_AUTH_URL,
+      'https://www.nexstepper.com',
+      'http://localhost:3000',
+      /^https:\/\/nexstepper[a-z0-9-]*\.vercel\.app$/
+    ]
   },
   plugins: [nextCookies()]
 });
