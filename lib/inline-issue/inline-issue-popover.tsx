@@ -209,7 +209,9 @@ export function InlineIssuePopover({
         </p>
 
         {state.kind === 'loading' && <LoadingBody />}
-        {state.kind === 'error' && <ErrorBody message={state.message} />}
+        {state.kind === 'error' && (
+          <ErrorBody message={state.message} onRetry={handleRegenerate} />
+        )}
         {state.kind === 'ready' && (
           <ReadyBody
             rewrites={state.rewrites}
@@ -322,14 +324,34 @@ function LoadingBody() {
   );
 }
 
-function ErrorBody({ message }: { message: string }) {
+function ErrorBody({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div
-      className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive"
+      className="mt-2 space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive"
       role="alert"
       data-testid="inline-issue-error"
     >
-      {message}
+      {/*
+        Phase 1f — try again. Without this, an AI failure meant the
+        user had to close the popover, reopen it (which auto-fetches
+        again anyway), and hope the next attempt worked. Explicit
+        "Try again" makes the recovery affordance visible. The
+        handler re-issues `enrichAction` with the SAME inputs
+        (`resumeId`, `path`, `criterion`, `currentText`) — no new
+        state on the parent required.
+      */}
+      <p>{message}</p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onRetry}
+        className="h-7 px-2 text-xs"
+        data-testid="inline-issue-retry"
+      >
+        <RefreshCcw className="mr-1 h-3 w-3" aria-hidden />
+        Try again
+      </Button>
     </div>
   );
 }

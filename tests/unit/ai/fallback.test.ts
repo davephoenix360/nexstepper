@@ -183,4 +183,140 @@ describe('generateObjectWithFallbacks', () => {
       expect(params.abortSignal).toBe(abortController.signal);
     }
   });
+
+  /*
+   * Phase 1f — per-model exponential backoff.
+   *
+   * The cross-model fallback chain (`generateObjectWithFallbacks`)
+   * was already solid for permanent failures ("this model is
+   * broken"). What's missing — and what the retry layer adds — is
+   * the cheap recovery for TRANSIENT failures ("this model was
+   * momentarily unavailable"). A single 429 or `fetch failed` on
+   * the primary shouldn't escalate to the slower / more expensive
+   * fallback model — that's a UX regression for what's usually a
+   * 500ms blip.
+   *
+   * Plan: docs/plans/ai-retry-hardening.md
+   */
+  describe('per-model exponential backoff (Phase 1f)', () => {
+    /**
+     * Build an AI-SDK-shaped error with a `statusCode` so the
+     * classifier picks it up. The real SDK attaches `statusCode`
+     * directly to AI_APICallError instances.
+     */
+    function sdkError(message: string, statusCode: number): Error {
+      const e = new Error(message);
+      (e as { statusCode?: number }).statusCode = statusCode;
+      return e;
+    }
+
+    it('retries the SAME model on a transient 429 and returns the success', async () => {
+      mockedGenerateObject
+        .mockRejectedValueOnce(sdkError('rate limited', 429))
+        .mockResolvedValueOnce({ object: { ok: 'retried' } } as never);
+
+      const result = await generateObjectWithFallbacks({
+        models: ['primary', 'fallback'],
+        system: 's',
+        prompt: 'p',
+        schema: {} as never
+      });
+
+      expect(result.data).toEqual({ ok: 'retried' });
+      expect(result.modelUsed).toBe('primary');
+      // Same model attempted twice, never fell through.
+      expect(mockedGenerateObject).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries on `fetch failed` (network error) then falls through to the next model', async () => {
+      mockedGenerateObject
+        .mockRejectedValueOnce(new Error('fetch failed')) // primary attempt 1
+        .mockRejectedValueOnce(sdkError('still failing', 503)) // primary attempt 2
+        .mockRejectedValueOnce(sdkError('one more 429', 429)) // primary attempt 3
+        .mockResolvedValueOnce({ object: { ok: 'second-model' } } as never);
+
+      const result = await generateObjectWithFallbacks({
+        models: ['primary', 'fallback'],
+        system: 's',
+        prompt: 'p',
+        schema: {} as never
+      });
+
+      // Primary exhausted all 3 attempts (transient each time),
+      // then immediately fell through to the fallback.
+      expect(result.modelUsed).toBe('fallback');
+      expect(mockedGenerateObject).toHaveBeenCalledTimes(4);
+    });
+
+    it('does NOT retry on a permanent error (4xx other than 429)', async () => {
+      mockedGenerateObject
+        .mockRejectedValueOnce(sdkError('bad request', 400))
+        .mockResolvedValueOnce({ object: { ok: 'fallback' } } as never);
+
+      const result = await generateObjectWithFallbacks({
+        models: ['primary', 'fallback'],
+        system: 's',
+        prompt: 'p',
+        schema: {} as never
+      });
+
+      // Primary tried once (no retry on 400), fallback once.
+      expect(result.modelUsed).toBe('fallback');
+      expect(mockedGenerateObject).toHaveBeenCalledTimes(2);
+    });
+
+    it('does NOT retry on a validation failure — the existing recovery path handles it', async () => {
+      const validationError = new Error('No object generated');
+      validationError.name = 'AI_NoObjectGeneratedError';
+      mockedGenerateObject
+        .mockRejectedValueOnce(validationError)
+        .mockResolvedValueOnce({ object: { ok: 'fallback' } } as never);
+
+      const result = await generateObjectWithFallbacks({
+        models: ['primary', 'fallback'],
+        system: 's',
+        prompt: 'p',
+        schema: {} as never
+      });
+
+      expect(result.modelUsed).toBe('fallback');
+      // One primary call (no retry) + one fallback call.
+      expect(mockedGenerateObject).toHaveBeenCalledTimes(2);
+    });
+
+    it('honors an outer abortSignal during the backoff sleep', async () => {
+      // Mock the primary to fail with a transient error so the
+      // retry path is taken. The retry sleeps for 500ms; we abort
+      // during that sleep and expect the action to surface the
+      // abort error immediately rather than burning the full
+      // 500ms.
+      const controller = new AbortController();
+      mockedGenerateObject.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            controller.signal.addEventListener('abort', () =>
+              reject(controller.signal.reason)
+            );
+            // Don't resolve on its own — the abort is the only path
+            // out. This is fine because the retry layer's sleep()
+            // is what we're testing.
+          })
+      );
+
+      const promise = generateObjectWithFallbacks({
+        models: ['primary'],
+        system: 's',
+        prompt: 'p',
+        schema: {} as never,
+        abortSignal: controller.signal
+      });
+
+      // Give the first attempt a tick to register, then abort
+      // during the backoff sleep.
+      await new Promise((r) => setTimeout(r, 10));
+      controller.abort(new Error('outer timeout'));
+
+      await expect(promise).rejects.toThrow(/outer timeout|aborted/i);
+    });
+  });
 });

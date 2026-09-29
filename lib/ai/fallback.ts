@@ -123,17 +123,22 @@ export async function generateObjectWithFallbacks<T>({
     const effectiveSchema = useStrict ? aiStrict(schema) : schema;
 
     try {
-      const result = await generateObject({
-        model,
-        system,
-        prompt,
-        schema: effectiveSchema,
-        temperature,
-        abortSignal,
-        // See MAX_TOKENS comment above. The provider may also
-        // impose its own cap (OpenAI strict schema = 4K unless
-        // overridden here).
-        maxOutputTokens: MAX_TOKENS
+      const result = await runWithRetry({
+        modelName,
+        signal: abortSignal,
+        fn: () =>
+          generateObject({
+            model,
+            system,
+            prompt,
+            schema: effectiveSchema,
+            temperature,
+            abortSignal,
+            // See MAX_TOKENS comment above. The provider may also
+            // impose its own cap (OpenAI strict schema = 4K unless
+            // overridden here).
+            maxOutputTokens: MAX_TOKENS
+          })
       });
       console.info(`[ai] served by ${modelName}`);
       return {
@@ -191,6 +196,167 @@ function isValidationFailure(err: unknown): boolean {
     name === 'NoObjectGeneratedError' ||
     err.message.includes('No object generated')
   );
+}
+
+/**
+ * Classify an error as "transient — worth retrying" vs "permanent —
+ * fall through to the next model / surface immediately".
+ *
+ * Conservative on purpose: when we can't confidently classify the
+ * error we treat it as permanent. A wrong classification costs the
+ * user a few hundred ms (a wasted retry); a too-permissive
+ * classifier could mask a real bug behind N silent retries.
+ *
+ * Transient families:
+ *   - Network / DNS / TCP errors (Node.js `fetch` failures)
+ *   - `AbortError` from a parent `AbortSignal.timeout()` (we know
+ *     these come from our own timeouts, not the SDK cancelling)
+ *   - HTTP 429 (rate limit) — the provider told us to back off
+ *   - HTTP 5xx (server-side, hopefully transient)
+ *
+ * NOT transient (caller falls through / surfaces immediately):
+ *   - `NoObjectGeneratedError` (validation — different recovery path)
+ *   - HTTP 4xx other than 429 (auth, bad request, etc. — won't fix)
+ *   - Anything we don't recognize
+ */
+function isTransientError(err: unknown): boolean {
+  if (!err) return false;
+
+  // AbortError from OUR AbortSignal.timeout() — the model probably
+  // hung mid-response, retrying is worth a shot.
+  if (err instanceof Error && err.name === 'AbortError') return true;
+
+  // HTTP status from the AI SDK's `AI_APICallError`.
+  // The SDK exposes `statusCode` directly on the error instance.
+  const e = err as { statusCode?: unknown; status?: unknown };
+  const status =
+    typeof e['statusCode'] === 'number'
+      ? (e['statusCode'] as number)
+      : typeof e['status'] === 'number'
+        ? (e['status'] as number)
+        : null;
+  if (status !== null) {
+    if (status === 429) return true;
+    if (status >= 500 && status < 600) return true;
+    return false; // 4xx other than 429 — permanent
+  }
+
+  // Node.js fetch errors (no status code). The error message is
+  // our only signal — match on the well-known substrings.
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    if (
+      msg.includes('fetch failed') ||
+      msg.includes('econnreset') ||
+      msg.includes('etimedout') ||
+      msg.includes('enotfound') ||
+      msg.includes('eai_again') ||
+      msg.includes('network request failed') ||
+      msg.includes('socket hang up')
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Sleep for `ms` milliseconds, throwing early if `signal` aborts.
+ * Used by `runWithRetry` so the per-model retries don't extend
+ * past a caller's outer timeout (e.g. `parseResumeText`'s 180s
+ * global cap).
+ */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const id = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(id);
+      reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Run `fn` up to `MAX_ATTEMPTS` times, retrying only on TRANSIENT
+ * errors (network blips, 429, 5xx, parent-signal abort). Non-
+ * transient errors throw immediately so the cross-model fallback
+ * chain can take over (or the caller can surface the error).
+ *
+ * Phase 1f (plan: docs/plans/ai-retry-hardening.md). Without this,
+ * a single transient 429 on the primary model (Mistral Nemo)
+ * immediately escalates to the next (more expensive / slower)
+ * model in the chain — paying the user-visible latency cost of
+ * the slower fallback for what's usually a 500ms blip.
+ *
+ * Backoff schedule: 500ms after attempt 1, 1000ms after attempt 2.
+ * Worst-case added latency per model: ~1.5s of sleep, on top of
+ * the per-attempt call time. The caller's outer timeout (e.g.
+ * `AbortSignal.timeout(180_000)` in `parseResumeText`) still
+ * bounds the total; `sleep()` honors the same signal.
+ */
+const MAX_ATTEMPTS = 3;
+const BACKOFF_MS: readonly number[] = [500, 1000] as const;
+
+async function runWithRetry<T>({
+  modelName,
+  signal,
+  fn
+}: {
+  modelName: string;
+  signal?: AbortSignal;
+  fn: () => Promise<T>;
+}): Promise<T> {
+  let lastErr: unknown = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+
+      const isLast = attempt === MAX_ATTEMPTS;
+      const isTransient = isTransientError(err);
+
+      if (!isTransient || isLast) {
+        // Either a permanent error (validation / auth / unknown —
+        // let the caller handle), or we've burned our retries.
+        // In both cases, give up on this model.
+        if (isTransient && isLast) {
+          console.warn(
+            `[ai] ${modelName} attempt ${attempt}/${MAX_ATTEMPTS} failed (transient: ${describeErr(err)}), giving up`
+          );
+        }
+        throw err;
+      }
+
+      const delay = BACKOFF_MS[attempt - 1] ?? 1000;
+      console.warn(
+        `[ai] ${modelName} attempt ${attempt}/${MAX_ATTEMPTS} failed (transient: ${describeErr(err)}), retrying in ${delay}ms`
+      );
+      await sleep(delay, signal);
+    }
+  }
+
+  // Unreachable — the loop always throws or returns — but TS doesn't
+  // know that. Surface the last error rather than `undefined`.
+  throw lastErr ?? new Error('runWithRetry exited without result');
+}
+
+function describeErr(err: unknown): string {
+  if (err instanceof Error) {
+    const status = (err as { statusCode?: unknown }).statusCode;
+    return typeof status === 'number' ? `HTTP ${status}: ${err.message}` : err.message;
+  }
+  return String(err);
 }
 
 /**
@@ -447,13 +613,18 @@ export async function generateTextWithFallbacks({
       typeof modelEntry === 'string' ? modelEntry : '<resolved>';
 
     try {
-      const result = await generateText({
-        model,
-        system,
-        prompt,
-        temperature,
-        abortSignal,
-        maxOutputTokens: maxOutputTokens ?? 4_000
+      const result = await runWithRetry({
+        modelName,
+        signal: abortSignal,
+        fn: () =>
+          generateText({
+            model,
+            system,
+            prompt,
+            temperature,
+            abortSignal,
+            maxOutputTokens: maxOutputTokens ?? 4_000
+          })
       });
       console.info(`[ai] served by ${modelName}`);
       return {
