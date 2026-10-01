@@ -15,6 +15,22 @@ export const AVAILABLE_TEMPLATES = [
 ] as const;
 export type TemplateId = (typeof AVAILABLE_TEMPLATES)[number];
 
+/**
+ * What kind of resume the chat is currently attached to.
+ *
+ * The assistant could not answer "am I looking at my master or a variant?"
+ * because nothing in its context said. That distinction drives real advice —
+ * a master should stay general, a variant is allowed to be narrow — so it is
+ * worth spending a few lines of prompt on.
+ */
+export interface ResumeKind {
+  isMaster: boolean;
+  /** Display name of the master this variant was derived from, if any. */
+  parentResumeName?: string;
+  /** How many variants hang off the master (or off this resume's master). */
+  variantCount: number;
+}
+
 const TEMPLATE_DESCRIPTIONS: Record<TemplateId, string> = {
   minimal: 'Minimal — clean, single-column, typography-focused',
   classic: 'Classic — traditional two-column with clear hierarchy',
@@ -380,10 +396,42 @@ function untrustedBlock(tag: string, content: string): string {
 export function buildSystemPrompt(
   data: ResumeData,
   jobContext?: ResumeData['jobContext'],
-  atsScore?: ScoreBreakdown | null
+  atsScore?: ScoreBreakdown | null,
+  resumeKind?: ResumeKind
 ): string {
   const resumeText = buildResumeContext(data);
   const templateName = data.template ?? 'classic';
+
+  // Which resume is the assistant looking at. Without this the model cannot
+  // answer "should I change this?" style questions meaningfully, because
+  // editing a master is a different decision from editing a variant: a master
+  // is meant to stay general, while a variant is deliberately tailored.
+  let kindSection = '';
+  if (resumeKind) {
+    const lines = [`Type: ${resumeKind.isMaster ? 'MASTER RESUME' : 'VARIANT'}`];
+    if (!resumeKind.isMaster) {
+      lines.push(
+        resumeKind.parentResumeName
+          ? `Tailored from the master resume "${resumeKind.parentResumeName}".`
+          : 'Tailored from a master resume.'
+      );
+      lines.push(
+        'This variant exists to win ONE specific role, so it may emphasise that employer heavily without being "wrong". Changes here do not affect the master.'
+      );
+    } else {
+      lines.push(
+        'This is the user\'s general, always-current resume for their field. Keep it broad and generic — no single employer\'s keywords baked in. Role-specific tailoring belongs in variants.'
+      );
+    }
+    if (resumeKind.variantCount > 0) {
+      lines.push(
+        resumeKind.isMaster
+          ? `${resumeKind.variantCount} variant(s) are currently derived from this master.`
+          : `The parent master currently has ${resumeKind.variantCount} variant(s).`
+      );
+    }
+    kindSection = `\n\n# Which resume you are editing\n\n${lines.join('\n')}`;
+  }
 
   let jobSection = '';
   if (jobContext?.description) {
@@ -480,7 +528,7 @@ Users will ask how the product works. Answer from this — do not guess, and do 
 
 # Context
 
-${untrustedBlock('untrusted_resume', resumeText)}${jobSection}${atsSection}
+${untrustedBlock('untrusted_resume', resumeText)}${kindSection}${jobSection}${atsSection}
 
 Current active template: ${templateName} (${TEMPLATE_DESCRIPTIONS[templateName as TemplateId] ?? 'Unknown'}).`;
 }

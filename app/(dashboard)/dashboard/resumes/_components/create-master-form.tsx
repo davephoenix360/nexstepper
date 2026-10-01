@@ -62,6 +62,12 @@ export function CreateMasterResumeForm() {
   const [errorCode, setErrorCode] = useState<ImportResumeErrorCode | null>(null);
   const [technical, setTechnical] = useState<string | null>(null);
   const [stage, setStage] = useState<ImportStage>('idle');
+  /**
+   * Id of the resume the last import just created. Held in state (rather than
+   * navigating inline) so the parsing modal can play its success beat before
+   * the route changes.
+   */
+  const [createdResumeId, setCreatedResumeId] = useState<string | null>(null);
   const importFormRef = useRef<HTMLFormElement>(null);
 
   // Import-mode state
@@ -76,6 +82,7 @@ export function CreateMasterResumeForm() {
     setErrorCode(null);
     setTechnical(null);
     setStage('idle');
+    setCreatedResumeId(null);
     if (mode === 'scratch') {
       setFile(null);
       setPastedText('');
@@ -181,9 +188,12 @@ export function CreateMasterResumeForm() {
         return;
       }
 
+      // Flip to the modal's success beat and let IT own the timing.
+      // Navigating here would unmount the modal on the same tick the work
+      // landed, so the spinner→checkmark transition would never be seen —
+      // which is exactly the abrupt close this replaces.
       setStage('done');
-      router.push(`/dashboard/resumes/${result.data.id}`);
-      router.refresh();
+      setCreatedResumeId(result.data.id);
     });
   }
 
@@ -337,12 +347,30 @@ export function CreateMasterResumeForm() {
               be dismissed (the Server Action isn't cancellable) and its
               rotating tip carousel turns the wait into a teaching moment.
 
-              `stage !== 'done'` because on success we immediately navigate
-              away — leaving the modal up would cover the editor.
+              Visibility is driven by `stage`, not by `pending`: the success
+              beat has to stay up for ~1.5s AFTER the transition settles, so
+              the checkmark animation is actually visible before we navigate.
             */}
             <AiParsingModal
-              open={mode === 'import' && pending && stage !== 'done'}
+              open={
+                mode === 'import' &&
+                (stage === 'reading' ||
+                  stage === 'parsing' ||
+                  stage === 'saving' ||
+                  stage === 'done')
+              }
               stageLabel={stageLabel(stage)}
+              done={stage === 'done'}
+              doneTitle="Your resume is ready to view 🎉"
+              doneMessage="Everything came through nicely — taking you there now…"
+              onDismiss={
+                createdResumeId
+                  ? () => {
+                      router.push(`/dashboard/resumes/${createdResumeId}`);
+                      router.refresh();
+                    }
+                  : undefined
+              }
             />
           </form>
         )}

@@ -6,6 +6,7 @@ import { AlertCircle, Briefcase, Loader2, RefreshCw, Sparkles } from 'lucide-rea
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { AiParsingModal } from '@/components/resumes/ai-parsing-modal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -52,11 +53,22 @@ export function CreateVariantFromJdButton({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
+  /**
+   * Parsing-modal state. `stage` drives the shared `<AiParsingModal />`
+   * (working → success), and `createdVariantId` is held so the modal can
+   * play its success beat before we navigate away.
+   */
+  const [stage, setStage] = useState<'idle' | 'working' | 'done'>('idle');
+  const [createdVariantId, setCreatedVariantId] = useState<string | null>(null);
 
   function handleOpenChange(next: boolean) {
     if (pending) return; // don't bail mid-submit
     setOpen(next);
-    if (!next) setError(null);
+    if (!next) {
+      setError(null);
+      setStage('idle');
+      setCreatedVariantId(null);
+    }
   }
 
   function handleSubmit(e?: React.FormEvent<HTMLFormElement>) {
@@ -69,6 +81,10 @@ export function CreateVariantFromJdButton({
       return;
     }
 
+    // Raise the modal before the round-trip so the user gets the working
+    // beat (headline + tips) for the whole parse, not just the last second.
+    setStage('working');
+
     startTransition(async () => {
       const result = await createVariantFromJdAction({
         masterId,
@@ -79,13 +95,17 @@ export function CreateVariantFromJdButton({
         setError(
           result.fieldErrors?.jdText?.[0] ?? result.error ?? 'Could not create variant'
         );
+        setStage('idle');
         return;
       }
 
-      setOpen(false);
       setJdText('');
-      router.push(`/dashboard/resumes/${result.data.id}`);
-      router.refresh();
+      // Hold the dialog open and hand off to the parsing modal's success
+      // beat, which owns the timing and then navigates. Closing + pushing
+      // here made the 30–90s JD parse a bare spinner, and the transition
+      // out of it instantaneous.
+      setCreatedVariantId(result.data.id);
+      setStage('working');
     });
   }
 
@@ -212,6 +232,38 @@ export function CreateVariantFromJdButton({
           </div>
         </form>
       </Dialog>
+
+      {/*
+        Same modal, same tips carousel as the resume import — a JD parse is
+        the same 30–90s wait and deserves the same treatment. The tips are
+        NOT filtered: while a JD is being parsed the most useful thing to
+        tell someone is how Nexstepper thinks about tailoring (master vs
+        variant is the concept they are acting on right now).
+
+        It portals over the Dialog, so the Dialog stays mounted underneath
+        purely as a form container and the user never sees two stacked
+        panels.
+      */}
+      <AiParsingModal
+        open={stage !== 'idle'}
+        stageLabel={
+          stage === 'done' ? 'Done' : 'Reading the job description…'
+        }
+        done={stage === 'done'}
+        doneTitle="Your tailored variant is ready 🎉"
+        doneMessage="We matched it against your master and scored it — taking you there now…"
+        onDismiss={
+          createdVariantId
+            ? () => {
+                setOpen(false);
+                setStage('idle');
+                setCreatedVariantId(null);
+                router.push(`/dashboard/resumes/${createdVariantId}`);
+                router.refresh();
+              }
+            : undefined
+        }
+      />
     </>
   );
 }

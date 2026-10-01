@@ -176,6 +176,38 @@ should ship in the meantime.**
   and Nexstepper usage (incl. the master-resume → variant explanation).
   Plan: `docs/plans/chat-agent-v2.md`. 1023 → 1090 tests.
 
+- **Chat UI + import-modal follow-up** — branch `feat/chat-agent-v2`
+  (same branch, second commit). Five fixes, all found by using the preview:
+  (1) **Chat history vanished on every new message** — `useChatStream` seeded
+  its own two-element array per turn, so sending a message *replaced* the
+  transcript; it only came back after closing and reopening the chat. The
+  live conversation is now passed into `sendMessage` so the hook appends, and
+  the three error paths restore the prior transcript instead of `[]` (a 429
+  used to erase the whole chat). (2) **The editor ignored AI edits until a
+  manual reload** — `useForm({ defaultValues })` is read *once*, so
+  `router.refresh()` delivered a new `initialData` that react-hook-form
+  silently discarded; added `form.reset(initialData)` on change. This was the
+  "it said it updated my summary and I had to hit F5" report. (3) Assistant
+  replies are rendered with `react-markdown` (already a dependency — used by
+  the JD panel), with an explicit compact component map so raw `**bold**`
+  stops showing as asterisks. (4) Chat autoscroll now yields: scrolling up
+  unpins, and a jump-to-latest button appears instead of dragging the
+  viewport back on every token. (5) The system prompt now receives whether
+  the resume is a **master or a variant** (plus the parent master's name and
+  variant count, via `resolveResumeKind` in the chat route), so it can answer
+  "is this my master?" and knows that a master should stay general while a
+  variant may be narrow.
+  Also: the AI-parsing modal gained a **success beat** — the work no longer
+  snaps shut the instant the parse lands. Spinner and checkmark cross-fade,
+  the tip carousel and ETA fade out, and a "Your resume is ready to view 🎉"
+  message holds for ~1.5s before the route changes (the parent now holds the
+  new resume id in state and lets the modal own the timing). The same modal
+  is now reused for **JD → variant creation**, which had the identical 30–90s
+  bare-spinner wait. 1090 → 1112 tests.
+  Also: new skill `vercel-ai-gateway-models` (user scope) captures the
+  `npx vercel@latest ai-gateway models endpoints` workflow — see
+  "Verifying AI model claims" below.
+
 - **Template gallery modal** — shipped 2026-10-01, branch
   `feat/template-gallery-modal`. The compact `<TemplatePicker>`
   dropdown on the resume editor (a 72-char list with name +
@@ -453,6 +485,100 @@ and makes queries mockable for tests.
 The page might be behind auth middleware, but the Server Action is a public
 endpoint callable by anyone with the URL. Every protected action calls
 `requireUser()` (or equivalent) at the top.
+
+## Recurring traps (learned the hard way — reuse these)
+
+These are not stylistic preferences. Each one cost a real user-facing bug, and
+each will bite again if reintroduced.
+
+### 1. `useForm({ defaultValues })` is read ONCE — it is not reactive
+
+`components/editable/editable-resume.tsx` takes `initialData` from a Server
+Component and hands it to react-hook-form as `defaultValues`. RHF captures that
+value on mount and **never re-reads it**. So when anything server-side changes
+the resume (the AI chat writing a revision, an inline-issue apply, another
+tab), `router.refresh()` hands the component a brand-new `initialData` and
+RHF silently keeps rendering the old values.
+
+Symptom: *"the AI said it updated my resume and I had to press F5."* The write
+was correct; only the editor was stale.
+
+Fix (already in place — keep it):
+
+```tsx
+React.useEffect(() => {
+  form.reset(initialData as never);
+}, [initialData]);
+```
+
+Any new surface that receives server data and feeds a form needs this. If you
+see "I have to reload for the change to show up", this is the first suspect.
+
+### 2. Never let a stream/hook own a list it cannot see
+
+`useChatStream` originally rebuilt its own two-element array per turn, so
+sending a message replaced the visible transcript. The hook had no access to
+the parent's `messages`, so it could not append.
+
+**Rule:** a hook that mutates a collection takes the current collection as an
+argument. Error paths restore the prior value — never `[]`. "Reset to empty on
+error" silently deletes user-visible history.
+
+### 3. LLM output is Markdown — render it
+
+`react-markdown` is already a dependency (used by the JD panel). Assistant
+replies that print inside a `whitespace-pre-wrap <p>` show literal `**bold**`.
+Give it an explicit compact `components` map rather than a prose reset: chat
+bubbles live in a 34rem sidebar where typography-plugin spacing blows the
+layout out, and an unmapped tag would inject unstyled block layout.
+
+Never render *user* text as markdown — it is literal input.
+
+### 4. Autoscroll must yield to the user
+
+Calling `scrollIntoView` on every streamed token yanks the viewport away from
+anyone reading back through the conversation. Use a single `isPinnedToBottom`
+flag: set from the scroll container's distance-from-bottom (with ~48px of
+slack), drive the follow from it, and show a jump-to-latest button when
+unpinned. Re-pin when the session id changes.
+
+### 5. Verify AI model claims against the account, not the browser
+
+The model browser at vercel.com has twice listed a model as free-tier that this
+account could not actually call (`zai/glm-5.3-flash`,
+`inclusionai/ling-3.0-flash-fin-free` — both 403'd in practice). Treat browser
+metadata as a hint, never as evidence.
+
+Use the authenticated CLI. Note the globally-installed CLI is **45.0.8 and has
+no `ai-gateway` subcommand** — it silently falls through to `vercel deploy
+--help`, which looks like a bad flag rather than a missing command:
+
+```bash
+npx --yes vercel@latest ai-gateway models ls --format json
+npx --yes vercel@latest ai-gateway models endpoints <model-id> --format json
+```
+
+`endpoints` is the account-level view: per-provider `tags` (look for
+`"free"`), `status` (0 = healthy), `context_length`, `supported_parameters`,
+and live `uptime_last_1h` / `latency_last_1h` / `throughput_last_1h`. It is
+also where per-provider **price and context disagree** for the same model, so
+quote the endpoint, not the catalog summary.
+
+The loadable skill `vercel-ai-gateway-models` wraps all of this
+(`~/.minimax/skills/vercel-ai-gateway-models/SKILL.md`).
+
+### 6. `structured_output` is the capability boundary — don't blur it
+
+The model split in this repo is not a quality preference:
+
+| need | requirement | model |
+|---|---|---|
+| parse a PDF into `ResumeSections` (strict JSON Schema) | `structured_output` | `mistral/mistral-nemo` (12B) |
+| agentic chat with tool calls, 262K resume context | tool-use + reasoning | `inclusionai/ling-3.1-flash` (560B/25B active) |
+
+Nemo has `structured_output` and no `reasoning`; Ling has `reasoning` and no
+`structured_output`. Each is wrong for the other's job. Check
+`endpoints[].supported_parameters` before moving a model between tiers.
 
 ## Folder structure (current + planned)
 

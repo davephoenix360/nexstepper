@@ -145,7 +145,10 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
   const handleSend = useCallback(
     async (content: string) => {
       setIsStreaming(true);
-      const sessionId = await sendMessage(activeSessionId, content);
+      // Pass the live transcript so the hook APPENDS to it. Without this the
+      // hook seeded its own two-message array and the whole conversation
+      // disappeared from the panel the moment you sent anything.
+      const sessionId = await sendMessage(activeSessionId, content, messages);
       if (sessionId) {
         setActiveSessionId(sessionId);
         // Refresh sessions so the new one appears in the sidebar
@@ -159,7 +162,7 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
         setIsStreaming(false);
       }
     },
-    [activeSessionId, sendMessage, resumeId]
+    [activeSessionId, sendMessage, resumeId, messages]
   );
 
   const handleSelectSession = useCallback((id: string) => {

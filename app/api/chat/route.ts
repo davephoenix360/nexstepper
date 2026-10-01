@@ -23,6 +23,7 @@ import {
   getChatSession,
   getResume,
   getSubscription,
+  countVariantsByMasterId,
   listChatSessions,
   parseChatToolCalls,
   tryConsumeChatTurn,
@@ -30,13 +31,58 @@ import {
 } from '@/lib/db/queries';
 import { PLANS } from '@/lib/db/schema';
 import { asPlanId } from '@/lib/billing';
-import { buildSystemPrompt } from '@/lib/chat/system-prompt';
+import { buildSystemPrompt, type ResumeKind } from '@/lib/chat/system-prompt';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
 import { getModel, CHAT_MODEL, CHAT_GATEWAY_PROVIDER_OPTIONS, CHAT_MAX_OUTPUT_TOKENS, CHAT_MAX_STEPS } from '@/lib/ai/providers';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
+
+// ─── Resume-kind context ─────────────────────────────────────────────────────
+
+/**
+ * Work out whether the chat is attached to a master resume or a variant, and
+ * name the parent master.
+ *
+ * Without this the assistant had no idea which kind of resume it was looking
+ * at, so it could not give kind-aware advice — and a user asking "is this my
+ * master?" got a guess. It also changes what good editing looks like: a
+ * master should stay general, a variant is allowed to be narrow.
+ *
+ * Cheap enough to run per turn: one indexed count plus, for a variant, one
+ * primary-key lookup.
+ */
+async function resolveResumeKind(
+  resume: { id: string; isMaster: boolean; parentResumeId: string | null },
+  userId: string
+): Promise<ResumeKind> {
+  if (resume.isMaster) {
+    const variantCount = await countVariantsByMasterId(resume.id, userId).catch(
+      () => 0
+    );
+    return { isMaster: true, variantCount };
+  }
+
+  let parentResumeName: string | undefined;
+  let variantCount = 0;
+  if (resume.parentResumeId) {
+    const [parent] = await db
+      .select({ name: resumes.name })
+      .from(resumes)
+      .where(
+        and(eq(resumes.id, resume.parentResumeId), eq(resumes.userId, userId))
+      )
+      .limit(1);
+    parentResumeName = parent?.name;
+    variantCount = await countVariantsByMasterId(
+      resume.parentResumeId,
+      userId
+    ).catch(() => 0);
+  }
+
+  return { isMaster: false, parentResumeName, variantCount };
+}
 
 // ─── Request / response types ─────────────────────────────────────────────────
 
@@ -266,7 +312,8 @@ export async function POST(req: NextRequest) {
   const system = buildSystemPrompt(
     resume.data,
     resume.data.jobContext ?? undefined,
-    atsScore
+    atsScore,
+    await resolveResumeKind(resume.resume, userId)
   );
 
   // ── Load chat history (last 20 messages to keep prompt size manageable) ───

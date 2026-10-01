@@ -99,6 +99,24 @@ export function EditableResume({
     mode: 'onSubmit'
   });
 
+  // ── Re-sync the form when the server hands us newer data ────────────────
+  //
+  // `useForm({ defaultValues })` is read ONCE, on mount. It is not reactive.
+  // So when the AI chat writes a revision and the page calls
+  // `router.refresh()`, the Server Component re-renders and hands us a fresh
+  // `initialData` — and react-hook-form silently keeps showing the OLD values.
+  // That is why "I don't like the summary" appeared to do nothing until the
+  // user hit F5: the edit was saved correctly, the editor just never picked
+  // it up.
+  //
+  // `form.reset(next)` is the documented way to push new server data into an
+  // existing RHF instance. Guarded on identity so it only fires when the
+  // incoming data actually changed (RHF deep-compares structurally, and the
+  // Server Component hands us a new object identity on every render).
+  React.useEffect(() => {
+    form.reset(initialData as never);
+  }, [initialData]);
+
   // Resolve the template reactively from the form value so the picker
   // can switch templates without a page reload. The picker calls
   // `form.setValue('template', id)` on selection, which re-renders

@@ -130,10 +130,19 @@ export function useChatStream({
 
   /**
    * Send a message and stream the response.
+   *
+   * `currentMessages` is the conversation as it currently stands in the UI.
+   * It MUST be passed in rather than read from the hook, because the hook has
+   * no other way to see the history: it previously seeded its own two-element
+   * array, which meant every new message **replaced** the transcript on
+   * screen. The user saw their whole conversation vanish the moment they sent
+   * something, and it only came back after closing and reopening the chat
+   * (which re-fetches from the DB). Hence the explicit parameter.
    */
   async function sendMessage(
     sessionId: string | null,
-    message: string
+    message: string,
+    currentMessages: ChatMessageRow[] = []
   ): Promise<string | null> {
     // Cancel any in-flight request
     if ((sendMessage as any)._abortController) {
@@ -152,13 +161,15 @@ export function useChatStream({
       toolResult: null
     };
 
-    // Seed both user + assistant messages up front
-    const currentMessages: ChatMessageRow[] = [
+    // APPEND the new pair to the existing conversation. Replacing it is what
+    // made the history disappear mid-session.
+    const seeded: ChatMessageRow[] = [
+      ...currentMessages,
       { id: userId, role: 'user', content: message },
       { id: assistantId, role: 'assistant', content: '' }
     ];
-    messages = currentMessages;
-    onMessage([...currentMessages]);
+    messages = seeded;
+    onMessage([...seeded]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -175,8 +186,11 @@ export function useChatStream({
           limit?: number | null;
         };
         onError?.(err.error ?? 'Request failed', err.code, err.limit);
-        messages = [];
-        onMessage([]);
+        // Drop only the turn that failed — keep the prior conversation. The
+        // old code reset to `[]` here, so one error (a 429, a dropped
+        // connection) silently erased the user's whole chat from the screen.
+        messages = [...currentMessages];
+        onMessage([...messages]);
         isStreaming = false;
         return null;
       }
@@ -204,8 +218,8 @@ export function useChatStream({
 
       if (!res.body) {
         onError?.('No response body');
-        messages = [];
-        onMessage([]);
+        messages = [...currentMessages];
+        onMessage([...messages]);
         isStreaming = false;
         return null;
       }
@@ -308,8 +322,8 @@ export function useChatStream({
         return null;
       }
       onError?.((err as Error).message ?? 'Stream failed');
-      messages = [];
-      onMessage([]);
+      messages = [...currentMessages];
+      onMessage([...messages]);
       return null;
     }
   }
