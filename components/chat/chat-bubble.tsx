@@ -25,8 +25,15 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  // Quota readout state. Seeded to `null` (unknown) rather than a
+  // fabricated `{ limit: 20, used: 0 }` — the server is the only
+  // authority on the real count, and it reports it via the
+  // `X-Chat-Usage` / `X-Chat-Limit` response headers after every turn.
+  // Before this, the readout always showed the full allowance because
+  // the local `used` counter was never incremented (plan:
+  // docs/plans/chat-hardening-and-cta.md §Q4).
   const [rateLimit, setRateLimit] = useState<{ limit: number; used: number } | null>(
-    isPro ? null : { limit: 20, used: 0 }
+    isPro ? null : null
   );
 
   // Portal target only exists on the client. Wait for mount so SSR
@@ -96,6 +103,13 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
     resumeName,
     onMessage: setMessages,
     onDone: () => setIsStreaming(false),
+    onUsage: (usage) => {
+      // Hide the readout entirely for unlimited plans; otherwise track
+      // the server's authoritative count.
+      setRateLimit(
+        Number.isFinite(usage.limit) ? { limit: usage.limit, used: usage.used } : null
+      );
+    },
     onError: (err: string, code?: string) => {
       setIsStreaming(false);
       if (code === 'RATE_LIMITED') {

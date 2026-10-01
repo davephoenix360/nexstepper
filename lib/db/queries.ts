@@ -1501,42 +1501,13 @@ export async function appendChatMessage(
 }
 
 /**
- * Upsert a daily usage row: increments `turns_used` by 1 and adds
- * `tokens_used` by the given delta. The primary key on
- * `(user_id, date)` makes the upsert a single query with no
- * application-level race window.
- *
- * Returns the updated (or created) row.
- */
-export async function upsertChatUsage(
-  userId: string,
-  tokensDelta: number
-): Promise<ChatUsage> {
-  const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
-
-  const [row] = await db
-    .insert(chatUsage)
-    .values({
-      userId,
-      date: today,
-      tokensUsed: tokensDelta,
-      turnsUsed: 1
-    })
-    .onConflictDoUpdate({
-      target: [chatUsage.userId, chatUsage.date],
-      set: {
-        tokensUsed: sql`${chatUsage.tokensUsed} + ${tokensDelta}`,
-        turnsUsed: sql`${chatUsage.turnsUsed} + 1`
-      }
-    })
-    .returning();
-
-  return row;
-}
-
-/**
  * Read today's usage for a user. Returns a row with all-zero
  * counts if no usage record exists yet.
+ *
+ * NOTE: this is a *read-only* helper for rendering the client's
+ * "N messages remaining" readout. It is NOT safe to use as the
+ * quota gate — use `tryConsumeChatTurn` for that. See the JSDoc
+ * there for the TOCTOU reasoning.
  */
 export async function getChatUsage(userId: string): Promise<ChatUsage> {
   const today = new Date().toISOString().slice(0, 10);
@@ -1555,6 +1526,114 @@ export async function getChatUsage(userId: string): Promise<ChatUsage> {
       turnsUsed: 0
     }
   );
+}
+
+/**
+ * Atomically consume one chat turn, enforcing the quota in the
+ * same statement. Returns the updated row on success, or `null`
+ * when the user is at / over the limit.
+ *
+ * WHY THIS EXISTS (plan: docs/plans/chat-hardening-and-cta.md §Q1)
+ *   The previous implementation read `turns_used` with a SELECT,
+ *   compared it to the limit in application code, and only
+ *   incremented afterwards inside the SSE stream's `finally` block.
+ *   That is a textbook time-of-check / time-of-use race: N
+ *   concurrent requests all read the same pre-increment value and
+ *   all pass the gate, so a user could fire 50 parallel requests
+ *   against a limit of 20 and get 50 turns.
+ *
+ *   Collapsing the read-check-write into one statement makes the
+ *   gate atomic at the database level. Postgres serialises the
+ *   conflicting UPDATE for the same `(user_id, date)` row, so the
+ *   `WHERE turns_used < limit` predicate is evaluated against the
+ *   post-increment value of whoever got the lock first. Exactly
+ *   `limit` requests succeed; the rest get zero rows back.
+ *
+ * SEMANTICS
+ *   The turn is consumed BEFORE the model call, not after. A turn
+ *   that fails mid-stream, or that the user abandons, still costs
+ *   a turn — which matches the actual cost, since the tokens were
+ *   already spent. Token accounting happens separately in
+ *   `addChatTokens` once the stream reports its usage.
+ *
+ * @param userId Authenticated user.
+ * @param limit  Max turns allowed in the current window. Pass
+ *               `Infinity` for unlimited plans — the `WHERE`
+ *               clause is then omitted entirely rather than
+ *               comparing against `Infinity` (which Postgres
+ *               can't represent).
+ */
+export async function tryConsumeChatTurn(
+  userId: string,
+  limit: number
+): Promise<ChatUsage | null> {
+  const today = new Date().toISOString().slice(0, 10);
+  const unlimited = !Number.isFinite(limit);
+
+  const [row] = await db
+    .insert(chatUsage)
+    .values({
+      userId,
+      date: today,
+      tokensUsed: 0,
+      turnsUsed: 1
+    })
+    .onConflictDoUpdate({
+      target: [chatUsage.userId, chatUsage.date],
+      set: {
+        turnsUsed: sql`${chatUsage.turnsUsed} + 1`
+      },
+      // The gate. Only bump the counter if the pre-increment value
+      // is still under the limit. When this predicate is false,
+      // Postgres updates zero rows and the `.returning()` below
+      // yields an empty array → we return `null` → caller 429s.
+      // Omitted for unlimited plans so the always-true comparison
+      // doesn't have to be evaluated.
+      ...(unlimited
+        ? {}
+        : { setWhere: sql`${chatUsage.turnsUsed} < ${limit}` })
+    })
+    .returning();
+
+  return row ?? null;
+}
+
+/**
+ * Add a turn's token consumption to today's `tokens_used` without
+ * touching `turns_used` (the turn itself was already consumed
+ * atomically by `tryConsumeChatTurn`).
+ *
+ * WHY (plan: docs/plans/chat-hardening-and-cta.md §Q2)
+ *   The route used to call `upsertChatUsage(userId, 0)` — a
+ *   hardcoded zero delta — so `tokens_used` was permanently 0 and
+ *   the whole column was dead weight. The AI SDK exposes real
+ *   usage after the stream drains; we now write it.
+ *
+ * No-ops on an empty delta so a turn that produced no token
+ * accounting (e.g. an aborted stream) doesn't create a spurious
+ * row for a user who somehow has no usage record yet.
+ */
+export async function addChatTokens(
+  userId: string,
+  tokensDelta: number
+): Promise<void> {
+  if (!Number.isFinite(tokensDelta) || tokensDelta <= 0) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  await db
+    .insert(chatUsage)
+    .values({
+      userId,
+      date: today,
+      tokensUsed: Math.round(tokensDelta),
+      turnsUsed: 0
+    })
+    .onConflictDoUpdate({
+      target: [chatUsage.userId, chatUsage.date],
+      set: {
+        tokensUsed: sql`${chatUsage.tokensUsed} + ${Math.round(tokensDelta)}`
+      }
+    });
 }
 
 // ─── GDPR Art. 20 export bundle ───────────────────────────────────────────────

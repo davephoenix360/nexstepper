@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { ArrowRight, Sparkles, CheckCircle2, Shield } from 'lucide-react';
+import { ArrowRight, LayoutDashboard, Sparkles, CheckCircle2, Shield } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { getUser } from '@/lib/db/queries';
 import { ResumePreview } from './resume-preview';
 
 /**
@@ -11,8 +12,33 @@ import { ResumePreview } from './resume-preview';
  * Layout: centered text + CTAs, with a styled resume preview below.
  * Uses semantic tokens (text-foreground, bg-primary, etc.) so swapping
  * the theme in globals.css re-skins the whole site.
+ *
+ * ## Auth-aware primary CTA
+ *
+ * A signed-out visitor's job is to sign up. A signed-in visitor's job
+ * is to get to work — sending them back to `/sign-up` is a dead end
+ * (they already have an account, so the form just bounces them to
+ * sign-in). So the primary button branches on session state:
+ *
+ *   - signed out → "Start for free" → `/sign-up`
+ *   - signed in  → "Open dashboard" → `/dashboard/resumes`, with a
+ *     "Welcome back" eyebrow and a first-name greeting
+ *
+ * This is a Server Component (no `'use client'`), so `getUser()` is a
+ * single server-side session read at request time — no waterfall, no
+ * client fetch, and the markup is correct on first paint with no
+ * hydration mismatch or CTA flash.
+ *
+ * Plan: docs/plans/chat-hardening-and-cta.md §6.
  */
-export function Hero() {
+export async function Hero() {
+  const user = await getUser();
+  const isSignedIn = Boolean(user);
+  // Fall back to a neutral greeting if the name is empty — better
+  // than rendering "Welcome back ," with a dangling comma.
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
+  const greeting = firstName ? `Welcome back, ${firstName}` : 'Welcome back';
+
   return (
     <section className="relative overflow-hidden">
       {/* Background gradient — subtle, themed, no harsh edges */}
@@ -26,9 +52,22 @@ export function Hero() {
       />
 
       <div className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center sm:px-6 lg:px-8 lg:pt-28">
-        <Badge variant="secondary" className="mb-6 gap-1.5 px-3 py-1 text-sm">
-          <Sparkles className="size-3.5" />
-          Your AI resume copilot
+        <Badge
+          variant="secondary"
+          className="mb-6 gap-1.5 px-3 py-1 text-sm"
+          data-testid="hero-eyebrow"
+        >
+          {isSignedIn ? (
+            <>
+              <LayoutDashboard className="size-3.5" />
+              {greeting}
+            </>
+          ) : (
+            <>
+              <Sparkles className="size-3.5" />
+              Your AI resume copilot
+            </>
+          )}
         </Badge>
 
         <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
@@ -45,12 +84,22 @@ export function Hero() {
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button asChild size="lg" className="h-11 px-6 text-base">
-            <Link href="/sign-up">
-              Start for free
-              <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </Button>
+          {isSignedIn ? (
+            <Button asChild size="lg" className="h-11 px-6 text-base">
+              <Link href="/dashboard/resumes" data-testid="hero-primary-cta">
+                <LayoutDashboard className="mr-2 size-4" />
+                Open dashboard
+                <ArrowRight className="ml-2 size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild size="lg" className="h-11 px-6 text-base">
+              <Link href="/sign-up" data-testid="hero-primary-cta">
+                Start for free
+                <ArrowRight className="ml-2 size-4" />
+              </Link>
+            </Button>
+          )}
           <Link
             href="/pricing"
             className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"

@@ -11,17 +11,19 @@ import { db } from '@/lib/db/drizzle';
 import { resumes } from '@/lib/db/schema';
 import {
   appendChatMessage,
+  addChatTokens,
   createChatSession,
   getChatMessages,
-  getChatUsage,
   getChatSession,
   getResume,
+  getSubscription,
   listChatSessions,
   parseChatToolCalls,
-  updateChatSessionTitle,
-  upsertChatUsage
+  tryConsumeChatTurn,
+  updateChatSessionTitle
 } from '@/lib/db/queries';
 import { PLANS } from '@/lib/db/schema';
+import { asPlanId } from '@/lib/billing';
 import { buildSystemPrompt } from '@/lib/chat/system-prompt';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
@@ -135,16 +137,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Resume not found' }, { status: 404 });
   }
 
-  // ── Rate limit (Free: 20 turns/day) ──────────────────────────────────────
-  const usage = await getChatUsage(userId);
-  const freeLimit = PLANS.free.chatMessagesPerDay;
-  if (usage.turnsUsed >= freeLimit) {
+  // ── Quota gate (atomic, plan-aware) ──────────────────────────────────────
+  //
+  // Consumes the turn in the SAME statement that checks it, so
+  // concurrent requests can't race past the limit. Previously this
+  // was a SELECT-then-compare-then-increment (increment happened in
+  // the stream's `finally`), which let N parallel requests all pass
+  // the gate. See `tryConsumeChatTurn` for the full reasoning.
+  //
+  // The limit comes from the caller's actual plan, not a hardcoded
+  // Free constant — otherwise a Pro user silently inherits the Free
+  // cap when we flip soft-launch off.
+  const sub = await getSubscription();
+  const plan = asPlanId(sub.plan);
+  const freeLimit = PLANS[plan].chatMessagesPerDay;
+  const usage = await tryConsumeChatTurn(userId, freeLimit);
+  if (!usage) {
+    // Zero rows back means the `WHERE turns_used < limit` predicate
+    // failed — we're at or over quota. We don't have a row to read
+    // `resetsAt` from, so compute today's date directly; the counter
+    // resets at UTC midnight because that's what the `date` column
+    // is keyed on.
     return NextResponse.json(
       {
         error: 'Daily limit reached',
         code: 'RATE_LIMITED',
         limit: freeLimit,
-        resetsAt: usage.date
+        resetsAt: new Date().toISOString().slice(0, 10)
       },
       { status: 429 }
     );
@@ -361,7 +380,18 @@ export async function POST(req: NextRequest) {
           toolResult: toolResultJson
         });
 
-        await upsertChatUsage(userId, 0);
+        // ── Record real token consumption ────────────────────────────────
+        // Previously this was `upsertChatUsage(userId, 0)` — a
+        // hardcoded zero — so `tokens_used` was permanently 0 and
+        // the column did nothing. The turn itself was already
+        // consumed atomically above; this only adds the token delta.
+        // `result.usage` is populated once the stream has drained.
+        // AI SDK 6's `result.usage` is a PromiseLike, so it has to be
+        // awaited. The turn itself was already consumed atomically
+        // above; this only adds the token delta.
+        const usage = await result.usage;
+        const totalTokens = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
+        await addChatTokens(userId, totalTokens);
       } catch {
         // Persist failure is silent — the client already received the
         // assistant message via SSE. Dropping it on the floor here just
@@ -375,7 +405,14 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       'X-Session-Id': sessionId,
-      'X-Title': title
+      'X-Title': title,
+      // Post-consume usage so the client can render an honest
+      // "N messages remaining today" readout. Previously the
+      // bubble hardcoded `{ limit: 20, used: 0 }` and never
+      // decremented, so the number the user saw was always the
+      // full allowance regardless of how much they'd used.
+      'X-Chat-Usage': `${usage.turnsUsed}`,
+      'X-Chat-Limit': Number.isFinite(freeLimit) ? String(freeLimit) : 'unlimited'
     }
   });
 }

@@ -43,6 +43,14 @@ export type UseChatStreamOptions = {
   onDone?: (finishReason: string | null) => void;
   /** Called on any error (network, rate-limit, 5xx, etc.). */
   onError?: (error: string, code?: string) => void;
+  /**
+   * Called after each successful turn with the server's authoritative
+   * post-consume usage. Replaces the client-side counter, which used to
+   * be seeded with a hardcoded `{ limit: 20, used: 0 }` and therefore
+   * always displayed the full allowance no matter how much the user had
+   * actually sent.
+   */
+  onUsage?: (usage: { used: number; limit: number }) => void;
 };
 
 type StreamState = {
@@ -101,7 +109,8 @@ export function useChatStream({
   onMessage,
   onToolCall,
   onDone,
-  onError
+  onError,
+  onUsage
 }: UseChatStreamOptions) {
   /** Accumulated messages for the current session. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -160,6 +169,27 @@ export function useChatStream({
       }
 
       const resolvedSessionId = res.headers.get('X-Session-Id') ?? sessionId;
+
+      // Post-consume usage from the server, so the "N messages
+      // remaining" readout in the composer reflects reality instead of
+      // the hardcoded `{ limit: 20, used: 0 }` the bubble used to seed
+      // (which meant the number never changed as the user chatted).
+      const usageHeader = res.headers.get('X-Chat-Usage');
+      const limitHeader = res.headers.get('X-Chat-Limit');
+      if (usageHeader) {
+        const used = Number.parseInt(usageHeader, 10);
+        const limit =
+          limitHeader === 'unlimited' || limitHeader === null
+            ? Number.POSITIVE_INFINITY
+            : Number.parseInt(limitHeader, 10);
+        if (Number.isFinite(used) && Number.isFinite(limit)) {
+          onUsage?.({ used, limit });
+        } else if (Number.isFinite(used) && limit === Number.POSITIVE_INFINITY) {
+          // Unlimited plan — report the used count with an infinite
+          // limit so the caller can hide the readout.
+          onUsage?.({ used, limit: Number.POSITIVE_INFINITY });
+        }
+      }
 
       if (!res.body) {
         onError?.('No response body');
