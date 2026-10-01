@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   TemplateGalleryGrid,
   TemplatePreviewBody,
-  TemplateBadges
+  TemplateBadges,
+  TemplateThumbnail
 } from '@/components/resume-templates';
 import {
   CLASSIC_TEMPLATE_META,
@@ -152,9 +153,11 @@ describe('TemplateGalleryGrid', () => {
     expect(html).toContain('v' + CLASSIC_TEMPLATE_META.version);
   });
 
-  it('renders the footer hint about preview + auto-save', () => {
+  it('renders the reassurance strip (ATS-safe + auto-save)', () => {
     const html = render(CLASSIC_TEMPLATE_META.id);
-    expect(html).toContain('saves automatically');
+    expect(html).toContain('data-testid="template-gallery-footer"');
+    expect(html).toContain('Every template is ATS-safe by default');
+    expect(html).toContain('Picking a template saves automatically');
   });
 });
 
@@ -293,5 +296,152 @@ describe('TemplateCard button state via the grid', () => {
       // Card should contain the version, prefixed with 'v'.
       expect(html).toContain('v' + meta.version);
     }
+  });
+});
+
+describe('TemplateThumbnail (visual schematic)', () => {
+  it('renders an SVG for every shipped template', () => {
+    for (const meta of [
+      CLASSIC_TEMPLATE_META,
+      MODERN_TEMPLATE_META,
+      MINIMAL_TEMPLATE_META,
+      EXECUTIVE_TEMPLATE_META,
+      CREATIVE_TEMPLATE_META
+    ]) {
+      const html = renderToStaticMarkup(
+        <TemplateThumbnail
+          templateId={meta.id}
+          accent={meta.accent}
+        />
+      );
+      // Every template ships with an <svg> + a paper-frame rect +
+      // at least one ink-colored rectangle (the body text).
+      expect(html).toContain('<svg');
+      expect(html).toContain('viewBox="0 0 320 192"');
+      // The schematic has at least 5 inner <rect> elements.
+      expect((html.match(/<rect/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    }
+  });
+
+  it('falls back to a generic page outline for unknown templates', () => {
+    const html = renderToStaticMarkup(
+      <TemplateThumbnail templateId="does-not-exist" accent="indigo" />
+    );
+    // The generic fallback still renders the SVG + the paper frame;
+    // it should not crash and should not throw on a missing branch.
+    expect(html).toContain('<svg');
+    expect(html).toContain('viewBox="0 0 320 192"');
+  });
+
+  it('renders the active-card "Current" badge over the thumbnail', () => {
+    const html = renderToStaticMarkup(
+      <TemplateGalleryGrid
+        currentTemplateId={CREATIVE_TEMPLATE_META.id}
+        onPreview={vi.fn()}
+        onUse={vi.fn()}
+      />
+    );
+    // The badge testid is per-template — confirms the badge exists
+    // on the active card's thumbnail area.
+    expect(html).toContain('data-testid="template-card-current-creative"');
+    // AND the thumbnail itself is mounted on the same card.
+    expect(html).toContain('data-testid="template-thumbnail-creative"');
+  });
+
+  it('renders one thumbnail per card (no shared/missing thumbnails)', () => {
+    const html = renderToStaticMarkup(
+      <TemplateGalleryGrid
+        currentTemplateId={CLASSIC_TEMPLATE_META.id}
+        onPreview={vi.fn()}
+        onUse={vi.fn()}
+      />
+    );
+    for (const id of [
+      'classic',
+      'modern',
+      'minimal',
+      'executive',
+      'creative'
+    ]) {
+      expect(html).toContain(`data-testid="template-thumbnail-${id}"`);
+    }
+  });
+});
+
+describe('TemplateCard — visual hierarchy', () => {
+  function cardHtml(currentTemplateId: string) {
+    return renderToStaticMarkup(
+      <TemplateGalleryGrid
+        currentTemplateId={currentTemplateId}
+        onPreview={vi.fn()}
+        onUse={vi.fn()}
+      />
+    );
+  }
+
+  it('renders the category label on every card', () => {
+    const html = cardHtml(CLASSIC_TEMPLATE_META.id);
+    for (const id of [
+      'classic',
+      'modern',
+      'minimal',
+      'executive',
+      'creative'
+    ]) {
+      expect(html).toContain(`data-testid="template-card-category-${id}"`);
+    }
+  });
+
+  it('renders an inline ATS-safe badge on every shipped card', () => {
+    const html = cardHtml(CLASSIC_TEMPLATE_META.id);
+    for (const id of [
+      'classic',
+      'modern',
+      'minimal',
+      'executive',
+      'creative'
+    ]) {
+      expect(html).toContain(`data-testid="template-card-ats-${id}"`);
+    }
+  });
+
+  it('clamps the description to keep cards aligned (uses line-clamp-2)', () => {
+    const html = cardHtml(CLASSIC_TEMPLATE_META.id);
+    // The CSS class `line-clamp-2` is what Tailwind ships for
+    // 2-line clamp. If a future contributor removes it, the
+    // cards will start stretching vertically — this test catches
+    // that regression.
+    expect(html).toContain('line-clamp-2');
+  });
+
+  it('shows tag chips inside a single container per card', () => {
+    const html = cardHtml(CLASSIC_TEMPLATE_META.id);
+    for (const id of [
+      'classic',
+      'modern',
+      'minimal',
+      'executive',
+      'creative'
+    ]) {
+      expect(html).toContain(`data-testid="template-card-tags-${id}"`);
+    }
+  });
+
+  it('uses a stronger active-state treatment: ring + filled background', () => {
+    const html = cardHtml(EXECUTIVE_TEMPLATE_META.id);
+    // The active card carries the `ring-primary/20` class (active
+    // state affordance). We assert the class is present in the
+    // active card's container.
+    const cardOpenTag = html.match(
+      /<div[^>]*data-testid="template-card-executive"[^>]*>/
+    )?.[0];
+    expect(cardOpenTag).toBeTruthy();
+    expect(cardOpenTag).toContain('ring-primary/20');
+    // The inactive Classic card does NOT carry the ring class.
+    const inactiveCardOpenTag = html.match(
+      /<div[^>]*data-testid="template-card-classic"[^>]*>/
+    )?.[0];
+    expect(inactiveCardOpenTag).toBeTruthy();
+    expect(inactiveCardOpenTag).not.toContain('ring-primary/20');
   });
 });

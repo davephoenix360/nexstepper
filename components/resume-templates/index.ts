@@ -88,4 +88,5 @@ export {
   TemplatePreviewBody,
   TemplateBadges
 } from "./template-preview-modal";
+export { TemplateThumbnail } from "./template-thumbnail";
 export type { ResumeTemplate, TemplateMeta } from "./types";
