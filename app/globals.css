@@ -349,6 +349,52 @@
   .no-print {
     display: none !important;
   }
+
+  /*
+    Print isolation (Phase 1g, plan: docs/plans/print-default-opt-in.md).
+
+    Per-page opt-in: a page declares itself a print-isolated context
+    by adding `.printable-root` to its outer wrapper. Inside that
+    subtree:
+      - everything is visibility: hidden by default
+      - .printable and its descendants are visibility: visible
+      - .printable itself is repositioned to the page origin so it
+        doesn't carry the surrounding layout's margins / sidebars
+
+    Why visibility:hidden, not display:none:
+      visibility:hidden preserves layout flow + the printable
+      subtree's ability to size itself against hidden ancestors.
+      display:none would collapse the ancestor chain and break the
+      absolute positioning of `.printable` (no positioned ancestor
+      to anchor to).
+
+    Why opt-in (not global):
+      Global flip-default would blank Ctrl+P output on every page
+      that hasn't been audited for printable content. Dashboard
+      pages with cards / scorecards / billing history all have
+      legitimate screen-but-not-print chrome that we don't want to
+      ship as "missing print" bug reports. Opt-in keeps the blast
+      radius tight: only the preview route opts in for v1.
+
+    Coexistence with `.no-print`:
+      The two systems coexist. `.no-print` is the global opt-out for
+      individual elements (used on the sidebar, mobile top bar, Pro
+      banner, preview chrome bar). `.printable-root` is the per-page
+      opt-in for isolation. A page can use either, both, or neither.
+  */
+  .printable-root * {
+    visibility: hidden;
+  }
+  .printable-root .printable,
+  .printable-root .printable * {
+    visibility: visible;
+  }
+  .printable-root .printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
 }
 
 @page {

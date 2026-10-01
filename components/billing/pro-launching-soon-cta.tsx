@@ -53,10 +53,19 @@ export function ProLaunchingSoonBanner({ className }: BaseProps) {
   return (
     <div
       role="status"
+      // `no-print` is defense-in-depth — the preview route's
+      // `.printable-root` (Phase 1g, plan:
+      // docs/plans/print-default-opt-in.md) hides this banner by
+      // default. The explicit class also strips the banner from
+      // Ctrl+P output on every OTHER dashboard page (where
+      // printable-root isn't set), so a Free user printing the
+      // resume list / settings page doesn't ship a "Pro is coming"
+      // banner to a recruiter by accident.
       className={
-        'w-full px-4 py-2 text-center text-sm bg-muted text-muted-foreground border-b border-border ' +
+        'no-print w-full px-4 py-2 text-center text-sm bg-muted text-muted-foreground border-b border-border ' +
         (className ?? '')
       }
+      data-testid="pro-launching-soon-banner"
     >
       <Sparkles className="inline-block size-3.5 mr-1.5 align-text-bottom text-primary" />
       <span>

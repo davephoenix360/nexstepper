@@ -67,6 +67,13 @@ export function DashboardShell({
 
       <div className="flex flex-1 overflow-hidden h-full">
         <aside
+          // `no-print` here was already in place; the Phase 1g
+          // (plan: docs/plans/print-default-opt-in.md) audit
+          // confirmed both the sidebar AND the mobile top bar
+          // (the line above) have the class. The Pro launching
+          // banner (the line above that) now also has it as
+          // defense-in-depth — the original PDF-leak bug was
+          // the banner missing this class.
           className={`no-print w-64 bg-background lg:bg-muted border-r border-border lg:block ${
             isSidebarOpen ? 'block' : 'hidden'
           } lg:relative absolute inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${

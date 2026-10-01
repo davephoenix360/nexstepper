@@ -78,9 +78,27 @@ export default async function ResumePreviewPage({
           when the URL has `?print=1`. Renders nothing — it's a side
           effect only. See auto-print.tsx for the guard. */}
       <AutoPrintOnLoad enabled={autoPrint} />
-      <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0">
+      {/*
+        Phase 1g: opt into print isolation by adding `.printable-root`
+        to the outermost wrapper. Inside this subtree, the
+        `@media print` rules in globals.css flip the default — only
+        `.printable` subtrees (the resume template, below) survive
+        in the PDF. Everything else (the chrome bar, the dashboard
+        sidebar, the Pro-launching-soon banner, etc.) is hidden.
+
+        Forgetting a `no-print` class on a banner / button / sidebar
+        used to silently leak UI chrome into the user's PDF (see
+        the Phase 1g bug report). With `.printable-root`, forgetting
+        a class is safe — the element is hidden by default and only
+        the explicitly-marked resume content shows up.
+      */}
+      <div className="printable-root min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0">
         <div className="mx-auto max-w-[8.5in] px-4 print:max-w-none print:px-0">
-          {/* Chrome bar — hidden in print via @media print (`no-print`). */}
+          {/* Chrome bar — hidden in print via @media print (`no-print`).
+              Defense in depth: the `.printable-root` parent already
+              hides this, but the explicit class makes the intent
+              clear and survives a future refactor that moves the
+              preview route outside the .printable-root wrapper. */}
           <div className="no-print mb-4 flex flex-col items-stretch gap-2 rounded-lg border bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <Button asChild variant="ghost" size="sm">
               <Link href={`/dashboard/resumes/${id}`}>
@@ -111,8 +129,11 @@ export default async function ResumePreviewPage({
             </div>
           </div>
 
-          {/* The actual resume. */}
-          <Template data={result.data} />
+          {/* The actual resume — the only subtree marked `.printable`
+              so it's the only thing that survives print isolation. */}
+          <div className="printable">
+            <Template data={result.data} />
+          </div>
         </div>
       </div>
     </>
