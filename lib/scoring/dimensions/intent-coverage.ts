@@ -1,4 +1,5 @@
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
+import { buildSkillIndex, findMissingSkills, type SkillIndex } from '../skill-match';
 
 /**
  * v2 Intent Coverage dimension.
@@ -26,10 +27,15 @@ import type { JobPosting, ResumeData } from '@/lib/resume-schema';
  *      criterion. Intent Coverage survives the wrapper because
  *      we don't touch it.
  *
- * Skill matching is case-insensitive substring on the flattened
- * resume text. Same as v1's `computeMissingKeywords` — keeps
- * the v1/v2 transition honest (no behavior change for JDs that
- * didn't run through the v2 extractor).
+ * Skill matching is token-set based via `lib/scoring/skill-match.ts`, shared
+ * with `ats-matching.ts` so the two dimensions cannot disagree about the same
+ * job description.
+ *
+ * It used to be a bare case-insensitive substring test, which was wrong in
+ * both directions: `Python/Django` (one satisfied stack, two technologies)
+ * was recorded as a MISS and penalised 8 points, while `Go` matched inside
+ * `mongodb` and was recorded as a hit. See `skill-match.ts` for the full
+ * before/after and `docs/drift/2026-10-01-ats-scoring-review.md` §1.
  *
  * When the JD has no v2 intent fields (legacy rows, failed
  * extraction), returns the neutral `NEUTRAL_SCORE` (50) so the
@@ -79,11 +85,19 @@ export function scoreIntentCoverageParams(params: {
   mustHaveSkills: string[];
   niceToHaveSkills: string[];
   implicitSkills: string[];
-  /** Lowercased — case-insensitive substring match. */
-  resumeTextLower: string;
+  /**
+   * Pre-built skill index over the resume, OR the raw flattened resume text
+   * (which is indexed here). Passing the index lets the sync engine share one
+   * pass across all three priority lists.
+   */
+  resumeTextLower: string | SkillIndex;
 }): IntentCoverageBreakdown {
   const { mustHaveSkills, niceToHaveSkills, implicitSkills, resumeTextLower } =
     params;
+  const index =
+    typeof resumeTextLower === 'string'
+      ? buildSkillIndex(resumeTextLower)
+      : resumeTextLower;
 
   // No v2 intent data → neutral. This is the explicit fallback
   // path for legacy rows + JDs where the extractor failed.
@@ -100,9 +114,9 @@ export function scoreIntentCoverageParams(params: {
     };
   }
 
-  const missedMustHave = findMissing(mustHaveSkills, resumeTextLower);
-  const missedNiceToHave = findMissing(niceToHaveSkills, resumeTextLower);
-  const missedImplicit = findMissing(implicitSkills, resumeTextLower);
+  const missedMustHave = findMissingSkills(mustHaveSkills, index);
+  const missedNiceToHave = findMissingSkills(niceToHaveSkills, index);
+  const missedImplicit = findMissingSkills(implicitSkills, index);
 
   // Weighted penalty. Cap each priority list at MAX_PER_PRIORITY
   // so a JD with 50 must-haves can't push the score below 0 from
@@ -153,28 +167,19 @@ export function scoreIntentCoverage(
 }
 
 /**
- * Find the priority-list items NOT present in the resume text.
- * Case-insensitive substring match. Returns the original-cased
- * skill name (preserves the JD's terminology for the UI).
- */
-function findMissing(skills: string[], resumeTextLower: string): string[] {
-  const missed: string[] = [];
-  for (const skill of skills) {
-    if (typeof skill !== 'string' || skill.length === 0) continue;
-    if (!resumeTextLower.includes(skill.toLowerCase())) {
-      missed.push(skill);
-    }
-  }
-  return missed;
-}
-
-/**
  * Flatten the resume envelope into a single searchable string.
- * Mirrors `flattenResumeText` from `lib/scoring/similarity.ts`
- * closely — same fields, same role-family coverage. Lives inline
- * here (not imported) so the v2 dimension has zero coupling to
- * the v1 similarity module. If we ever swap tokenization
- * strategies, we update both spots.
+ *
+ * Mirrors `flattenResumeText` from `lib/scoring/similarity.ts` closely — same
+ * fields, same role-family coverage — but additionally includes education,
+ * awards and publications, which the v1 helper omits. A JD that names a
+ * qualification should be able to find it in the resume.
+ *
+ * This duplication used to be a real hazard: the old comment said "if we ever
+ * swap tokenization strategies, we update both spots", and the tokenization
+ * swap is exactly what produced the `Python/Django` defect. The tokenization
+ * itself now lives in the shared `../skill-match` module, so the two copies
+ * can only diverge in *which fields* they include — a visible, testable
+ * difference rather than a silent one.
  */
 function flattenResumeTextForIntentCoverage(resume: ResumeData): string {
   const sections = resume.sections;

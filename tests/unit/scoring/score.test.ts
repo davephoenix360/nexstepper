@@ -200,12 +200,39 @@ describe('scoreResume — well-matched pair', () => {
 describe('scoreResume — poorly-matched pair', () => {
   const result = scoreResume(POORLY_MATCHED_RESUME, POORLY_MATCHED_JOB);
 
-  it('returns overall < 30 (golden fixture: poorly-matched pair)', () => {
-    expect(result.overallScore).toBeLessThan(30);
+  it('keeps ATS matching low (designer resume vs backend job)', () => {
+    // This is the assertion that actually means "poorly matched" — the JD
+    // overlap is near zero.
+    expect(result.dimensionScores.atsMatching).toBeLessThan(20);
   });
 
-  it('ATS matching is low (designer resume vs backend job)', () => {
-    expect(result.dimensionScores.atsMatching).toBeLessThan(20);
+  it('cannot score below ~33 even when JD match is near zero', () => {
+    // Was `< 30` before the 2026-10-01 fixes.
+    //
+    // It now floors at ~33 because `contentQuality` is no longer capped at 70
+    // (its sub-weights summed to 0.7, not 1.0) and `alignment.tailoring` is
+    // recall rather than a Jaccard that structurally could not exceed ~10%.
+    //
+    // That is not a regression — it is the composition problem made visible.
+    // ~0.49 of `WEIGHTS_V2` measures generic resume craft that is independent
+    // of the job posting, so a *well-written* resume for the wrong discipline
+    // cannot score low on an "ATS match" number, however badly it matches.
+    // This test now documents the floor rather than hiding it.
+    //
+    // The fix is a product decision, not a scoring change: either present two
+    // numbers (craft vs match) or re-weight. See
+    // docs/drift/2026-10-01-ats-scoring-review.md §4.
+    expect(result.overallScore).toBeGreaterThanOrEqual(30);
+    expect(result.overallScore).toBeLessThan(40);
+  });
+
+  it('scores ATS matching far below content quality on this fixture', () => {
+    // The shape of the problem in one assertion: this resume is competently
+    // written and almost entirely irrelevant to the job, and the overall
+    // number cannot tell those two facts apart.
+    expect(result.dimensionScores.atsMatching).toBeLessThan(
+      result.dimensionScores.contentQuality
+    );
   });
 });
 

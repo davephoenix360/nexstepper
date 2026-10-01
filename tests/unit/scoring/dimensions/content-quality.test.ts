@@ -101,7 +101,7 @@ describe('scoreContentQuality', () => {
     expect(result.breakdown.actionVerbUsage).toBe(50);
   });
 
-  it('combines the two sub-criteria with 40/30 weighting', () => {
+  it('combines the two sub-criteria with 40/30 weighting, normalised to 0-100', () => {
     const result = scoreContentQuality(
       buildResume([
         'Built a payments platform serving 12M users', // 1/1 strong + 1/1 with digit
@@ -113,8 +113,35 @@ describe('scoreContentQuality', () => {
     // action-verb: 2/3 ≈ 66.67
     expect(result.breakdown.accomplishmentRatio).toBeCloseTo(33.33, 1);
     expect(result.breakdown.actionVerbUsage).toBeCloseTo(66.67, 1);
-    // value = 0.4 * 33.33 + 0.3 * 66.67 = 13.33 + 20 = 33.33
-    expect(result.value).toBeCloseTo(33.33, 1);
+    // The 40/30 ratio is preserved, then divided by WEIGHT_SUM (0.7) so the
+    // dimension uses the full 0-100 range:
+    //   (0.4 * 33.33 + 0.3 * 66.67) / 0.7 = 33.33 / 0.7 ≈ 47.62
+    //
+    // This test previously asserted the un-normalised 33.33 — which is how
+    // the 0-70 cap survived: a test pinned the buggy value, so "fixing" the
+    // dimension would have failed the suite. See
+    // docs/drift/2026-10-01-ats-scoring-review.md §2.
+    expect(result.value).toBeCloseTo(47.62, 1);
+  });
+
+  it('reaches 100 when both sub-criteria are perfect', () => {
+    // The regression guard for the cap: with 0.4 + 0.3 weights and no
+    // normalisation this could never exceed 70, and it carried 0.21 of the
+    // overall score, so 6.3 points of the scale were unreachable.
+    const result = scoreContentQuality(
+      buildResume([
+        'Led a team of 8 to cut costs 30%',
+        'Shipped 14 features to 2M users',
+        'Grew revenue 23% year over year'
+      ])
+    );
+    expect(result.breakdown.accomplishmentRatio).toBe(100);
+    // Only verbs in ACTION_VERBS count, so derive the expectation from the
+    // measured sub-score rather than hardcoding a verb list here.
+    const expected =
+      (0.4 * 100 + 0.3 * result.breakdown.actionVerbUsage) / 0.7;
+    expect(result.value).toBeCloseTo(expected, 5);
+    expect(result.value).toBeGreaterThan(70);
   });
 
   it('ignores empty / whitespace-only highlights', () => {
