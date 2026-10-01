@@ -144,6 +144,25 @@ should ship in the meantime.**
 
 **Recently shipped (for context, last 7 days)**
 
+- **Template gallery modal** — shipped 2026-10-01, branch
+  `feat/template-gallery-modal`. The compact `<TemplatePicker>`
+  dropdown on the resume editor (a 72-char list with name +
+  version + badges and no visual preview) is replaced with a
+  full gallery modal: a 2-column responsive grid of template
+  cards (name, version, ATS-safe badge, Pro badge, description,
+  tags, "Current" badge on the active template), each with a
+  **Preview** CTA that opens a stacked `<TemplatePreviewModal>`
+  rendering that template against `gallerySampleResumeData` (a
+  richer Alex-Morgan / 2-company / 2-project resume fixture so
+  previews look like real resumes, not the existing thin
+  JSON-Resume sample). Closing the preview returns to the
+  gallery; closing the gallery returns to the editor. Same
+  optimistic-update + `requestSave` plumbing as the old picker —
+  the save pipeline is untouched. Old `template-picker.tsx`
+  deleted; gallery surface is the new single entry point.
+  Plan: `docs/plans/template-gallery-modal.md`. 1010 → 1031
+  tests.
+
 - **Rebrand: Nextep → Nexstepper** — shipped 2026-09-25, branch
   `feat/rebrand-nexstepper` (merged as PR #2) + drift memo
   `docs/drift/2026-09-25-nextep-rename.md`. Third party owns the
