@@ -105,7 +105,26 @@ or (b) use Neon's GitHub Action to spin a fresh branch per PR. **Defer
 
 ### 1.3 Apply migrations to a clean DB
 
-Before pointing the app at `production`:
+The Vercel build runs `pnpm prebuild` (→ `pnpm db:migrate`) before
+`next build`, so **every push to `main` auto-applies pending
+migrations** against the DB pointed to by `POSTGRES_URL`. The same
+is true for every preview deploy — the prebuild reads the env-var
+set Vercel injects for that environment, so previews point at the
+Neon dev branch pooler and production at the prod pooler.
+
+What this means in practice:
+
+- The first time you ship a new migration to prod, you don't need a
+  manual step — the build does it.
+- For **every** subsequent migration, the same is true. There is no
+  "remember to run `pnpm db:migrate` before deploy" checklist item
+  any more — the build enforces it.
+- If a migration fails, Vercel fails the build and never deploys.
+  That's the desired behaviour: a broken migration should not be
+  followed by a deploy of code that depends on it.
+
+If you ever need to apply migrations manually (e.g. while iterating
+locally against a Neon branch you've just provisioned):
 
 ```bash
 # Locally, with prod connection string in a side-shell
@@ -119,6 +138,13 @@ migration fails: stop, do not deploy the app yet.** The fix is usually
 either a bad migration (regenerate from the schema diff) or a Neon
 permission issue (default `neondb_owner` role has full DDL — should be
 fine).
+
+**Connection URL.** `POSTGRES_URL` must be the Neon **pooler**
+endpoint (`…-pooler.<region>.aws.neon.tech/…?sslmode=require`), not
+the direct endpoint. The pooler multiplexes connections over a
+single Postgres session, which is what Vercel's serverless build
+runtime expects. Direct endpoints work for local dev but can stall
+or hit the Neon connection cap from the build sandbox.
 
 ### 1.4 Smoke the DB
 
@@ -136,7 +162,10 @@ Open Drizzle Studio, confirm all the expected tables exist:
 
 ### 1.5 Verify
 
-- [ ] `pnpm db:migrate` exits 0 against the prod connection string
+- [ ] First deploy's build log shows `pnpm db:migrate` running (under
+      `prebuild`) and exiting 0 — confirms the prod pooler URL is
+      wired into Vercel and the migration applied without manual
+      intervention
 - [ ] **Free tier:** PIT backups intentionally absent — see §10.2 for
       how this changes the rollback playbook
 - [ ] **Launch tier (after upgrade):** PIT backups visible in Neon
