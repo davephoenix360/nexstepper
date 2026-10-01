@@ -1423,8 +1423,8 @@ export async function updateChatSessionTitle(
 }
 
 /**
- * Normalise the `tool_calls` JSONB column back into the
- * `Array<{ name, args }>` shape the client / model prompt expect.
+ * Normalise the `tool_calls` JSONB column back into an
+ * `Array<{ id?, name, args }>` shape the client / model prompt expect.
  *
  * The DB column is declared as `jsonb`, but Drizzle + `postgres-js`
  * round-trips it through a string for some adapter / driver combos,
@@ -1433,15 +1433,21 @@ export async function updateChatSessionTitle(
  * and return `undefined` on any failure (corrupt JSON, wrong root
  * type, missing field). Callers should treat `undefined` as
  * "no tool calls for this row" rather than an error.
+ *
+ * `id` is the SDK-assigned `toolCallId`. It is optional because rows
+ * written before 2026-10-01 did not persist it; the chat route falls back
+ * to a deterministic synthetic id for those. Persisting it is what lets a
+ * tool-result message be paired with its tool-call on a later turn — a
+ * random id per request (as the route used to do) breaks that pairing.
  */
 export function parseChatToolCalls(
   raw: unknown
-): Array<{ name: string; args: unknown }> | undefined {
+): Array<{ id?: string; name: string; args: unknown }> | undefined {
   if (raw === null || raw === undefined) return undefined;
   try {
     const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(value)) return undefined;
-    return value as Array<{ name: string; args: unknown }>;
+    return value as Array<{ id?: string; name: string; args: unknown }>;
   } catch {
     return undefined;
   }

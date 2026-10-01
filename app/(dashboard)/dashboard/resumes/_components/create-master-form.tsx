@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 
 import { createMasterResumeAction, importResumeAction, type ImportResumeErrorCode } from '../actions';
 import { EditorTabs } from './editor-tabs';
+import { AiParsingModal } from '@/components/resumes/ai-parsing-modal';
 
 type Mode = 'scratch' | 'import';
 type PasteMode = 'file' | 'paste';
@@ -326,6 +327,23 @@ export function CreateMasterResumeForm() {
             </Button>
 
             {pending && <ImportStepIndicator stage={stage} />}
+
+            {/*
+              Full-screen parsing modal.
+
+              Replaces the inline spinner as the primary "we're working on
+              it" signal: the import runs 30–90s, and on a long form the
+              inline indicator is easy to scroll away from. The modal can't
+              be dismissed (the Server Action isn't cancellable) and its
+              rotating tip carousel turns the wait into a teaching moment.
+
+              `stage !== 'done'` because on success we immediately navigate
+              away — leaving the modal up would cover the editor.
+            */}
+            <AiParsingModal
+              open={mode === 'import' && pending && stage !== 'done'}
+              stageLabel={stageLabel(stage)}
+            />
           </form>
         )}
 

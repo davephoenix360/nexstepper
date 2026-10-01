@@ -9,17 +9,57 @@ interface ChatMessageProps {
 
 function ToolCallBadge({ name, args }: { name: string; args: unknown }) {
   const summary = (() => {
-    const a = args as Record<string, unknown>;
+    const a = (args ?? {}) as Record<string, unknown>;
+
     if (name === 'editResume') {
-      const partial = a as { summary?: string; sections?: unknown };
-      return partial.summary
-        ? `Edited: ${partial.summary}`
+      // `setBasics.summary` carries the whole replacement summary, which is
+      // far too long to render in a badge. The old code read a top-level
+      // `summary` key that the new surgical schema doesn't have, so this
+      // always fell through to the generic string. Summarise the operations
+      // that actually ran instead.
+      const changes: string[] = [];
+      const setBasics = a.setBasics as Record<string, unknown> | undefined;
+      if (setBasics?.summary) changes.push('summary');
+      if (setBasics?.headline) changes.push('headline');
+      if (setBasics?.email) changes.push('email');
+      if (setBasics?.phone) changes.push('phone');
+      if (setBasics?.name) changes.push('name');
+      if (setBasics?.location) changes.push('location');
+      if (setBasics?.linkedin) changes.push('LinkedIn');
+      if (setBasics?.github) changes.push('GitHub');
+      if (setBasics?.website) changes.push('website');
+
+      const count = (key: string, verb: string) => {
+        const arr = a[key];
+        if (Array.isArray(arr) && arr.length > 0) changes.push(`${verb} ${arr.length}`);
+      };
+      count('addWork', 'job');
+      count('updateWork', 'updated');
+      count('removeWork', 'removed job');
+      count('addEducation', 'education');
+      count('removeEducation', 'removed education');
+      count('addSkills', 'skill');
+      count('removeSkills', 'removed skill');
+      count('addProject', 'project');
+      count('updateProject', 'updated project');
+      count('removeProject', 'removed project');
+      count('addCertificates', 'certificate');
+      count('addLanguages', 'language');
+      count('addInterests', 'interest');
+      count('addAwards', 'award');
+      if (Array.isArray(a.clearSection) && a.clearSection.length > 0) {
+        changes.push(`cleared ${a.clearSection.join(', ')}`);
+      }
+
+      return changes.length > 0
+        ? `Updated: ${changes.join(', ')}`
         : 'Applied resume changes';
     }
+
     if (name === 'switchTemplate') {
-      const a2 = a as { templateId?: string };
-      return `Switched to template: ${a2.templateId ?? 'unknown'}`;
+      return `Switched to template: ${(a.templateId as string) ?? 'unknown'}`;
     }
+
     return `Called ${name}`;
   })();
 
@@ -77,12 +117,27 @@ function ChatMessageComponent({ message, isLoading }: ChatMessageProps) {
         ) : null}
 
         {/* Tool result feedback */}
-        {!isUser && message.toolResult ? (
-          <div className="mt-1.5 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-            <CheckCircle className="h-3 w-3 shrink-0" />
-            <span>Changes applied</span>
-          </div>
-        ) : null}
+        {!isUser && message.toolResult ? (() => {
+          // `toolResult` is now a persisted `Array<{ id, result }>` (one per
+          // tool call in a possibly multi-step turn). Only claim success if
+          // at least one result actually reported `ok: true` — previously
+          // this rendered on the mere presence of the field, so a failed
+          // edit still showed a green "Changes applied".
+          const results = Array.isArray(message.toolResult)
+            ? (message.toolResult as Array<{ result?: unknown }>)
+            : [];
+          const anyOk = results.some((r) => {
+            const inner = r?.result as { ok?: boolean } | undefined;
+            return inner?.ok === true;
+          });
+          if (!anyOk) return null;
+          return (
+            <div className="mt-1.5 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+              <CheckCircle className="h-3 w-3 shrink-0" />
+              <span>Changes applied</span>
+            </div>
+          );
+        })() : null}
       </div>
     </div>
   );

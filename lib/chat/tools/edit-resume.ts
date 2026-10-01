@@ -3,30 +3,26 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { saveResumeRevision } from '@/lib/db/queries';
+import { buildMergedData } from './merge-resume';
 import type { EditResumeArgs } from './types';
-
-/**
- * Extract a profile URL from basics.profiles by network name.
- */
-function getProfileUrl(
-  profiles: Array<{ network: string; url: string }> | undefined,
-  network: string
-): string | null {
-  const entry = profiles?.find(
-    (p) => p.network.toLowerCase() === network.toLowerCase()
-  );
-  return entry?.url ?? null;
-}
 
 /**
  * Execute an `editResume` tool call.
  *
- * Merges `args` (partial ResumeData fields) into the existing resume
- * via `saveResumeRevision` — the same persistence path as every other
- * save in the app. Ownership is verified via the session before any
- * write happens.
+ * Merges `args` (surgical operations, see `./types.ts`) into the existing
+ * resume via `saveResumeRevision` — the same persistence path as every other
+ * save in the app. Ownership is verified via the session before any write
+ * happens.
  *
- * Returns a plain object that gets serialised as the tool result.
+ * The merge itself lives in `./merge-resume.ts` (pure, no `server-only`, no
+ * DB) so it can be unit tested directly — the merge is where the resume-data
+ * bugs actually live.
+ *
+ * Returns a plain object that gets serialised as the tool result. The result
+ * text is written for the *model* to read, not for the user: it names exactly
+ * what changed and calls out anything that could not be applied, so a failed
+ * match can be retried in the same turn instead of the agent confidently
+ * telling the user it worked.
  */
 export async function executeEditResume(
   resumeId: string,
@@ -42,113 +38,32 @@ export async function executeEditResume(
   const existing = await getResume(resumeId, userId);
   if (!existing) return { ok: false, error: 'Resume not found or not owned' };
 
-  const merged = buildMergedData(existing.data, args);
+  const { data, applied, warnings } = buildMergedData(existing.data, args);
+
+  if (applied.length === 0) {
+    // Nothing matched and nothing changed. Persisting here would burn a
+    // revision on a no-op, so bail out and let the model correct itself.
+    return {
+      ok: false,
+      error: `No changes were applied. ${warnings.join(' ') || 'The call contained no operations.'}`
+    };
+  }
 
   try {
-    const rev = await saveResumeRevision(resumeId, userId, merged, {
+    const rev = await saveResumeRevision(resumeId, userId, data, {
       message: 'Edited via AI chat'
     });
     if (!rev) return { ok: false, error: 'Failed to save revision' };
-    return {
-      ok: true,
-      result: `Resume updated. Changes saved as revision ${rev.id.slice(0, 8)}.`
-    };
+
+    const parts = [`Saved as revision ${rev.id.slice(0, 8)}.`, `Changed: ${applied.join(', ')}.`];
+    if (warnings.length > 0) {
+      parts.push(
+        `NOT applied: ${warnings.join(' ')} Retry those with a closer match to the resume, or tell the user which part you could not do.`
+      );
+    }
+    return { ok: true, result: parts.join(' ') };
   } catch (err) {
     console.error('[executeEditResume]', err);
     return { ok: false, error: 'Failed to save resume changes' };
   }
-}
-
-/**
- * Shallow-merge partial fields into the existing ResumeData.
- * Section-level fields (work, education, skills, projects) are
- * full-array replacements — the AI passes the complete updated array.
- *
- * The actual schema uses nested structures (work.positions[],
- * education.degree{}), but the AI tool uses flat fields for
- * ergonomics. We transform here before writing.
- */
-function buildMergedData(
-  existing: import('@/lib/resume-schema').ResumeData,
-  args: EditResumeArgs
-): import('@/lib/resume-schema').ResumeData {
-  const basics = existing.sections?.basics;
-
-  // Transform flat AI experience[] → nested schema work[] with positions[]
-  const workEntries =
-    args.experience !== undefined
-      ? args.experience.map((e) => ({
-          id: e.id,
-          company: e.company,
-          location: e.location ?? '',
-          url: '',
-          description: '',
-          positions: [
-            {
-              title: e.role,
-              startDate: e.startDate ?? '',
-              endDate: e.endDate ?? '',
-              highlights: e.highlights ?? []
-            }
-          ]
-        }))
-      : undefined;
-
-  // Transform flat AI education[] → nested schema education[] with degree{}
-  const educationEntries =
-    args.education !== undefined
-      ? args.education.map((e) => ({
-          id: e.id,
-          institution: e.institution,
-          url: '',
-          location: '',
-          degree: {
-            degreeLevel: e.degree ?? '',
-            majors: e.field ? [e.field] : [],
-            minors: []
-          },
-          startDate: e.startDate ?? '',
-          endDate: e.endDate ?? '',
-          gpa: e.gpa ?? '',
-          courses: []
-        }))
-      : undefined;
-
-  return {
-    ...existing,
-    ...(args.contact && {
-      name: args.contact.name ?? existing.name,
-      sections: {
-        ...existing.sections,
-        basics: {
-          ...basics,
-          label:
-            args.contact.headline !== undefined
-              ? args.contact.headline
-              : basics?.label,
-          email: args.contact.email ?? basics?.email,
-          phone: args.contact.phone ?? basics?.phone,
-          summary: args.contact.summary ?? basics?.summary,
-          url: args.contact.website ?? basics?.url,
-          location: basics?.location,
-          profiles: basics?.profiles,
-          name: args.contact.name ?? basics?.name
-        }
-      }
-    }),
-    ...(workEntries !== undefined && {
-      sections: { ...existing.sections, work: workEntries }
-    }),
-    ...(educationEntries !== undefined && {
-      sections: { ...existing.sections, education: educationEntries }
-    }),
-    ...(args.skills !== undefined && {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sections: { ...existing.sections, skills: args.skills as any }
-    }),
-    ...(args.projects !== undefined && {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sections: { ...existing.sections, projects: args.projects as any }
-    })
-  };
 }

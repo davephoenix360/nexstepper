@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquare } from 'lucide-react';
@@ -20,6 +21,7 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -109,6 +111,13 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
       setRateLimit(
         Number.isFinite(usage.limit) ? { limit: usage.limit, used: usage.used } : null
       );
+    },
+    onResumeUpdated: () => {
+      // The assistant just wrote a revision to this resume. Revalidate the
+      // server components so the editor behind the chat panel updates —
+      // without this the user reads "Done, I rewrote your summary" while
+      // looking at the old summary, which is what made the tool feel broken.
+      router.refresh();
     },
     onError: (err: string, code?: string, limit?: number | null) => {
       setIsStreaming(false);

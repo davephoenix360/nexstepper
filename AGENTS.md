@@ -50,7 +50,7 @@ Adding any of these needs a discussion, not a drive-by edit:
 | ORM | Drizzle (no Prisma) |
 | Auth | Better Auth 1.6+ (no NextAuth, no Clerk) |
 | Billing | Stripe (Free + Pro ≈ the price of a coffee; see `docs/setup/stripe.md` for the actual amount + brand-voice rationale) |
-| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`; free-tier primary `mistral/mistral-nemo` with 4-model fallback chain (see `docs/ai-models-reference.md`) |
+| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`. **Two tiers:** `PARSER_MODEL = mistral/mistral-nemo` for structured extraction (it is one of the few free-tier models with `structured_output` support) and `CHAT_MODEL = inclusionai/ling-3.1-flash` for the agentic chat (tool-use + reasoning, $0/$0, 262K ctx), each with its own fallback chain — see `docs/ai-models-reference.md` and `docs/plans/chat-agent-v2.md` |
 | Email | Resend |
 | Observability | Sentry (errors) + PostHog (analytics) |
 | Background jobs | Inngest |
@@ -143,6 +143,38 @@ real Sentry/PostHog keys. **3–5 days wall-time; nothing else
 should ship in the meantime.**
 
 **Recently shipped (for context, last 7 days)**
+
+- **Chat agent v2 + AI-parsing modal** — branch
+  `feat/chat-agent-v2`. The chat "suggests but never does" was **five**
+  independent defects, not one: (1) `stopWhen` was never set and the AI SDK
+  defaults to `stepCountIs(1)`, so a turn that spent its step calling a tool
+  ended immediately and could never confirm; (2) `editResume` required an
+  `id` on every entry but the resume context contains no IDs, so validation
+  always failed; (3) `buildMergedData` rebuilt the whole `sections` object in
+  *each* conditional spread, so every operation **overwrote** the previous —
+  `setBasics` + `addWork` in one call silently lost the summary edit; (4) the
+  tool schema disagreed with `ResumeData` (skills lacked `keywords`, projects
+  used `link` not `url`, hidden behind `as any`); (5) history was built in the
+  v4 `UIMessage` shape with `Math.random()` tool-call IDs and tool results
+  were never replayed. The system prompt compounded it by instructing tools
+  fire *"ONLY when the user explicitly asks … in their own words"*, which
+  refused the implied request *"I don't like my summary."* `editResume` is
+  now **surgical** (setBasics / add|update|remove work, education, skills,
+  projects, leaf sections, clearSection) with **no ids anywhere** and
+  case-insensitive `matchCompany` / `matchRole` targeting; the merge moved to
+  a pure, directly-tested `lib/chat/tools/merge-resume.ts` that folds every
+  op into one accumulator and reports `applied[]` + `warnings[]` back to the
+  model so a failed match retries instead of falsely claiming success. Chat
+  moved to **`inclusionai/ling-3.1-flash`** (560B/25B-active, tool-use +
+  reasoning, **$0/$0**, 262K ctx vs Nemo's 60K) with a gateway-native
+  `order` fallback ending in Nemo — the only model proven on this account.
+  `PARSER_MODEL` is deliberately untouched: the `structured-output` capability
+  is the *only* reason Nemo is right for parsing and the reason Ling can't be.
+  The editor now revalidates on a `resume_updated` SSE event. The AI-import
+  loading text is replaced by a non-dismissible portal modal with rotating
+  emoji headlines and a tip carousel covering resume craft, cover letters,
+  and Nexstepper usage (incl. the master-resume → variant explanation).
+  Plan: `docs/plans/chat-agent-v2.md`. 1023 → 1090 tests.
 
 - **Template gallery modal** — shipped 2026-10-01, branch
   `feat/template-gallery-modal`. The compact `<TemplatePicker>`

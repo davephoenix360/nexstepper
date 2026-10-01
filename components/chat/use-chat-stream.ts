@@ -51,6 +51,15 @@ export type UseChatStreamOptions = {
    * actually sent.
    */
   onUsage?: (usage: { used: number; limit: number }) => void;
+  /**
+   * Called when the server reports that a resume-mutating tool
+   * (`editResume` / `switchTemplate`) actually wrote a revision.
+   *
+   * Without this the editor keeps rendering the pre-edit server state, so the
+   * chat would report "I rewrote your summary" next to an unchanged summary.
+   * The parent is expected to call `router.refresh()`.
+   */
+  onResumeUpdated?: () => void;
 };
 
 type StreamState = {
@@ -110,7 +119,8 @@ export function useChatStream({
   onToolCall,
   onDone,
   onError,
-  onUsage
+  onUsage,
+  onResumeUpdated
 }: UseChatStreamOptions) {
   /** Accumulated messages for the current session. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -271,6 +281,12 @@ export function useChatStream({
               onMessage([...messages]);
               break;
             }
+
+            case 'resume_updated':
+              // The tool wrote a revision server-side. Revalidate so the
+              // editor reflects the edit the assistant just described.
+              onResumeUpdated?.();
+              break;
 
             case 'done':
               isStreaming = false;
