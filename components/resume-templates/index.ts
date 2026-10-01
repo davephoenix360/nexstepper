@@ -77,5 +77,16 @@ export function listTemplates(): ResumeTemplate[] {
   return Object.values(templateRegistry);
 }
 
-export { TemplatePicker } from "./template-picker";
+export {
+  TemplateGalleryButton,
+  TemplateGalleryModal,
+  TemplateGalleryGrid,
+  TemplateSaveIndicator
+} from "./template-gallery-modal";
+export {
+  TemplatePreviewModal,
+  TemplatePreviewBody,
+  TemplateBadges
+} from "./template-preview-modal";
+export { TemplateThumbnail } from "./template-thumbnail";
 export type { ResumeTemplate, TemplateMeta } from "./types";

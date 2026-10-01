@@ -40,7 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '@/components/ui/tooltip';
-import { getTemplate, TemplatePicker } from '@/components/resume-templates';
+import { getTemplate, TemplateGalleryButton } from '@/components/resume-templates';
 import { EditSectionDialog } from './edit-section-dialog';
 import { SECTION_DIALOGS } from './section-schemas';
 import {
@@ -235,20 +235,15 @@ export function EditableResume({
             Hidden in print via .no-print. */}
         <div className="no-print flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-2">
-            <TemplatePicker
+            <TemplateGalleryButton
               disabled={pending}
-              // The picker needs the parent-owned save trigger so
-              // it doesn't have to reach into the DOM for the form
+              // The gallery button needs the parent-owned save trigger
+              // so it doesn't have to reach into the DOM for the form
               // (which would be ambiguous once portals/mount).
               // Reusing the same `submit` as the Save button +
               // Ctrl+S means validation + onSave pipeline stays
               // identical to the rest of the editor.
               requestSave={submit}
-              onTemplatePicked={() => {
-                // Hook for future toast / analytics calls. The
-                // actual save fires synchronously via requestSave()
-                // inside the picker.
-              }}
             />
             <Button
               type="button"
