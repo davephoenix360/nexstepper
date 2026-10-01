@@ -1319,10 +1319,20 @@ export async function recordScoreSnapshot(
   await db.insert(scoreSnapshots).values({
     id,
     resumeId,
-    matchScore: snapshot.matchScore,
+    // `match_score` / `computed_in_ms` are `integer` columns but the input
+    // type is `number`, so TypeScript cannot catch a float. A fractional
+    // `computedInMs` (straight out of `performance.now()`) previously made
+    // Postgres reject the whole INSERT with
+    // `invalid input syntax for type integer` and the recompute surfaced to
+    // the user as "Scoring failed".
+    //
+    // `score.ts` already rounds both at the source; this is the boundary
+    // guard so a future caller can't reintroduce a runtime-only failure
+    // that unit tests would never see.
+    matchScore: Math.round(snapshot.matchScore),
     matchBreakdown: snapshot.matchBreakdown,
     dynamicTips: snapshot.dynamicTips,
-    computedInMs: snapshot.computedInMs
+    computedInMs: Math.round(snapshot.computedInMs)
   });
   return { id };
 }

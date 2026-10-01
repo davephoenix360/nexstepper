@@ -414,7 +414,15 @@ export function scoreResume(
     w.roleFit * roleFitBreakdown.value +
     w.seniorityFit * seniorityFitBreakdown.value;
 
-  const computedInMs = Math.max(0, nowMs() - t0);
+  // `performance.now()` is a high-resolution clock, so the raw delta is a
+  // float like `15.795039999997243`. It lands in `score_snapshots.computed_in_ms`,
+  // an `integer` column, and Postgres rejects the whole INSERT with
+  // `invalid input syntax for type integer` — which surfaced to the user as
+  // "Scoring failed" on every recompute.
+  //
+  // Round here, at the source, so every consumer gets an integer: the DB
+  // insert, the PostHog event, and the GDPR export bundle.
+  const computedInMs = Math.round(Math.max(0, nowMs() - t0));
 
   return {
     overallScore: Math.round(overall),

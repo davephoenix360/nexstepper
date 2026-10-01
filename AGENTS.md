@@ -605,6 +605,31 @@ Use `inArray(col, ids)`. It also guards the empty case (`in ()` is itself a
 syntax error), so still check `rows.length > 0` first.
 `tests/unit/db/in-array-sql-shape.test.ts` locks the rendered shape.
 
+### 8. A TS `number` can be an integer column — it will not warn you
+
+`score_snapshots.computed_in_ms` is an `integer` column, and the value written
+to it came straight off `performance.now()`:
+
+```ts
+const computedInMs = Math.max(0, nowMs() - t0); // 15.795039999997243
+```
+
+Postgres rejects the whole INSERT with `invalid input syntax for type
+integer`, and the recompute UI reported it to the user as *"Scoring failed"*.
+TypeScript cannot catch this: `number` covers both integers and floats, and
+`integer()` columns in Drizzle are typed `number`. There is no compile-time
+signal at all — it is a runtime failure against a database the unit tests
+don't have.
+
+**Rule:** when writing to any `integer()` column from computed data, round at
+the source *and* at the DB boundary in the query function. Round in the engine
+(`lib/scoring/score.ts`) so every consumer is correct, and again in
+`saveScoreSnapshot` so the next caller can't reintroduce a failure that tests
+can't see. The integer columns in this schema to watch are
+`computed_in_ms`, `match_score`, `share_view_count`, `tokens_in/out`, and
+`tokens_used` / `turns_used`. `tests/unit/scoring/integer-columns.test.ts`
+asserts the invariant.
+
 ## Folder structure (current + planned)
 
 ```
