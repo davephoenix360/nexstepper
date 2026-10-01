@@ -580,6 +580,31 @@ Nemo has `structured_output` and no `reasoning`; Ling has `reasoning` and no
 `structured_output`. Each is wrong for the other's job. Check
 `endpoints[].supported_parameters` before moving a model between tiers.
 
+### 7. Never hand-roll an `IN (...)` list — use `inArray`
+
+The GDPR export built its list clauses as:
+
+```ts
+sql`${resumeRevisions.resumeId} IN ${sql.join(
+  rows.map((r) => sql`${r.id}`),
+  sql`, `
+)}`
+```
+
+`sql.join` does **not** add parentheses. Drizzle rendered
+`"resume_revisions"."resume_id" IN $1, $2, $3`, which Postgres rejects with
+`42601: syntax error at or near "$1"` — it parses `IN $1` as a legal
+single-element IN, then trips on the comma. The reported position points at a
+token that is itself fine, which is what makes this one slow to read.
+
+**It only ever failed with 2+ rows.** A one-element list renders as `IN $1`,
+which is valid, so an account with a single resume exported fine and the bug
+hid in plain sight until someone had two.
+
+Use `inArray(col, ids)`. It also guards the empty case (`in ()` is itself a
+syntax error), so still check `rows.length > 0` first.
+`tests/unit/db/in-array-sql-shape.test.ts` locks the rendered shape.
+
 ## Folder structure (current + planned)
 
 ```

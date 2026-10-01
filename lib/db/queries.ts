@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from './drizzle';
 import {
   applications,
@@ -1679,15 +1679,19 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
 
   const revisionsByResume = new Map<string, ResumeRevision[]>();
   if (resumeRows.length > 0) {
+    // `inArray`, not a hand-rolled `sql`${col} IN ${sql.join(...)}`.
+    //
+    // `sql.join` does NOT wrap the list in parentheses, so it emitted
+    //   "resume_revisions"."resume_id" IN $1, $2, $3
+    // which Postgres rejects with `42601: syntax error at or near "$1"` —
+    // it parses `IN $1` as a legal single-element IN, then falls over on
+    // the comma. This only ever failed with **2+ rows**, so an account
+    // with one resume exported fine and the bug hid in plain sight.
+    // `inArray` emits the correct `in ($1, $2, $3)`.
     const allRevisions = await db
       .select()
       .from(resumeRevisions)
-      .where(
-        sql`${resumeRevisions.resumeId} IN ${sql.join(
-          resumeRows.map((r) => sql`${r.id}`),
-          sql`, `
-        )}`
-      )
+      .where(inArray(resumeRevisions.resumeId, resumeRows.map((r) => r.id)))
       .orderBy(resumeRevisions.createdAt);
     for (const rev of allRevisions) {
       const list = revisionsByResume.get(rev.resumeId) ?? [];
@@ -1713,12 +1717,7 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
       : await db
           .select()
           .from(scoreSnapshots)
-          .where(
-            sql`${scoreSnapshots.resumeId} IN ${sql.join(
-              resumeRows.map((r) => sql`${r.id}`),
-              sql`, `
-            )}`
-          )
+          .where(inArray(scoreSnapshots.resumeId, resumeRows.map((r) => r.id)))
           .orderBy(scoreSnapshots.createdAt);
 
   // 6. Chat sessions + their messages
@@ -1733,12 +1732,7 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
     const allMessages = await db
       .select()
       .from(chatMessages)
-      .where(
-        sql`${chatMessages.sessionId} IN ${sql.join(
-          chatSessionRows.map((s) => sql`${s.id}`),
-          sql`, `
-        )}`
-      )
+      .where(inArray(chatMessages.sessionId, chatSessionRows.map((s) => s.id)))
       .orderBy(chatMessages.createdAt);
     for (const msg of allMessages) {
       const list = messagesBySession.get(msg.sessionId) ?? [];
