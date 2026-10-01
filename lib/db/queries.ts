@@ -1501,34 +1501,6 @@ export async function appendChatMessage(
 }
 
 /**
- * Read today's usage for a user. Returns a row with all-zero
- * counts if no usage record exists yet.
- *
- * NOTE: this is a *read-only* helper for rendering the client's
- * "N messages remaining" readout. It is NOT safe to use as the
- * quota gate — use `tryConsumeChatTurn` for that. See the JSDoc
- * there for the TOCTOU reasoning.
- */
-export async function getChatUsage(userId: string): Promise<ChatUsage> {
-  const today = new Date().toISOString().slice(0, 10);
-
-  const [row] = await db
-    .select()
-    .from(chatUsage)
-    .where(and(eq(chatUsage.userId, userId), eq(chatUsage.date, today)))
-    .limit(1);
-
-  return (
-    row ?? {
-      userId,
-      date: today,
-      tokensUsed: 0,
-      turnsUsed: 0
-    }
-  );
-}
-
-/**
  * Atomically consume one chat turn, enforcing the quota in the
  * same statement. Returns the updated row on success, or `null`
  * when the user is at / over the limit.

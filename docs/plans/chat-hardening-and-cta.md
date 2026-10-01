@@ -65,6 +65,21 @@ scope is already tight. The one genuinely reachable attack is S2 — a
 user pastes a JD from an untrusted source and the assistant mutates
 their resume without them asking. That is worth fixing properly.
 
+## Audit findings (applied 2026-09-30, same branch)
+
+A self-review caught one merge-blocking bug plus a handful of cleanups,
+all fixed on the same branch before push:
+
+| # | Severity | Finding | Fix |
+|---|---|---|---|
+| 1 | **Blocker** | `chat_usage` had no PK / unique constraint on `(user_id, date)`, so `onConflictDoUpdate({ target: [...] })` in `tryConsumeChatTurn` / `addChatTokens` would throw SQLSTATE 42P10 against the real Postgres. The pre-branch `upsertChatUsage` had the same defect but lived inside a silent `catch {}`; the new branch moved `tryConsumeChatTurn` *before* the stream, where the failure surfaces as a 500. | Add composite PRIMARY KEY in `lib/db/schema.ts`; generate migration `0007_dizzy_celestials.sql`; smoke-test against the real Neon DB. |
+| 2 | Medium | 429 response hardcoded `{ limit: 20, used: 20 }` on the client, ignoring the server's actual limit. | Server now sends `limit` (or `null` for unlimited) in the 429 JSON body; client reads it. |
+| 3 | Low | `getChatUsage` was dead code — exported but unused since the gate moved to `tryConsumeChatTurn`. | Deleted. |
+| 4 | Low | `use-chat-stream` `onUsage` parsing had two branches that both called `onUsage` with the same shape. | Collapsed into one branch. |
+| 5 | Low | Route imported `getModel` and `PARSER_MODEL` on separate lines. | Combined into a single import. |
+| 6 | Low | Sanitiser regex didn't catch `<\/untrusted_resume>` or `<\/\/untrusted_resume>` (obfuscated variants). | Regex now allows optional `\\` + one-or-more `/`. |
+| 7 | Low | `getSubscription()` failure surfaced as opaque 500. | Wrapped in try/catch → 503 with `SUBSCRIPTION_LOOKUP_FAILED` code. |
+
 ## Implementation
 
 ### 1. Atomic quota consumption (Q1, Q3)
@@ -144,16 +159,30 @@ renders:
 
 - **New:** `docs/plans/chat-hardening-and-cta.md` (this file)
 - **Changed:**
-  - `lib/db/queries.ts` — add `tryConsumeChatTurn`, `addChatTokens`.
+  - `lib/db/queries.ts` — add `tryConsumeChatTurn`, `addChatTokens`;
+    remove dead `getChatUsage`.
   - `app/api/chat/route.ts` — atomic consume, plan-aware limit, real
-    token write, `X-Chat-Usage` header.
+    token write, `X-Chat-Usage` header, server-supplied `limit` in
+    429 body, 503 on subscription-lookup failure, combined
+    `getModel` + `PARSER_MODEL` imports.
   - `lib/chat/system-prompt.ts` — instruction hierarchy, untrusted
-    delimiters, tag-escape defence.
-  - `components/chat/use-chat-stream.ts` — read `X-Chat-Usage`.
-  - `components/chat/chat-bubble.tsx` — real `used` count.
+    delimiters, tag-escape defence (incl. `<\/\/...>` and
+    `<\/...>` variants).
+  - `components/chat/use-chat-stream.ts` — read `X-Chat-Usage`;
+    collapsed `onUsage` parsing branches; forward server-supplied
+    `limit` to `onError`.
+  - `components/chat/chat-bubble.tsx` — real `used` count;
+    429 handler now uses server-supplied `limit` instead of
+    hardcoded `{ limit: 20, used: 20 }`.
   - `components/marketing/hero.tsx` — async + auth-aware CTA.
-  - `tests/unit/chat/system-prompt-hardening.test.ts` (new)
-  - `tests/unit/chat/quota.test.ts` (new)
+  - `lib/db/schema.ts` — `chat_usage` now has a composite PRIMARY KEY
+    on `(user_id, date)` (load-bearing for the `ON CONFLICT` gate
+    in `tryConsumeChatTurn` / `addChatTokens`).
+  - `tests/unit/chat/system-prompt-hardening.test.ts` (new) —
+    covers sanitiser + instruction hierarchy + delimiter escape.
+  - `lib/db/migrations/0007_dizzy_celestials.sql` (new) — adds
+    `chat_usage_user_id_date_pk` and drops the now-redundant
+    `chat_usage_user_date_idx`.
 
 ## Acceptance criteria
 
@@ -161,7 +190,9 @@ renders:
    visitor sees "Open dashboard" pointing at `/dashboard/resumes`.
 2. 21 concurrent requests from a Free user with `turns_used = 19`
    produce exactly 1 success and 20 × 429. (Atomicity is the property;
-   tested at the query-shape level, not against a live DB.)
+   verified end-to-end via `scripts/tmp-verify-chat-usage-pk.mjs`
+   against the real Neon DB during the audit fix — kept in `scripts/`
+   as a smoke-test reference, deleted before commit.)
 3. A Free user is limited by `PLANS.free`; a Pro user is not limited.
 4. After a chat turn, `tokens_used` is non-zero and grows with the
    turn's actual token consumption.
@@ -171,13 +202,22 @@ renders:
    appears inside the untrusted block in the system prompt, the
    instruction-hierarchy clause is present, and a resume field
    containing the literal string `</untrusted_resume>` is escaped so it
-   cannot close the block early.
+   cannot close the block early. Also defangs the obfuscated variants
+   `<\/untrusted_resume>` and `<\/\/untrusted_resume>`.
 7. `tsc --noEmit` clean; full suite green.
+8. A 429 response includes the server's authoritative `limit` in the
+   JSON body; the client renders `{ limit, used }` from that value
+   instead of a hardcoded 20.
+9. `chat_usage` has a PRIMARY KEY on `(user_id, date)` — the `ON
+   CONFLICT` clauses in `tryConsumeChatTurn` and `addChatTokens`
+   execute without SQLSTATE 42P10.
 
 ## Rollback plan
 
-Revert the commit. The new queries are additive; no migration, no
-schema change, so there is no data implication.
+Revert the commit. The migration `0007_dizzy_celestials.sql` adds a
+PRIMARY KEY (additive — no data implication, can drop with `ALTER
+TABLE chat_usage DROP CONSTRAINT chat_usage_user_id_date_pk;` if a
+hot-fix needs to back out the gate).
 
 ## Open questions
 

@@ -28,8 +28,7 @@ import { buildSystemPrompt } from '@/lib/chat/system-prompt';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
-import { getModel } from '@/lib/ai/providers';
-import { PARSER_MODEL } from '@/lib/ai/providers';
+import { getModel, PARSER_MODEL } from '@/lib/ai/providers';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
 
@@ -148,21 +147,38 @@ export async function POST(req: NextRequest) {
   // The limit comes from the caller's actual plan, not a hardcoded
   // Free constant — otherwise a Pro user silently inherits the Free
   // cap when we flip soft-launch off.
-  const sub = await getSubscription();
-  const plan = asPlanId(sub.plan);
+  let plan: ReturnType<typeof asPlanId>;
+  try {
+    const sub = await getSubscription();
+    plan = asPlanId(sub.plan);
+  } catch (err) {
+    // Surface a clean 503 instead of an opaque 500 if the subscription
+    // lookup fails (DB hiccup, Neon cold start, etc.). The client can
+    // show "service temporarily unavailable" and the user can retry.
+    // Logged to stderr so Sentry's auto-instrumentation can pick it up.
+    console.error('[api/chat] subscription lookup failed', err);
+    return NextResponse.json(
+      { error: 'Service temporarily unavailable', code: 'SUBSCRIPTION_LOOKUP_FAILED' },
+      { status: 503 }
+    );
+  }
   const freeLimit = PLANS[plan].chatMessagesPerDay;
+  const unlimited = !Number.isFinite(freeLimit);
   const usage = await tryConsumeChatTurn(userId, freeLimit);
   if (!usage) {
     // Zero rows back means the `WHERE turns_used < limit` predicate
     // failed — we're at or over quota. We don't have a row to read
     // `resetsAt` from, so compute today's date directly; the counter
     // resets at UTC midnight because that's what the `date` column
-    // is keyed on.
+    // is keyed on. `limit` is `null` for unlimited plans (would be a
+    // 429 on an unlimited plan only if the plan lookup itself raced —
+    // shouldn't happen, but we surface null rather than Infinity to
+    // keep the client type honest).
     return NextResponse.json(
       {
         error: 'Daily limit reached',
         code: 'RATE_LIMITED',
-        limit: freeLimit,
+        limit: unlimited ? null : freeLimit,
         resetsAt: new Date().toISOString().slice(0, 10)
       },
       { status: 429 }

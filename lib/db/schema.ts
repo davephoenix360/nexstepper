@@ -5,7 +5,8 @@ import {
   boolean,
   jsonb,
   index,
-  integer
+  integer,
+  primaryKey
 } from 'drizzle-orm/pg-core';
 
 import type { ResumeData } from '@/lib/resume-schema';
@@ -495,10 +496,15 @@ export const chatMessages = pgTable(
 /**
  * Daily token-usage tracker for Free-tier rate limiting.
  *
- * PRIMARY KEY (userId, date) makes the upsert:
+ * PRIMARY KEY (userId, date) makes the upsert in `tryConsumeChatTurn`
+ * and `addChatTokens` atomic:
  *   INSERT ... ON CONFLICT (user_id, date)
  *     DO UPDATE SET tokens_used = tokens_used + EXCLUDED.tokens_used,
  *                  turns_used  = turns_used  + 1
+ * Without the PK, Postgres rejects `ON CONFLICT (user_id, date)`
+ * with SQLSTATE 42P10 ("there is no unique or exclusion constraint
+ * matching the ON CONFLICT specification") — so the composite PK
+ * is load-bearing for the quota gate, not just an optimisation.
  * The quota check uses `turns_used` (not `tokens_used`) so a user
  * sending a single giant message still counts as one turn.
  */
@@ -512,7 +518,9 @@ export const chatUsage = pgTable(
     tokensUsed: integer('tokens_used').notNull().default(0),
     turnsUsed: integer('turns_used').notNull().default(0)
   },
-  (table) => [index('chat_usage_user_date_idx').on(table.userId, table.date)]
+  (table) => [
+    primaryKey({ columns: [table.userId, table.date] })
+  ]
 );
 
 // ─── GDPR Art. 17 erasure log ──────────────────────────────────────────────────

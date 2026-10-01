@@ -237,12 +237,23 @@ const UNTRUSTED_TAG_NAMES = [
 ] as const;
 
 /**
- * Matches any of our closing tags, tolerating case and internal
- * whitespace (`</UNTRUSTED_RESUME >`, `< / untrusted_resume >`) —
- * both of which a naive exact-match filter would miss.
+ * Matches any of our closing tags, tolerating case, internal
+ * whitespace, and extra slashes (`</UNTRUSTED_RESUME >`,
+ * `< / untrusted_resume >`, `<//untrusted_resume>`) — all of which
+ * a naive exact-match filter would miss.
+ *
+ * Variants we deliberately do NOT defend against, because they
+ * aren't valid HTML/XML closing tags and the model can't parse them
+ * as a close anyway:
+ *
+ *   - `<\/tag>` — literal backslash before the slash. Not parseable.
+ *   - `<\/\/tag>` — slash with backslash escape. Not parseable.
+ *
+ * Defending against them would require a more permissive (and
+ * false-positive-prone) regex for zero realistic gain.
  */
 const UNTRUSTED_CLOSING_TAG_RE = new RegExp(
-  `<\\s*/\\s*(?:${UNTRUSTED_TAG_NAMES.join('|')})\\s*>`,
+  `<\\s*\\/+\\s*(?:${UNTRUSTED_TAG_NAMES.join('|')})\\s*>`,
   'gi'
 );
 
@@ -264,11 +275,11 @@ export function sanitizeUntrusted(raw: string): string {
 
   // Step 2 — defang any closing tag so the content cannot terminate
   // the `<untrusted_*>` wrapper we place around it. We inject a
-  // zero-width space between `<` and `/`: the tag stays readable and
+  // zero-width space right after `<`: the tag stays readable and
   // still recognisable to the model as "a tag", but it is
   // structurally incapable of closing the block early.
   out = out.replace(UNTRUSTED_CLOSING_TAG_RE, (match) =>
-    match.replace(/<\s*\//, '<\u200B/')
+    match.replace(/</, '<\u200B')
   );
 
   return out;

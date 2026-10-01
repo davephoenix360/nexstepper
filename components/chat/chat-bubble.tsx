@@ -110,10 +110,20 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
         Number.isFinite(usage.limit) ? { limit: usage.limit, used: usage.used } : null
       );
     },
-    onError: (err: string, code?: string) => {
+    onError: (err: string, code?: string, limit?: number | null) => {
       setIsStreaming(false);
       if (code === 'RATE_LIMITED') {
-        setRateLimit({ limit: 20, used: 20 });
+        // The server sends the post-consume `limit` (or null for
+        // unlimited plans) in the 429 JSON. Fall back to the previous
+        // on-usage value if the server response didn't include one,
+        // so we don't blank out the readout on a transient race.
+        if (limit === null) {
+          setRateLimit(null);
+        } else if (typeof limit === 'number' && Number.isFinite(limit)) {
+          setRateLimit({ limit, used: limit });
+        } else if (rateLimit) {
+          setRateLimit({ ...rateLimit, used: rateLimit.limit });
+        }
       }
     }
   });

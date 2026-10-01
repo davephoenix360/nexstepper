@@ -42,7 +42,7 @@ export type UseChatStreamOptions = {
   /** Called when the stream finishes successfully. */
   onDone?: (finishReason: string | null) => void;
   /** Called on any error (network, rate-limit, 5xx, etc.). */
-  onError?: (error: string, code?: string) => void;
+  onError?: (error: string, code?: string, limit?: number | null) => void;
   /**
    * Called after each successful turn with the server's authoritative
    * post-consume usage. Replaces the client-side counter, which used to
@@ -159,9 +159,12 @@ export function useChatStream({
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        const code = (err as { code?: string }).code;
-        onError?.(err.error ?? 'Request failed', code ?? undefined);
+        const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as {
+          error?: string;
+          code?: string;
+          limit?: number | null;
+        };
+        onError?.(err.error ?? 'Request failed', err.code, err.limit);
         messages = [];
         onMessage([]);
         isStreaming = false;
@@ -175,19 +178,17 @@ export function useChatStream({
       // the hardcoded `{ limit: 20, used: 0 }` the bubble used to seed
       // (which meant the number never changed as the user chatted).
       const usageHeader = res.headers.get('X-Chat-Usage');
-      const limitHeader = res.headers.get('X-Chat-Limit');
       if (usageHeader) {
         const used = Number.parseInt(usageHeader, 10);
+        const limitHeader = res.headers.get('X-Chat-Limit');
         const limit =
           limitHeader === 'unlimited' || limitHeader === null
             ? Number.POSITIVE_INFINITY
             : Number.parseInt(limitHeader, 10);
-        if (Number.isFinite(used) && Number.isFinite(limit)) {
+        if (Number.isFinite(used)) {
+          // Unlimited plan → caller hides the readout; finite plan →
+          // caller renders "N / M messages remaining today".
           onUsage?.({ used, limit });
-        } else if (Number.isFinite(used) && limit === Number.POSITIVE_INFINITY) {
-          // Unlimited plan — report the used count with an infinite
-          // limit so the caller can hide the readout.
-          onUsage?.({ used, limit: Number.POSITIVE_INFINITY });
         }
       }
 

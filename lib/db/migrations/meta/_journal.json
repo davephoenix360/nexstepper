@@ -50,6 +50,13 @@
       "when": 1790300854131,
       "tag": "0006_chat_sessions_and_erasure_log",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790825939834,
+      "tag": "0007_dizzy_celestials",
+      "breakpoints": true
     }
   ]
 }
