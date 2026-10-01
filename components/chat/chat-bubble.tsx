@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquare } from 'lucide-react';
@@ -20,6 +21,7 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -110,6 +112,13 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
         Number.isFinite(usage.limit) ? { limit: usage.limit, used: usage.used } : null
       );
     },
+    onResumeUpdated: () => {
+      // The assistant just wrote a revision to this resume. Revalidate the
+      // server components so the editor behind the chat panel updates —
+      // without this the user reads "Done, I rewrote your summary" while
+      // looking at the old summary, which is what made the tool feel broken.
+      router.refresh();
+    },
     onError: (err: string, code?: string, limit?: number | null) => {
       setIsStreaming(false);
       if (code === 'RATE_LIMITED') {
@@ -136,7 +145,10 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
   const handleSend = useCallback(
     async (content: string) => {
       setIsStreaming(true);
-      const sessionId = await sendMessage(activeSessionId, content);
+      // Pass the live transcript so the hook APPENDS to it. Without this the
+      // hook seeded its own two-message array and the whole conversation
+      // disappeared from the panel the moment you sent anything.
+      const sessionId = await sendMessage(activeSessionId, content, messages);
       if (sessionId) {
         setActiveSessionId(sessionId);
         // Refresh sessions so the new one appears in the sidebar
@@ -150,7 +162,7 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
         setIsStreaming(false);
       }
     },
-    [activeSessionId, sendMessage, resumeId]
+    [activeSessionId, sendMessage, resumeId, messages]
   );
 
   const handleSelectSession = useCallback((id: string) => {

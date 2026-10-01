@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from './drizzle';
 import {
   applications,
@@ -1319,10 +1319,20 @@ export async function recordScoreSnapshot(
   await db.insert(scoreSnapshots).values({
     id,
     resumeId,
-    matchScore: snapshot.matchScore,
+    // `match_score` / `computed_in_ms` are `integer` columns but the input
+    // type is `number`, so TypeScript cannot catch a float. A fractional
+    // `computedInMs` (straight out of `performance.now()`) previously made
+    // Postgres reject the whole INSERT with
+    // `invalid input syntax for type integer` and the recompute surfaced to
+    // the user as "Scoring failed".
+    //
+    // `score.ts` already rounds both at the source; this is the boundary
+    // guard so a future caller can't reintroduce a runtime-only failure
+    // that unit tests would never see.
+    matchScore: Math.round(snapshot.matchScore),
     matchBreakdown: snapshot.matchBreakdown,
     dynamicTips: snapshot.dynamicTips,
-    computedInMs: snapshot.computedInMs
+    computedInMs: Math.round(snapshot.computedInMs)
   });
   return { id };
 }
@@ -1423,8 +1433,8 @@ export async function updateChatSessionTitle(
 }
 
 /**
- * Normalise the `tool_calls` JSONB column back into the
- * `Array<{ name, args }>` shape the client / model prompt expect.
+ * Normalise the `tool_calls` JSONB column back into an
+ * `Array<{ id?, name, args }>` shape the client / model prompt expect.
  *
  * The DB column is declared as `jsonb`, but Drizzle + `postgres-js`
  * round-trips it through a string for some adapter / driver combos,
@@ -1433,15 +1443,21 @@ export async function updateChatSessionTitle(
  * and return `undefined` on any failure (corrupt JSON, wrong root
  * type, missing field). Callers should treat `undefined` as
  * "no tool calls for this row" rather than an error.
+ *
+ * `id` is the SDK-assigned `toolCallId`. It is optional because rows
+ * written before 2026-10-01 did not persist it; the chat route falls back
+ * to a deterministic synthetic id for those. Persisting it is what lets a
+ * tool-result message be paired with its tool-call on a later turn — a
+ * random id per request (as the route used to do) breaks that pairing.
  */
 export function parseChatToolCalls(
   raw: unknown
-): Array<{ name: string; args: unknown }> | undefined {
+): Array<{ id?: string; name: string; args: unknown }> | undefined {
   if (raw === null || raw === undefined) return undefined;
   try {
     const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(value)) return undefined;
-    return value as Array<{ name: string; args: unknown }>;
+    return value as Array<{ id?: string; name: string; args: unknown }>;
   } catch {
     return undefined;
   }
@@ -1673,15 +1689,19 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
 
   const revisionsByResume = new Map<string, ResumeRevision[]>();
   if (resumeRows.length > 0) {
+    // `inArray`, not a hand-rolled `sql`${col} IN ${sql.join(...)}`.
+    //
+    // `sql.join` does NOT wrap the list in parentheses, so it emitted
+    //   "resume_revisions"."resume_id" IN $1, $2, $3
+    // which Postgres rejects with `42601: syntax error at or near "$1"` —
+    // it parses `IN $1` as a legal single-element IN, then falls over on
+    // the comma. This only ever failed with **2+ rows**, so an account
+    // with one resume exported fine and the bug hid in plain sight.
+    // `inArray` emits the correct `in ($1, $2, $3)`.
     const allRevisions = await db
       .select()
       .from(resumeRevisions)
-      .where(
-        sql`${resumeRevisions.resumeId} IN ${sql.join(
-          resumeRows.map((r) => sql`${r.id}`),
-          sql`, `
-        )}`
-      )
+      .where(inArray(resumeRevisions.resumeId, resumeRows.map((r) => r.id)))
       .orderBy(resumeRevisions.createdAt);
     for (const rev of allRevisions) {
       const list = revisionsByResume.get(rev.resumeId) ?? [];
@@ -1707,12 +1727,7 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
       : await db
           .select()
           .from(scoreSnapshots)
-          .where(
-            sql`${scoreSnapshots.resumeId} IN ${sql.join(
-              resumeRows.map((r) => sql`${r.id}`),
-              sql`, `
-            )}`
-          )
+          .where(inArray(scoreSnapshots.resumeId, resumeRows.map((r) => r.id)))
           .orderBy(scoreSnapshots.createdAt);
 
   // 6. Chat sessions + their messages
@@ -1727,12 +1742,7 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
     const allMessages = await db
       .select()
       .from(chatMessages)
-      .where(
-        sql`${chatMessages.sessionId} IN ${sql.join(
-          chatSessionRows.map((s) => sql`${s.id}`),
-          sql`, `
-        )}`
-      )
+      .where(inArray(chatMessages.sessionId, chatSessionRows.map((s) => s.id)))
       .orderBy(chatMessages.createdAt);
     for (const msg of allMessages) {
       const list = messagesBySession.get(msg.sessionId) ?? [];

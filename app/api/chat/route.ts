@@ -2,7 +2,13 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { streamText, type ModelMessage, type ToolSet, type TextStreamPart } from 'ai';
+import {
+  streamText,
+  stepCountIs,
+  type ModelMessage,
+  type ToolSet,
+  type ToolResultPart
+} from 'ai';
 import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 
@@ -17,6 +23,7 @@ import {
   getChatSession,
   getResume,
   getSubscription,
+  countVariantsByMasterId,
   listChatSessions,
   parseChatToolCalls,
   tryConsumeChatTurn,
@@ -24,13 +31,58 @@ import {
 } from '@/lib/db/queries';
 import { PLANS } from '@/lib/db/schema';
 import { asPlanId } from '@/lib/billing';
-import { buildSystemPrompt } from '@/lib/chat/system-prompt';
+import { buildSystemPrompt, type ResumeKind } from '@/lib/chat/system-prompt';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
-import { getModel, PARSER_MODEL } from '@/lib/ai/providers';
+import { getModel, CHAT_MODEL, CHAT_GATEWAY_PROVIDER_OPTIONS, CHAT_MAX_OUTPUT_TOKENS, CHAT_MAX_STEPS } from '@/lib/ai/providers';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
+
+// ─── Resume-kind context ─────────────────────────────────────────────────────
+
+/**
+ * Work out whether the chat is attached to a master resume or a variant, and
+ * name the parent master.
+ *
+ * Without this the assistant had no idea which kind of resume it was looking
+ * at, so it could not give kind-aware advice — and a user asking "is this my
+ * master?" got a guess. It also changes what good editing looks like: a
+ * master should stay general, a variant is allowed to be narrow.
+ *
+ * Cheap enough to run per turn: one indexed count plus, for a variant, one
+ * primary-key lookup.
+ */
+async function resolveResumeKind(
+  resume: { id: string; isMaster: boolean; parentResumeId: string | null },
+  userId: string
+): Promise<ResumeKind> {
+  if (resume.isMaster) {
+    const variantCount = await countVariantsByMasterId(resume.id, userId).catch(
+      () => 0
+    );
+    return { isMaster: true, variantCount };
+  }
+
+  let parentResumeName: string | undefined;
+  let variantCount = 0;
+  if (resume.parentResumeId) {
+    const [parent] = await db
+      .select({ name: resumes.name })
+      .from(resumes)
+      .where(
+        and(eq(resumes.id, resume.parentResumeId), eq(resumes.userId, userId))
+      )
+      .limit(1);
+    parentResumeName = parent?.name;
+    variantCount = await countVariantsByMasterId(
+      resume.parentResumeId,
+      userId
+    ).catch(() => 0);
+  }
+
+  return { isMaster: false, parentResumeName, variantCount };
+}
 
 // ─── Request / response types ─────────────────────────────────────────────────
 
@@ -45,6 +97,36 @@ const SendMessageSchema = z.object({
 const ListSessionsSchema = z.object({
   resumeId: z.string()
 });
+
+/** The `value` shape a `tool-result` part is allowed to carry. */
+type ToolResultValue = Extract<ToolResultPart['output'], { type: 'json' }>['value'];
+
+/**
+ * Coerce an arbitrary value from the JSONB `tool_result` column into
+ * something the AI SDK will accept as a `JSONValue` inside a
+ * `tool-result` part.
+ *
+ * A round-trip through `JSON.stringify` is the honest coercion: it drops
+ * `undefined`, converts `Date`s and `BigInt`s, and throws on cycles — which
+ * is why it is wrapped. Without this, a non-serialisable value would be
+ * stringified by the SDK as `[object Object]` and the model would read a
+ * successful tool call as a broken one.
+ */
+function toJsonValue(raw: unknown): ToolResultValue {
+  if (raw === null) return null;
+  if (
+    typeof raw === 'string' ||
+    typeof raw === 'number' ||
+    typeof raw === 'boolean'
+  ) {
+    return raw;
+  }
+  try {
+    return JSON.parse(JSON.stringify(raw)) as ToolResultValue;
+  } catch {
+    return String(raw);
+  }
+}
 
 // ─── GET /api/chat?resumeId=…&sessionId=… ─────────────────────────────────────
 //
@@ -230,36 +312,89 @@ export async function POST(req: NextRequest) {
   const system = buildSystemPrompt(
     resume.data,
     resume.data.jobContext ?? undefined,
-    atsScore
+    atsScore,
+    await resolveResumeKind(resume.resume, userId)
   );
 
   // ── Load chat history (last 20 messages to keep prompt size manageable) ───
   const history = await getChatMessages(sessionId);
   const recentHistory = history.slice(-20);
 
-  // Rebuild ModelMessage[] from DB rows
-  const messages: ModelMessage[] = recentHistory.map((row) => {
-    const base = { role: row.role as 'user' | 'assistant', content: row.content };
-    if (row.role === 'assistant' && row.toolCalls) {
-      try {
-        const tc = row.toolCalls as Array<{ name: string; args: unknown }>;
-        return {
-          ...base,
-          role: 'assistant' as const,
-          toolInvocations: tc.map((t) => ({
-            toolCallId: `call_${Math.random().toString(36).slice(2)}`,
-            toolName: t.name,
-            args: t.args,
-            state: 'result' as const,
-            result: row.toolResult ?? { ok: true, result: null }
-          }))
-        };
-      } catch {
-        return base;
+  // Rebuild a real `ModelMessage[]` transcript from the DB rows.
+  //
+  // The previous version produced the AI SDK **v4 UIMessage** shape —
+  // `{ role, content, toolInvocations: [...] }` with a fresh
+  // `toolCallId: call_${Math.random()...}` on every request. That is not a
+  // valid `ModelMessage`, so the SDK saw an assistant message with a plain
+  // string body plus tool calls it could not pair with any result. The model
+  // therefore never learned what its own tools had returned, and multi-turn
+  // tool use degraded into "I did the thing" claims with no grounding.
+  //
+  // The correct v5/v6 encoding is two messages per tool turn:
+  //   assistant: content: [{type:'text'…}, {type:'tool-call', toolCallId, toolName, input}]
+  //   tool:      content: [{type:'tool-result', toolCallId, toolName, output}]
+  // The `toolCallId` must be the SAME on both, so we persist it with the
+  // tool call and read it back here rather than inventing one.
+  const messages: ModelMessage[] = [];
+  for (const row of recentHistory) {
+    if (row.role === 'user') {
+      messages.push({ role: 'user', content: row.content });
+      continue;
+    }
+
+    const calls = parseChatToolCalls(row.toolCalls);
+    if (!calls || calls.length === 0) {
+      messages.push({ role: 'assistant', content: row.content });
+      continue;
+    }
+
+    const assistantContent: Array<
+      | { type: 'text'; text: string }
+      | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
+    > = [];
+    if (row.content.trim().length > 0) {
+      assistantContent.push({ type: 'text', text: row.content });
+    }
+    for (const call of calls) {
+      assistantContent.push({
+        type: 'tool-call',
+        // Fall back to a deterministic id for rows written before ids were
+        // persisted — stable across turns, which is what the pairing needs.
+        toolCallId: call.id ?? `legacy-${row.id}-${call.name}`,
+        toolName: call.name,
+        input: call.args
+      });
+    }
+    messages.push({ role: 'assistant', content: assistantContent });
+
+    // Replay the result so the model can see what the tool actually did.
+    // The column is `[{ id, result }]` per tool.
+    const resultById = new Map<string, unknown>();
+    if (Array.isArray(row.toolResult)) {
+      for (const entry of row.toolResult as Array<{ id?: string; result?: unknown }>) {
+        if (entry && typeof entry === 'object' && entry.id) {
+          resultById.set(entry.id, entry.result);
+        }
       }
     }
-    return base;
-  });
+
+    // The SDK requires a `ToolResultOutput` discriminator whose `value` is a
+    // `JSONValue`. Tool results come back as `unknown` from the JSONB column,
+    // so coerce defensively — an unserialisable value would otherwise reach
+    // the model as `[object Object]` and read as a failed tool.
+    const toolContent: ToolResultPart[] = [];
+    for (const call of calls) {
+      const toolCallId = call.id ?? `legacy-${row.id}-${call.name}`;
+      const raw = resultById.get(toolCallId) ?? { ok: true, result: 'applied' };
+      toolContent.push({
+        type: 'tool-result',
+        toolCallId,
+        toolName: call.name,
+        output: { type: 'json', value: toJsonValue(raw) }
+      });
+    }
+    messages.push({ role: 'tool', content: toolContent });
+  }
 
   // Append the user's message to the DB immediately
   await appendChatMessage(sessionId, {
@@ -302,16 +437,16 @@ export async function POST(req: NextRequest) {
   //
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tools = Object.fromEntries(
-    CHAT_TOOLS.map((tool) => [
-      tool.name,
+    Object.entries(CHAT_TOOLS).map(([toolName, tool]) => [
+      toolName,
       {
         description: tool.description,
-        // CHAT_TOOLS still stores the Zod schema under `parameters`
-        // for backwards-compat; remap to the SDK's expected name.
+        // CHAT_TOOLS stores the Zod schema under `parameters`; remap to the
+        // SDK's expected `inputSchema` (AI SDK v6 renamed it).
         inputSchema: tool.parameters,
         execute: async (args: unknown) => {
           try {
-            return await executeTool(resumeId, tool.name, args);
+            return await executeTool(resumeId, toolName, args);
           } catch (err) {
             return { ok: false, error: (err as Error).message };
           }
@@ -322,7 +457,12 @@ export async function POST(req: NextRequest) {
   ) as unknown as ToolSet;
 
   // ── Stream response ────────────────────────────────────────────────────────
-  const model = getModel(PARSER_MODEL, {
+  //
+  // CHAT_MODEL, not PARSER_MODEL. The parser needs strict-JSON structured
+  // output on a huge schema; the chat needs multi-turn instruction following
+  // and tool calling. The gateway `order` means a model that is unavailable on
+  // this account degrades to the next one instead of failing the turn.
+  const model = getModel(CHAT_MODEL, {
     distinctId: userId,
     sessionId,
     traceId: randomUUID()
@@ -333,7 +473,12 @@ export async function POST(req: NextRequest) {
     system,
     messages,
     tools,
-    maxOutputTokens: 4000,
+    providerOptions: CHAT_GATEWAY_PROVIDER_OPTIONS,
+    // Without this the SDK stops after ONE step, so a turn that spends its
+    // step on a tool call can never read the result and confirm to the user.
+    // That is what made a successful edit look like nothing happened.
+    stopWhen: stepCountIs(CHAT_MAX_STEPS),
+    maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
     temperature: 0.3
   });
 
@@ -343,9 +488,18 @@ export async function POST(req: NextRequest) {
       const encoder = new TextEncoder();
 
       let assistantText = '';
-      let toolCallsJson: Array<{ name: string; args: unknown }> = [];
-      let toolResultJson: string | null = null;
+      // Tool calls, each carrying the SDK-assigned `toolCallId`. Persisting
+      // the id is what lets the NEXT turn pair a `tool-result` message with
+      // its `tool-call` (the route used to mint a random id per request,
+      // which made that pairing impossible).
+      let toolCallsJson: Array<{ id: string; name: string; args: unknown }> = [];
+      // One entry per tool result, keyed by the same id, so a multi-step turn
+      // that edits twice round-trips both.
+      let toolResultsJson: Array<{ id: string; result: unknown }> = [];
       let finishReason: string | null = null;
+      // Set when a resume-mutating tool ran, so we can tell the client to
+      // revalidate the editor before the stream closes.
+      let resumeMutated = false;
 
       try {
         // AI SDK v6: iterate `fullStream` for typed TextStreamPart events.
@@ -360,18 +514,36 @@ export async function POST(req: NextRequest) {
               encoder.encode(`data: ${JSON.stringify({ type: 'text-delta', delta: part.text })}\n\n`)
             );
           } else if (part.type === 'tool-call') {
-            toolCallsJson.push({ name: part.toolName, args: part.input });
+            toolCallsJson.push({
+              id: part.toolCallId,
+              name: part.toolName,
+              args: part.input
+            });
+            if (part.toolName === 'editResume' || part.toolName === 'switchTemplate') {
+              resumeMutated = true;
+            }
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: 'tool_call', toolName: part.toolName, args: part.input })}\n\n`)
+              encoder.encode(`data: ${JSON.stringify({ type: 'tool_call', toolCallId: part.toolCallId, toolName: part.toolName, args: part.input })}\n\n`)
             );
           } else if (part.type === 'tool-result') {
-            toolResultJson = JSON.stringify(part.output);
+            toolResultsJson.push({ id: part.toolCallId, result: part.output });
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: 'tool_result', result: part.output })}\n\n`)
+              encoder.encode(`data: ${JSON.stringify({ type: 'tool_result', toolCallId: part.toolCallId, result: part.output })}\n\n`)
             );
           } else if (part.type === 'finish') {
             finishReason = part.finishReason ?? null;
           }
+        }
+
+        // Tell the client a resume-mutating tool actually landed, so the
+        // editor revalidates and the user sees their own change instead of a
+        // stale page sitting next to a chat claiming it was updated. Emitted
+        // before `done` (and before the controller closes) so the client
+        // processes it in order.
+        if (resumeMutated) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'resume_updated' })}\n\n`)
+          );
         }
 
         // Final done marker
@@ -393,7 +565,7 @@ export async function POST(req: NextRequest) {
           content: assistantText,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           toolCalls: toolCallsJson.length > 0 ? (JSON.stringify(toolCallsJson) as any) : null,
-          toolResult: toolResultJson
+          toolResult: toolResultsJson.length > 0 ? toolResultsJson : null
         });
 
         // ── Record real token consumption ────────────────────────────────
