@@ -144,6 +144,28 @@ should ship in the meantime.**
 
 **Recently shipped (for context, last 7 days)**
 
+- **Print settings panel (margin / line height / font size / section
+  spacing)** — on top of `fix/print-page-break-quality` (same branch).
+  Gives the user four per-resume formatting knobs that solve the
+  "Dayforce Virtual entry finished with a ~30% blank gap on page 1"
+  screenshot — the user can now tighten margin / line height / font
+  size until the next entry fits, or relax them for more breathable
+  output. Storage: new `print_settings jsonb` column on `resumes`
+  (per-resume — variants can differ from their master). Plumbing: 4
+  CSS custom properties (`--resume-margin`, `--resume-line-height`,
+  `--resume-font-size`, `--resume-section-spacing`) set inline on the
+  `.printable` wrapper via `printSettingsToCssVars(settings)`; the
+  `@page { margin }` rule in `globals.css` reads `--resume-margin`
+  directly. UX: `Page settings` button in the editor toolbar opens a
+  Radix Popover with 4 selects that save on change via the new
+  `updatePrintSettingsAction` server action (with optimistic local
+  update + rollback on error). Migration `0008_print_settings.sql`
+  adds the column. PostHog event `print_settings_updated` fires on
+  each change with all four values in the property bag. Tests:
+  `tests/unit/print-settings.test.ts` (16 cases) pins the 4 preset
+  value tables, the `printSettingsSchema` enum validation, the
+  `coercePrintSettings` defensive fallback, and the CSS-var
+  contract. 1229 → 1245 tests passing.
 - **AI parsing modal — per-tip duration + minimal/premium polish** —
   on top of `fix/print-page-break-quality` (same branch as the print
   fix, since it's the active one and the user wanted both shipped

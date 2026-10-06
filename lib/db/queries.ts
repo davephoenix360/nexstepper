@@ -37,6 +37,7 @@ import {
   type ResumeSections
 } from '@/lib/resume-schema';
 import { parsedJdSchema, type ParsedJd } from '@/lib/jd-parser';
+import { coercePrintSettings } from '@/lib/print-settings';
 
 /**
  * Get the current user from the Better Auth session, joined with the user row.
@@ -684,6 +685,36 @@ export async function renameResume(
     .returning({ id: resumes.id });
 
   return result.length > 0;
+}
+
+/**
+ * Update the per-resume print settings (margin / line height / font
+ * size / section spacing).
+ *
+ * The server action `updatePrintSettingsAction` (see `app/.../actions.ts`)
+ * validates input shape with the Zod `printSettingsSchema` BEFORE
+ * reaching this query — so we trust `settings` to be well-formed here
+ * (no second Zod pass needed). We DO validate it with `coercePrintSettings`
+ * defensively in case a future caller forgets the schema check.
+ *
+ * Returns the persisted `PrintSettings` on success, `null` when the
+ * resume doesn't exist / isn't owned. We don't throw on the missing
+ * case — the action turns `null` into a user-facing error.
+ */
+export async function updatePrintSettings(
+  resumeId: string,
+  userId: string,
+  settings: import('@/lib/print-settings').PrintSettings
+): Promise<import('@/lib/print-settings').PrintSettings | null> {
+  const safe = coercePrintSettings(settings);
+
+  const result = await db
+    .update(resumes)
+    .set({ printSettings: safe, updatedAt: new Date() })
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .returning({ id: resumes.id });
+
+  return result.length > 0 ? safe : null;
 }
 
 /**

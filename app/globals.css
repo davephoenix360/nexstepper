@@ -402,9 +402,58 @@
      screen so the PDF matches the preview pixel-for-pixel. Phase 2 will
      swap this for an explicit Letter/A4 selector when templates diversify. */
   size: letter;
-  /* The template renders its own padding; we keep this thin so the page
-     edge isn't doubled. */
-  margin: 0.4in;
+  /*
+    Per-resume page margin (Oct 2026). The four print-settings custom
+    properties are set on the `.printable` wrapper by the page Server
+    Component, then `@page` reads `var(--resume-margin)` from the
+    cascade. CSS custom properties DO propagate into `@page` via the
+    standard cascade — see https://www.w3.org/TR/css-variables-1/
+
+    Default 0.4in is preserved for templates that don't opt into
+    print_settings (e.g. the public share route which doesn't pass
+    user-specific values to the template).
+  */
+  margin: var(--resume-margin, 0.4in);
+}
+
+/*
+  Per-resume print formatting (Oct 2026 — print settings feature).
+
+  The four custom properties are set inline by the page Server Component
+  on the `.printable` wrapper, then consumed by the rules below. Each
+  rule is wrapped in `:where(...)` so it doesn't raise specificity —
+  template-level Tailwind utilities like `text-[11pt]` keep their
+  precedence for elements that explicitly opt out of the var (section
+  headers, h2s, the small uppercase captions, etc.).
+
+  Vars:
+    --resume-margin           (e.g. "0.5in")          → @page { margin }
+    --resume-line-height     (unitless, e.g. 1.4)    → .printable body
+    --resume-font-size       (e.g. "11pt")          → .printable body
+    --resume-section-spacing (e.g. "1.25rem")       → between <section>s
+
+  All four are set by `printSettingsToCssVars()` in lib/print-settings.ts.
+*/
+:where(.printable) {
+  font-size: var(--resume-font-size, 11pt);
+  line-height: var(--resume-line-height, 1.4);
+}
+
+/*
+  Section spacing. Each template wraps its sections in a <section> tag
+  (or a <div> in the legacy read-only Classic path). We rewrite
+  `margin-bottom` on direct section descendants to use the var — the
+  per-template Tailwind `mb-*` classes are intentionally overridden
+  here so the user-facing "Section spacing" selector does what it
+  promises (Compact = sections sit closer, Relaxed = they breathe).
+
+  `:where()` keeps specificity at 0 so individual section wrappers that
+  set their own margin-bottom (none do today, but a future template
+  might) win.
+*/
+:where(.printable > section + section),
+:where(.printable > div + div) {
+  margin-top: var(--resume-section-spacing, 1.25rem);
 }
 
 /*

@@ -28,6 +28,7 @@ export const PostHogEvents = {
   RESUME_UPDATED: 'resume_updated',
   RESUME_RENAMED: 'resume_renamed',
   RESUME_DELETED: 'resume_deleted',
+  PRINT_SETTINGS_UPDATED: 'print_settings_updated',
   VARIANT_CREATED: 'variant_created',
   VARIANT_CREATED_FROM_JD: 'variant_created_from_jd',
 
@@ -86,6 +87,13 @@ export type EventPropsByName = {
   };
   [PostHogEvents.RESUME_RENAMED]: {
     resumeId: string;
+  };
+  [PostHogEvents.PRINT_SETTINGS_UPDATED]: {
+    resumeId: string;
+    margin: 'compact' | 'standard' | 'generous';
+    lineHeight: 'compact' | 'standard' | 'relaxed';
+    fontSize: 'small' | 'standard' | 'large';
+    sectionSpacing: 'compact' | 'standard' | 'relaxed';
   };
   [PostHogEvents.RESUME_DELETED]: {
     resumeId: string;

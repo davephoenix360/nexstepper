@@ -205,6 +205,23 @@ export const resumes = pgTable(
     /** When sharing was first enabled — for the "shared X days ago" UI. */
     shareCreatedAt: timestamp('share_created_at'),
 
+    // ─── Print settings (Oct 2026) ──────────────────────────────────────
+    /**
+     * Per-resume print formatting knobs — margin, line height, font
+     * size, section spacing. JSONB so the shape can evolve without
+     * further migrations. Validated on read via `coercePrintSettings`
+     * (see `lib/print-settings.ts`); old / corrupt values fall back
+     * to defaults rather than crashing the editor.
+     *
+     * Per-resume (not per-user): variants can print differently from
+     * their master — useful when one role wants a 2-page variant and
+     * another wants a single-page compact variant from the same
+     * master content.
+     */
+    printSettings: jsonb('print_settings').$type<
+      import('@/lib/print-settings').PrintSettings
+    >(),
+
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
   },

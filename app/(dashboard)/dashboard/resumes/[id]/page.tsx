@@ -18,6 +18,7 @@ import { CreateVariantButton } from '../_components/create-variant-button';
 import { DeleteResumeButton } from '../_components/delete-resume-button';
 import { DownloadPdfButton } from './download-pdf-button';
 import { ShareButton } from './share-button';
+import { PrintSettingsButton } from './print-settings-button';
 import { JdPanel } from './_components/jd-panel';
 import { ScorecardClient } from './_components/scorecard-client';
 import { RenameResumeControl } from './_components/rename-resume-button';
@@ -25,6 +26,7 @@ import { ChatBubble } from '@/components/chat/chat-bubble';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
+import { coercePrintSettings } from '@/lib/print-settings';
 
 /**
  * Resume editor page — RSC.
@@ -87,6 +89,14 @@ export default async function ResumeEditorPage({
   };
 
   const showRightRail = !resume.isMaster;
+
+  // Per-resume print formatting (Oct 2026 — print settings feature).
+  // coercePrintSettings validates the JSONB blob against the
+  // printSettingsSchema; a missing / corrupt / stale-migration value
+  // falls back to DEFAULT_PRINT_SETTINGS rather than crashing the
+  // editor. The toolbar popover seeds its initial state from this
+  // value so the first-open UI matches the persisted settings.
+  const printSettings = coercePrintSettings(resume.printSettings);
 
   // Variant count for the delete-master dialog. Only meaningful when
   // the page is rendering a master; variants themselves have no

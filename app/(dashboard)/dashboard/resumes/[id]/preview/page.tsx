@@ -5,6 +5,10 @@ import { ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { getResume, getUser } from '@/lib/db/queries';
+import {
+  coercePrintSettings,
+  printSettingsToCssVars
+} from '@/lib/print-settings';
 import { getTemplate } from '@/components/resume-templates';
 
 import { AutoPrintOnLoad } from './auto-print';
@@ -70,6 +74,14 @@ export default async function ResumePreviewPage({
   // Pick the right template from the envelope's `template` field. Unknown
   // ids fall back to classic (see `getTemplate`).
   const template = getTemplate(result.data.template);
+
+  // Per-resume print formatting (Oct 2026). The four CSS custom
+  // properties (margin / line-height / font-size / section-spacing)
+  // are set inline on the .printable wrapper, then consumed by the
+  // rules in app/globals.css (and the @page rule for the actual PDF
+  // margin). coercePrintSettings validates the JSONB blob and falls
+  // back to defaults on missing / corrupt / stale-migration values.
+  const printSettings = coercePrintSettings(result.resume.printSettings);
   const Template = template.Component;
 
   return (

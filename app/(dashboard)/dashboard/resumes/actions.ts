@@ -13,6 +13,7 @@ import {
   getResume,
   renameResume,
   saveResumeRevision,
+  updatePrintSettings,
   updateVariantJobContextTitle
 } from '@/lib/db/queries';
 import {
@@ -40,6 +41,11 @@ import { formatJdAsMarkdown } from '@/lib/jd-parser';
 import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
+import {
+  coercePrintSettings,
+  updatePrintSettingsInputSchema,
+  type PrintSettings
+} from '@/lib/print-settings';
 
 /**
  * Discriminated union for Server Action results — see AGENTS.md §3.
@@ -922,3 +928,56 @@ export async function rotateShareTokenAction(
 const enableShareSchema = z.object({
   id: z.string().min(1, 'Resume id is required')
 });
+
+/**
+ * Update the per-resume print settings (margin / line height / font
+ * size / section spacing). Owns the four formatting knobs users want
+ * when tuning a resume for paper — see lib/print-settings.ts.
+ *
+ * Auth + ownership: Better Auth session lookup, then the WHERE clause
+ * in updatePrintSettings (userId = session.user.id) covers ownership.
+ *
+ * Revalidation: revalidatePath on the editor + the resume list so the
+ * page re-renders with the new printSettings value next time it
+ * renders. The popover also applies the change locally via React state
+ * so the preview updates immediately.
+ */
+export async function updatePrintSettingsAction(
+  input: unknown
+): Promise<ActionResult<{ settings: PrintSettings }>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, error: 'Not signed in' };
+  }
+
+  const parsed = updatePrintSettingsInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Invalid input',
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  const safeSettings = coercePrintSettings(parsed.data.settings);
+  const result = await updatePrintSettings(
+    parsed.data.resumeId,
+    session.user.id,
+    safeSettings
+  );
+  if (!result) {
+    return { ok: false, error: 'Could not update settings' };
+  }
+
+  trackServer(session.user.id, PostHogEvents.PRINT_SETTINGS_UPDATED, {
+    resumeId: parsed.data.resumeId,
+    margin: result.margin,
+    lineHeight: result.lineHeight,
+    fontSize: result.fontSize,
+    sectionSpacing: result.sectionSpacing
+  });
+
+  revalidatePath('/dashboard/resumes');
+  revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
+  return { ok: true, data: { settings: result } };
+}
