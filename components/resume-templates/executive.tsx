@@ -252,7 +252,7 @@ function ExecutiveSection({
       <div className="mb-2 flex items-center justify-between gap-2 border-b border-zinc-300 pb-1">
         <h2
           id={id}
-          className="text-[10pt] font-serif font-semibold uppercase tracking-[0.18em] text-zinc-800"
+          className="text-[10pt] font-serif font-semibold uppercase tracking-[0.18em] text-zinc-800 print:break-after-avoid"
         >
           {title}
         </h2>

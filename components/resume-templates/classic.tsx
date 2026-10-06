@@ -833,7 +833,7 @@ function Section({
       <div className="mb-2 flex items-center justify-between gap-2 border-b border-zinc-300 pb-0.5">
         <h2
           id={id}
-          className="text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700"
+          className="text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700 print:break-after-avoid"
         >
           {title}
         </h2>

@@ -246,7 +246,7 @@ function CreativeSection({
       <div className="mb-3 flex items-center gap-3">
         <h2
           id={id}
-          className="text-[11pt] font-bold uppercase tracking-[0.2em] text-zinc-900"
+          className="text-[11pt] font-bold uppercase tracking-[0.2em] text-zinc-900 print:break-after-avoid"
         >
           {title}
         </h2>

@@ -162,22 +162,24 @@ should ship in the meantime.**
   setState bailout. New `tests/unit/scorecard-server-mirror.test.ts`
   pins the structural invariant (the project's standard
   `renderToStaticMarkup` test pattern — no jsdom in the runner).
-- **Print page-break quality** — branch `fix/print-page-break-quality`
-  (concurrent branch, not yet merged). Users reported that the
-  Save-as-PDF print output had "random and bad" page breaks. Root
-  cause was that every section wrapper already had per-entry
-  `print:break-inside-avoid` (so individual work / edu / project
-  entries don't get torn across pages) — but the section *header*
-  (`<h2>`) had no rule preventing it from orphaning alone at the
-  bottom of a page. Fix: add `print:break-after-avoid` to every
-  section `<h2>` across all 5 templates (Classic [both editor and
-  read-only paths], Minimal's `SmartSection`, Executive, Creative,
-  Modern). Combined with the existing per-entry `break-inside-avoid`,
-  this gives the browser's print pipeline exactly the two
-  preferences users asked for: page breaks prefer to fall **between
-  resume sections** and **between resume section entries**.
-  `tests/unit/print-page-breaks.test.tsx` (64 cases) pins the
-  source-level class (jsdom doesn't run the real print engine).
+- **Print page-break quality** — branch `fix/print-page-break-quality`.
+  Users reported that the Save-as-PDF print output had "random and bad"
+  page breaks. Root cause was that every section wrapper already had
+  per-entry `print:break-inside-avoid` (so individual work / edu /
+  project entries don't get torn across pages) — but the section
+  *header* (`<h2>`) had no rule preventing it from orphaning alone at
+  the bottom of a page. Result: a "EXPERIENCE" header could sit at
+  the bottom of page 1 with the first job entry pushed to page 2.
+  Fix: add `print:break-after-avoid` to every section `<h2>` across
+  all 5 templates (Classic [both editor and read-only paths],
+  Minimal's `SmartSection`, Executive, Creative, Modern). Combined
+  with the existing per-entry `break-inside-avoid`, this gives the
+  browser's print pipeline exactly the two preferences users asked
+  for: page breaks prefer to fall **between resume sections** and
+  **between resume section entries**. New `tests/unit/print-page-breaks.test.tsx`
+  pins the source-level class (source-level because jsdom doesn't
+  run the real print engine — see file header for the rationale).
+  1112 → 1209 tests.
 
 - **Chat agent v2 + AI-parsing modal** — branch
   `feat/chat-agent-v2`. The chat "suggests but never does" was **five**

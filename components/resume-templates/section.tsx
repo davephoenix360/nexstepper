@@ -142,7 +142,7 @@ function SectionTitle({
     <div className="mb-2 flex items-center justify-between gap-2">
       <h2
         id={id}
-        className="text-[10pt] font-medium uppercase tracking-[0.18em] text-zinc-500"
+        className="text-[10pt] font-medium uppercase tracking-[0.18em] text-zinc-500 print:break-after-avoid"
       >
         {title}
       </h2>

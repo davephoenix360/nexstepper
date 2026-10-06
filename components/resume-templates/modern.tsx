@@ -269,7 +269,7 @@ function ModernSection({
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2
           id={id}
-          className="flex items-center gap-2 text-[11pt] font-bold uppercase tracking-[0.12em] text-zinc-900"
+          className="flex items-center gap-2 text-[11pt] font-bold uppercase tracking-[0.12em] text-zinc-900 print:break-after-avoid"
         >
           <span
             aria-hidden="true"

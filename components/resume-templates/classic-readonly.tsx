@@ -96,7 +96,7 @@ function Section({
         sectionSlug && isHidden && 'print:hidden opacity-60'
       )}
     >
-      <h2 className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700">
+      <h2 className="mb-2 border-b border-zinc-300 pb-0.5 text-[10pt] font-semibold uppercase tracking-[0.12em] text-zinc-700 print:break-after-avoid">
         {title}
       </h2>
       {children}
