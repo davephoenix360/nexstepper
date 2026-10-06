@@ -112,12 +112,21 @@ function Invoke-Migrate {
 
 Set-Location -Path (Join-Path $PSScriptRoot '..')
 
-if (-not (Test-Path 'lib/db/migrations/0008_print_settings.sql')) {
-  throw "Migration not found at lib/db/migrations/0008_print_settings.sql — are you in the right repo?"
+# Find the latest pending migration file. drizzle-kit picks
+# random codenames on `pnpm db:generate` so we cannot hardcode the
+# filename.
+$latestMigration = Get-ChildItem -Path "lib/db/migrations" -Filter "*.sql" |
+  Where-Object { $_.Name -match "^[0-9]+_" } |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+if (-not $latestMigration) {
+  throw "No pending migration files found in lib/db/migrations — run pnpm db:generate first."
 }
+$latestMigrationPath = $latestMigration.FullName
+$latestMigrationName = $latestMigration.Name
 
-Write-Section 'print_settings migration (0008_print_settings.sql) — Oct 2026'
-Get-Content 'lib/db/migrations/0008_print_settings.sql' | Write-Host -ForegroundColor Gray
+Write-Section "print_settings migration ($latestMigrationName)"
+Get-Content $latestMigrationPath | Write-Host -ForegroundColor Gray
 
 # ─── Apply to dev ───────────────────────────────────────────────────
 

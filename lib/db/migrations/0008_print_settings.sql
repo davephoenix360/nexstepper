@@ -1,1 +1,0 @@
-ALTER TABLE "resumes" ADD COLUMN "print_settings" jsonb;
