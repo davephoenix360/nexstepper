@@ -1,6 +1,6 @@
 'use client';
 
-import { Printer } from 'lucide-react';
+import { Eye } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
@@ -43,10 +43,10 @@ export function DownloadPdfButton({ resumeId }: { resumeId: string }) {
           'noopener,noreferrer'
         );
       }}
-      data-testid="download-pdf-button"
+      data-testid="see-pdf-preview-button"
     >
-      <Printer className="mr-2 size-4" />
-      Download PDF
+      <Eye className="mr-2 size-4" />
+      See PDF preview
     </Button>
   );
 }
