@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 import { ScorecardPanel } from '@/components/scorecard/scorecard';
 import type { JobPosting } from '@/lib/resume-schema';
@@ -116,6 +116,34 @@ export function ScorecardClient({
   );
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Re-sync the scorecard's local mirror state when the server-rendered
+   * initial props change. Without this, a freshly-attached job
+   * description (where `data.jobContext` flips from null to truthy and
+   * `initialBreakdown` flips from null to a real breakdown) would not
+   * appear until the user hard-refreshes the page: `useState(prop)`
+   * only reads the prop on mount.
+   *
+   * Same trap as `form.reset(initialData)` in
+   * `components/editable/editable-resume.tsx` and documented in
+   * `AGENTS.md` "Recurring traps" #1.
+   *
+   * Object-identity deps are fine here: the score engine returns a
+   * fresh object on every Server Action, so a real change always
+   * arrives as a new reference. The case where the reference changes
+   * but content is identical (e.g. an unrelated `revalidatePath` that
+   * re-runs the parent RSC) bails out via React's setState bailout.
+   */
+  useEffect(() => {
+    setBreakdown(initialBreakdown);
+  }, [initialBreakdown]);
+  useEffect(() => {
+    setDynamicTips(initialDynamicTips);
+  }, [initialDynamicTips]);
+  useEffect(() => {
+    setMatchBreakdown(initialMatchBreakdown);
+  }, [initialMatchBreakdown]);
 
   const isPro = planId === 'pro';
   const controller = useInlineIssueController({

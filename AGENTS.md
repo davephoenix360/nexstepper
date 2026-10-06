@@ -144,6 +144,41 @@ should ship in the meantime.**
 
 **Recently shipped (for context, last 7 days)**
 
+- **JD attach → ATS scorecard refresh** — branch
+  `fix/jd-attach-scorecard-stale`. After pasting a job description
+  into a variant and hitting Save, the ATS score didn't appear in
+  the right rail until the user hard-refreshed the page. Root cause
+  was the `useState(initialBreakdown)` pattern in
+  `app/(dashboard)/dashboard/resumes/[id]/_components/scorecard-client.tsx`:
+  the breakdown returned by the page Server Component after
+  `revalidatePath` arrived as a new `initialBreakdown` prop, but
+  `useState` only uses the prop on mount — the same recurring trap
+  as `form.reset(initialData)` in `editable-resume.tsx` (recurring
+  trap #1 in this file). Fix: three `useEffect` calls that re-sync
+  `breakdown`, `dynamicTips`, and `matchBreakdown` local state when
+  the corresponding `initial*` prop changes. Object-identity deps
+  are fine because the score engine returns a fresh object on every
+  action; identical-reference re-renders bail out via React's
+  setState bailout. New `tests/unit/scorecard-server-mirror.test.ts`
+  pins the structural invariant (the project's standard
+  `renderToStaticMarkup` test pattern — no jsdom in the runner).
+- **Print page-break quality** — branch `fix/print-page-break-quality`
+  (concurrent branch, not yet merged). Users reported that the
+  Save-as-PDF print output had "random and bad" page breaks. Root
+  cause was that every section wrapper already had per-entry
+  `print:break-inside-avoid` (so individual work / edu / project
+  entries don't get torn across pages) — but the section *header*
+  (`<h2>`) had no rule preventing it from orphaning alone at the
+  bottom of a page. Fix: add `print:break-after-avoid` to every
+  section `<h2>` across all 5 templates (Classic [both editor and
+  read-only paths], Minimal's `SmartSection`, Executive, Creative,
+  Modern). Combined with the existing per-entry `break-inside-avoid`,
+  this gives the browser's print pipeline exactly the two
+  preferences users asked for: page breaks prefer to fall **between
+  resume sections** and **between resume section entries**.
+  `tests/unit/print-page-breaks.test.tsx` (64 cases) pins the
+  source-level class (jsdom doesn't run the real print engine).
+
 - **Chat agent v2 + AI-parsing modal** — branch
   `feat/chat-agent-v2`. The chat "suggests but never does" was **five**
   independent defects, not one: (1) `stopWhen` was never set and the AI SDK
