@@ -57,6 +57,13 @@
       "when": 1790825939834,
       "tag": "0007_dizzy_celestials",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791259585733,
+      "tag": "0008_salty_ricochet",
+      "breakpoints": true
     }
   ]
 }

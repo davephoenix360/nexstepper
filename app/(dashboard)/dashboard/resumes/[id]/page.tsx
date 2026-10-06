@@ -168,6 +168,7 @@ export default async function ResumeEditorPage({
           <CreateVariantButton masterId={resume.id} />
         ) : null}
         <div className="flex items-center gap-2">
+          <PrintSettingsButton resumeId={resume.id} initialSettings={printSettings} />
           <ShareButton resumeId={resume.id} initialStatus={shareStatusView} />
           <DownloadPdfButton resumeId={resume.id} />
           <DeleteResumeButton
