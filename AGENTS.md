@@ -144,6 +144,31 @@ should ship in the meantime.**
 
 **Recently shipped (for context, last 7 days)**
 
+- **AI parsing modal — per-tip duration + minimal/premium polish** —
+  on top of `fix/print-page-break-quality` (same branch as the print
+  fix, since it's the active one and the user wanted both shipped
+  together). The tip carousel inside the AI-parsing loading modal
+  used a fixed `TIP_INTERVAL_MS = 6_000` — a 30-word tip flashed by
+  faster than a comfortable read, and a 12-word tip sat longer than
+  needed. v2 replaces it with `tipDurationMs(text)` in
+  `lib/resume-tips.ts`, computed from the tip's word count at NN/G's
+  3-WPS carousel standard (clamped to a 5–15 s floor/ceiling).
+  Research: Brysbaert 2019 meta-analysis (190 studies, 17,887
+  participants) puts average silent adult non-fiction reading at 238
+  WPM; screen reading is ~10% slower; NN/G's auto-rotating-slide
+  guideline is 3 WPS for a comfortable read; 5–7 s minimum so the
+  carousel doesn't feel twitchy. Visual: dropped the trailing emojis
+  + casual adjectives from `PARSING_HEADLINES` ("Sprinkling stardust",
+  "Like a boss" — both out), replaced the heavy `bg-muted/40`
+  rounded box around the tip with a thin left-border accent +
+  generous padding + editorial pull-quote typography, and replaced
+  the static dot row with a thin progress bar that fills over each
+  tip's computed duration (single-shot `transform: scaleX(0→1)`
+  animation keyed on tip change so it always restarts cleanly).
+  Tests: `tests/unit/resume-tips.test.ts` pins the formula
+  (worked examples for 15/18/30/45 words, monotonicity, floor /
+  ceiling, headline emoji ban + word-count ceiling). 1219 → 1229
+  tests.
 - **JD attach → ATS scorecard refresh** — branch
   `fix/jd-attach-scorecard-stale`. After pasting a job description
   into a variant and hitting Save, the ATS score didn't appear in

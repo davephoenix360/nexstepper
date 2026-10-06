@@ -17,33 +17,117 @@
  * component stays presentational.
  */
 
-/** Rotating headlines. Picked at random once per modal open. */
+/**
+ * Rotating headlines. Picked at random once per modal open.
+ *
+ * v2 (Oct 2026): dropped the trailing emoji and the playful adjectives
+ * ("fantabulous", "stardust", "like a boss"). The earlier copy read as
+ * casual; v2.1 ships calmer, more product-grade language that pairs
+ * better with the redesigned modal — Linear/Stripe-grade restraint
+ * instead of consumer-app cheer. Length is intentionally under the 4 s
+ * headline rotation so each headline is fully readable in one cycle.
+ */
 export const PARSING_HEADLINES: readonly string[] = [
-  'Preparing your fantabulous resume ✨',
-  'Sprinkling some stardust on your career 🌟',
-  'Wrangling your work history into shape 🧵',
-  'Teaching your bullets to tell a story 📖',
-  'Polishing every comma and keyword 💎',
-  'Rolling up your achievements like a boss 🚀',
-  'Untangling your timeline ⏳',
-  'Making your experience sound as good as it was 🏆',
-  'Reading between the lines of your CV 🔍',
-  'Giving your skills a proper spotlight 🎯',
-  'Fetching your quantifications out of hiding 📊',
-  'Making this the best version of you yet 🌈'
+  'Preparing your resume',
+  'Reading through your experience',
+  'Structuring your accomplishments',
+  'Polishing your bullet points',
+  'Organizing your timeline',
+  'Highlighting your impact',
+  'Refining your professional story',
+  'Sorting your skills and projects',
+  'Reviewing the details'
 ] as const;
 
 /** How often the headline changes. Long enough to actually be read. */
 export const HEADLINE_INTERVAL_MS = 4_000;
 
-/** How often the tip changes. */
-export const TIP_INTERVAL_MS = 6_000;
+/* --------------------------------------------------------------------------
+ * Tip duration — dynamic per tip, based on word count.
+ *
+ * The previous (single) `TIP_INTERVAL_MS = 6_000` constant meant long
+ * tips (≈30 words) flashed by faster than the user could read them, and
+ * short tips sat on screen longer than they needed to. v2 computes the
+ * per-tip display duration from the tip's word count at the standard
+ * auto-rotating-slide reading rate, so the carousel feels like it's
+ * respecting the reader's pace.
+ *
+ * Reading-speed anchor (3 WPS = ~180 WPM)
+ *   The Nielsen Norman Group auto-rotating-slide guideline is "1 second
+ *   per 3 words" (Smashing Magazine, "Designing Better Carousel UX",
+ *   2022). Brysbaert's 2019 meta-analysis of 190 studies and 17,887
+ *   participants puts average silent adult non-fiction reading at 238
+ *   WPM, but screen reading runs ~10% slower (≈214 WPM) and a
+ *   carousel/loading-modal context isn't true silent reading — the
+ *   user is also doing something else (waiting, glancing up from
+ *   another tab). 180 WPM is the conservative figure the carousel UX
+ *   literature converges on, and it gives the user breathing room.
+ *
+ * Floor and ceiling
+ *   NN/G also recommends a minimum of 5–7 s for short headings so the
+ *   carousel doesn't feel twitchy, and a sensible upper bound so a
+ *   one-off long tip doesn't stall the rotation. We use 5 s floor and
+ *   15 s ceiling.
+ * + FADE_PADDING_MS
+ *   The component fades between tips; that's overhead, not reading
+ *   time, so we don't double-count it in the formula. It is exposed
+ *   separately so callers that don't fade can add it themselves.
+ * -------------------------------------------------------------------------- */
+
+/** Words-per-second the carousel assumes. See note above. */
+export const TIP_WORDS_PER_SECOND = 3;
+
+/** Minimum display duration per tip, regardless of how short the text is. */
+export const TIP_MIN_DURATION_MS = 5_000;
+
+/** Maximum display duration per tip — prevents one long tip from stalling. */
+export const TIP_MAX_DURATION_MS = 15_000;
+
+/**
+ * Count words in a tip. Whitespace-split, ignoring empty tokens. Punctuation
+ * glued to a word (e.g. "deployments") counts as part of the word. Em-dashes
+ * ("—") and quotes are stripped because they're not actually read; an em-dash
+ * in "start each bullet with a verb, then add a number" is silent.
+ */
+export function tipWordCount(text: string): number {
+  // Strip non-word punctuation that would inflate the count: em-dash,
+  // en-dash, ellipsis, curly quotes. (Hyphens INSIDE words — "well-built"
+  // — should count as part of the word, so we leave ASCII hyphens alone.)
+  const cleaned = text
+    .replace(/[—–…]/g, ' ')
+    .replace(/[""'']/g, '');
+  return cleaned.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * How long a tip should stay on screen, given its text. Pure & sync — safe
+ * to call inside React render to drive a per-tip `setTimeout`.
+ *
+ * Returns the clamped value in milliseconds:
+ *   `clamp((wordCount / TIP_WORDS_PER_SECOND) * 1000,
+ *          TIP_MIN_DURATION_MS,
+ *          TIP_MAX_DURATION_MS)`
+ *
+ * Worked examples (with TIP_WORDS_PER_SECOND = 3, MIN = 5000, MAX = 15000):
+ *   12-word tip → 4000 ms → clamped to 5000 ms (floor)
+ *   20-word tip → 6667 ms
+ *   30-word tip → 10000 ms
+ *   45-word tip → 15000 ms → clamped to 15000 ms (ceiling)
+ */
+export function tipDurationMs(text: string): number {
+  const words = tipWordCount(text);
+  const readingMs = (words / TIP_WORDS_PER_SECOND) * 1000;
+  return Math.min(
+    TIP_MAX_DURATION_MS,
+    Math.max(TIP_MIN_DURATION_MS, readingMs)
+  );
+}
 
 export type ResumeTipCategory = 'resume' | 'cover-letter' | 'nexstepper';
 
 export interface ResumeTip {
   category: ResumeTipCategory;
-  /** Emoji shown next to the tip. */
+  /** Emoji shown next to the tip. Kept — they're contextual mnemonics. */
   emoji: string;
   text: string;
 }
