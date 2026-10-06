@@ -2,11 +2,9 @@ import { ACTION_VERBS, WEAK_VERBS } from '../dictionaries';
 import type { ResumeTextSource } from '../similarity';
 
 /**
- * Content-quality dimension (30% of the overall score).
+ * Content-quality dimension (21% of the overall v2 score).
  *
- * Two sub-criteria, weighted 40/30 in the legacy's `score.ts:411-412`
- * (we drop the third — readability — per the plan §"Hard constraints"
- * to avoid the `flesch-kincaid` + `syllable` npm deps):
+ * Two sub-criteria, in a 4:3 ratio, normalised back onto 0-100:
  *   1. `accomplishmentRatio` — 40% — fraction of work-highlights that
  *      contain at least one digit. Bullets with numbers ("increased
  *      revenue by 23%", "led a team of 8") are the strongest signal
@@ -17,13 +15,16 @@ import type { ResumeTextSource } from '../similarity';
  *
  * Readability was the third sub-criterion in the legacy. We drop it
  * because the plan §"Non-goals" lists it explicitly as deferred:
- * "Trivial follow-up if calibration warrants it." The weight freed
- * up (30%) gets split: 20% → accomplishment, 10% → action verbs.
+ * "Trivial follow-up if calibration warrants it." Its 30% was folded
+ * into the two survivors (20% → accomplishment, 10% → action verbs),
+ * which is why the raw weights total 0.7 — hence `WEIGHT_SUM` below.
  *
- * Drift from plan: the original plan §"Scope (in)" lists 40/30/30
- * weights with readability as the third sub-criterion. We ship with
- * 40/30 (no readability), so the weights shown here match the
- * plan-as-shipped.
+ * Known fairness concern, not yet addressed: quantifying impact is
+ * genuinely unevenly available across fields, so this sub-criterion
+ * scores honest candidates in less numerate roles lower. It is weighted
+ * 0.21 — more than Intent Coverage (0.10), which is the dimension that
+ * actually measures JD match. See
+ * `docs/drift/2026-10-01-ats-scoring-review.md` §4.
  */
 
 export type ContentQualityScore = {
@@ -39,6 +40,23 @@ export type ContentQualityScore = {
 
 const WEIGHTS = { accomplishment: 0.4, actionVerb: 0.3 } as const;
 
+/**
+ * Sum of the sub-weights, used to normalise `value` back onto 0-100.
+ *
+ * The weights total **0.7**, not 1.0: readability was dropped as a third
+ * sub-criterion and its 30% was never redistributed, so `value` was being
+ * emitted on a 0-70 scale while its own docstring and the scorecard both
+ * describe it as 0-100. A resume with *every* bullet quantified *and* every
+ * bullet starting with a strong action verb scored 70, not 100 — and the
+ * dimension carries 0.21 of the overall score, so 6.3 points of the 100-point
+ * scale were structurally unreachable.
+ *
+ * Normalising by the running sum (rather than hardcoding a 0.7 divisor) keeps
+ * the intended 4:3 ratio between the two surviving criteria and stays correct
+ * if a weight is ever changed again.
+ */
+const WEIGHT_SUM = WEIGHTS.accomplishment + WEIGHTS.actionVerb;
+
 export function scoreContentQuality(resume: ResumeTextSource): ContentQualityScore {
   const highlights = collectHighlights(resume);
   if (highlights.length === 0) {
@@ -52,8 +70,9 @@ export function scoreContentQuality(resume: ResumeTextSource): ContentQualitySco
 
   return {
     value:
-      WEIGHTS.accomplishment * accomplishmentRatio +
-      WEIGHTS.actionVerb * actionVerbUsage,
+      (WEIGHTS.accomplishment * accomplishmentRatio +
+        WEIGHTS.actionVerb * actionVerbUsage) /
+      WEIGHT_SUM,
     breakdown: { accomplishmentRatio, actionVerbUsage }
   };
 }
