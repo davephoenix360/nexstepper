@@ -261,7 +261,17 @@ function ModernSection({
 }) {
   const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
   const sectionClassName = cn(
-    'break-inside-avoid print:break-inside-avoid',
+    // No `break-inside-avoid` on the section itself. The earlier
+    // `break-inside-avoid print:break-inside-avoid` looked safe but
+    // pushed the entire Experience section onto a new page whenever
+    // it couldn't fit at the bottom of the previous one — leaving
+    // ~half a page of blank space (verified Oct 2026 — see AGENTS.md
+    // "Recently shipped" for the print-page-break-quality fix).
+    // The `break-after-avoid` on the <h2> below + the per-entry
+    // `break-inside-avoid` on each work / edu / project wrapper is
+    // the right combination: it keeps the header glued to its body
+    // AND lets the browser split the section between entries when
+    // it must, without the giant-blank-page artifact.
     sectionSlug && hidden && 'print:hidden opacity-60'
   );
   return (

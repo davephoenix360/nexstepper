@@ -394,3 +394,74 @@ describe('Classic (read-only path) — per-entry print:break-inside-avoid', () =
     ).toBeGreaterThanOrEqual(1);
   });
 });
+
+/* --------------------------------------------------------------------------
+ * Section wrapper must NOT carry break-inside-avoid
+ *
+ * Earlier (Oct 2026), Modern's <section> wrapper had
+ * `break-inside-avoid print:break-inside-avoid`. Combined with the
+ * new `print:break-after-avoid` on the <h2>, this forced the ENTIRE
+ * Experience section onto one page — pushing it to the next page
+ * whenever it didn't fit at the bottom of the previous one, leaving
+ * ~half a page of blank space. Pin: none of the five template
+ * section wrappers (or ClassicReadOnly's) may carry break-inside-avoid
+ * at the section level. Per-entry wrappers carry it (already pinned
+ * above); the section itself must not.
+ *
+ * The check walks every rendered <section> element and asserts none
+ * of them carry `break-inside-avoid` or `print:break-inside-avoid`
+ * on the wrapper itself. The Experience section in particular must
+ * not have it — that's the one that reproduced the user-visible bug.
+ * ------------------------------------------------------------------------ */
+
+function countBreakInsideAvoidOnSectionWrapper(html: string): number {
+  // Match every <section ...> opening tag and count those that carry
+  // either screen or print break-inside-avoid. We count openings (not
+  // matches) so a bug that adds the class twice in one tag still
+  // surfaces as "at least one".
+  const re = /<section\b[^>]*>/g;
+  let count = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html)) !== null) {
+    if (
+      /\bbreak-inside-avoid\b/.test(match[0]) ||
+      /\bprint:break-inside-avoid\b/.test(match[0])
+    ) {
+      count++;
+    }
+  }
+  return count;
+}
+
+describe('Section wrapper — must NOT carry break-inside-avoid (giant-blank-page guard)', () => {
+  type Fixture = {
+    name: string;
+    Render: React.ComponentType<{ data: ResumeData; editable?: boolean }>;
+  };
+
+  const fixtures: Fixture[] = [
+    { name: 'classic', Render: ClassicTemplate },
+    { name: 'modern', Render: ModernTemplate },
+    { name: 'minimal', Render: MinimalTemplate },
+    { name: 'executive', Render: ExecutiveTemplate },
+    { name: 'creative', Render: CreativeTemplate },
+    { name: 'classic-readonly', Render: ClassicReadOnly as Fixture['Render'] }
+  ];
+
+  for (const { name, Render } of fixtures) {
+    it(`${name}: no <section> wrapper carries break-inside-avoid`, () => {
+      const html = renderToStaticMarkup(
+        React.createElement(Render, { data: populatedResumeData() })
+      );
+      const offenders = countBreakInsideAvoidOnSectionWrapper(html);
+      expect(
+        offenders,
+        `${name}: no <section> may carry break-inside-avoid / ` +
+          'print:break-inside-avoid — that pushes the whole section ' +
+          'onto a single page and wastes blank space when it does not ' +
+          'fit (verified 2026-10 in Modern template, fixed in ' +
+          'fix/print-page-break-quality follow-up).'
+      ).toBe(0);
+    });
+  }
+});

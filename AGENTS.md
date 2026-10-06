@@ -162,7 +162,29 @@ should ship in the meantime.**
   setState bailout. New `tests/unit/scorecard-server-mirror.test.ts`
   pins the structural invariant (the project's standard
   `renderToStaticMarkup` test pattern — no jsdom in the runner).
-- **Print page-break quality** — branch `fix/print-page-break-quality`.
+- **Print page-break quality v2** — branch `fix/print-page-break-quality`
+  (second commit, on top of v1 below). The v1 fix added
+  `print:break-after-avoid` to every section `<h2>`. That worked for
+  the orphan-header case but, in combination with the
+  pre-existing `break-inside-avoid print:break-inside-avoid` on
+  Modern's `<section>` wrapper, produced a worse artifact: when the
+  Experience section was too big to fit at the bottom of page 1
+  (after Summary), the WHOLE section jumped to page 2 — leaving ~half
+  a page of blank space below Summary. Fix: remove the
+  section-level `break-inside-avoid` from `ModernSection`. The
+  `break-after-avoid` on the `<h2>` + per-entry `break-inside-avoid`
+  on each work / edu / project wrapper is the right combination —
+  it keeps the header glued to its body, lets the browser split
+  the section between entries when it must, and doesn't waste a
+  blank page when the section is too big. New guard tests in
+  `tests/unit/print-page-breaks.test.tsx` assert NO template's
+  `<section>` wrapper may carry `break-inside-avoid` (verified by
+  re-introducing the bad class — 12 sections trip the guard).
+  Web research confirms the W3C / MDN / Sitepoint consensus: apply
+  `break-inside-avoid` to **leaves** (work entries, tables, figures)
+  — never to a section container that can exceed a page. 1213 →
+  1219 tests.
+- **Print page-break quality v1** — branch `fix/print-page-break-quality`.
   Users reported that the Save-as-PDF print output had "random and bad"
   page breaks. Root cause was that every section wrapper already had
   per-entry `print:break-inside-avoid` (so individual work / edu /
@@ -172,14 +194,12 @@ should ship in the meantime.**
   the bottom of page 1 with the first job entry pushed to page 2.
   Fix: add `print:break-after-avoid` to every section `<h2>` across
   all 5 templates (Classic [both editor and read-only paths],
-  Minimal's `SmartSection`, Executive, Creative, Modern). Combined
-  with the existing per-entry `break-inside-avoid`, this gives the
-  browser's print pipeline exactly the two preferences users asked
-  for: page breaks prefer to fall **between resume sections** and
-  **between resume section entries**. New `tests/unit/print-page-breaks.test.tsx`
-  pins the source-level class (source-level because jsdom doesn't
-  run the real print engine — see file header for the rationale).
-  1112 → 1209 tests.
+  Minimal's `SmartSection`, Executive, Creative, Modern). New
+  `tests/unit/print-page-breaks.test.tsx` pins the source-level
+  class (source-level because jsdom doesn't run the real print
+  engine — see file header for the rationale). v1 was correct
+  *intuitively* but produced the giant-blank-page artifact that
+  motivated v2. 1112 → 1209 tests.
 
 - **Chat agent v2 + AI-parsing modal** — branch
   `feat/chat-agent-v2`. The chat "suggests but never does" was **five**
