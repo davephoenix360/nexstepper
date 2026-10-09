@@ -4,6 +4,30 @@ import { nextCookies } from 'better-auth/next-js';
 import { db } from '@/lib/db/drizzle';
 import * as schema from '@/lib/db/schema';
 import { sendPasswordResetEmail } from '@/lib/email/reset-password';
+import { readGoogleCredentials } from '@/lib/auth-google';
+
+/**
+ * Social providers (Google), registered conditionally.
+ *
+ * `readGoogleCredentials()` returns null unless BOTH
+ * `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set, so this
+ * spreads to `{}` on a machine that has never configured Google —
+ * local dev, CI, and self-hosters keep working on email + password
+ * alone instead of crashing on the first auth request.
+ *
+ * `lib/auth-google.ts` owns the rationale, the account-linking
+ * security posture, and the env-var setup steps.
+ */
+const socialProviders = (() => {
+  const credentials = readGoogleCredentials();
+  if (!credentials) return {};
+  return {
+    google: {
+      clientId: credentials.clientId,
+      clientSecret: credentials.clientSecret
+    }
+  };
+})();
 
 /**
  * Better Auth server instance.
@@ -31,6 +55,10 @@ export const auth = betterAuth({
       verification: schema.verification
     }
   }),
+  // `{}` when Google isn't configured — see the note above and in
+  // lib/auth-google.ts. Better Auth accepts an empty provider map, so
+  // email + password remains the only path without a crash.
+  socialProviders,
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
