@@ -24,7 +24,7 @@ const toc = [
   { id: 'retention', label: '6. Data retention' },
   { id: 'your-rights', label: '7. Your rights' },
   { id: 'international', label: '8. International transfers' },
-  { id: 'children', label: '9. Children&apos;s privacy' },
+  { id: 'children', label: '9. Children’s privacy' },
   { id: 'security', label: '10. Security' },
   { id: 'open-source', label: '11. Open-source + self-hosting' },
   { id: 'changes', label: '12. Changes to this policy' },

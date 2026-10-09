@@ -8,6 +8,22 @@
 
 @variant dark (&:is(.dark *));
 
+/*
+  Tailwind Typography — REQUIRED, not optional.
+
+  The legal pages (/privacy, /terms, /cookies) have always carried
+  `prose prose-neutral dark:prose-invert` on their article wrapper, but
+  this plugin was never installed, so every one of those classes was a
+  no-op. That is why the policy body rendered as unstyled body text:
+  <h2> looked identical to <p>, and <ul>/<li> showed no bullets or
+  indentation. Everything downstream (heading hierarchy, vertical
+  rhythm between sections) depends on this being loaded.
+
+  Without this @plugin line, do not "clean up" the prose classes —
+  they will silently stop working again.
+*/
+@plugin "@tailwindcss/typography";
+
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -518,4 +534,23 @@ details > summary {
 }
 details > summary::-webkit-details-marker {
   display: none;
+}
+
+/*
+  --- Legal pages (app/(legal)) ---
+
+  Anchor targets in the policy documents need scroll margin, otherwise
+  clicking "4. Subprocessors" in the sidebar scrolls the heading to the
+  very top of the viewport where the sticky header clips it. 6rem
+  clears the header plus a little breathing room.
+*/
+.prose :where(h2, h3) {
+  scroll-margin-top: 6rem;
+}
+
+/* Slightly tighter prose than Tailwind's stock 65ch default, and a
+   calmer h2 — the numbered sections are the page's real structure,
+   so they should read as headings, not as shouty display type. */
+.prose :where(h2) {
+  margin-top: 2.5em;
 }

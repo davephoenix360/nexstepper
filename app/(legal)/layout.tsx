@@ -17,7 +17,7 @@ export default function LegalLayout({
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="inline-flex items-center gap-2">
             <Circle className="size-5 text-primary" />
             <span className="text-base font-semibold tracking-tight">
@@ -37,8 +37,19 @@ export default function LegalLayout({
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">{children}</main>
-      <footer className="mx-auto max-w-3xl px-4 pb-12 text-xs text-muted-foreground sm:px-6">
+      {/*
+        Full-bleed, NOT max-w-3xl.
+
+        This <main> used to cap at 768px, which silently defeated the
+        two-column `PolicyShell` inside it: the sidebar + prose grid
+        was squeezed into 672px, so the article rendered ~408px wide
+        with dead space on both sides regardless of the measure it
+        asked for. Widening it here is what actually gives the shell
+        room to breathe. `PolicyShell` owns its own max-width and
+        padding from here on.
+      */}
+      <main className="w-full">{children}</main>
+      <footer className="mx-auto max-w-6xl px-6 pb-14 text-xs text-muted-foreground">
         <p>
           Questions? Email{' '}
           <a

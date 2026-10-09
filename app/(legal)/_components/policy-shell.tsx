@@ -60,7 +60,7 @@ export function PolicyShell({
 
       {intro && <section className="mt-10">{intro}</section>}
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:gap-16">
+      <div className="mt-12 grid gap-10 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-14">
         {/* Sidebar rail — hidden on mobile, where the TOC renders inline
             above the article instead (see the block after `intro`). */}
         <aside className="hidden lg:block">
@@ -75,7 +75,20 @@ export function PolicyShell({
             <PolicyToc items={toc} variant="inline" />
           </div>
 
-          <article className="prose prose-neutral max-w-[70ch] dark:prose-invert">
+          {/*
+            Measure is set in rem, not `ch`.
+
+            `70ch` was a mistake: Manrope's "0" glyph is narrow, so 70ch
+            resolved to roughly 370px — a cramped ribbon with ~480px of
+            dead space to its right. 46rem (~736px) is the measure you
+            actually want at this type size, and it keeps the column
+            from feeling like a line of text floating in a void.
+
+            Heading styles come from the `prose` class, which requires
+            @tailwindcss/typography to be installed and registered in
+            globals.css — see the note there.
+          */}
+          <article className="prose prose-neutral max-w-[46rem]! dark:prose-invert">
             {children}
           </article>
         </div>
