@@ -16,8 +16,8 @@ import { EditableResume } from '@/components/editable';
 
 import { CreateVariantButton } from '../_components/create-variant-button';
 import { DeleteResumeButton } from '../_components/delete-resume-button';
-import { DownloadPdfButton } from './download-pdf-button';
-import { ShareButton } from './share-button';
+import { PrintButton } from './print-button';
+import { ShareButton } from '@/components/share/share-button';
 import { PrintSettingsButton } from './print-settings-button';
 import { JdPanel } from './_components/jd-panel';
 import { ScorecardClient } from './_components/scorecard-client';
@@ -170,7 +170,7 @@ export default async function ResumeEditorPage({
         <div className="flex items-center gap-2">
           <PrintSettingsButton resumeId={resume.id} initialSettings={printSettings} />
           <ShareButton resumeId={resume.id} initialStatus={shareStatusView} />
-          <DownloadPdfButton resumeId={resume.id} />
+          <PrintButton resumeId={resume.id} />
           <DeleteResumeButton
             resumeId={resume.id}
             resumeName={resume.name}

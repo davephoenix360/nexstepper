@@ -20,7 +20,7 @@ import {
   disableShareAction,
   enableShareAction,
   rotateShareTokenAction
-} from '../actions';
+} from '@/app/(dashboard)/dashboard/resumes/actions';
 
 type ShareStatusView = {
   enabled: boolean;
