@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
-import { Home, Settings, Shield, Menu, FileText, CircleIcon } from 'lucide-react';
+import { Home, Settings, Shield, Menu, FileText } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 
 import { ProLaunchingSoonBanner } from '@/components/billing/pro-launching-soon-cta';
 import type { PlanId } from '@/lib/billing';
@@ -47,10 +48,9 @@ export function DashboardShell({
       <div className="no-print lg:hidden flex items-center justify-between bg-background border-b border-border p-4">
         <Link
           href="/"
-          className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground"
+          className="flex items-center"
         >
-          <CircleIcon className="size-5 text-primary" />
-          Nextepper
+          <Logo variant="horizontal" height={24} />
         </Link>
         <div className="flex items-center gap-1">
           <ThemeToggle />
@@ -81,12 +81,8 @@ export function DashboardShell({
           }`}
         >
           <nav className="h-full overflow-y-auto p-4 flex flex-col">
-            <Link
-              href="/"
-              className="flex items-center gap-2 mb-6 text-base font-semibold tracking-tight text-foreground"
-            >
-              <CircleIcon className="size-6 text-primary" />
-              Nexstepper
+            <Link href="/" className="mb-6 block">
+              <Logo variant="horizontal" height={26} />
             </Link>
             {navItems.map((item) => (
               <Link key={item.href} href={item.href} passHref>

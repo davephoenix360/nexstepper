@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Circle } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 
 /**
  * MarketingFooter — slim footer with logo, nav columns, and copyright.
@@ -12,14 +12,13 @@ export function MarketingFooter() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Link href="/" className="inline-flex items-center gap-2">
-              <Circle className="size-5 text-primary" />
-              <span className="text-base font-semibold tracking-tight">
-                Nexstepper
-              </span>
+            <Link href="/" className="inline-flex items-center">
+              <Logo variant="horizontal" height={30} />
             </Link>
+            {/* The lockup already carries "Take the next step." as its
+                tagline — repeating it here read as a stutter. */}
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Take the next step. AI-assisted resumes for people who&apos;d rather be interviewing
+              AI-assisted resumes for people who&apos;d rather be interviewing
               than formatting.
             </p>
           </div>

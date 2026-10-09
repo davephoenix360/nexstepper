@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Circle } from 'lucide-react';
+
+import { Logo } from '@/components/brand/logo';
 
 /**
  * Layout for the legal pages (`/privacy`, `/terms`, `/cookies`).
@@ -18,11 +19,8 @@ export default function LegalLayout({
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <Circle className="size-5 text-primary" />
-            <span className="text-base font-semibold tracking-tight">
-              Nexstepper
-            </span>
+          <Link href="/" className="inline-flex items-center">
+            <Logo variant="horizontal" height={30} priority />
           </Link>
           <nav className="flex gap-4 text-sm text-muted-foreground">
             <Link href="/privacy" className="hover:text-foreground">

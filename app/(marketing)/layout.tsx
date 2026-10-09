@@ -3,9 +3,8 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CircleIcon } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/brand/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 
@@ -50,12 +49,8 @@ export default function MarketingLayout({
     <section className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground"
-          >
-            <CircleIcon className="size-6 text-primary" />
-            Nexstepper
+          <Link href="/" className="flex items-center">
+            <Logo variant="horizontal" height={34} priority />
           </Link>
           <MarketingNavLinks />
           <div className="flex items-center gap-1">
