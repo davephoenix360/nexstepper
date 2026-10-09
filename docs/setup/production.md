@@ -18,6 +18,47 @@ cloud-console work, not code.
 
 ---
 
+## CURRENT STATE — verified 2026-10-08
+
+**This runbook has been executed. Production is live.** The sections
+below remain as the procedure for re-running or re-provisioning, and
+three of them are corrected to match what was actually built.
+
+| Item | Status |
+|---|---|
+| Vercel production deployment | **Live** |
+| Neon **prod** project | **Live** |
+| Neon **dev** project | **Live** — separate project (see §1.2) |
+| Migrations `0000`–`0008` | Applied |
+| Custom domain | **Live** — `www.nexstepper.com` canonical (see §0.2) |
+| Resend | Verified, sending |
+| Sentry + PostHog | Wired, real keys |
+| Vercel AI Gateway | Authenticated |
+| Stripe live mode | **NOT live** — still soft-launch-gated |
+
+Only **Stripe live mode** (§2) remains. It is open *by choice*: live
+mode requires a deployed business website, which now exists, so the
+gate in `docs/drift/2026-09-27-soft-launch-pro-gating.md` can be
+lifted. That is a product decision, not a leftover task.
+
+Corrections to the original procedure, and why they matter:
+
+1. **§1.2 recommends branches; reality is two separate projects.**
+   Consequence: local `pnpm db:migrate` hits the **dev** project
+   only — production migrations land when the commit reaches `main`
+   and Vercel's `prebuild` runs `db:migrate`.
+2. **§0.2 recommended apex-canonical; reality is `www.`-canonical.**
+   This mismatch is not cosmetic — Vercel's 308 meant every request
+   landed on `www.` while `BETTER_AUTH_URL` was the apex, so Better
+   Auth rejected the origin and the auth flow silently 500'd. The
+   `trustedOrigins` list in `lib/auth.ts` is the scar tissue.
+3. **`.env.example` is a placeholder template, not a description of
+   the real environment.** Do not infer deployed state from it.
+
+Full memo: `docs/drift/2026-10-08-production-is-live.md`.
+
+---
+
 ## 0. Pre-flight (before you touch any cloud console)
 
 ### 0.1 You need accounts for
@@ -37,12 +78,26 @@ cloud-console work, not code.
 
 Pick before you start so you can fill it in once and not revisit:
 
-- **Apex** (`nexstepper.app`) + **www** redirect → apex
+- **Apex** (`nexstepper.com`) + **www** redirect → apex
 - Or **subdomain** (`app.nexstepper.com`) under a domain you already own
 
 You'll need this for: Stripe webhook URL, Resend domain verification,
 Better Auth `BETTER_AUTH_URL`, the `NEXT_PUBLIC_APP_URL` exposed to the
 client, and the `BASE_URL` Stripe redirects to after checkout.
+
+> **What was actually built (2026-10-08)** — `nexstepper.com`, with
+> **`www.` as the canonical host**; the apex 308-redirects to `www`.
+> The apex-canonical default recommended above was tried first and had
+> to be flipped. **Whichever host you pick, it must match
+> `BETTER_AUTH_URL` exactly**, or Better Auth rejects the real
+> requests as an invalid origin and the auth flow silently 500s.
+> `lib/auth.ts` now hardcodes an explicit `trustedOrigins` list to
+> absorb this — see the comment at `lib/auth.ts:77-91`. Any new auth
+> callback (Google OAuth, GitHub) must register **both** hosts,
+> because providers match redirect URIs exactly.
+>
+> The domain name originally written into this section was never the
+> one purchased; `nexstepper.com` is the real domain.
 
 ### 0.3 Open this checklist in one tab + Vercel/Neon/Stripe/Resend in the others
 
@@ -102,6 +157,25 @@ For **preview deploys** on Vercel, you can either (a) skip the per-PR
 DB and just point previews at the dev branch with a write-blocked role,
 or (b) use Neon's GitHub Action to spin a fresh branch per PR. **Defer
 (a) for now** — preview DBs are nice-to-have, not launch-blocking.
+
+> **What was actually built (2026-10-08)** — **two separate Neon
+> projects**, not two branches of one project. This is stronger
+> isolation than the recommendation above: production data cannot be
+> reached from a local dev connection at all, and a destructive local
+> experiment cannot touch prod.
+>
+> **The operational consequence, which is easy to get wrong:**
+> running `pnpm db:migrate` locally applies migrations to the **dev
+> project only**. Production migrations are applied by Vercel's
+> `prebuild` (see §1.3) when a commit reaches `main`. So:
+>
+> - A schema change is live in dev long before it is live in prod.
+> - A bad migration fails in dev first — which is the point.
+> - **Never assume a local migration has reached prod.** Verify via
+>   the prod connection string or the Vercel build log before relying
+>   on a new column in production.
+>
+> If you later switch to the branch strategy, delete this note.
 
 ### 1.3 Apply migrations to a clean DB
 
@@ -272,14 +346,14 @@ If you serve EU/UK users, Stripe Tax handles VAT collection automatically:
 
 ### 3.1 Verify your sending domain
 
-1. <https://resend.com/domains> → **Add domain** → enter `nexstepper.app`
+1. <https://resend.com/domains> → **Add domain** → enter `nexstepper.com`
    (or whatever you're using).
 2. Resend shows the DNS records you need to add. Go to your registrar /
    DNS host (Cloudflare, Namecheap, Route53, …) and create:
    - **SPF** (`TXT` at apex): `v=spf1 include:resend.com ~all`
    - **DKIM** (`CNAME`s at the three subdomains Resend shows)
-   - **DMARC** (`TXT` at `_dmarc.nexstepper.app`):
-     `v=DMARC1; p=quarantine; rua=mailto:dmarc@nexstepper.app`
+   - **DMARC** (`TXT` at `_dmarc.nexstepper.com`):
+     `v=DMARC1; p=quarantine; rua=mailto:dmarc@nexstepper.com`
 3. Back in Resend → **Verify**. Usually takes < 5 min once the records
    propagate.
 
@@ -377,13 +451,13 @@ cap keeps the bill bounded until you notice.
 
 ## 6. Custom domain + SSL (Vercel handles most of this)
 
-> Goal: users hit `https://nexstepper.app`, not `nexstepper<hash>.vercel.app`.
+> Goal: users hit `https://nexstepper.com`, not `nexstepper<hash>.vercel.app`.
 
 ### 6.1 Add domain to Vercel
 
 1. Vercel project → **Settings → Domains → Add** → enter your apex.
 2. Vercel shows the records you need. At your registrar / DNS host:
-   - **Apex** (`nexstepper.app`): either A record to Vercel's IP, or
+   - **Apex** (`nexstepper.com`): either A record to Vercel's IP, or
      ALIAS/ANAME if your registrar supports it (Cloudflare does).
    - **www**: CNAME to `cname.vercel-dns.com`.
 3. Vercel auto-provisions a Let's Encrypt cert — wait a few minutes
@@ -397,21 +471,33 @@ canonical. Recommendation: **apex canonical, www → apex redirect**.
 
 ### 6.3 Update env vars to the prod domain
 
-In Vercel project env vars:
+In Vercel project env vars — **use the canonical host, whatever you
+pick in §6.2**. As built on 2026-10-08, the canonical host is
+`www.nexstepper.com`:
 
 ```
-BASE_URL=https://nexstepper.app
-NEXT_PUBLIC_APP_URL=https://nexstepper.app
-BETTER_AUTH_URL=https://nexstepper.app
+BASE_URL=https://www.nexstepper.com
+NEXT_PUBLIC_APP_URL=https://www.nexstepper.com
+BETTER_AUTH_URL=https://www.nexstepper.com
 ```
 
-These three must agree exactly (no trailing slash, https not http).
+These three must agree exactly (no trailing slash, https not http),
+**and `BETTER_AUTH_URL` must match the host that actually serves
+traffic.** If it points at the apex while Vercel 308-redirects
+apex → `www`, Better Auth rejects the real requests as an invalid
+origin and the auth flow silently 500s. That exact failure is
+documented at `lib/auth.ts:77-91`; the `trustedOrigins` list there
+exists to absorb it.
 
 ### 6.4 Verify
 
-- [ ] `https://nexstepper.app` resolves to your Vercel deploy
-- [ ] SSL Labs or `curl -I https://nexstepper.app` returns a valid cert
-- [ ] `https://www.nexstepper.app` redirects to apex (or vice versa, your pick)
+- [ ] `https://www.nexstepper.com` (canonical) resolves to your
+      Vercel deploy
+- [ ] SSL Labs or `curl -I https://www.nexstepper.com` returns a
+      valid cert
+- [ ] `https://nexstepper.com` 308-redirects to `www.` — **this is
+      the as-built direction; `BETTER_AUTH_URL` must be the `www.`
+      value**
 - [ ] Better Auth login flow works on the prod domain (cookies are
       scoped correctly, no SameSite warnings in browser devtools)
 
@@ -440,10 +526,10 @@ test-mode Stripe, Preview should use Neon dev branch + test-mode Stripe).
 
 | Variable | Production value | Preview value |
 |---|---|---|
-| `POSTGRES_URL` | Neon prod pooler | Neon dev branch pooler |
-| `BASE_URL` | `https://nexstepper.app` | `https://<preview>.vercel.app` |
-| `NEXT_PUBLIC_APP_URL` | `https://nexstepper.app` | same as BASE_URL |
-| `BETTER_AUTH_URL` | `https://nexstepper.app` | same as BASE_URL |
+| `POSTGRES_URL` | Neon **prod project** pooler | Neon **dev project** pooler |
+| `BASE_URL` | `https://www.nexstepper.com` | `https://<preview>.vercel.app` |
+| `NEXT_PUBLIC_APP_URL` | `https://www.nexstepper.com` | same as BASE_URL |
+| `BETTER_AUTH_URL` | `https://www.nexstepper.com` | same as BASE_URL |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32` (new, prod-only) | new, preview-only |
 | `NODE_ENV` | `production` | `preview` |
 | `STRIPE_SECRET_KEY` | `sk_live_…` | `sk_test_…` |
@@ -486,7 +572,7 @@ Do this in an **incognito window** so you exercise the unauthenticated
 
 | # | Step | Expected |
 |---|---|---|
-| 1 | Visit `https://nexstepper.app` | Landing renders, no console errors |
+| 1 | Visit `https://nexstepper.com` | Landing renders, no console errors |
 | 2 | Click **Sign up** | Form loads, no errors |
 | 3 | Sign up with your real email | Redirects to `/dashboard`, empty state |
 | 4 | **Create master resume** (manual or import PDF) | Resume saves, appears in list |
@@ -624,21 +710,30 @@ event — confirm this UX is acceptable before launch).
 
 ## 11. Done criteria — you're cleared to announce
 
-Every box ticked:
+Every box ticked — **state verified 2026-10-08**:
 
-- [ ] Neon prod DB live, migrations applied, upgrade trigger (§1.1)
-      noted in your calendar
+- [x] Neon prod DB live, upgrade trigger (§1.1) noted in your
+      calendar — migrations `0000`–`0008` exist in the repo and prod
+      is serving, which implies they applied via `prebuild`; confirm
+      against the prod connection string if you want certainty
 - [ ] Stripe in live mode, Pro product + webhook + customer portal
-- [ ] Resend domain verified, SPF/DKIM/DMARC pass, password reset
+      — **still gated by the soft-launch decision**, see
+      `docs/drift/2026-09-27-soft-launch-pro-gating.md`
+- [x] Resend domain verified, SPF/DKIM/DMARC pass, password reset
       works in real Inbox
-- [ ] AI Gateway authenticated (OIDC or static key), spend cap set
-- [ ] Sentry + PostHog wired, alerts configured, test events captured
-- [ ] Custom domain live with valid SSL
-- [ ] All env vars set in Vercel Production environment
-- [ ] End-to-end smoke test (§8) passes all 16 steps
+- [x] AI Gateway authenticated (OIDC or static key), spend cap set
+- [x] Sentry + PostHog wired, alerts configured, test events captured
+- [x] Custom domain live with valid SSL — `www.nexstepper.com`
+      canonical, apex 308-redirects to `www` (see §0.2)
+- [x] All env vars set in Vercel Production environment
+- [ ] End-to-end smoke test (§8) passes all 16 steps — **not
+      verified as of 2026-10-08**. Prod is live, but nobody has
+      confirmed all 16 steps pass end-to-end. Cheap to run; do it
+      before trusting the rollback story.
 - [ ] Rollback playbook (§10) reviewed; you've practiced the Vercel
-      redeploy drill at least once
-- [ ] **Separate launch tasks** done: legal pages live, account
+      redeploy drill at least once — **worth doing**: with a live
+      database, a bad migration is no longer a hypothetical
+- [x] **Separate launch tasks** done: legal pages live, account
       delete + data export audit clean — see follow-up session
 
 ---

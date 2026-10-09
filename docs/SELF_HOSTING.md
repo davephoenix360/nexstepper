@@ -3,7 +3,7 @@
 This is an open-source project under the MIT license. You can run it for
 yourself or your team for free. This document covers what you need to do
 **beyond just running the code** — the legal, billing, and operational
-bits that the hosted version (`nexstepper.app`) handles for you but a
+bits that the hosted version (`nexstepper.com`) handles for you but a
 self-host is responsible for themselves.
 
 > **TL;DR** — the MIT license gives you the right to run, modify, and
@@ -14,7 +14,7 @@ self-host is responsible for themselves.
 
 ## What's the same vs what's different
 
-| | Hosted (`nexstepper.app`) | Your self-host |
+| | Hosted (`nexstepper.com`) | Your self-host |
 |---|---|---|
 | Source code | Closed (not yet) | Yours to inspect |
 | Privacy policy | Nexstepper's | Yours |
@@ -61,7 +61,7 @@ All required env vars are listed in `.env.example` with placeholders.
 
 When you self-host, **you become the data controller** for any data your
 users put into the system. The Nexstepper privacy policy at
-`nexstepper.app/privacy` does NOT cover your self-hosted instance. You need
+`nexstepper.com/privacy` does NOT cover your self-hosted instance. You need
 your own:
 
 - [ ] **Privacy policy** — published on your self-hosted URL, naming

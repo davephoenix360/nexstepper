@@ -68,10 +68,18 @@ sections: Neon DB → Stripe live → Resend → AI Gateway → Sentry/PostHog
 rollback → done criteria). The summary below is what to wire in Vercel
 project settings before going live.
 
-**Topology** — Single Vercel project (production), single Neon DB
-(US or EU region), all third-party services bound by env vars. No
-multi-region, no read replicas. Free-tier defaults throughout; the
-`docs/setup/production.md` §3 has an explicit upgrade-trigger table.
+**Topology** (corrected 2026-10-08) — Single Vercel project,
+**two separate Neon projects** (one for production, one for local
+development — not one project with branches), all third-party
+services bound by env vars. No multi-region, no read replicas.
+Free-tier defaults throughout; the `docs/setup/production.md` §3
+has an explicit upgrade-trigger table.
+
+> **Two-project consequence** — running `pnpm db:migrate` locally
+> applies migrations to the **dev** Neon project only. Production
+> migrations land when the commit reaches `main` and Vercel's
+> `prebuild` runs `db:migrate`. Schema changes are therefore live in
+> dev long before prod, and a bad migration fails in dev first.
 
 | Service | Env vars (server-only unless marked public) | Where to get |
 |---|---|---|
@@ -95,8 +103,13 @@ public keys are all designed to be public; the rest are server-only.
   their own ephemeral URLs with their own env-var subset if you set
   them up under "Preview" environment).
 - **Build command**: `pnpm build` (Next.js default; no custom command).
-- **Custom domain**: wire `nexstepper.app` (or whatever you buy) via
-  Vercel → Domains; SSL is auto-provisioned via Let's Encrypt.
+- **Custom domain**: `nexstepper.com` is live, and **`www.` is the
+  canonical host** — Vercel 308-redirects the apex to `www`.
+  Registered via Vercel → Domains; SSL auto-provisioned via Let's
+  Encrypt. Because the apex redirects, `lib/auth.ts` carries an
+  explicit `trustedOrigins` list — **any new auth callback (Google
+  OAuth, GitHub) must register BOTH hosts**, since providers match
+  redirect URIs exactly.
 - **Postgres**: `POSTGRES_URL` is a Neon pooled connection string.
   Neon works from serverless Vercel functions out of the box because
   the pooled endpoint speaks the standard Postgres wire protocol.
@@ -124,7 +137,9 @@ so even at 10 paying users we're gross-margin positive.
 URL (cookie scoping depends on it), `SENTRY_DSN` + `POSTHOG_KEY` set
 (observability is the only signal you'll have when something breaks
 at 3am), and the Stripe webhook endpoint registered in live mode
-(`https://nexstepper.app/api/stripe/webhook`).
+(`https://www.nexstepper.com/api/stripe/webhook`). **As of
+2026-10-08 everything here is live except the Stripe live-mode
+webhook**, which stays gated under the soft-launch decision.
 
 ## Roadmap
 
@@ -132,15 +147,26 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `0c2ee60` as of **2026-09-25**;
-launch-readiness batch landed (legal pages, GDPR data rights,
-PostHog AI observability + privacy mode, Open-source MIT setup,
-Seniority Fit calibration fix, PostHog business-event catalog,
-Sentry 11 wizard cleanup). The next session's sole job is the
-production env bring-up from `docs/setup/production.md` §11 — Neon
-prod DB, Stripe live mode, custom domain, Resend verification,
-real Sentry/PostHog keys. **3–5 days wall-time; nothing else
-should ship in the meantime.**
+**Now (in flight)** — `main` is at `f8a971b` as of **2026-10-08**.
+**Production is LIVE.** The launch-gate work this section used to
+carry as "the next session's sole job" is done except Stripe live
+mode: Vercel deployed, **two separate Neon projects** (one prod,
+one dev — *not* one project with branches), migrations
+`0000`–`0008` applied, **`www.nexstepper.com`** serving with valid
+SSL, Resend + Sentry + PostHog + Vercel AI Gateway all wired with
+real keys. Stripe live mode stays gated by the soft-launch decision
+(`docs/drift/2026-09-27-soft-launch-pro-gating.md`) — it needed a
+deployed business website to activate, and that site now exists, so
+lifting the gate is a product call rather than a leftover chore.
+Correction memo: `docs/drift/2026-10-08-production-is-live.md`.
+
+> **Standing rule (added 2026-10-08 after this bit us)** —
+> `.env.example` is a **template of placeholders**, not evidence of
+> what is deployed. Before asserting anything about live
+> infrastructure, check `.env`, `.env.local`, `.vercel/project.json`
+> and the migrations directory. A session inferred "the prod DB does
+> not exist yet" from the localhost line in `.env.example` and said
+> so to the user; it was wrong.
 
 **Recently shipped (for context, last 7 days)**
 
@@ -209,6 +235,26 @@ should ship in the meantime.**
   setState bailout. New `tests/unit/scorecard-server-mirror.test.ts`
   pins the structural invariant (the project's standard
   `renderToStaticMarkup` test pattern — no jsdom in the runner).
+- **One-click print + deprecate preview as a print trigger** —
+  branch `feat/one-click-print-deprecate-preview`. The editor's
+  "Save as PDF" / "See PDF preview" button used to open a new tab
+  to the preview route with `?print=1`, which auto-triggered
+  `window.print()`. The new-tab hop was unnecessary — the editor
+  already renders the template at `max-w-[8.5in]` and the global
+  `@media print` rules (`.no-print` chrome, `@page` margin from
+  `--resume-margin`) carry the per-resume settings into the PDF
+  unchanged. The button now calls `window.print()` directly. The
+  preview route remains as a pure viewing page (back-link + share
+  button + template badge) — useful for share-previews but no
+  longer a print trigger. Side cleanup: `share-button.tsx` moved
+  out of the `(dashboard)` route group into `components/share/` to
+  dodge a TS phantom caused by an earlier-in-this-session
+  `app/(dashboard` directory (missing closing paren) created by
+  the write tool. `tests/unit/print-button.test.tsx` (4 cases) pins
+  the new "Print" wording, the Printer icon, the data-testid, and
+  the source-level guarantee that the onClick is `window.print()`
+  (no `window.open`, no `location.href`, no `router.push`).
+  1245 → 1249 tests passing.
 - **Print page-break quality v2** — branch `fix/print-page-break-quality`
   (second commit, on top of v1 below). The v1 fix added
   `print:break-after-avoid` to every section `<h2>`. That worked for
@@ -471,10 +517,15 @@ should ship in the meantime.**
 
 **Next (queued, priority order)**
 
-1. **Production env bring-up** — the launch-gate work from §11 in
-   `docs/setup/production.md`. *Do this before shipping anything else.*
-   Neon prod DB + Stripe live mode + custom domain + Resend
-   verification + Sentry/PostHog real keys. Wall-time: 3–5 days.
+1. **Stripe live mode — the last open launch box.** Every other
+   §11 item is done (see "Now (in flight)" above). Live-mode
+   activation required a deployed business website, which now
+   exists, so the soft-launch gate in
+   `docs/drift/2026-09-27-soft-launch-pro-gating.md` can be
+   lifted. The full restore plan for the Pro CTAs lives in that
+   memo — read it before flipping anything. Until it ships, leave
+   the waitlist CTAs alone. **This is a product decision, not a
+   leftover chore.**
 2. **Reviews (Phase 5)** — invite-link flow, inline comments,
    thumbs verdict. Strong differentiator, but not launch-blocking.
 3. **Liveblocks real-time collab UI** — presence + cursors on the
@@ -1209,14 +1260,14 @@ operational.
 
 **Why this matters** — the v1 product loop (master → JD parse →
 score → optimize → share → review → collab) is now feature-
-complete. The four remaining "hard requirements" from
-`docs/setup/production.md` §11 are operational: Neon prod DB,
-Stripe live mode, Resend domain verification, Vercel env-var
-wiring. Roughly 3–5 working days of focused cloud-console
-work, no new architecture decisions. Everything else (Reviews,
-Liveblocks, extension API, template studio) is post-launch
-polish that earns its keep once there are users telling us
-what they actually want.
+complete, and as of **2026-10-08** it is also **deployed and
+serving real users**. Three of the four "hard requirements" from
+`docs/setup/production.md` §11 (Neon prod DB, Resend domain
+verification, Vercel env-var wiring) are **done**. Only **Stripe
+live mode** remains open, and it is open *by choice* under the
+soft-launch gate. Everything else (Reviews, Liveblocks, extension
+API, template studio) is post-launch polish that earns its keep
+once there are users telling us what they actually want.
 
 ### Strategy: browser print-to-PDF (no managed API, no third-party)
 

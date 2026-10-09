@@ -7,8 +7,9 @@ scoring against a parsed job description, AI chat assistant, public share
 links, and (planned) peer reviews + real-time collaboration.
 
 > **Open source under the [MIT license](./LICENSE)** — free to use, modify,
-> and self-host. We charge for the hosted version at `nexstepper.app` (Free +
-> Pro tiers). The Nexstepper name and logo are reserved trademarks; if you
+> and self-host. The hosted version lives at **`www.nexstepper.com`**; Pro
+> pricing is in soft launch and **not yet sellable**, so there is nothing to
+> pay for today. The Nexstepper name and logo are reserved trademarks; if you
 > self-host, please rebrand your instance. See
 > [`docs/SELF_HOSTING.md`](./docs/SELF_HOSTING.md) for the rules.
 
@@ -88,7 +89,7 @@ pnpm build           # all routes must compile
 ## Self-hosting
 
 If you want to run this for yourself or your team without using
-`nexstepper.app`:
+`www.nexstepper.com`:
 
 - **`docs/SELF_HOSTING.md`** — full checklist: accounts you need,
   legal responsibilities, what's different from the hosted version

@@ -235,7 +235,7 @@ export default function PrivacyPage() {
         <li><strong>Portability</strong> — receive your data in a structured, machine-readable format. Same export as above.</li>
         <li><strong>Deletion</strong> — request erasure of your data. Same <code>/dashboard/security</code> page, <em>Delete Account</em> button. We erase across our database, our payment processor, and our analytics. Most deletions complete in under 60 seconds; some third-party processors may take up to 30 days.</li>
         <li><strong>Correction</strong> — edit your profile information from <code>/dashboard/general</code>.</li>
-        <li><strong>Object / restrict</strong> — email <code>privacy@nexstepper.app</code>. We&apos;ll respond within 30 days.</li>
+        <li><strong>Object / restrict</strong> — email <code>privacy@nexstepper.com</code>. We&apos;ll respond within 30 days.</li>
         <li><strong>Withdraw consent</strong> — for any optional processing (e.g. marketing email), unsubscribe link in the email itself or contact us.</li>
       </ul>
       <p>
@@ -280,7 +280,7 @@ export default function PrivacyPage() {
       <p>
         Nexstepper is not directed at children under 16. We do not knowingly
         collect personal information from children. If you believe a
-        child has signed up, email <code>privacy@nexstepper.app</code> and we
+        child has signed up, email <code>privacy@nexstepper.com</code> and we
         will delete the account.
       </p>
 
@@ -291,7 +291,7 @@ export default function PrivacyPage() {
         passwords (via Better Auth), strict role-based access controls on
         internal systems, and continuous monitoring via Sentry. No system
         is perfectly secure; if you discover a vulnerability, please email{' '}
-        <code>security@nexstepper.app</code> (PGP key on request).
+        <code>security@nexstepper.com</code> (PGP key on request).
       </p>
 
       <h2 id="open-source">11. Open-source + self-hosting</h2>
@@ -299,7 +299,7 @@ export default function PrivacyPage() {
         The Nexstepper source code is released under the
         <a href="https://opensource.org/licenses/MIT" rel="noreferrer">MIT license</a>.
         This Privacy Policy covers only the <strong>hosted</strong>{' '}
-        service at <code>nexstepper.app</code>.
+        service at <code>nexstepper.com</code>.
       </p>
       <p>
         If you self-host the code on your own infrastructure, you are the
@@ -332,9 +332,9 @@ export default function PrivacyPage() {
 
       <h2 id="contact">13. Contact</h2>
       <p>
-        Privacy questions: <code>privacy@nexstepper.app</code>.
+        Privacy questions: <code>privacy@nexstepper.com</code>.
         <br />
-        Security disclosures: <code>security@nexstepper.app</code>.
+        Security disclosures: <code>security@nexstepper.com</code>.
         <br />
         Postal: <em>available on request</em> (we&apos;re a small team; email
         is the fastest path).

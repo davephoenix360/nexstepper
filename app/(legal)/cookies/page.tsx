@@ -153,13 +153,14 @@ export default function CookiesPage() {
         email and require renewed consent in the cookie banner.
       </p>
       <ul>
-        <li><strong>2026-09-25</strong> — Rebrand: cookie prefix updated from <code>nextep.*</code> to <code>nexstepper.*</code>; site name updated; URL references now point at <code>nexstepper.app</code>. Existing sessions were invalidated at the rename boundary.</li>
+        <li><strong>2026-10-08</strong> — Domain correction: all references (including contact addresses) updated from <code>nexstepper.app</code> to <code>nexstepper.com</code>, the domain actually in service. No cookies were added or removed.</li>
+        <li><strong>2026-09-25</strong> — Rebrand: cookie prefix updated from <code>nextep.*</code> to <code>nexstepper.*</code>; site name updated. Existing sessions were invalidated at the rename boundary.</li>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
       </ul>
 
       <h2 id="contact">6. Contact</h2>
       <p>
-        Questions about cookies: <code>privacy@nexstepper.app</code>.
+        Questions about cookies: <code>privacy@nexstepper.com</code>.
       </p>
     </article>
   );

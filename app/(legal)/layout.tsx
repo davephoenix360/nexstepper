@@ -42,10 +42,10 @@ export default function LegalLayout({
         <p>
           Questions? Email{' '}
           <a
-            href="mailto:privacy@nexstepper.app"
+            href="mailto:privacy@nexstepper.com"
             className="underline underline-offset-0"
           >
-            privacy@nexstepper.app
+            privacy@nexstepper.com
           </a>
           .
         </p>

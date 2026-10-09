@@ -10,7 +10,7 @@ logo. Every fact below is sourced from the repo, not invented — palette from
 
 ## 1. What the product actually is
 
-**Nexstepper** is an AI-assisted resume builder, web SaaS, at `nexstepper.app`.
+**Nexstepper** is an AI-assisted resume builder, web SaaS, at `nexstepper.com`.
 
 A job-seeker keeps one **master resume**. They paste in a job description; the
 app parses it into structured requirements, scores the resume against that

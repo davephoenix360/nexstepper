@@ -74,7 +74,7 @@ export default function TermsPage() {
       </p>
       <p>
         These Terms apply specifically to the <strong>hosted</strong>
-        service offered at <code>nexstepper.app</code> and any other domain we
+        service offered at <code>nexstepper.com</code> and any other domain we
         operate. If you self-host the code under your own infrastructure,
         you are responsible for your own terms of service, privacy
         policy, and legal compliance — see our
@@ -197,7 +197,7 @@ export default function TermsPage() {
       </p>
       <p>
         <strong>Hosted service vs self-hosted AI.</strong> On the hosted
-        version (<code>nexstepper.app</code>), AI requests route through our
+        version (<code>nexstepper.com</code>), AI requests route through our
         Vercel AI Gateway account and are subject to the provider&apos;s
         terms. If you self-host the software, AI requests route through{' '}
         <em>your</em> AI provider account and are subject to{' '}
@@ -289,9 +289,9 @@ export default function TermsPage() {
 
       <h2 id="contact">15. Contact</h2>
       <p>
-        Questions about these Terms: <code>legal@nexstepper.app</code>.
+        Questions about these Terms: <code>legal@nexstepper.com</code>.
         <br />
-        Account issues: <code>support@nexstepper.app</code>.
+        Account issues: <code>support@nexstepper.com</code>.
       </p>
     </article>
   );

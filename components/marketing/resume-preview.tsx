@@ -30,7 +30,7 @@ export function ResumePreview() {
           <span className="size-2.5 rounded-full bg-red-400/70" aria-hidden />
           <span className="size-2.5 rounded-full bg-amber-400/70" aria-hidden />
           <span className="size-2.5 rounded-full bg-emerald-400/70" aria-hidden />
-          <span className="ml-3 font-mono">nexstepper.app/preview</span>
+          <span className="ml-3 font-mono">nexstepper.com/preview</span>
           <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border bg-card px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-600">
             <TrendingUp className="size-3" aria-hidden />
             ATS&nbsp;88&nbsp;/&nbsp;100
