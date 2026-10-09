@@ -147,7 +147,7 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `f8a971b` as of **2026-10-08**.
+**Now (in flight)** — `main` is at `7f0d320` as of **2026-10-09**.
 **Production is LIVE.** The launch-gate work this section used to
 carry as "the next session's sole job" is done except Stripe live
 mode: Vercel deployed, **two separate Neon projects** (one prod,
