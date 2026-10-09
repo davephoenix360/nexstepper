@@ -170,6 +170,45 @@ Correction memo: `docs/drift/2026-10-08-production-is-live.md`.
 
 **Recently shipped (for context, last 7 days)**
 
+- **Google sign-in (optional) + account auto-linking** — branch
+  `feat/google-oauth`. Google is registered in `lib/auth.ts` **only
+  when both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set**
+  (helper: `lib/auth-google.ts`), so local dev, CI and self-hosters
+  keep working on email+password with no crash and no dead button —
+  the sign-in pages render the button off the *same* predicate that
+  gates registration. **No DB migration**: the `account` table already
+  carries `accountId`/`providerId`/`idToken`/`scope`. Verified
+  working both as a new-user signup and as an auto-link onto an
+  existing email+password account (`account.accountLinking`,
+  `trustedProviders: ['google']`, `requireLocalEmailVerified: false`
+  — the `false` is required only because we run no email-verification
+  flow; the reasoning is in the config comment). **⚠ Do not add
+  another provider to `trustedProviders` unless it is documented as
+  verifying every email it issues** — that re-opens GHSA-g38m-r43w-p2q7.
+  Redirect URIs must be registered for **both** `nexstepper.com` and
+  `www.nexstepper.com` (Vercel 308s apex → www); setup steps are in
+  `.env.example`. Free at any volume; basic identity scopes only keep
+  the app exempt from Google's 100-user test cap.
+- **Consent gating + legal page redesign** — same branch. PostHog no
+  longer initialises in `instrumentation-client.ts` (it did, at page
+  load, before anyone could decline); init moved to
+  `components/consent/analytics-gate.tsx` inside `ConsentProvider`, so
+  a mid-session "Accept all" starts tracking without a reload.
+  `<AnalyticsGate />` must render **before** `<PostHogIdentify />` —
+  React runs sibling effects in tree order. Consent stored in
+  `localStorage`, deliberately not a cookie. **GPC now actually
+  implemented** — the cookie policy claimed it was honored and it
+  wasn't. Removed `nexstepper.csrf_token` and `nexstepper.share_token`
+  from the cookie policy: both were invented, neither exists in code.
+- **`@tailwindcss/typography` was never installed** — the legal pages
+  carried `prose prose-neutral dark:prose-invert` on an article
+  wrapper, so every one of those classes was an inert string: `<h2>`
+  rendered at body size, `<ul>` had no bullets, tables had no header
+  treatment. Reading the JSX cannot reveal this; only opening the page
+  can. Installed + registered via `@plugin` in `globals.css` (with a
+  comment warning against removing it). Also: legal `<main>` was
+  capped at `max-w-3xl`, silently overriding the two-column shell.
+  `tests/unit/legal-rendering.test.ts` pins all of it.
 - **Print settings panel (margin / line height / font size / section
   spacing)** — on top of `fix/print-page-break-quality` (same branch).
   Gives the user four per-resume formatting knobs that solve the
@@ -536,6 +575,21 @@ Correction memo: `docs/drift/2026-10-08-production-is-live.md`.
 6. **Monorepo split** — defer until it actually bites (likely
    after collab, when packages like `lib/scoring/` start to feel
    cramped).
+
+**Housekeeping owed (blocks nothing, cheap, and one of them is a
+compliance gap)**
+
+- **Create the legal mailboxes.** The privacy policy promises a
+  GDPR-compliant 30-day response from `privacy@nexstepper.com`,
+  `legal@nexstepper.com` and `security@nexstepper.com`. **None of
+  these are verified to exist** — only `hi@nexstepper.com` is
+  configured (Resend). Until they exist and are monitored, the
+  promises are not keepable. Not verifiable from the repo.
+- **Google brand verification.** Until it is done, the Google consent
+  screen shows the GCP project name and number instead of "Nexstepper",
+  with no logo. Free, ~2–3 business days, and already eligible —
+  `/privacy` and `/terms` are live. Do it before real users see the
+  auth screen.
 
 **Later / parked** — see the locked non-goals above. Note: the
 "Optimize" feature as a class of work is now parked. The inline
