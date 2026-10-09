@@ -13,21 +13,25 @@
  * `isGoogleAuthEnabled()` agrees. Both read the same helper, so the
  * server config and the client UI can never disagree.
  *
- * ## Account linking — deliberately left at the secure default
+ * ## Account linking — trusted provider, scoped to Google
  *
  * Better Auth implicitly links a Google sign-in to an existing local
  * account when the emails match. Since v1.6.11 that link is refused
  * unless the **local** user's `emailVerified` is true (fix for
- * GHSA-g38m-r43w-p2q7, pre-account hijacking). Nexstepper does not
- * run an email-verification flow, so local users have
- * `emailVerified: false` and a same-email Google sign-in is rejected
- * with `account_not_linked`.
+ * GHSA-g38m-r43w-p2q7, pre-account hijacking).
  *
- * That rejection is **correct and intentional** — loosening it with
- * `requireLocalEmailVerified: false` would restore the vulnerability
- * the advisory fixed. Instead we surface a message that points the
- * user at the real fix: sign in with their password first, then link
- * Google from settings while authenticated.
+ * As of 2026-10-08 that is enabled deliberately, scoped to Google —
+ * see the long comment on `account.accountLinking` in `lib/auth.ts`
+ * for the full reasoning. In short: producing a Google session for an
+ * address proves control of that inbox, and inbox control already
+ * grants password reset here, so linking adds no new exposure. Google
+ * is listed in `trustedProviders` because it verifies every email it
+ * issues; that list must not be widened casually.
+ *
+ * The `account_not_linked` message below is therefore a rare
+ * fallback, not the expected path — it still fires if the Google
+ * account's email differs from the local one, or if linking is ever
+ * disabled. It points at the manual route rather than dead-ending.
  */
 
 /** The two credentials Better Auth needs for the Google provider. */
@@ -67,11 +71,13 @@ export function isGoogleAuthEnabled(): boolean {
 }
 
 /**
- * Shown when someone tries Google sign-in with an email that already
- * has a password account. Phrased as a route forward, not a dead end.
+ * Shown when Google sign-in cannot be linked to an existing account.
+ * Rare: with `accountLinking` enabled for Google, matching emails link
+ * automatically. Still reachable when the Google account's address
+ * differs from the local one, or if linking is turned off.
  */
 export const ACCOUNT_NOT_LINKED_MESSAGE =
-  'An account with this email already exists. Sign in with your password instead — once you are in, you can link Google from your settings.';
+  'We could not match this Google account to an existing Nexstepper account. Sign in with your email and password instead — if the addresses differ, use the email address you signed up with.';
 
 /** Shown when Google sign-in fails for any other reason. */
 export const GENERIC_SOCIAL_SIGN_IN_ERROR =

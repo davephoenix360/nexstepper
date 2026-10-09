@@ -199,9 +199,11 @@ describe('describeSocialSignInError — account-linking guidance', () => {
     expect(message).toBe(ACCOUNT_NOT_LINKED_MESSAGE);
   });
 
-  it('points at password sign-in then linking, not a dead end', () => {
-    expect(ACCOUNT_NOT_LINKED_MESSAGE).toMatch(/password/i);
-    expect(ACCOUNT_NOT_LINKED_MESSAGE).toMatch(/link/i);
+  it('points at password sign-in as the route forward, not a dead end', () => {
+    // The message no longer promises "link Google from settings" —
+    // there is no such UI. It must only claim routes that exist.
+    expect(ACCOUNT_NOT_LINKED_MESSAGE).toMatch(/email and password/i);
+    expect(ACCOUNT_NOT_LINKED_MESSAGE).not.toMatch(/from your settings/i);
   });
 
   it('falls back to the upstream message for other errors', () => {
@@ -221,18 +223,46 @@ describe('describeSocialSignInError — account-linking guidance', () => {
   });
 });
 
-describe('account linking — vulnerable escape hatches stay closed', () => {
-  it('does NOT re-enable pre-1.6.11 implicit linking behaviour', () => {
-    // requireLocalEmailVerified: false restores the GHSA-g38m-r43w-p2q7
-    // pre-account-hijacking behaviour. It must never appear here.
-    expect(AUTH_SOURCE).not.toContain('requireLocalEmailVerified');
+describe('account linking — trusted-provider scope is the real guard', () => {
+  // Changed 2026-10-08. Linking used to be off and a test pinned that.
+  // It is now deliberately ON, scoped to Google, so the guard moved:
+  // the thing worth protecting is the *scope*, not the switch.
+  //
+  // Reasoning (full version in lib/auth.ts): producing a Google session
+  // for an address proves inbox control, and inbox control already
+  // grants password reset here — so linking adds no new exposure.
+  // Google verifies every email it issues, which is exactly what
+  // `trustedProviders` asserts.
+
+  it('enables linking', () => {
+    expect(AUTH_SOURCE).toMatch(/accountLinking:\s*\{/);
+    expect(AUTH_SOURCE).toMatch(/enabled:\s*true/);
   });
 
-  it('does NOT disable implicit linking wholesale', () => {
-    // disableImplicitLinking: true would be safe but would also break
-    // the legitimate same-email link. We keep the secure default and
-    // guide the user instead.
+  it('scopes trust to Google and nothing else', () => {
+    // THE guard. A provider that issues accounts for unverified
+    // addresses re-opens GHSA-g38m-r43w-p2q7: an attacker signs in
+    // with the victim's address and inherits their account.
+    expect(AUTH_SOURCE).toMatch(/trustedProviders:\s*\['google'\]/);
+
+    const list = AUTH_SOURCE.match(/trustedProviders:\s*\[([^\]]*)\]/)?.[1] ?? '';
+    expect(list.split(',').map((v) => v.trim().replace(/['"]/g, ''))).toEqual([
+      'google'
+    ]);
+  });
+
+  it('keeps disableImplicitLinking off (it would defeat the feature)', () => {
     expect(AUTH_SOURCE).not.toContain('disableImplicitLinking');
+  });
+
+  it('does not allow linking across differing emails', () => {
+    // `allowDifferentEmails` would let a Google account bind to a
+    // local account with a different address — a takeover primitive.
+    expect(AUTH_SOURCE).not.toContain('allowDifferentEmails');
+  });
+
+  it('explains the tradeoff at the config site, not just in tests', () => {
+    expect(AUTH_SOURCE).toMatch(/Do NOT add it to `trustedProviders`/);
   });
 
   it('documents the advisory so the rationale survives future edits', () => {

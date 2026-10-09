@@ -59,6 +59,60 @@ export const auth = betterAuth({
   // lib/auth-google.ts. Better Auth accepts an empty provider map, so
   // email + password remains the only path without a crash.
   socialProviders,
+  /**
+   * Account linking: an existing email+password account is linked to a
+   * Google sign-in automatically when the emails match, instead of
+   * failing with `account_not_linked`.
+   *
+   * ## Why this is safe for Google specifically
+   *
+   * Better Auth refuses implicit linking when either clause of its gate
+   * holds (`oauth2/link-account.mjs`):
+   *
+   *   (!isTrustedProvider && !userInfo.emailVerified)
+   *   || (requireLocalEmailVerified && !dbUser.user.emailVerified)
+   *
+   * The decisive argument is not "Better Auth allows it", it is that
+   * **anyone who can complete a Google sign-in for email X already
+   * controls inbox X** — and could therefore already reset that
+   * account's password through /forgot-password. Linking grants no
+   * capability that password reset does not already grant. For a
+   * product whose recovery path already trusts email control, this
+   * change does not move the trust boundary.
+   *
+   * ## Why `requireLocalEmailVerified: false`
+   *
+   * Not because we distrust our users — because we run no
+   * email-verification flow, so every existing account has
+   * `emailVerified: false`. With the default `true`, linking would
+   * refuse *every* legacy account and the setting would be decorative.
+   * Google remains the only trusted provider, which is the property
+   * that makes this safe: Google verifies an email before it issues an
+   * account.
+   *
+   * On a successful link Better Auth back-fills `emailVerified: true`
+   * on the local row when Google reports the email verified, so linked
+   * accounts self-heal. `user.email` is never rewritten by a link.
+   *
+   * ## ⚠ If you add another social provider
+   *
+   * Do NOT add it to `trustedProviders` unless it is documented as
+   * verifying every email it issues. A provider that hands out
+   * accounts for unverified addresses (some self-hosted and older
+   * OAuth providers do) re-opens GHSA-g38m-r43w-p2q7: an attacker
+   * signs in with the victim's address and inherits their account.
+   * This is the exact setting to revisit before adding GitHub, etc.
+   */
+  account: {
+    accountLinking: {
+      enabled: true,
+      // Google only. Never widen this list casually.
+      trustedProviders: ['google'],
+      // Required: our users have `emailVerified: false` because there
+      // is no verification flow. See the note above before changing.
+      requireLocalEmailVerified: false
+    }
+  },
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
