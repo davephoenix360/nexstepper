@@ -2,6 +2,7 @@ import 'server-only';
 
 import { createHash, randomBytes } from 'node:crypto';
 import { customAlphabet } from 'nanoid';
+import { absoluteUrl } from '@/lib/site';
 
 /**
  * Public shareable link — token + hash + URL builder.
@@ -76,14 +77,13 @@ export function hashShareToken(token: string): string {
  * The shape is `/r/{token}` — short, magic-link style. Not
  * `/share/{token}` because that's longer and tells crawlers the page
  * is meant to be shared (we'd rather it stays quiet).
+ *
+ * That second half is now enforced rather than merely intended: `/r/` is
+ * listed in `app/robots.ts`'s disallow set, so these links cannot end up in
+ * a search index even if the token leaks.
  */
 export function buildShareUrl(token: string): string {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.BASE_URL ??
-    'http://localhost:3000';
-  // Strip trailing slash so the concat is clean.
-  return `${base.replace(/\/$/, '')}/r/${token}`;
+  return absoluteUrl(`/r/${token}`);
 }
 
 /**

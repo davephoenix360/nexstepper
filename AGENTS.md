@@ -170,6 +170,54 @@ Correction memo: `docs/drift/2026-10-08-production-is-live.md`.
 
 **Recently shipped (for context, last 7 days)**
 
+- **`app/favicon.ico` was Vercel's stock icon and outranked ours** —
+  branch `fix/site-verification-seo`. The saas-starter shipped a
+  `favicon.ico` (commit `61195ab`); the rebrand in `be07071` added
+  `app/icon.png` but left it. Next.js gives `favicon.ico` **precedence**
+  in the `<link rel="icon">` tags, so the browser tab rendered Vercel's
+  logo for seven commits while the correct icon sat in the repo,
+  correctly named, correctly formatted, and git-clean. **A test asserting
+  "favicon.ico exists" passes throughout that entire bug** — only a
+  content check catches it. `tests/unit/favicon.test.ts` pins the actual
+  bytes against the known Vercel blob hash
+  (`718d6fea…`), asserts the ICO's ICONDIR/entry table is well-formed,
+  and checks that `icon.png` and `favicon.ico` both exist (the bare
+  `/favicon.ico` path must not 404 for bookmark managers and RSS
+  readers). Both files are regenerated together by
+  `scripts/make-favicon.ps1` — never hand-edit one without the other.
+  **Generalised lesson: in this app directory, adding a favicon does not
+  replace one.** Check for the sibling file first.
+- **robots.txt + sitemap + site-verification meta tag** — same branch.
+  Neither `app/robots.ts` nor `app/sitemap.ts` existed: `/robots.txt`
+  returned an **HTML 404 page**, on the same live site whose owner was
+  simultaneously being told by Google that *"the website of your home
+  page URL is not registered to you."* A 404ing robots file on a site
+  asking Google for verification is a poor look and a real crawl
+  problem. `lib/site.ts` is now the single source of site-origin truth
+  (`NEXT_PUBLIC_APP_URL` → `BASE_URL` → `http://localhost:3000`),
+  consumed by `app/sitemap.ts`, `app/robots.ts`, `metadataBase`, and
+  share links — replacing the inline copy in `lib/share/token.ts`. It
+  degrades to the dev default rather than throwing, because a typo in
+  `NEXT_PUBLIC_APP_URL` would otherwise crash the whole production build
+  from inside `new URL()`. `robots.ts` disallows `/r/` — public share
+  links are one URL per recipient and contain real resumes; leaving them
+  crawlable invites a search index of every resume ever shared.
+  `GOOGLE_SITE_VERIFICATION` (optional, non-public) emits
+  `<meta name="google-site-verification">` and is **omitted entirely**
+  when unset. Note the build/runtime split, verified against
+  `pnpm build` on 2026-10-09: `robots.txt` + `sitemap.xml` prerender
+  STATIC (`○`), so the **origin** they bake in is frozen at build time —
+  `NEXT_PUBLIC_APP_URL` must be correct *when the build runs*, not just
+  at runtime. The `verification` tag lives in the root layout, and since
+  that layout awaits `getUser()` every page renders DYNAMIC (`ƒ`), so
+  the tag is read per-request and does **not** need a redeploy. (Both
+  halves of that claim were asserted the other way round in the first
+  draft of this file; the build output is what settled it.)
+  `tests/unit/site-verification.test.ts` (39 tests) pins the origin
+  fallback chain, the robots/sitemap contents, and the invariant that
+  **no sitemap URL is blocked by robots** — the one that silently breaks
+  when someone adds a route.
+
 - **Google sign-in (optional) + account auto-linking** — branch
   `feat/google-oauth`. Google is registered in `lib/auth.ts` **only
   when both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set**

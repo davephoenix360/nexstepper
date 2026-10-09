@@ -9,11 +9,20 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ConsentProvider } from '@/components/consent/consent-provider';
 import { AnalyticsGate } from '@/components/consent/analytics-gate';
 import { CookieConsentBanner } from '@/components/consent/cookie-consent-banner';
+import { getSiteOrigin, googleSiteVerification } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Nexstepper — AI-assisted resume builder',
   description:
-    'Take the next step. Master-resume → tailored variants, ATS-style scoring, peer reviews, and real-time collaboration.'
+    'Take the next step. Master-resume → tailored variants, ATS-style scoring, peer reviews, and real-time collaboration.',
+  // Without this, Next.js resolves relative OG/canonical/image URLs against
+  // localhost and emits them broken. Same resolver feeds robots.ts + sitemap.ts.
+  metadataBase: new URL(getSiteOrigin()),
+  // Emits <meta name="google-site-verification" content="…"> when
+  // GOOGLE_SITE_VERIFICATION is set, and omits the tag entirely when it is
+  // not — an empty content="" reads as a broken verification. See lib/site.ts
+  // for why this is a non-public var and why rotating it needs a redeploy.
+  verification: googleSiteVerification()
 };
 
 export const viewport: Viewport = {
