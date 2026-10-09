@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import { Database, Share2, Scale, Trash2, Timer, KeyRound } from 'lucide-react';
 
 import { PolicyNotice } from '../_components/policy-notice';
-import { PolicyToc } from '../_components/policy-toc';
+import { PolicyShell } from '../_components/policy-shell';
+import { PolicySummary } from '../_components/policy-summary';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy — Nexstepper',
@@ -29,17 +31,60 @@ const toc = [
   { id: 'contact', label: '13. Contact' }
 ];
 
+const summaryItems = [
+  {
+    icon: Database,
+    question: 'What do you collect?',
+    answer:
+      'Your email and password (hashed), your resumes and job descriptions, and payment records if you ever subscribe.',
+    href: 'information-we-collect'
+  },
+  {
+    icon: Share2,
+    question: 'Who sees my data?',
+    answer:
+      'Nobody, unless you make something public. Resume text is never sold. Named subprocessors are listed in full in section 4.',
+    href: 'subprocessors'
+  },
+  {
+    icon: Scale,
+    question: 'What are my rights?',
+    answer:
+      'Access, correction, deletion, portability and objection — regardless of where you live. One email gets you started.',
+    href: 'your-rights'
+  },
+  {
+    icon: Trash2,
+    question: 'How do I delete my data?',
+    answer:
+      'Self-serve from Settings → Security, or by emailing us. Deletion is irreversible and finishes within 30 days.',
+    href: 'your-rights'
+  },
+  {
+    icon: Timer,
+    question: 'How long is it kept?',
+    answer:
+      'Until you delete it. Revisions are trimmed to 30; deleted accounts are purged within 30 days.',
+    href: 'retention'
+  },
+  {
+    icon: KeyRound,
+    question: 'How is it protected?',
+    answer:
+      'Passwords hashed, sessions in httpOnly cookies, traffic encrypted, and every AI provider call scoped to your document.',
+    href: 'security'
+  }
+];
+
 export default function PrivacyPage() {
   return (
-    <article className="prose prose-neutral max-w-none dark:prose-invert">
-      <PolicyNotice lastUpdated={LAST_UPDATED} />
-      <PolicyToc items={toc} />
-
-      <h1>Privacy Policy</h1>
-      <p>
-        <strong>Last updated:</strong> {LAST_UPDATED}.
-      </p>
-
+    <PolicyShell
+      title="Privacy Policy"
+      summary="What we collect, why we collect it, who else touches it, and how you take it all back — in plain English, with your rights under GDPR, CCPA and PIPEDA."
+      lastUpdated={LAST_UPDATED}
+      toc={toc}
+      intro={<PolicySummary items={summaryItems} />}
+    >
       <h2 id="summary">Summary</h2>
       <p>
         Nexstepper (&ldquo;Nexstepper&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) is an AI-assisted resume
@@ -339,6 +384,8 @@ export default function PrivacyPage() {
         Postal: <em>available on request</em> (we&apos;re a small team; email
         is the fastest path).
       </p>
-    </article>
+
+      <PolicyNotice lastUpdated={LAST_UPDATED} />
+    </PolicyShell>
   );
 }

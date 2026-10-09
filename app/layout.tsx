@@ -6,6 +6,9 @@ import { getUser } from '@/lib/db/queries';
 import { PostHogProvider } from '@/components/posthog-provider';
 import { PostHogIdentify } from '@/components/posthog-identify';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ConsentProvider } from '@/components/consent/consent-provider';
+import { AnalyticsGate } from '@/components/consent/analytics-gate';
+import { CookieConsentBanner } from '@/components/consent/cookie-consent-banner';
 
 export const metadata: Metadata = {
   title: 'Nexstepper — AI-assisted resume builder',
@@ -58,10 +61,17 @@ export default async function RootLayout({
       </head>
       <body className="min-h-[100dvh] bg-background font-sans text-foreground antialiased">
         <ThemeProvider>
-          <PostHogProvider>
-            <PostHogIdentify />
-            {children}
-          </PostHogProvider>
+          <ConsentProvider>
+            {/* AnalyticsGate MUST render before PostHogIdentify: React
+                runs sibling effects in tree order, so init() has to
+                happen before identify() or the call no-ops. */}
+            <AnalyticsGate />
+            <PostHogProvider>
+              <PostHogIdentify />
+              {children}
+              <CookieConsentBanner />
+            </PostHogProvider>
+          </ConsentProvider>
         </ThemeProvider>
       </body>
     </html>

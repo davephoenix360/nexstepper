@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { PolicyNotice } from '../_components/policy-notice';
-import { PolicyToc } from '../_components/policy-toc';
+import { PolicyShell } from '../_components/policy-shell';
 
 export const metadata: Metadata = {
   title: 'Terms of Service — Nexstepper',
@@ -32,15 +32,12 @@ const toc = [
 
 export default function TermsPage() {
   return (
-    <article className="prose prose-neutral max-w-none dark:prose-invert">
-      <PolicyNotice lastUpdated={LAST_UPDATED} />
-      <PolicyToc items={toc} />
-
-      <h1>Terms of Service</h1>
-      <p>
-        <strong>Last updated:</strong> {LAST_UPDATED}.
-      </p>
-
+    <PolicyShell
+      title="Terms of Service"
+      summary="The rules for using Nexstepper — your account, what you can do with it, how billing works, and where our responsibilities stop."
+      lastUpdated={LAST_UPDATED}
+      toc={toc}
+    >
       <h2 id="acceptance">1. Acceptance</h2>
       <p>
         By creating an account or otherwise using Nexstepper
@@ -293,6 +290,8 @@ export default function TermsPage() {
         <br />
         Account issues: <code>support@nexstepper.com</code>.
       </p>
-    </article>
+
+      <PolicyNotice lastUpdated={LAST_UPDATED} />
+    </PolicyShell>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import posthog from 'posthog-js';
 
 import { useSession } from '@/lib/auth-client';
+import { useConsent } from '@/components/consent/consent-provider';
 
 /**
  * Ties PostHog's anonymous distinct_id to the signed-in user's id, and
@@ -27,18 +28,33 @@ import { useSession } from '@/lib/auth-client';
  *
  * Silent no-op when PostHog isn't initialized (`posthog-js` is a
  * pass-through SDK when `init()` was never called).
+ *
+ * **Consent-gated (2026-10-08).** PostHog is no longer initialised in
+ * `instrumentation-client.ts`, so it may not exist yet when this
+ * component first mounts. Identifying before consent would attribute a
+ * signed-in user's events to the wrong distinct_id — or worse, record
+ * them before the visitor could decline. So we wait for
+ * `analyticsAllowed`, which flips true both when a stored decision
+ * already allows analytics AND when the visitor grants it mid-session
+ * by clicking "Accept all" on the consent banner.
  */
 export function PostHogIdentify() {
   const { data: session, isPending } = useSession();
+  const { consent, hasDecidedConsent } = useConsent();
+
+  const analyticsAllowed = hasDecidedConsent && consent.analytics === true;
 
   useEffect(() => {
     if (isPending) return; // wait for the session query to settle
+    // Not merely a perf guard: `identify()` would be a no-op before
+    // `init()`, silently losing the attribution.
+    if (!analyticsAllowed) return;
     if (session?.user) {
       posthog.identify(session.user.id);
     } else {
       posthog.reset();
     }
-  }, [session?.user?.id, isPending]);
+  }, [session?.user?.id, isPending, analyticsAllowed]);
 
   return null;
 }
