@@ -32,7 +32,7 @@ outside a session that updated them.
 | Resend | Verified, sending |
 | Sentry + PostHog | Wired with real keys |
 | Vercel AI Gateway | Authenticated |
-| Stripe live mode | **NOT live** — Pro still soft-launch-gated |
+| Stripe live mode | **Live, verified** — Pro subscription not yet enabled |
 
 ## Three corrections that matter
 

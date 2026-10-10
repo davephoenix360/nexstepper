@@ -148,17 +148,18 @@ write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
 **Now (in flight)** — `main` is at `7f0d320` as of **2026-10-09**.
-**Production is LIVE.** The launch-gate work this section used to
-carry as "the next session's sole job" is done except Stripe live
-mode: Vercel deployed, **two separate Neon projects** (one prod,
-one dev — *not* one project with branches), migrations
-`0000`–`0008` applied, **`www.nexstepper.com`** serving with valid
-SSL, Resend + Sentry + PostHog + Vercel AI Gateway all wired with
-real keys. Stripe live mode stays gated by the soft-launch decision
-(`docs/drift/2026-09-27-soft-launch-pro-gating.md`) — it needed a
-deployed business website to activate, and that site now exists, so
-lifting the gate is a product call rather than a leftover chore.
-Correction memo: `docs/drift/2026-10-08-production-is-live.md`.
+**Production is LIVE.** All §11 boxes are checked: Vercel deployed,
+**two separate Neon projects** (one prod, one dev — *not* one project
+with branches), migrations `0000`–`0008` applied,
+**`www.nexstepper.com`** serving with valid SSL,
+Resend + Sentry + PostHog + Vercel AI Gateway all wired with real
+keys. **Stripe live mode is now live and verified** (account
+activated 2026-10-10). The Pro subscription product has not yet been
+created in Stripe Dashboard, so `STRIPE_PRICE_ID_PRO` is not yet set
+and Pro CTAs remain in the soft-launch waitlist state — see
+`docs/drift/2026-09-27-soft-launch-pro-gating.md` for the restore
+plan. Drift memo:
+`docs/drift/2026-10-10-stripe-live-activated.md`.
 
 > **Standing rule (added 2026-10-08 after this bit us)** —
 > `.env.example` is a **template of placeholders**, not evidence of
@@ -604,15 +605,13 @@ Correction memo: `docs/drift/2026-10-08-production-is-live.md`.
 
 **Next (queued, priority order)**
 
-1. **Stripe live mode — the last open launch box.** Every other
-   §11 item is done (see "Now (in flight)" above). Live-mode
-   activation required a deployed business website, which now
-   exists, so the soft-launch gate in
-   `docs/drift/2026-09-27-soft-launch-pro-gating.md` can be
-   lifted. The full restore plan for the Pro CTAs lives in that
-   memo — read it before flipping anything. Until it ships, leave
-   the waitlist CTAs alone. **This is a product decision, not a
-   leftover chore.**
+1. **Enable Pro subscription** — Stripe live mode is now active
+   (verified 2026-10-10). The remaining step is creating the Pro
+   product + Price in the Stripe Dashboard and setting
+   `STRIPE_PRICE_ID_PRO` in Vercel. Until then, the Pro CTAs
+   remain in the soft-launch waitlist state per
+   `docs/drift/2026-09-27-soft-launch-pro-gating.md`, which
+   also holds the full restore plan — read it before enabling.
 2. **Reviews (Phase 5)** — invite-link flow, inline comments,
    thumbs verdict. Strong differentiator, but not launch-blocking.
 3. **Liveblocks real-time collab UI** — presence + cursors on the

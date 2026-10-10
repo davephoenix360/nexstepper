@@ -34,12 +34,17 @@ three of them are corrected to match what was actually built.
 | Resend | Verified, sending |
 | Sentry + PostHog | Wired, real keys |
 | Vercel AI Gateway | Authenticated |
-| Stripe live mode | **NOT live** — still soft-launch-gated |
+| Stripe live mode | **Live, verified** — account activated, webhook endpoint ready |
+| Pro subscription | **Not yet enabled** — Pro product/Price not yet created in Stripe; CTAs remain waitlisted per soft-launch gate |
 
-Only **Stripe live mode** (§2) remains. It is open *by choice*: live
-mode requires a deployed business website, which now exists, so the
-gate in `docs/drift/2026-09-27-soft-launch-pro-gating.md` can be
-lifted. That is a product decision, not a leftover task.
+Stripe **live mode is now active** (§2). The account is verified and
+the webhook endpoint can be registered. The Pro subscription product
+has not yet been created in the Stripe Dashboard, so
+`STRIPE_PRICE_ID_PRO` is not yet set and the Pro CTAs across the app
+remain in the soft-launch waitlist state documented in
+`docs/drift/2026-09-27-soft-launch-pro-gating.md`. That gate will be
+lifted (per the restore plan in that memo) once the Pro Price exists
+in Stripe and `STRIPE_PRICE_ID_PRO` is set in Vercel.
 
 Corrections to the original procedure, and why they matter:
 
