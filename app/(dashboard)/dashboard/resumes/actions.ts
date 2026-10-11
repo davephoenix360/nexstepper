@@ -37,6 +37,11 @@ import {
   generateShareTokenRaw,
   hashShareToken
 } from '@/lib/share';
+import {
+  decryptShareToken,
+  encryptShareToken,
+  tokenMatchesHash
+} from '@/lib/share/token-crypto';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
 import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
 import { trackServer } from '@/lib/posthog/server';
@@ -750,6 +755,20 @@ export type ShareActionResult =
   | { ok: false; code: ShareActionErrorCode; error: string };
 
 /**
+ * Result of re-reading an existing share link.
+ *
+ * `unavailable` is deliberately distinct from the error codes: it is a
+ * normal, expected outcome for links created before encrypted storage
+ * existed, and the UI shows an explanation with a recovery path rather
+ * than treating it as a failure.
+ */
+export type ShareUrlErrorCode = ShareActionErrorCode | 'not_enabled' | 'unavailable';
+
+export type ShareUrlResult =
+  | { ok: true; data: { url: string } }
+  | { ok: false; code: ShareUrlErrorCode; error: string };
+
+/**
  * Enable public sharing for a resume. Generates a fresh 21-char
  * CSPRNG token, stores the SHA-256 hash in the DB, and returns the
  * raw token (in the URL) to the caller.
@@ -780,12 +799,17 @@ export async function enableShareAction(
 
   const token = generateShareTokenRaw();
   const tokenHash = hashShareToken(token);
+  // Also store the token encrypted so the owner can re-read this link
+  // later. Null when no encryption key is configured — sharing still
+  // works exactly as before in that case.
+  const tokenCiphertext = encryptShareToken(token);
 
   try {
     const ok = await enableShareQuery(
       parsed.data.id,
       session.user.id,
-      tokenHash
+      tokenHash,
+      tokenCiphertext
     );
     if (!ok) {
       return { ok: false, code: 'not_found', error: 'Resume not found' };
@@ -888,12 +912,14 @@ export async function rotateShareTokenAction(
 
   const token = generateShareTokenRaw();
   const tokenHash = hashShareToken(token);
+  const tokenCiphertext = encryptShareToken(token);
 
   try {
     const ok = await rotateShareTokenQuery(
       parsed.data.id,
       session.user.id,
-      tokenHash
+      tokenHash,
+      tokenCiphertext
     );
     if (!ok) {
       return {
@@ -928,6 +954,78 @@ export async function rotateShareTokenAction(
 const enableShareSchema = z.object({
   id: z.string().min(1, 'Resume id is required')
 });
+
+/**
+ * Re-read the owner's own share link.
+ *
+ * This is what makes "sharing is on" an actionable state rather than a
+ * dangling one. The raw token is stored encrypted (see
+ * `lib/share/token-crypto.ts`); we decrypt it here, owner-only, and
+ * hand back the public URL.
+ *
+ * ## Why the hash check
+ *
+ * Decrypting successfully only proves the envelope was written by this
+ * app under a key we hold. It does not prove the row still *points* at
+ * that token — a rotation could in principle leave a stale ciphertext
+ * beside a fresh hash. So the decrypted token is re-hashed and compared
+ * against `share_token_hash` with a constant-time compare. If they
+ * disagree we fall back to the same "not retrievable" path as a legacy
+ * link rather than returning a URL that 404s.
+ *
+ * ## Why `unavailable` is a normal result
+ *
+ * It is returned — not thrown — for every expected case: sharing off,
+ * no ciphertext stored (link predates encryption), no encryption key
+ * configured, or a row we cannot decrypt. The UI renders an honest
+ * explanation for each rather than an error.
+ */
+export async function getShareUrlAction(
+  input: unknown
+): Promise<ShareUrlResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, code: 'not_signed_in', error: 'Not signed in' };
+  }
+
+  const parsed = enableShareSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: 'not_found', error: 'Invalid resume id' };
+  }
+
+  let status: Awaited<ReturnType<typeof getShareStatus>>;
+  try {
+    status = await getShareStatus(parsed.data.id, session.user.id);
+  } catch (err) {
+    console.error('[getShareUrlAction] DB failure:', err);
+    return { ok: false, code: 'db_failure', error: 'Could not load the link' };
+  }
+
+  // getShareStatus is ownership-scoped, so a null here means "not
+  // yours or gone" — deliberately indistinguishable.
+  if (!status) {
+    return { ok: false, code: 'not_found', error: 'Resume not found' };
+  }
+
+  if (!status.enabled || !status.tokenHash) {
+    return { ok: false, code: 'not_enabled', error: 'Sharing is off' };
+  }
+
+  const token = decryptShareToken(status.tokenCiphertext);
+
+  if (!token || !tokenMatchesHash(token, status.tokenHash, hashShareToken)) {
+    // Legacy link (pre-encryption) or an undecryptable row. The owner
+    // recovers by rotating, which is the only forward path.
+    return {
+      ok: false,
+      code: 'unavailable',
+      error:
+        'This link was created before encrypted storage, so it cannot be shown again. Generate a new link to get one you can re-read.'
+    };
+  }
+
+  return { ok: true, data: { url: buildShareUrl(token) } };
+}
 
 /**
  * Update the per-resume print settings (margin / line height / font

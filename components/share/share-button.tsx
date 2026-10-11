@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import {
   disableShareAction,
   enableShareAction,
+  getShareUrlAction,
   rotateShareTokenAction
 } from '@/app/(dashboard)/dashboard/resumes/actions';
 
@@ -71,17 +72,56 @@ export function ShareButton({
   );
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Why the link can't be shown, when sharing is on but retrieval
+   * failed. Distinguishes "created before encrypted storage" from a
+   * generic failure so the dialog can say something true.
+   */
+  const [retrievalNote, setRetrievalNote] = useState<string | null>(null);
 
-  // Drop any URL we were holding from a previous open — after a
-  // rotation it is dead, and showing a dead link is worse than showing
-  // none. `enabled`, `viewCount` and `createdAt` are server truth and
-  // are deliberately preserved: reopening the dialog must never imply
-  // that sharing quietly turned itself off.
+  // On open, recover the owner's existing link from the server. The raw
+  // token is stored encrypted (see lib/share/token-crypto.ts), so this
+  // is what makes "sharing is on" an actionable state rather than a
+  // dangling one.
+  //
+  // Deliberately keyed on `open` alone: if this re-ran whenever
+  // `enabled` flipped, clicking Enable inside the dialog would re-fetch
+  // and briefly clobber the URL the action had just returned. `enabled`
+  // is read through a ref so the closure always sees the current value.
+  //
+  // `viewCount` / `createdAt` are server state and need no refetch —
+  // they arrived with the page.
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+
+    setError(null);
+    setRetrievalNote(null);
+
+    if (!enabledRef.current) {
       setUrl(null);
-      setError(null);
+      return;
     }
+
+    let cancelled = false;
+    startTransition(async () => {
+      const result = await getShareUrlAction({ id: resumeId });
+      if (cancelled) return;
+      if (result.ok) {
+        setUrl(result.data.url);
+        return;
+      }
+      setUrl(null);
+      // Every failure carries a human-readable message; show it rather
+      // than guessing which kind it was.
+      setRetrievalNote(result.error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   function handleEnable() {
@@ -94,6 +134,7 @@ export function ShareButton({
       }
       setEnabled(true);
       setUrl(result.data.url);
+      setRetrievalNote(null);
       setCreatedAt(result.data.createdAt?.toISOString() ?? null);
     });
   }
@@ -108,6 +149,7 @@ export function ShareButton({
       }
       setEnabled(false);
       setUrl(null);
+      setRetrievalNote(null);
       setViewCount((c) => c); // unchanged
       setCreatedAt(null);
     });
@@ -123,6 +165,7 @@ export function ShareButton({
       }
       setEnabled(true);
       setUrl(result.data.url);
+      setRetrievalNote(null);
       setCreatedAt(result.data.createdAt?.toISOString() ?? null);
     });
   }
@@ -173,6 +216,7 @@ export function ShareButton({
         {showEnabledView ? (
           <EnabledView
             url={url}
+            note={retrievalNote}
             viewCount={viewCount}
             createdAt={createdAt}
             initialViewCount={initialStatus.viewCount}
@@ -246,6 +290,7 @@ function DisabledView({
 
 function EnabledView({
   url,
+  note,
   viewCount,
   createdAt,
   initialViewCount,
@@ -257,6 +302,8 @@ function EnabledView({
   onDisable
 }: {
   url: string | null;
+  /** Why the link is missing, when retrieval failed. */
+  note: string | null;
   viewCount: number;
   createdAt: string | null;
   initialViewCount: number;
@@ -308,8 +355,8 @@ function EnabledView({
         >
           <p className="font-semibold">Sharing is on, but we can't show your link.</p>
           <p className="mt-1">
-            We store a one-way hash of it, never the link itself, so a leaked
-            database can't hand out your resume URLs. Keep your own copy.
+            {note ??
+              'This link was created before encrypted storage, so all we kept was a one-way hash of it. Keep your own copy.'}
           </p>
           <p className="mt-1">
             Generating a new link below immediately disables the one you

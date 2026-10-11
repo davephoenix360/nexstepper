@@ -780,6 +780,13 @@ export type ShareStatus = {
   /** The token hash. The client should never need this, but the
    *  action uses it to build the public URL after generation. */
   tokenHash: string | null;
+  /**
+   * Encrypted envelope of the raw token, or null for links created
+   * before token encryption existed / when no encryption key is
+   * configured. Never leaves the server except through the owner-only
+   * action that decrypts it.
+   */
+  tokenCiphertext: string | null;
 };
 
 /**
@@ -797,7 +804,8 @@ export async function getShareStatus(
       shareViewCount: resumes.shareViewCount,
       shareLastViewedAt: resumes.shareLastViewedAt,
       shareCreatedAt: resumes.shareCreatedAt,
-      shareTokenHash: resumes.shareTokenHash
+      shareTokenHash: resumes.shareTokenHash,
+      shareTokenCiphertext: resumes.shareTokenCiphertext
     })
     .from(resumes)
     .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
@@ -810,7 +818,8 @@ export async function getShareStatus(
     viewCount: row.shareViewCount,
     lastViewedAt: row.shareLastViewedAt,
     createdAt: row.shareCreatedAt,
-    tokenHash: row.shareTokenHash
+    tokenHash: row.shareTokenHash,
+    tokenCiphertext: row.shareTokenCiphertext
   };
 }
 
@@ -826,12 +835,14 @@ export async function getShareStatus(
 export async function enableShare(
   resumeId: string,
   userId: string,
-  tokenHash: string
+  tokenHash: string,
+  tokenCiphertext: string | null = null
 ): Promise<boolean> {
   const result = await db
     .update(resumes)
     .set({
       shareTokenHash: tokenHash,
+      shareTokenCiphertext: tokenCiphertext,
       shareEnabled: true,
       // First-time enable. We deliberately don't reset viewCount —
       // re-enable after a disable preserves the running total so the
@@ -878,12 +889,14 @@ export async function disableShare(
 export async function rotateShareToken(
   resumeId: string,
   userId: string,
-  newTokenHash: string
+  newTokenHash: string,
+  tokenCiphertext: string | null = null
 ): Promise<boolean> {
   const result = await db
     .update(resumes)
     .set({
       shareTokenHash: newTokenHash,
+      shareTokenCiphertext: tokenCiphertext,
       // New URL = reset the "first shared" timestamp so the UI shows
       // the new creation date. viewCount is preserved (lifetime stat).
       shareCreatedAt: new Date(),

@@ -171,6 +171,39 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Share links are now recoverable by the owner** — branch
+  `feat/share-link-retrieval`, migration `0009`. The share token is
+  stored **twice**: as the existing SHA-256 `share_token_hash` (still
+  the only thing `/r/[token]` looks up, untouched) and, when
+  `SHARE_TOKEN_ENCRYPTION_KEY` is set, as an AES-256-GCM envelope in
+  the new nullable `share_token_ciphertext` column. The key lives in
+  the environment, never the database — so a stolen dump holds
+  ciphertext with no way to open it, which is the property the
+  hash-only design existed to provide. This is the resolution to a
+  false dilemma: the old design chose "never store the token" and
+  "owner can't re-read their link" *together*, when only the first
+  was actually required. `getShareUrlAction` re-hashes the decrypted
+  token and compares it against the stored hash (`timingSafeEqual`) so
+  a ciphertext left stale by a rotation can never produce a URL that
+  404s. **Every crypto failure returns `null` rather than throwing** —
+  a missing or malformed key degrades to the old hash-only behaviour
+  instead of taking sharing offline. Links that predate the column are
+  unrecoverable and the UI says so; they become recoverable on their
+  next rotation. **Changing `SHARE_TOKEN_ENCRYPTION_KEY` makes every
+  existing link unreadable in the dialog** — same effect as rotating
+  all of them. 23 crypto tests + 15 ShareButton tests.
+- **Reopening the share dialog claimed sharing was off** — branch
+  `fix/share-token-not-restored`, commit `d196225`. `ShareButton`
+  selected its view with `const isEnabled = Boolean(url)` —
+  **client-only** state, so any later visit fell through to
+  "Sharing is currently off" while the trigger button beside it
+  rendered a correct "on" badge. Worse, the visible "Enable sharing"
+  button overwrote `share_token_hash`, silently killing a link the
+  user had already sent to someone. `enabled` is now seeded from
+  `initialStatus.enabled` and is the only input to view selection.
+  `tests/unit/share-button.test.tsx` renders the component and asserts
+  markup — reintroducing `Boolean(url)` fails 8 tests, including the
+  two symptoms the user reported.
 - **`app/favicon.ico` was Vercel's stock icon and outranked ours** —
   branch `fix/site-verification-seo`. The saas-starter shipped a
   `favicon.ico` (commit `61195ab`); the rebrand in `be07071` added

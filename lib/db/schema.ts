@@ -204,6 +204,21 @@ export const resumes = pgTable(
     shareLastViewedAt: timestamp('share_last_viewed_at'),
     /** When sharing was first enabled — for the "shared X days ago" UI. */
     shareCreatedAt: timestamp('share_created_at'),
+    /**
+     * AES-256-GCM envelope of the same token, keyed by
+     * `SHARE_TOKEN_ENCRYPTION_KEY` from the environment.
+     *
+     * The hash above is one-way by design and cannot be reversed, which
+     * left the owner unable to re-read a link they had already shared.
+     * This column exists so they can. It does NOT weaken the hash-only
+     * protection of a DB leak: the key lives in the environment, so a
+     * stolen dump contains ciphertext and no key to open it.
+     *
+     * Nullable, and null for every row that predates this column — such
+     * links are hash-only and become recoverable on their next rotation.
+     * See `lib/share/token-crypto.ts`.
+     */
+    shareTokenCiphertext: text('share_token_ciphertext'),
 
     // ─── Print settings (Oct 2026) ──────────────────────────────────────
     /**

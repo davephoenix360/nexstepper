@@ -64,6 +64,13 @@
       "when": 1791259585733,
       "tag": "0008_salty_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791745376796,
+      "tag": "0009_purple_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }
