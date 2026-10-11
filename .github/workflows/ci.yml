@@ -47,6 +47,8 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
+        env:
+          POSTGRES_URL: postgres://test:test@localhost:5432/test
 
       # TODO when we have a CI DB or a build-time DB bypass:
       # - name: Build
