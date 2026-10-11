@@ -42,8 +42,13 @@ type ShareStatusView = {
  *   enabled  ──[Rotate]──> enabled  (new URL returned; viewCount preserved)
  *
  * UI rules:
- *   - URL is shown only AFTER a successful enable/rotate. We never
- *     display a stale URL from a previous session.
+ *   - `enabled` is seeded from the server (`initialStatus.enabled`) and
+ *     is the single source of truth for which view renders. It is NOT
+ *     derived from whether we happen to be holding a URL.
+ *   - The URL is shown only AFTER a successful enable/rotate, because
+ *     the raw token is never persisted — only its SHA-256 hash. A
+ *     reload therefore cannot restore the link, and we say so plainly
+ *     rather than implying sharing switched itself off.
  *   - "Copy" copies the current URL to the clipboard; flash the
  *     check icon for 1.5s.
  *   - All three actions are owner-only (server enforces ownership).
@@ -58,6 +63,7 @@ export function ShareButton({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [enabled, setEnabled] = useState(initialStatus.enabled);
   const [url, setUrl] = useState<string | null>(null);
   const [viewCount, setViewCount] = useState(initialStatus.viewCount);
   const [createdAt, setCreatedAt] = useState<string | null>(
@@ -66,11 +72,11 @@ export function ShareButton({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset URL state when the dialog opens — show a fresh state
-  // (we re-fetch the URL via enable/rotate if the user wants to
-  // see the current one). Otherwise the dialog opens with whatever
-  // URL was last generated, which can be confusing after rotation.
-  // We DO preserve viewCount + createdAt from the server's initialStatus.
+  // Drop any URL we were holding from a previous open — after a
+  // rotation it is dead, and showing a dead link is worse than showing
+  // none. `enabled`, `viewCount` and `createdAt` are server truth and
+  // are deliberately preserved: reopening the dialog must never imply
+  // that sharing quietly turned itself off.
   useEffect(() => {
     if (open) {
       setUrl(null);
@@ -86,6 +92,7 @@ export function ShareButton({
         setError(result.error);
         return;
       }
+      setEnabled(true);
       setUrl(result.data.url);
       setCreatedAt(result.data.createdAt?.toISOString() ?? null);
     });
@@ -99,6 +106,7 @@ export function ShareButton({
         setError(result.error);
         return;
       }
+      setEnabled(false);
       setUrl(null);
       setViewCount((c) => c); // unchanged
       setCreatedAt(null);
@@ -113,6 +121,7 @@ export function ShareButton({
         setError(result.error);
         return;
       }
+      setEnabled(true);
       setUrl(result.data.url);
       setCreatedAt(result.data.createdAt?.toISOString() ?? null);
     });
@@ -130,7 +139,10 @@ export function ShareButton({
     }
   }
 
-  const isEnabled = Boolean(url);
+  // Server truth, not `Boolean(url)`: sharing can be live with no URL in
+  // hand, and rendering the "sharing is off" copy in that state is what
+  // made the dialog contradict the "on" badge on its own trigger button.
+  const showEnabledView = enabled;
 
   return (
     <>
@@ -158,7 +170,7 @@ export function ShareButton({
         title="Share this resume"
         description="Generate a public link. Anyone with the link can view this resume. You can stop sharing at any time."
       >
-        {isEnabled && url ? (
+        {showEnabledView ? (
           <EnabledView
             url={url}
             viewCount={viewCount}
@@ -204,7 +216,7 @@ function DisabledView({
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Sharing is currently off. Generate a public link to share this resume with
-        recruiters, mentors, or friends — no Nextep account required to view.
+        recruiters, mentors, or friends — no Nexstepper account required to view.
       </p>
 
       {viewCount > 0 && (
@@ -244,7 +256,7 @@ function EnabledView({
   onRotate,
   onDisable
 }: {
-  url: string;
+  url: string | null;
   viewCount: number;
   createdAt: string | null;
   initialViewCount: number;
@@ -257,37 +269,54 @@ function EnabledView({
 }) {
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="share-url">Public link</Label>
-        <div className="flex items-stretch gap-2">
-          <input
-            id="share-url"
-            type="text"
-            readOnly
-            value={url}
-            onFocus={(e) => e.currentTarget.select()}
-            className={cn(
-              'flex-1 rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs',
-              'focus:outline-none focus:ring-2 focus:ring-indigo-300/50'
-            )}
-            data-testid="share-url-input"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onCopy}
-            disabled={pending}
-            aria-label={copied ? 'Copied' : 'Copy link to clipboard'}
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-          </Button>
+      {url ? (
+        <div className="space-y-2">
+          <Label htmlFor="share-url">Public link</Label>
+          <div className="flex items-stretch gap-2">
+            <input
+              id="share-url"
+              type="text"
+              readOnly
+              value={url}
+              onFocus={(e) => e.currentTarget.select()}
+              className={cn(
+                'flex-1 rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs',
+                'focus:outline-none focus:ring-2 focus:ring-indigo-300/50'
+              )}
+              data-testid="share-url-input"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onCopy}
+              disabled={pending}
+              aria-label={copied ? 'Copied' : 'Copy link to clipboard'}
+            >
+              {copied ? (
+                <Check className="h-4 w-4 text-emerald-600" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div
+          data-testid="share-url-unavailable"
+          className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <p className="font-semibold">Sharing is on, but we can't show your link.</p>
+          <p className="mt-1">
+            We store a one-way hash of it, never the link itself, so a leaked
+            database can't hand out your resume URLs. Keep your own copy.
+          </p>
+          <p className="mt-1">
+            Generating a new link below immediately disables the one you
+            already shared.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3 text-xs">
         <div>
@@ -321,7 +350,7 @@ function EnabledView({
         <Eye className="mr-1 inline h-3 w-3" />
         The page is{' '}
         <code className="rounded bg-muted px-1">noindex</code> and viewers see
-        the resume, nothing else — no edit links, no Nextep branding.
+        the resume, nothing else — no edit links, no Nexstepper branding.
       </p>
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-3">
