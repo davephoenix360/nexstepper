@@ -473,6 +473,26 @@
 }
 
 /*
+  Body-text sizing inside .printable. The templates set
+  `text-[11pt]` on body elements (highlights, descriptions,
+  summaries, position titles) which would otherwise pin those
+  elements to fixed sizes and defeat the per-resume font / line
+  height vars. We target `text-[11pt]` specifically — that's the
+  body-text size used everywhere — so headings (`text-[12pt]`) and
+  captions (`text-[10pt]`) keep their own sizes. The
+  `!important` is belt-and-suspenders against any future
+  per-element opt-out; the attribute selector
+  ([class*="text-[11pt]"]) and the templates' own class
+  (.text-\[11pt\]) are at the same specificity, so the
+  attribute selector's source-order tiebreak plus !important
+  makes the var win deterministically.
+*/
+.printable [class*="text-[11pt]"] {
+  font-size: var(--resume-font-size, 11pt) !important;
+  line-height: var(--resume-line-height, 1.4) !important;
+}
+
+/*
   Page-break utility classes — templates can put these on wrapper
   elements to control where the browser breaks the page when the
   user prints. Available in all modes (screen and print); they're

@@ -151,7 +151,7 @@ function MinimalHeader({ mode, accent }: { mode: FieldMode; accent: string }) {
 
 function MinimalBody({ mode }: { mode: FieldMode }) {
   return (
-    <div className="space-y-7">
+    <div className="space-y-[var(--resume-section-spacing)]">
       <SmartSection mode={mode} title="Summary" id="section-summary" sectionSlug="summary">
         <FieldArea
           mode={mode}

@@ -217,7 +217,7 @@ function ModernBody({ mode }: { mode: FieldMode }) {
   const summary = mode.data.sections.basics.summary;
   const hasSummary = Boolean(summary && summary.trim());
   return (
-    <main className="space-y-5">
+    <main className="space-y-[var(--resume-section-spacing)]">
       {hasSummary && (
         <ModernSection mode={mode} title="Summary" id="section-summary" sectionSlug="summary">
           <FieldArea
@@ -432,7 +432,7 @@ function ModernWorkPosition({
   return (
     <div>
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3">
-        <p className="text-[11pt] font-medium text-zinc-800">
+        <p className="font-medium text-zinc-800">
           <Field
             mode={mode}
             path={`sections.work.${workIndex}.positions.${positionIndex}.title`}
@@ -453,7 +453,7 @@ function ModernWorkPosition({
         mode={mode}
         path={`sections.work.${workIndex}.positions.${positionIndex}.highlights`}
         placeholder="A concrete, quantified accomplishment."
-        itemClassName="text-[11pt] marker:text-zinc-400"
+        itemClassName="marker:text-zinc-400"
         className="mt-1 list-disc space-y-0.5 pl-5"
       />
     </div>
@@ -489,13 +489,13 @@ function ModernProjects({ mode }: { mode: FieldMode }) {
           mode={mode}
           path={`sections.projects.${i}.description`}
           as="p"
-          className="mt-0.5 text-[11pt] text-zinc-700"
+          className="mt-0.5 text-zinc-700"
           placeholder=""
         />
         <FieldBullets
           mode={mode}
           path={`sections.projects.${i}.highlights`}
-          itemClassName="text-[11pt] marker:text-zinc-400"
+          itemClassName="marker:text-zinc-400"
           className="mt-1 list-disc space-y-0.5 pl-5"
         />
         {hasKeywords && (
@@ -555,7 +555,7 @@ function ModernEducation({ mode }: { mode: FieldMode }) {
             endPath={`sections.education.${i}.endDate`}
           />
         </div>
-        <p className="text-[11pt] text-zinc-700">
+        <p className="text-zinc-700">
           <Field
             mode={mode}
             path={`sections.education.${i}.degree.degreeLevel`}
@@ -683,7 +683,7 @@ function ModernVolunteer({ mode }: { mode: FieldMode }) {
         <FieldBullets
           mode={mode}
           path={`sections.volunteer.${i}.highlights`}
-          itemClassName="text-[11pt] marker:text-zinc-400"
+          itemClassName="marker:text-zinc-400"
           className="mt-1 list-disc space-y-0.5 pl-5"
         />
       </div>
@@ -954,7 +954,7 @@ function ModernInterests({ mode }: { mode: FieldMode }) {
           .filter(Boolean);
         const preview = keywords.join(' · ');
         return preview ? (
-          <p className="text-[11pt] text-zinc-700">{preview}</p>
+          <p className="text-zinc-700">{preview}</p>
         ) : (
           <p className="text-[11pt] italic text-zinc-400">
             No interests added yet.

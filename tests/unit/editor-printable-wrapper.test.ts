@@ -90,3 +90,57 @@ describe('the regression is catchable', () => {
     expect(EDITOR).toMatch(/style=\{printSettingsToCssVars\(/);
   });
 });
+
+describe('globals.css: the body-text override', () => {
+  // The templates set `text-[11pt]` on body elements (highlights,
+  // descriptions, summaries) and that wins over the wrapper's var
+  // because Tailwind's class specificity beats `:where()`. The fix
+  // is a single rule that targets `text-[11pt]` inside `.printable`
+  // and forces the var. This test pins that rule exists — without
+  // it, the page-settings panel is a no-op for body text on every
+  // template (classic alone has 68 `text-[11pt]` overrides).
+  const GLOBALS = readFileSync(
+    resolve(process.cwd(), 'app/globals.css'),
+    'utf8'
+  );
+
+  it('forces the font-size var onto body text inside .printable', () => {
+    expect(GLOBALS).toMatch(/\.printable.*\[class\*="text-\[11pt\]"\]/);
+    expect(GLOBALS).toMatch(/var\(--resume-font-size/);
+  });
+
+  it('forces the line-height var too', () => {
+    expect(GLOBALS).toMatch(
+      /\.printable.*\[class\*="text-\[11pt\]"\][\s\S]{0,400}var\(--resume-line-height/
+    );
+  });
+
+  it('uses !important so the var wins over per-element Tailwind classes', () => {
+    // Same specificity, source-order tiebreak plus !important
+    // makes this deterministic. If the !important goes, the
+    // templates' .text-[11pt] will win again and the popover lies.
+    expect(GLOBALS).toMatch(/!important/);
+  });
+});
+
+describe('section-spacing is var-driven in every template', () => {
+  // Each template's inter-section wrapper must use
+  // `space-y-[var(--resume-section-spacing)]`. Without it, the
+  // section-spacing popover does nothing on screen.
+  const templates = [
+    'modern',
+    'executive',
+    'creative',
+    'minimal',
+    'classic'
+  ];
+  for (const t of templates) {
+    it(`${t} uses the section-spacing var on its inter-section wrapper`, () => {
+      const src = readFileSync(
+        resolve(process.cwd(), `components/resume-templates/${t}.tsx`),
+        'utf8'
+      );
+      expect(src).toMatch(/space-y-\[var\(--resume-section-spacing\)\]/);
+    });
+  }
+});

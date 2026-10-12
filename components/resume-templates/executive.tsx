@@ -168,7 +168,7 @@ function ExecutiveSummary({ mode }: { mode: FieldMode }) {
         mode={mode}
         path="sections.basics.summary"
         rows={4}
-        className="font-serif text-[11pt] leading-[1.55] text-zinc-800"
+        className="font-serif leading-[1.55] text-zinc-800"
         placeholder="A couple of lines summarizing who you are."
       />
     </section>
@@ -181,7 +181,7 @@ function ExecutiveSummary({ mode }: { mode: FieldMode }) {
 
 function ExecutiveBody({ mode }: { mode: FieldMode }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--resume-section-spacing)]">
       <ExecutiveSection mode={mode} title="Experience" id="section-experience" sectionSlug="experience">
         <ExecutiveExperience mode={mode} />
       </ExecutiveSection>
@@ -381,7 +381,7 @@ function ExecutivePositionRow({
           mode={mode}
           path={`sections.work.${workIndex}.positions.${positionIndex}.title`}
           as="p"
-          className="font-serif text-[11pt] italic text-zinc-700"
+          className="font-serif italic text-zinc-700"
           placeholder="Position"
         />
         <span className="text-[9.5pt] uppercase tracking-[0.1em] text-zinc-500">
@@ -397,7 +397,7 @@ function ExecutivePositionRow({
       <FieldBullets
         mode={mode}
         path={`sections.work.${workIndex}.positions.${positionIndex}.highlights`}
-        className="mt-1 font-serif text-[11pt] text-zinc-800"
+        className="mt-1 font-serif text-zinc-800"
         itemClassName="leading-[1.55]"
       />
     </>
@@ -436,7 +436,7 @@ function ExecutiveEducation({ mode }: { mode: FieldMode }) {
             />
           </span>
         </div>
-        <p className="mt-0.5 font-serif text-[11pt] text-zinc-800">
+        <p className="mt-0.5 font-serif text-zinc-800">
           <Field
             mode={mode}
             path={`sections.education.${i}.degree.degreeLevel`}
@@ -487,7 +487,7 @@ function ExecutiveSkills({ mode }: { mode: FieldMode }) {
     return null;
   const renderRow = (i: number) => (
     <div
-      className="flex items-baseline gap-2 font-serif text-[11pt]"
+      className="flex items-baseline gap-2 font-serif"
       data-testid={`skill-entry-${i}`}
     >
       <Field
@@ -561,14 +561,14 @@ function ExecutiveProjects({ mode }: { mode: FieldMode }) {
           mode={mode}
           path={`sections.projects.${i}.description`}
           rows={2}
-          className="mt-0.5 font-serif text-[11pt] text-zinc-800"
+          className="mt-0.5 font-serif text-zinc-800"
           placeholder="Short description"
           readOnlyAs="p"
         />
         <FieldBullets
           mode={mode}
           path={`sections.projects.${i}.highlights`}
-          className="mt-1 font-serif text-[11pt] text-zinc-800"
+          className="mt-1 font-serif text-zinc-800"
         />
         <FieldChips
           mode={mode}
@@ -635,7 +635,7 @@ function ExecutivePublications({ mode }: { mode: FieldMode }) {
     </li>
   );
   return (
-    <ul className="space-y-1.5 font-serif text-[11pt] leading-[1.5] text-zinc-800">
+    <ul className="space-y-1.5 font-serif leading-[1.5] text-zinc-800">
       {mode.editable ? (
         <EditableSection
           path="sections.publications"
@@ -687,14 +687,14 @@ function ExecutiveVolunteer({ mode }: { mode: FieldMode }) {
           mode={mode}
           path={`sections.volunteer.${i}.position`}
           as="p"
-          className="mt-0.5 font-serif text-[11pt] italic text-zinc-700"
+          className="mt-0.5 font-serif italic text-zinc-700"
           placeholder="Role"
         />
         <FieldArea
           mode={mode}
           path={`sections.volunteer.${i}.summary`}
           rows={2}
-          className="mt-1 font-serif text-[11pt] text-zinc-800"
+          className="mt-1 font-serif text-zinc-800"
           placeholder="Summary"
           readOnlyAs="p"
         />

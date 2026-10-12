@@ -171,6 +171,36 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Print settings now actually apply on screen, not just in print** —
+  branch `fix/print-settings-actually-apply`. The earlier
+  `printable` + CSS-vars wiring (commit `161b5fa`) was a UI
+  dead-end: the popover saved to the DB and the wrapper had the
+  vars, but **the templates' own `text-[Npt]` Tailwind classes
+  won every time** (176 occurrences across 5 templates, classic
+  alone had 68). `:where(.printable) { font-size: var(...) }` has
+  specificity 0,0,0; `text-[Npt]` is 0,1,0. The body never
+  actually moved on screen. The fix is **one CSS rule** that
+  targets `[class*="text-[11pt]"]` inside `.printable` and forces
+  the var with `!important` — the attribute selector + the
+  templates' own class are at the same specificity, so the
+  source-order tiebreak plus !important makes the var win
+  deterministically. Targets `text-[11pt]` only (body text size)
+  so headings (`text-[12pt]`) and captions (`text-[10pt]`) keep
+  their own sizes. Section spacing: each template's inter-section
+  wrapper is now `space-y-[var(--resume-section-spacing)]`
+  (modern/executive/creative/minimal/classic — 5 edits). Classic
+  had no inter-section gap at all before (sections sat flush), so
+  the fix actually *adds* a var-driven gap there. **Honest dev
+  note on the way there:** the first attempt made the
+  print-settings panel change the URL params and the *selects*
+  show the new values, but the rendered body was identical
+  because the templates' own classes shadowed the var. Verified
+  visually this time, not just structurally: full-page screenshots
+  of the design lab with `?fontSize=large&sectionSpacing=relaxed`
+  vs defaults show the body text visibly larger and the section
+  gaps visibly wider across all five templates. The earlier
+  "wired correctly" claim was wrong; the screenshots are the
+  receipt. 1451 → 1459.
 - **Design Lab at /dev/design-lab + page-settings now apply to the
   editor** — branch `fix/design-lab-and-page-settings`. The user
   asked for an unauthenticated dev surface so layout / typography /

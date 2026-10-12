@@ -176,7 +176,7 @@ function ClassicWithForm({
       )}
       data-template="classic"
     >
-      <div className="px-12 py-10 print:px-0 print:py-0">
+      <div className="space-y-[var(--resume-section-spacing)] px-12 py-10 print:px-0 print:py-0">
         {showHeader && (
           <header
             className={cn(

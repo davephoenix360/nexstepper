@@ -173,7 +173,7 @@ function CreativeBody({
   accent: string;
 }) {
   return (
-    <div className="space-y-7">
+    <div className="space-y-[var(--resume-section-spacing)]">
       <CreativeSection mode={mode} title="Summary" accent={accent} id="section-summary" sectionSlug="summary">
         <FieldArea
           mode={mode}
