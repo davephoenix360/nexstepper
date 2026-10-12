@@ -105,7 +105,12 @@ describe('globals.css: the body-text override', () => {
   );
 
   it('forces the font-size var onto body text inside .printable', () => {
-    expect(GLOBALS).toMatch(/\.printable.*\[class\*="text-\[11pt\]"\]/);
+    // Executive uses `text-[10.5pt]` for body; the other templates
+    // use `text-[11pt]`. The rule has to cover both, or Executive
+    // silently no-ops (see the audit table in AGENTS.md).
+    expect(GLOBALS).toMatch(
+      /\.printable.*\[class\*="text-\[11pt\]"\][\s\S]{0,200}\.printable.*\[class\*="text-\[10\.5pt\]"\]/
+    );
     expect(GLOBALS).toMatch(/var\(--resume-font-size/);
   });
 
