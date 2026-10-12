@@ -171,6 +171,36 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Drag-to-reorder for every repeatable section** — branch
+  `feat/drag-to-reorder`, three commits ahead of `main`. Every
+  section that routes through `EditableSection` (Work, Projects,
+  Education, Awards, Certificates, Publications, Volunteer,
+  References, plus the nested `positions` inside each Work entry)
+  gains a left-edge drag handle (lucide `GripVertical`,
+  `cursor-grab` / `cursor-grabbing`, `aria-label="Drag to
+  reorder [section]"`). Mouse drag and full keyboard drag (Tab →
+  Space → ↑/↓ → Space) both wired. Persistence is `useFieldArray.
+  move` on drag-end + the existing explicit Save (no new server
+  action, no migration, no autosave — matches the lock from
+  `docs/plans/wysiwyg-editor.md`). `SortableRow` is its own
+  primitive so handle styling / a11y label / no-print cannot drift
+  across sections or templates. New `reorderable={false}` prop opts
+  the consumer out (for the SchemaForm array path). 17 tests added;
+  1478 total passing. `@dnd-kit/{core,sortable,utilities}` shipped
+  in v6.3.1 / v10.0.0 / v3.2.2. Verification surface:
+  `/dev/design-lab/reorder` (noindex, unauthenticated — mounts
+  Modern in `editable={true}` against the gallery sample; sidebar
+  shows live order). Plan: `docs/plans/drag-to-reorder.md`.
+  Honest dev note: during commit-time visual verification the
+  in-app FilePanel browser was unresponsive across inspect / query
+  / navigate / screenshot locally (including on the pre-existing
+  /dev/design-lab page — not specific to the new route); the
+  Next.js dev server returned 200 on every GET with no compile
+  errors, so the page is structurally verified; manual drag
+  testing should be done against `http://localhost:3000/dev/
+  design-lab/reorder` in the user's own browser. Drift memo:
+  `docs/drift/2026-10-12-drag-to-reorder.md`.
+
 - **Print settings now actually apply on screen, not just in print** —
   branch `fix/print-settings-actually-apply`. The earlier
   `printable` + CSS-vars wiring (commit `161b5fa`) was a UI
