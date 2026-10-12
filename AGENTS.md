@@ -171,6 +171,36 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Design Lab at /dev/design-lab + page-settings now apply to the
+  editor** — branch `fix/design-lab-and-page-settings`. The user
+  asked for an unauthenticated dev surface so layout / typography /
+  per-template identity can be reviewed without a sign-in or an
+  editor. `app/dev/design-lab/page.tsx` renders every registered
+  template against `gallerySampleResumeData`, with a live
+  print-settings panel (margin / line height / font size / section
+  spacing) backed by URL state, so changes preview the same
+  `--resume-*` CSS variables the editor consumes. `noindex` via
+  the route layout. The page-settings bug fix is a one-line
+  consequence of building it: the editor's `<Template />` was
+  rendered bare, so the on-screen `:where(.printable)` rules
+  never matched and the printed `@page { margin }` rule fell
+  back to 0.4in because the var was never set in the cascade.
+  `EditableResume` now wraps the template in `<div
+  className="printable" style={printSettingsToCssVars(...)}>`
+  driven by a new `initialPrintSettings` prop threaded through
+  `page.tsx`. **Honest dev note on the way there:** the first
+  attempt read URL params via `useSearchParams()` in a client
+  component and got the values on the server but rendered defaults
+  because `coercePrintSettings({margin,fontSize})` is a 4-key
+  schema and rejects a partial. The current implementation makes
+  the page a server component, reads `searchParams` directly, and
+  overlays onto DEFAULT_PRINT_SETTINGS so every key is always
+  present before Zod sees it. The earlier dev-server smoke test
+  was useful for catching this — the prod build alone wouldn't
+  have surfaced the partial-object rejection as cleanly. 15
+  tests (design-lab public + noindex + template coverage + dev
+  chrome + print panel; editor printable wrapper regression).
+  1434 → 1451.
 - **All four non-Classic templates now support add/remove for every
   section** — branch `fix/template-edit-affordances`. The user
   reported that on Modern/Executive/Creative/Minimal they could edit

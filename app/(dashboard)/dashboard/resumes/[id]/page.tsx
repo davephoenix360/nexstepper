@@ -192,6 +192,7 @@ export default async function ResumeEditorPage({
           <EditableResume
             resumeId={resume.id}
             initialData={data}
+            initialPrintSettings={printSettings}
             isMaster={resume.isMaster}
             initialDynamicTips={dynamicTips}
           />

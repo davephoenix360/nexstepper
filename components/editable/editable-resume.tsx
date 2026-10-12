@@ -54,16 +54,28 @@ import {
   resumeDataSchema,
   type ResumeData
 } from '@/lib/resume-schema';
+import {
+  coercePrintSettings,
+  printSettingsToCssVars
+} from '@/lib/print-settings';
 import { saveResumeAction } from '@/app/(dashboard)/dashboard/resumes/actions';
 import {
   subscribeToInlineIssueApply,
   InlineIssueTip
 } from '@/lib/inline-issue';
 import type { DynamicTips } from '@/lib/scoring/tips';
+import type { PrintSettings } from '@/lib/print-settings';
 
 interface EditableResumeProps {
   resumeId: string;
   initialData: ResumeData;
+  /**
+   * Per-resume print formatting (margin / line height / font size /
+   * section spacing). Lives on the resume envelope, not inside the
+   * `data` JSON blob, and is what the `.printable` wrapper below
+   * consumes. The page RSC coerces it before passing it in.
+   */
+  initialPrintSettings?: PrintSettings;
   isMaster: boolean;
   /**
    * Dynamic tips map from the page RSC's
@@ -79,6 +91,7 @@ interface EditableResumeProps {
 export function EditableResume({
   resumeId,
   initialData,
+  initialPrintSettings,
   isMaster,
   initialDynamicTips = {}
 }: EditableResumeProps) {
@@ -296,8 +309,35 @@ export function EditableResume({
             thing the user sees without scrolling. Hidden in print. */}
         <ValidationSummary errors={validationErrors} />
 
-        {/* The actual WYSIWYG render. */}
-        <Template data={form.watch() as ResumeData} editable />
+        {/* The actual WYSIWYG render.
+
+            The `.printable` wrapper + the four per-resume print
+            settings CSS vars are what make the popover's margin /
+            line-height / font-size / section-spacing actually apply.
+            Without the wrapper:
+              - the on-screen `:where(.printable)` rules in
+                globals.css never match, so font size / line height /
+                section spacing stay at the template defaults
+              - the printed `@page { margin: var(--resume-margin) }`
+                rule reads the var from the cascade, which has no
+                source here, so it falls back to 0.4in for every
+                resume
+
+            The popover's `updatePrintSettingsAction` calls
+            `revalidatePath` on the editor route after persisting, so
+            the re-render that follows re-fetches the resume with the
+            new settings — `initialData.printSettings` updates, this
+            style recomputes, and both screen and print reflect the
+            change on the next render. We coerce defensively in case
+            the JSONB blob is missing or stale-migrated. */}
+        <div
+          className="printable"
+          style={printSettingsToCssVars(
+            coercePrintSettings(initialPrintSettings)
+          )}
+        >
+          <Template data={form.watch() as ResumeData} editable />
+        </div>
 
         {/* Save / error status — small, no-print, lives below the resume. */}
         <div className="no-print flex items-center justify-end gap-4 pb-8 text-sm">
