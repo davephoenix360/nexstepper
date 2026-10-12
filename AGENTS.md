@@ -171,6 +171,32 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **All four non-Classic templates now support add/remove for every
+  section** — branch `fix/template-edit-affordances`. The user
+  reported that on Modern/Executive/Creative/Minimal they could edit
+  existing fields but could not add a new work item, project,
+  education entry, skill, language, or interest — and could not
+  remove one either. Classic was the only template with these
+  affordances. Two distinct defects: (1) every section used a plain
+  `.map(...)` over `mode.data.sections.X` with no `useFieldArray`,
+  so the user had no path to "+ Add" or per-row "✕". (2) In
+  Executive/Creative/Minimal the `<DateRange>` calls were missing
+  `editable={mode.editable}` and `startPath`/`endPath` props, so
+  even date fields rendered as static text. Fix: a shared
+  `EditableSection` / `EditableNestedSection` helper that owns the
+  `useFieldArray` + `append` + `remove` + "+ Add" / "✕" chrome;
+  every section across all four templates now uses it. DateRange
+  fixed in the three templates that needed it. The row closure
+  reads via `mode.data.sections.X[i] ?? EMPTY_X` so a freshly
+  appended row renders placeholders rather than crashing on an
+  undefined index. Centralised empty-row defaults in
+  `lib/resume-schema/defaults.ts` so the four templates cannot
+  drift. Creative's `variant="chips"` accent pills are preserved
+  — they are a deliberate part of that template's identity. 9
+  tests for the helper (rounds-trip append/remove, no-print
+  coverage, the `addLabel` → `Remove` aria-label normalisation),
+  plus a pin that re-introducing the bug fails the test. 1425 →
+  1434.
 - **Skills render as a comma list, and the wrapping bug is fixed** —
   branch `fix/skills-comma-list`. Two separate defects the user spotted
   in the shared view. (1) Classic's read-only skills/languages/
