@@ -526,6 +526,27 @@
 }
 
 /*
+  Page margin inside .printable. The @page rule above sets the
+  OS-level print margin (the browser's paper margin). For the
+  on-screen view to match — the paper visibly insets when the user
+  changes the margin preset, the way Word's Print Layout does —
+  we pad the .printable wrapper by the same value.
+
+  In print, this padding is zeroed: the @page margin already
+  provides the inset, and a second inset would double-space the
+  text. So the on-screen paper and the printed page end up with
+  the same text area, which is the point.
+*/
+.printable {
+  padding: var(--resume-margin);
+}
+@media print {
+  .printable {
+    padding: 0;
+  }
+}
+
+/*
   Page-break utility classes — templates can put these on wrapper
   elements to control where the browser breaks the page when the
   user prints. Available in all modes (screen and print); they're

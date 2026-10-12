@@ -149,3 +149,28 @@ describe('section-spacing is var-driven in every template', () => {
     });
   }
 });
+
+describe('globals.css: the margin var affects the on-screen view', () => {
+  // The @page rule sets the OS-level print margin. For the
+  // on-screen view to match — the paper visibly insets when the
+  // user changes the margin preset, the way Word's Print Layout
+  // does — .printable has to carry the same padding on screen.
+  // In print, the padding is zeroed so the @page margin is the
+  // only inset (otherwise text would be double-spaced on paper).
+  const GLOBALS = readFileSync(
+    resolve(process.cwd(), 'app/globals.css'),
+    'utf8'
+  );
+
+  it('insets the on-screen paper by the margin var', () => {
+    expect(GLOBALS).toMatch(
+      /\.printable\s*\{[\s\S]*padding:\s*var\(--resume-margin\)/
+    );
+  });
+
+  it('zeroes the .printable padding in print so the @page margin is the only inset', () => {
+    expect(GLOBALS).toMatch(
+      /@media print\s*\{[\s\S]*\.printable\s*\{[\s\S]*padding:\s*0/
+    );
+  });
+});
