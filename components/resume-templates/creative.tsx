@@ -381,6 +381,9 @@ function CreativeSkills({
           <FieldChips
             mode={mode}
             path={`sections.skills.${i}.keywords`}
+            // Creative's accent pills are part of the template's
+            // identity, so it opts back in to the boxed rendering.
+            variant="chips"
             chipClassName="px-2 py-0.5 text-[10pt] font-medium text-white"
             size="xs"
             // Inline style for the chip background -- uses the accent CSS
@@ -521,6 +524,7 @@ function CreativeProjects({
           <FieldChips
             mode={mode}
             path={`sections.projects.${i}.keywords`}
+            variant="chips"
             chipClassName="border-zinc-300 px-2 py-0.5 text-[10pt]"
             size="xs"
           />

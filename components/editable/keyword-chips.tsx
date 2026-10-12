@@ -66,8 +66,8 @@ export function KeywordChips({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-1.5',
-        size === 'sm' && 'gap-2',
+        'flex flex-wrap items-baseline gap-x-0 gap-y-0.5',
+        size === 'sm' && 'gap-y-1',
         className
       )}
       data-testid={`keyword-chips-${path.replace(/\./g, '-')}`}
@@ -78,6 +78,7 @@ export function KeywordChips({
           path={`${path}.${i}`}
           placeholder={placeholder}
           size={size}
+          isLast={i === fields.length - 1}
           onRemove={() => remove(i)}
         />
       ))}
@@ -106,18 +107,26 @@ function Chip({
   path,
   placeholder,
   size,
+  isLast,
   onRemove
 }: {
   path: string;
   placeholder: string;
   size: 'xs' | 'sm';
+  isLast: boolean;
   onRemove: () => void;
 }) {
   return (
     <span
       className={cn(
-        'group inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-zinc-100/60 px-2 py-0.5 text-zinc-800',
-        size === 'sm' && 'px-3 py-1'
+        // No box. The editor now reads as the comma-separated text the
+        // resume actually prints, while each entry stays independently
+        // clickable (rename) and hoverable (remove). The border and
+        // background that made these look like UI chrome were the thing
+        // users kept asking us to remove — and removing the box
+        // outright would have thrown away the affordance too.
+        'group inline-flex items-baseline rounded px-0.5 -mx-0.5 transition-colors hover:bg-zinc-100',
+        size === 'sm' && 'text-sm'
       )}
       data-testid={`chip-${path.replace(/\./g, '-')}`}
     >
@@ -129,13 +138,15 @@ function Chip({
           size === 'sm' ? 'text-sm' : 'text-xs'
         )}
       />
+      {!isLast && <span aria-hidden="true">,</span>}
       <button
         type="button"
         onClick={onRemove}
         aria-label="Remove"
-        // no-print: chips-only-on-screen — the underlying array still
-        // serializes, the PDF reads it via the project's render path.
-        className="no-print ml-0.5 -mr-1 inline-flex size-4 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-300 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+        // no-print — the ✕ is an editing affordance only. The comma
+        // beside it deliberately ISN'T hidden: it has to survive into
+        // the PDF, which is the whole point of the change.
+        className="no-print ml-0.5 inline-flex size-4 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-300 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
       >
         <X className="size-3" />
       </button>

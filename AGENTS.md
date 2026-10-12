@@ -171,6 +171,30 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Skills render as a comma list, and the wrapping bug is fixed** —
+  branch `fix/skills-comma-list`. Two separate defects the user spotted
+  in the shared view. (1) Classic's read-only skills/languages/
+  interests rows were `flex gap-2` **per row**, so every row sized its
+  own columns independently — a long category ("Technologies/
+  Frameworks") wrapped inside its own box and collided with the
+  em-dash while short ones stayed on one line, giving the ragged
+  misaligned output in the screenshot. Replaced with ONE two-column
+  grid for the whole list (`grid-cols-[minmax(0,9.5rem)_1fr]`,
+  `items-baseline`), which is the only way columns can align across
+  rows. Applied to all three sections, not just the one that was
+  screenshotted. (2) Read-only `FieldChips` rendered boxed pills; a
+  resume is not a UI. Now a plain `values.join(', ')` with **no**
+  per-item wrapper, so there is nothing for print CSS to strip.
+  `variant="chips"` restores the pills and Creative opts in — its
+  accent-coloured chips are deliberate template identity, so don't
+  flatten it. **Editor chips keep their interactivity**: the box is
+  gone and entries are comma-separated, but each one is still
+  click-to-rename and hover-to-remove. Flattening them to static text
+  would have looked identical and silently removed the ability to
+  delete a single skill. 15 tests. Note: verified structurally and by
+  rendered markup, **not** by screenshot — the preview is auth-gated
+  and a standalone CSS harness wouldn't prove the real container
+  width.
 - **Share links are now recoverable by the owner** — branch
   `feat/share-link-retrieval`, migration `0009`. The share token is
   stored **twice**: as the existing SHA-256 `share_token_hash` (still

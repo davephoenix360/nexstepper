@@ -449,21 +449,26 @@ function ClassicWithForm({
             title="Skills"
             className={printHiddenIf(!has(sections.skills))}
           >
+            {/* ONE grid for the whole list, not a flex row per entry. A flex row
+                per entry gave each row its own independent column widths,
+                so a long category ("Technologies/Frameworks") wrapped
+                inside its own box and collided with the em-dash while
+                short categories stayed on one line — the ragged,
+                misaligned look. A single two-column grid keeps the
+                labels and the keyword runs aligned across every row. */}
             {editable ? (
               <SkillsInline />
             ) : (
-              <div className="space-y-1">
+              <div className="grid grid-cols-[minmax(0,9.5rem)_1fr] items-baseline gap-x-2 gap-y-1 text-[11pt]">
                 {sections.skills.map((s, i) => (
-                  <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
+                  <React.Fragment key={`skill-${i}`}>
                     <span className="font-medium text-zinc-900">
                       {isSet(s.name) ? s.name : "Category"}
                     </span>
-                    {has(s.keywords) && (
-                      <span className="text-zinc-700">
-                        — {s.keywords.join(", ")}
-                      </span>
-                    )}
-                  </div>
+                    <span className="text-zinc-700">
+                      {has(s.keywords) ? `— ${s.keywords.join(", ")}` : ""}
+                    </span>
+                  </React.Fragment>
                 ))}
               </div>
             )}
@@ -689,19 +694,16 @@ function ClassicWithForm({
             {editable ? (
               <LanguagesInline />
             ) : (
-              <div className="space-y-1">
+              <div className="grid grid-cols-[minmax(0,9.5rem)_1fr] items-baseline gap-x-2 gap-y-1 text-[11pt] print:break-inside-avoid">
                 {sections.languages.map((l, i) => (
-                  <div
-                    key={`lang-${i}`}
-                    className="flex gap-2 text-[11pt] print:break-inside-avoid"
-                  >
+                  <React.Fragment key={`lang-${i}`}>
                     <span className="font-medium text-zinc-900">
                       {isSet(l.language) ? l.language : "Language"}
                     </span>
-                    {isSet(l.fluency) && (
-                      <span className="text-zinc-700">— {l.fluency}</span>
-                    )}
-                  </div>
+                    <span className="text-zinc-700">
+                      {isSet(l.fluency) ? `— ${l.fluency}` : ""}
+                    </span>
+                  </React.Fragment>
                 ))}
               </div>
             )}
@@ -719,21 +721,16 @@ function ClassicWithForm({
             {editable ? (
               <InterestsInline />
             ) : (
-              <div className="space-y-1">
+              <div className="grid grid-cols-[minmax(0,9.5rem)_1fr] items-baseline gap-x-2 gap-y-1 text-[11pt] print:break-inside-avoid">
                 {sections.interests.map((it, i) => (
-                  <div
-                    key={`interest-${i}`}
-                    className="flex gap-2 text-[11pt] print:break-inside-avoid"
-                  >
+                  <React.Fragment key={`interest-${i}`}>
                     <span className="font-medium text-zinc-900">
                       {isSet(it.name) ? it.name : "Category"}
                     </span>
-                    {has(it.keywords) && (
-                      <span className="text-zinc-700">
-                        — {it.keywords.join(", ")}
-                      </span>
-                    )}
-                  </div>
+                    <span className="text-zinc-700">
+                      {has(it.keywords) ? `— ${it.keywords.join(", ")}` : ""}
+                    </span>
+                  </React.Fragment>
                 ))}
               </div>
             )}

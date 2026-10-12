@@ -208,6 +208,17 @@ interface FieldChipsProps {
    *  the chip background depends on the template accent variable.
    *  Editing mode ignores this -- KeywordChips picks its own style. */
   chipStyle?: React.CSSProperties;
+  /**
+   * Read-only rendering. `list` (the default) is a plain
+   * comma-separated run of text — what a resume should actually look
+   * like. `chips` restores the boxed pills.
+   *
+   * Pills are opt-IN because Creative uses accent-coloured chips as a
+   * deliberate part of its identity, but boxing every keyword on every
+   * other template reads as UI chrome rather than content and wastes
+   * vertical space in a one-page resume.
+   */
+  variant?: 'list' | 'chips';
 }
 
 export function FieldChips({
@@ -217,7 +228,8 @@ export function FieldChips({
   size,
   chipClassName,
   className,
-  chipStyle
+  chipStyle,
+  variant = 'list'
 }: FieldChipsProps) {
   if (mode.editable) {
     return (
@@ -237,22 +249,29 @@ export function FieldChips({
       </span>
     );
   }
-  return (
-    <span className={cn('inline-flex flex-wrap gap-1.5', className)}>
-      {values.map((v, i) => (
-        <span
-          key={`${v}-${i}`}
-          className={cn(
-            'inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10.5pt] text-zinc-700 print:border-zinc-300',
-            chipClassName
-          )}
-          style={chipStyle}
-        >
-          {v}
-        </span>
-      ))}
-    </span>
-  );
+  if (variant === 'chips') {
+    return (
+      <span className={cn('inline-flex flex-wrap gap-1.5', className)}>
+        {values.map((v, i) => (
+          <span
+            key={`${v}-${i}`}
+            className={cn(
+              'inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10.5pt] text-zinc-700 print:border-zinc-300',
+              chipClassName
+            )}
+            style={chipStyle}
+          >
+            {v}
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  // Comma-separated, so it wraps like prose and reads as the resume it
+  // is. Joined rather than mapped to spans so there is no per-item box
+  // for a screen reader to walk and nothing to strip in print.
+  return <span className={className}>{values.join(', ')}</span>;
 }
 
 /* -------------------------------------------------------------------------- */
