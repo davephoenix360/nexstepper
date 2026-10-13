@@ -65,7 +65,30 @@ export function DashboardShell({
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden h-full">
+      {/*
+        Sticky-sidebar layout (Oct 2026 fix #1 — round 2):
+
+        The body (the document) is the scroll context — the inner
+        wrapper does NOT have `overflow-hidden` or `overflow-y-auto`,
+        and `<main>` does NOT have its own scroll container. The
+        aside is `position: sticky; top: 0` so it stays visible
+        while the user scrolls the document.
+
+        Why this matters: `position: sticky` works relative to the
+        nearest scrolling ancestor. The previous layout had
+        `overflow-hidden` on the inner flex, which made the inner
+        flex the sticky context — but the inner flex doesn't
+        scroll (it's bounded by the body's content), so the
+        aside just sat in document flow and scrolled with the
+        page. Dropping `overflow-hidden` lets the body be the
+        scroll context, and sticky behaves as expected.
+
+        `self-start` prevents the aside from stretching in
+        cross-axis to match the main's content height. `h-screen`
+        caps the aside at the viewport so the nav scrolls
+        internally if it has more items than fit.
+      */}
+      <div className="flex flex-1">
         <aside
           // `no-print` here was already in place; the Phase 1g
           // (plan: docs/plans/print-default-opt-in.md) audit
@@ -74,7 +97,7 @@ export function DashboardShell({
           // banner (the line above that) now also has it as
           // defense-in-depth — the original PDF-leak bug was
           // the banner missing this class.
-          className={`no-print w-64 bg-background lg:bg-muted border-r border-border lg:block ${
+          className={`no-print sticky top-0 self-start w-64 h-screen bg-background lg:bg-muted border-r border-border lg:block ${
             isSidebarOpen ? 'block' : 'hidden'
           } lg:relative absolute inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -107,7 +130,7 @@ export function DashboardShell({
           </nav>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-0 lg:p-4">{children}</main>
+        <main className="flex-1 min-w-0 p-0 lg:p-4">{children}</main>
       </div>
     </div>
   );

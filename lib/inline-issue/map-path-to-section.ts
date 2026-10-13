@@ -108,6 +108,42 @@ export function sectionId(slug: string): string {
 }
 
 /**
+ * Map a form / RHF path (e.g. `sections.work.0.company`) straight
+ * to the rendered `id="section-{slug}"` attribute. Returns `null`
+ * for `sections.basics.*` (no formal section — basics renders
+ * inline above the section list, so there is no `id="section-basics"`
+ * in the DOM to scroll to) and for unknown prefixes.
+ *
+ * Cheaper than `mapPathToSection` when the caller doesn't need
+ * the criterion-aware `tipKind` — this is what the editor's
+ * ValidationSummary "Go to field" button uses, where the
+ * criterion context is irrelevant. The caller falls back to
+ * scrolling the editor container to the top when this returns
+ * null, so basics errors land the user on the basics form.
+ */
+export function pathToSectionId(path: string): string | null {
+  const cleanPath = path.replace(/^\/+/, '').trim();
+  if (!cleanPath) return null;
+
+  for (const entry of Object.values(SECTION_TABLE)) {
+    if (
+      cleanPath === entry.prefix ||
+      cleanPath.startsWith(entry.prefix + '.') ||
+      cleanPath.startsWith(entry.prefix + '[')
+    ) {
+      // The basics entry is in the table for AI-prompt phrasing
+      // only — there is no `id="section-basics"` element in any
+      // template, so a button that "scrolls to section-basics"
+      // would silently no-op. Returning null here tells the
+      // caller to fall back to scrolling the editor to the top.
+      if (entry.slug === 'basics') return null;
+      return sectionId(entry.slug);
+    }
+  }
+  return null;
+}
+
+/**
  * Pure function — tests assert it stays pure (no Date.now, no
  * randomness). Returns `null` when the path doesn't map to a
  * formal section (basics, unknown prefix).

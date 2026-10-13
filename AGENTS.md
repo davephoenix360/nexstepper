@@ -213,7 +213,24 @@ plan. Drift memo:
   placeholder swap per category (bug / idea / other) so the
   prompt always matches the kind of feedback being collected;
   copy maps live in `lib/feedback/schema.ts` next to the
-  category enum.
+  category enum. **Honest dev note on the sidebar piece of
+  the same branch:** the first cut of the dashboard-sidebar
+  fix used `position: sticky` on the aside but kept
+  `overflow-hidden` on the inner flex wrapper. The body
+  never scrolled, so the aside never stuck — the user
+  reported it scrolled with the page. Round 2 drops
+  `overflow-hidden` on the wrapper and `<main>`'s own
+  `overflow-y-auto` so the body IS the scroll context, and
+  pins a regression test that asserts the wrapper doesn't
+  carry an `overflow-*` class. **Honest dev note on the
+  tip-card piece:** the first cut rendered the tip anchored
+  to the section header (`left: rect.left; maxWidth:
+  rect.width`) which collapsed to ~30px on a narrow
+  Skills section. The second cut pins the tip in the
+  bottom-left of the viewport with a fixed 420px width.
+  Round 2 was: drop the section-anchored style block, set
+  `position: fixed; bottom: 24; left: 24; width: 420;
+  maxWidth: calc(100vw - 48px)`.
 
 - **Print settings now actually apply on screen, not just in print** —
   branch `fix/print-settings-actually-apply`. The earlier
