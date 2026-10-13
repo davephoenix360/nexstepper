@@ -181,6 +181,23 @@ export const exportShareSchema = z.object({
 });
 
 /**
+ * One feedback row the user authored. `email` is included because
+ * the user typed it themselves into a field labelled "reply-to
+ * email" — that information belongs to them, not to us as a
+ * derived signal, so it must be in their export.
+ */
+export const exportFeedbackSchema = z.object({
+  id: z.string(),
+  message: z.string(),
+  category: z.string(),
+  email: z.string().nullable(),
+  pageUrl: z.string().nullable(),
+  createdAt: z.string(),
+  /** GitHub issue URL the feedback was synced to, if any. */
+  githubIssueUrl: z.string().nullable()
+});
+
+/**
  * The full export bundle — what the server action returns.
  */
 export const exportBundleSchema = z.object({
@@ -197,6 +214,7 @@ export const exportBundleSchema = z.object({
   scoreSnapshots: z.array(exportScoreSnapshotSchema),
   chatSessions: z.array(exportChatSessionSchema),
   chatUsage: z.array(exportChatUsageSchema),
+  feedback: z.array(exportFeedbackSchema),
   shares: z.array(exportShareSchema)
 });
 

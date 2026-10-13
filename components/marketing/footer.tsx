@@ -28,7 +28,8 @@ export function MarketingFooter() {
             links={[
               { href: '/#features', label: 'Features' },
               { href: '/pricing', label: 'Pricing' },
-              { href: '/sign-up', label: 'Sign up' }
+              { href: '/sign-up', label: 'Sign up' },
+              { href: '/feedback', label: 'Feedback' }
             ]}
           />
 

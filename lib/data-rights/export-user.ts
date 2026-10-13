@@ -144,6 +144,15 @@ export async function exportUserData(): Promise<ExportUserResult> {
       tokensUsed: u.tokensUsed,
       turnsUsed: u.turnsUsed
     })),
+    feedback: raw.feedback.map((f) => ({
+      id: f.id,
+      message: f.message,
+      category: f.category,
+      email: f.email,
+      pageUrl: f.pageUrl,
+      createdAt: f.createdAt.toISOString(),
+      githubIssueUrl: f.githubIssueUrl
+    })),
     shares: raw.shares.map((s) => ({
       resumeId: s.resumeId,
       resumeName: s.resumeName,
