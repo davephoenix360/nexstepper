@@ -222,15 +222,35 @@ plan. Drift memo:
   `overflow-hidden` on the wrapper and `<main>`'s own
   `overflow-y-auto` so the body IS the scroll context, and
   pins a regression test that asserts the wrapper doesn't
-  carry an `overflow-*` class. **Honest dev note on the
-  tip-card piece:** the first cut rendered the tip anchored
-  to the section header (`left: rect.left; maxWidth:
-  rect.width`) which collapsed to ~30px on a narrow
-  Skills section. The second cut pins the tip in the
-  bottom-left of the viewport with a fixed 420px width.
-  Round 2 was: drop the section-anchored style block, set
-  `position: fixed; bottom: 24; left: 24; width: 420;
-  maxWidth: calc(100vw - 48px)`.
+  carry an `overflow-*` class. **Round 2 was still wrong.**
+  The aside had `sticky` (base) AND `lg:relative` (lg+).
+  Tailwind 4 emits the position utilities in source order
+  (static, fixed, absolute, relative, sticky), so the
+  `lg:relative` block is emitted AFTER the base `sticky`
+  in the generated CSS — and won the cascade on desktop.
+  The aside was actually `position: relative` and scrolled
+  with the page. The test pinned "sticky is in the
+  className" and passed, but the *computed* position was
+  relative. **Round 3 fix:** use `lg:sticky` (only on lg+)
+  and keep `absolute` (base, for mobile). Now the two
+  position utilities are in different media-query blocks
+  and never fight. The regression test now pins the
+  *absence* of `lg:relative` so a future contributor
+  re-adding it fails the test instead of re-introducing
+  the bug. **Generalised lesson:** when a className has
+  multiple position utilities, the test that pins
+  "the right one is in the className" is not enough —
+  the cascade winner matters. Either pin the
+  absent-classes-by-name (what we did) or render in a
+  real DOM and assert `getComputedStyle(el).position`.
+  **Honest dev note on the tip-card piece:** the first cut
+  rendered the tip anchored to the section header
+  (`left: rect.left; maxWidth: rect.width`) which collapsed
+  to ~30px on a narrow Skills section. The second cut
+  pins the tip in the bottom-left of the viewport with a
+  fixed 420px width. Round 2 was: drop the section-anchored
+  style block, set `position: fixed; bottom: 24; left: 24;
+  width: 420; maxWidth: calc(100vw - 48px)`.
 
 - **Print settings now actually apply on screen, not just in print** —
   branch `fix/print-settings-actually-apply`. The earlier
