@@ -204,11 +204,16 @@ plan. Drift memo:
   (`feedback-schema`, `feedback-github`, `feedback-action`,
   `feedback-form`, `feedback-page`, `feedback-pill`,
   `marketing-footer`, `user-menu-feedback`) — total
+<<<<<<< HEAD
   1478 → 1531. `pnpm add octokit` (5.0.5, ~50KB). Environment
   vars live in `.env.example` under a dedicated "User feedback
   → GitHub Issues sync" section with the same "leave it blank
   and everything still works" pattern as
-  `SHARE_TOKEN_ENCRYPTION_KEY`.
+  `SHARE_TOKEN_ENCRYPTION_KEY`. The form's message label +
+  placeholder swap per category (bug / idea / other) so the
+  prompt always matches the kind of feedback being collected;
+  copy maps live in `lib/feedback/schema.ts` next to the
+  category enum.
 
 - **Print settings now actually apply on screen, not just in print** —
   branch `fix/print-settings-actually-apply`. The earlier

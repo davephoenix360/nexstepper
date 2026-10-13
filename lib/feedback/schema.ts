@@ -28,6 +28,45 @@ export const FEEDBACK_CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   other: 'Something else'
 };
 
+/**
+ * Per-category prompts for the message field. The form swaps these
+ * in as the user toggles the radio, so the prompt always matches
+ * the kind of feedback being collected. ("What broke?" focuses the
+ * user on reproduction; "What did you have in mind?" invites
+ * aspiration; "What's on your mind?" is the open-ended fallback.)
+ *
+ * Variant of placeholder chosen by the component is the
+ * shorter-at-the-top one (dialog uses a tighter copy because the
+ * field is shorter and the user is already mid-flow).
+ */
+export const FEEDBACK_CATEGORY_PROMPTS: Record<FeedbackCategory, string> = {
+  bug: 'What broke?',
+  idea: 'What did you have in mind?',
+  other: 'What’s on your mind?'
+};
+
+export const FEEDBACK_CATEGORY_PLACEHOLDERS: Record<
+  FeedbackCategory,
+  { page: string; dialog: string }
+> = {
+  bug: {
+    page:
+      'What you were doing, what you expected, and what actually happened. Screenshots and steps to reproduce are gold.',
+    dialog:
+      'Tell us what you were doing and what happened. Even one sentence helps.'
+  },
+  idea: {
+    page:
+      'The feature, who it’s for, and why it would matter. A rough sketch or a competitor’s example is welcome — we’ll figure out the rest.',
+    dialog: 'A sentence or two is plenty. We’ll follow up if we have questions.'
+  },
+  other: {
+    page:
+      'A question, a kind word, a billing query, anything. We read every note personally.',
+    dialog: 'Anything you want to say. Even a single line is useful.'
+  }
+};
+
 /** Hard cap on message length. Keeps a single row from blowing up the DB. */
 export const FEEDBACK_MESSAGE_MAX = 5_000;
 /** Minimum message length — anything shorter is almost certainly noise / spam. */

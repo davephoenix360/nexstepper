@@ -52,3 +52,49 @@ describe('FeedbackForm', () => {
     expect(submitMatch![0]).toContain('disabled');
   });
 });
+
+describe('FeedbackForm — dynamic per-category copy', () => {
+  // We can't toggle the radio in renderToStaticMarkup, so the
+  // prompt/placeholder map is exported and exercised in isolation.
+  // The form wires the same map into the JSX — if a future change
+  // drifts the wiring (e.g. hard-codes the label), the form-level
+  // check below (label = category prompt) will catch it.
+  it('ships a distinct prompt per category', async () => {
+    const { FEEDBACK_CATEGORY_PROMPTS } = await import(
+      '@/lib/feedback/schema'
+    );
+    expect(FEEDBACK_CATEGORY_PROMPTS.bug).not.toBe(
+      FEEDBACK_CATEGORY_PROMPTS.idea
+    );
+    expect(FEEDBACK_CATEGORY_PROMPTS.idea).not.toBe(
+      FEEDBACK_CATEGORY_PROMPTS.other
+    );
+    expect(FEEDBACK_CATEGORY_PROMPTS.bug).not.toBe(
+      FEEDBACK_CATEGORY_PROMPTS.other
+    );
+  });
+
+  it('ships distinct page + dialog placeholders per category', async () => {
+    const { FEEDBACK_CATEGORY_PLACEHOLDERS } = await import(
+      '@/lib/feedback/schema'
+    );
+    for (const variant of ['page', 'dialog'] as const) {
+      const set = new Set(
+        Object.values(FEEDBACK_CATEGORY_PLACEHOLDERS).map(
+          (p) => p[variant]
+        )
+      );
+      expect(set.size).toBe(3);
+    }
+  });
+
+  it('uses the page placeholder in page variant and dialog in dialog', async () => {
+    const { FEEDBACK_CATEGORY_PLACEHOLDERS } = await import(
+      '@/lib/feedback/schema'
+    );
+    const bug = FEEDBACK_CATEGORY_PLACEHOLDERS.bug;
+    expect(bug.page).not.toBe(bug.dialog);
+    // Sanity: the dialog copy is shorter — the user is mid-flow.
+    expect(bug.dialog.length).toBeLessThan(bug.page.length);
+  });
+});

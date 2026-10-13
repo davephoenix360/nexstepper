@@ -26,6 +26,8 @@ import { cn } from '@/lib/utils';
 import {
   FEEDBACK_CATEGORIES,
   FEEDBACK_CATEGORY_LABELS,
+  FEEDBACK_CATEGORY_PLACEHOLDERS,
+  FEEDBACK_CATEGORY_PROMPTS,
   FEEDBACK_EMAIL_MAX,
   FEEDBACK_MESSAGE_MAX,
   FEEDBACK_MESSAGE_MIN,
@@ -160,7 +162,20 @@ export function FeedbackForm({
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
-          <Label htmlFor="feedback-message">What’s on your mind?</Label>
+          {/*
+            Label + placeholder swap with the radio so the prompt
+            always matches the kind of feedback being collected.
+            "What broke?" vs "What did you have in mind?" vs
+            "What's on your mind?" — small touch, but it primes the
+            user to write the right kind of answer before they type
+            a single character.
+          */}
+          <Label
+            htmlFor="feedback-message"
+            data-testid="feedback-message-label"
+          >
+            {FEEDBACK_CATEGORY_PROMPTS[category]}
+          </Label>
           <span className={charCountClass} aria-live="polite">
             {charCount.toLocaleString()} / {FEEDBACK_MESSAGE_MAX.toLocaleString()}
           </span>
@@ -174,9 +189,9 @@ export function FeedbackForm({
           onChange={(e) => setMessage(e.target.value)}
           rows={6}
           placeholder={
-            variant === 'dialog'
-              ? 'Tell us what\u2019s going on, what you were trying to do, and what you expected.'
-              : 'A bug, a missing feature, a question, a kind word \u2014 whatever\u2019s on your mind. The more specific you can be, the faster we can act on it.'
+            FEEDBACK_CATEGORY_PLACEHOLDERS[category][
+              variant === 'dialog' ? 'dialog' : 'page'
+            ]
           }
           aria-describedby="feedback-message-help"
           data-testid="feedback-message"
@@ -185,7 +200,7 @@ export function FeedbackForm({
           id="feedback-message-help"
           className="text-xs text-muted-foreground"
         >
-          {FEEDBACK_MESSAGE_MIN}\u2013{FEEDBACK_MESSAGE_MAX.toLocaleString()}{' '}
+          {FEEDBACK_MESSAGE_MIN}–{FEEDBACK_MESSAGE_MAX.toLocaleString()}{' '}
           characters. Submissions become a public GitHub issue, so please
           don’t include anything you wouldn’t want linked to your
           account.
