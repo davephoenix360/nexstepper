@@ -171,6 +171,87 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Feedback form + GitHub Issues sync (new feedback channel)** —
+  branch `feat/feedback-form-and-github-sync`. Three entry
+  points, one form, one Postgres table, one optional GitHub
+  Issues fan-out. (a) A full-page route at `/feedback`
+  (marketing layout, footer included). (b) A "Send feedback"
+  item in the dashboard user-menu dropdown. (c) A floating
+  "Feedback" pill in the bottom-right of every dashboard page
+  (`FeedbackPill`, `no-print` so it never bleeds into PDFs).
+  All three feed a shared `FeedbackForm` component (radio
+  category, message textarea with live char counter, optional
+  reply-to email) which calls a single server action,
+  `submitFeedbackAction`. The action validates with Zod
+  (`feedbackInputSchema` in `lib/feedback/schema.ts`), checks
+  the URL count (≤3, anti-spam), rate-limits per IP (5/min,
+  rolling minute window, Postgres-side timestamp so it
+  survives clock skew), inserts the row in the new `feedback`
+  table (migration `0010_melodic_warpath.sql`), then
+  **best-effort** fans out to GitHub Issues via
+  `lib/feedback/github.ts` + Octokit. The Postgres row is the
+  source of truth: missing `GITHUB_ISSUES_TOKEN`, GitHub down,
+  or a 4xx/5xx all return `githubSynced: false` to the form
+  while still saving the feedback. Every submission also lands
+  in the GDPR data export (`exportFeedbackSchema` in
+  `lib/data-rights/schema.ts`) and respects `on delete set
+  null` so a user can be fully erased without losing the
+  message. The form copy is explicit that submissions become
+  public GitHub issues — "please don't include anything you
+  wouldn't want linked to your account" is rendered next to
+  the textarea. PostHog event `feedback_submitted` fires with
+  `githubSynced` + optional `githubIssueNumber`. 53 new tests
+  (`feedback-schema`, `feedback-github`, `feedback-action`,
+  `feedback-form`, `feedback-page`, `feedback-pill`,
+  `marketing-footer`, `user-menu-feedback`) — total
+  1478 → 1531. `pnpm add octokit` (5.0.5, ~50KB). Environment
+  vars live in `.env.example` under a dedicated "User feedback
+  → GitHub Issues sync" section with the same "leave it blank
+  and everything still works" pattern as
+  `SHARE_TOKEN_ENCRYPTION_KEY`. The form's message label +
+  placeholder swap per category (bug / idea / other) so the
+  prompt always matches the kind of feedback being collected;
+  copy maps live in `lib/feedback/schema.ts` next to the
+  category enum. **Honest dev note on the sidebar piece of
+  the same branch:** the first cut of the dashboard-sidebar
+  fix used `position: sticky` on the aside but kept
+  `overflow-hidden` on the inner flex wrapper. The body
+  never scrolled, so the aside never stuck — the user
+  reported it scrolled with the page. Round 2 drops
+  `overflow-hidden` on the wrapper and `<main>`'s own
+  `overflow-y-auto` so the body IS the scroll context, and
+  pins a regression test that asserts the wrapper doesn't
+  carry an `overflow-*` class. **Round 2 was still wrong.**
+  The aside had `sticky` (base) AND `lg:relative` (lg+).
+  Tailwind 4 emits the position utilities in source order
+  (static, fixed, absolute, relative, sticky), so the
+  `lg:relative` block is emitted AFTER the base `sticky`
+  in the generated CSS — and won the cascade on desktop.
+  The aside was actually `position: relative` and scrolled
+  with the page. The test pinned "sticky is in the
+  className" and passed, but the *computed* position was
+  relative. **Round 3 fix:** use `lg:sticky` (only on lg+)
+  and keep `absolute` (base, for mobile). Now the two
+  position utilities are in different media-query blocks
+  and never fight. The regression test now pins the
+  *absence* of `lg:relative` so a future contributor
+  re-adding it fails the test instead of re-introducing
+  the bug. **Generalised lesson:** when a className has
+  multiple position utilities, the test that pins
+  "the right one is in the className" is not enough —
+  the cascade winner matters. Either pin the
+  absent-classes-by-name (what we did) or render in a
+  real DOM and assert `getComputedStyle(el).position`.
+  **Honest dev note on the tip-card piece:** the first cut
+  rendered the tip anchored to the section header
+  (`left: rect.left; maxWidth: rect.width`) which collapsed
+  to ~30px on a narrow Skills section. The second cut
+  pins the tip in the bottom-left of the viewport with a
+  fixed 420px width. Round 2 was: drop the section-anchored
+  style block, set `position: fixed; bottom: 24; left: 24;
+  width: 420; maxWidth: calc(100vw - 48px)`.
+
+
 - **Drag-to-reorder for every repeatable section** — branch
   `feat/drag-to-reorder`, three commits ahead of `main`. Every
   section that routes through `EditableSection` (Work, Projects,

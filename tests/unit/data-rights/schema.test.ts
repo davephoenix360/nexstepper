@@ -43,6 +43,17 @@ const baseBundle = {
   scoreSnapshots: [],
   chatSessions: [],
   chatUsage: [{ date: '2026-09-24', tokensUsed: 1234, turnsUsed: 5 }],
+  feedback: [
+    {
+      id: 'fb_001',
+      message: 'Great product!',
+      category: 'idea',
+      email: null,
+      pageUrl: 'https://www.nexstepper.com/pricing',
+      createdAt: '2026-09-22T08:30:00.000Z',
+      githubIssueUrl: 'https://github.com/davephoenix360/nexstepper/issues/1'
+    }
+  ],
   shares: [
     {
       resumeId: 'res_001',

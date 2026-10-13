@@ -24,6 +24,7 @@ export type {
 export {
   SECTION_TABLE,
   mapPathToSection,
+  pathToSectionId,
   sectionSlugFor,
   sectionId
 } from './map-path-to-section';

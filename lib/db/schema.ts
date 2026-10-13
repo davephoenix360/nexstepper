@@ -584,6 +584,74 @@ export const erasureLog = pgTable(
   (table) => [index('erasure_log_erased_at_idx').on(table.erasedAt)]
 );
 
+// ─── User feedback (Oct 2026) ──────────────────────────────────────────────────
+//
+// Source-of-truth row for every piece of feedback a user submits, whether
+// from the marketing-site footer, the dashboard user-menu, or the floating
+// "Feedback" pill. The GitHub issue is the operator-facing surface; THIS
+// table is the durable record.
+//
+// Why a local row at all when GitHub already stores the issue?
+//   - Spam / abuse review without GitHub API rate-limit pressure.
+//   - We can join feedback to user accounts (`user_id`) for the "what has
+//     this user told us before?" view.
+//   - The GitHub sync is best-effort and may fail (rate limit, missing
+//     token, outage). Losing the GitHub issue is recoverable from this
+//     row; losing this row is not.
+//   - GDPR Art. 17 — `user_id` is `on delete set null` so a user can be
+//     fully erased while the feedback row stays as anonymized history
+//     (the message + category remain; the link back to a now-deleted
+//     user is severed). The `user_id` column is the only piece of PII
+//     that needs to be nulled on erasure.
+//
+// `github_issue_url` and `github_issue_number` are populated only after
+// a successful sync. Both are nullable — feedback that never reached
+// GitHub (token missing, GitHub down) is still in this table.
+
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: text('id').primaryKey(),
+    /**
+     * The submitting user, if signed in. `on delete set null` so a GDPR
+     * erasure removes the link to the user without losing the message.
+     * Anonymous feedback (footer submission) leaves this null.
+     */
+    userId: text('user_id').references(() => user.id, {
+      onDelete: 'set null'
+    }),
+    /** The user-typed message. Required, capped (see lib/feedback/schema.ts). */
+    message: text('message').notNull(),
+    /** Coarse category. Constrained at the application layer (Zod). */
+    category: text('category').notNull(), // 'bug' | 'idea' | 'other'
+    /**
+     * Optional reply-to email. Stored only when the user provides it
+     * (the form marks it clearly as optional). Never required.
+     */
+    email: text('email'),
+    /** The page the user was on when they hit submit. For triage context. */
+    pageUrl: text('page_url'),
+    /** Best-effort browser fingerprint for cross-referencing logs. */
+    userAgent: text('user_agent'),
+    /** Originating IP, captured server-side. Used for rate limiting only. */
+    ipAddress: text('ip_address'),
+    /** Populated by the post-write GitHub sync. Null until sync runs. */
+    githubIssueUrl: text('github_issue_url'),
+    /** Populated by the post-write GitHub sync. Null until sync runs. */
+    githubIssueNumber: integer('github_issue_number'),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [
+    // "Latest feedback" lookups for the (eventual) admin view.
+    index('feedback_created_idx').on(table.createdAt.desc()),
+    // "All feedback from a user" — used during GDPR data-export.
+    index('feedback_user_idx').on(table.userId)
+  ]
+);
+
+export type Feedback = typeof feedback.$inferSelect;
+export type NewFeedback = typeof feedback.$inferInsert;
+
 // ─── Inferred types ────────────────────────────────────────────────────────────
 
 export type ChatSession = typeof chatSessions.$inferSelect;

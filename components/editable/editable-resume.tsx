@@ -61,7 +61,8 @@ import {
 import { saveResumeAction } from '@/app/(dashboard)/dashboard/resumes/actions';
 import {
   subscribeToInlineIssueApply,
-  InlineIssueTip
+  InlineIssueTip,
+  pathToSectionId
 } from '@/lib/inline-issue';
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { PrintSettings } from '@/lib/print-settings';
@@ -147,6 +148,39 @@ export function EditableResume({
     initialData.template;
   const template = getTemplate(currentTemplateId);
   const Template = template.Component;
+
+  // Ref on the scrollable container so the "Go to field" button
+  // on ValidationSummary can scroll the basics (no formal section
+  // header) up to the top. We attach it to the editor wrapper
+  // below and use it as a "scrollIntoView" anchor when the resolved
+  // section header isn't found in the DOM.
+  const editorScrollRef = React.useRef<HTMLDivElement | null>(null);
+
+  // "Go to field" handler — resolves a form path to a section
+  // header (or scrolls the editor to the top for `sections.basics.*`)
+  // and smooth-scrolls it into view. Honors `prefers-reduced-motion`
+  // automatically (the browser turns smooth scroll into instant
+  // for that user pref).
+  const handleGoToField = React.useCallback((path: string) => {
+    const targetId = pathToSectionId(path);
+    if (targetId) {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+    // `sections.basics.*` (or anything we don't have a header
+    // for) — scroll the editor to the top so the basics form
+    // is visible. Falls back to `window` scroll if the editor
+    // ref isn't attached.
+    const container = editorScrollRef.current;
+    if (container) {
+      container.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
 
   async function handleSave(values: ResumeData) {
     // Clear any prior validation banner — a successful save has no errors.
@@ -307,7 +341,10 @@ export function EditableResume({
         {/* Validation summary — appears only after a failed Save.
             Renders inline below the action row so it's the first
             thing the user sees without scrolling. Hidden in print. */}
-        <ValidationSummary errors={validationErrors} />
+        <ValidationSummary
+          errors={validationErrors}
+          onGoToField={handleGoToField}
+        />
 
         {/* The actual WYSIWYG render.
 
@@ -331,6 +368,7 @@ export function EditableResume({
             change on the next render. We coerce defensively in case
             the JSONB blob is missing or stale-migrated. */}
         <div
+          ref={editorScrollRef}
           className="printable"
           style={printSettingsToCssVars(
             coercePrintSettings(initialPrintSettings)
@@ -419,8 +457,23 @@ function SaveTooltipBody({
  * server-side validation. It updates on the next Save attempt;
  * we deliberately don't re-render on every keystroke (the user
  * clicks Save to re-validate, which is the natural feedback loop).
+ *
+ * Each error has a "Go to field" button (Oct 2026) that resolves
+ * the form path to the rendered section header via
+ * `pathToSectionId()` and smooth-scrolls to it. For `sections.basics.*`
+ * paths — which have no formal section header (basics renders inline
+ * above the section list) — we fall back to scrolling the editor's
+ * container to the top so the user sees the basics form fields.
+ *
+ * Exported for unit testing — see tests/unit/validation-summary.test.tsx.
  */
-function ValidationSummary({ errors }: { errors: FlatFormError[] }) {
+export function ValidationSummary({
+  errors,
+  onGoToField
+}: {
+  errors: FlatFormError[];
+  onGoToField: (path: string) => void;
+}) {
   if (errors.length === 0) return null;
 
   return (
@@ -442,15 +495,40 @@ function ValidationSummary({ errors }: { errors: FlatFormError[] }) {
               : `these ${errors.length} fields`}
             :
           </p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-destructive/90">
-            {errors.map((e) => (
-              <li key={e.path} data-testid={`validation-error-${e.path}`}>
-                <span className="font-medium">
-                  {humanizeFormPath(e.path)}
-                </span>
-                : {e.message}
-              </li>
-            ))}
+          <ul className="mt-1 space-y-1 pl-0 text-destructive/90">
+            {errors.map((e) => {
+              // Resolve up front so we can hide the button when
+              // the path doesn't map to anything scrollable
+              // (e.g. a future top-level envelope field).
+              const target = pathToSectionId(e.path);
+              return (
+                <li
+                  key={e.path}
+                  data-testid={`validation-error-${e.path}`}
+                  className="flex items-start justify-between gap-3"
+                >
+                  <span className="flex-1">
+                    <span className="font-medium">
+                      {humanizeFormPath(e.path)}
+                    </span>
+                    : {e.message}
+                  </span>
+                  {target !== null && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0 border-destructive/40 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => onGoToField(e.path)}
+                      data-testid={`validation-go-to-${e.path}`}
+                      aria-label={`Jump to ${humanizeFormPath(e.path)}`}
+                    >
+                      Go to field
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>

@@ -45,6 +45,7 @@
     "mammoth": "^1.12.2",
     "nanoid": "^6.0.1",
     "next": "^16.2.10",
+    "octokit": "^5.0.5",
     "postcss": "^8.5.3",
     "postgres": "^3.4.5",
     "posthog-js": "^1.396.6",

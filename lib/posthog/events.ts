@@ -54,7 +54,10 @@ export const PostHogEvents = {
   // ── Data rights + account ───────────────────────────────────────────────
   EXPORT_DATA: 'export_data',
   DELETE_ACCOUNT: 'delete_account',
-  ACCOUNT_SIGNED_IN: 'account_signed_in'
+  ACCOUNT_SIGNED_IN: 'account_signed_in',
+
+  // ── Feedback ────────────────────────────────────────────────────────────
+  FEEDBACK_SUBMITTED: 'feedback_submitted'
 } as const;
 
 export type PostHogEventName =
@@ -176,5 +179,13 @@ export type EventPropsByName = {
   [PostHogEvents.ACCOUNT_SIGNED_IN]: {
     /** No-op placeholder — useful as a "user just hit the app" signal. */
     freshSignIn: boolean;
+  };
+  [PostHogEvents.FEEDBACK_SUBMITTED]: {
+    feedbackId: string;
+    category: 'bug' | 'idea' | 'other';
+    /** Whether a GitHub issue was created. False when token missing / sync failed. */
+    githubSynced: boolean;
+    /** GitHub issue number, present iff githubSynced. */
+    githubIssueNumber?: number;
   };
 };

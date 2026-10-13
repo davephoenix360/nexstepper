@@ -172,30 +172,35 @@ export function InlineIssueTip({ dynamicTips }: InlineIssueTipProps) {
 
   if (!mounted || !active) return null;
 
-  // Position the tip just below the header. Falls back to the
-  // top-left of the viewport when the header is missing
-  // (collapsed / removed). `position: fixed` keeps it on screen
-  // during scroll, and the scroll/resize effect above keeps
-  // the position in sync.
-  const style: React.CSSProperties = active.rect
-    ? {
-        position: 'fixed',
-        top: active.rect.bottom + 8,
-        left: Math.max(8, active.rect.left),
-        maxWidth: Math.min(560, active.rect.width || 560),
-        opacity,
-        transition: `opacity ${TIP_FADE_MS}ms ease-out`,
-        zIndex: 50
-      }
-    : {
-        position: 'fixed',
-        top: 80,
-        left: 24,
-        maxWidth: 420,
-        opacity,
-        transition: `opacity ${TIP_FADE_MS}ms ease-out`,
-        zIndex: 50
-      };
+  /*
+    Position the tip in the bottom-left of the viewport, sized at
+    a fixed 420px wide. The previous "anchor to the section header"
+    approach (`left: rect.left; maxWidth: rect.width`) had two
+    real problems:
+      1. `maxWidth: rect.width` collapsed the card to the width of
+         the section header — a few characters wide for a narrow
+         skills section — wrapping each word's characters onto
+         their own line and rendering the tip unreadable. Screenshot
+         in the AGENTS.md "Recently shipped" entry.
+      2. Anchoring the tip on top of the section it was telling
+         the user to fix meant the user saw the tip while the
+         very content it was about was covered by the same tip.
+    Bottom-left + a generous, fixed width keeps the tip in a
+    single predictable spot, never covers the resume, never
+    covers the scorecard (which is on the right rail), and is
+    wide enough for the longest dynamic tip prose without
+    wrapping. `no-print` keeps it out of the PDF.
+  */
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    bottom: 24,
+    left: 24,
+    width: 420,
+    maxWidth: 'calc(100vw - 48px)',
+    opacity,
+    transition: `opacity ${TIP_FADE_MS}ms ease-out`,
+    zIndex: 50
+  };
 
   return createPortal(
     <div
