@@ -40,9 +40,19 @@ function withTheme(children: React.ReactNode) {
 }
 
 describe('DashboardShell — sidebar positioning', () => {
-  it('uses sticky + self-start + viewport-bounded height so it stays on screen', () => {
-    // Render with `plan="free"` so the optional ProLaunchingSoonBanner
-    // also mounts (the banner is part of the wrapper's height math).
+  it('uses sticky on desktop and absolute on mobile (different breakpoints)', () => {
+    // The aside needs to be `position: absolute` on mobile (for
+    // the slide-in transform overlay) and `position: sticky` on
+    // desktop (so it stays visible while the document scrolls).
+    // These are TWO different `position` values, scoped to
+    // different breakpoints — the className must reflect both.
+    //
+    // Round 2's bug: I had `sticky` (base) and `lg:relative` (lg+).
+    // Tailwind 4 emits `lg:relative` AFTER the base `sticky` in
+    // the generated CSS, so on desktop `lg:relative` won the
+    // cascade — the aside was actually `position: relative`,
+    // scrolled with the page. Pinned only by the className
+    // string, which was a lie. Round 3 uses `lg:sticky` instead.
     const html = renderToStaticMarkup(
       withTheme(
         <DashboardShell plan="free">
@@ -51,27 +61,42 @@ describe('DashboardShell — sidebar positioning', () => {
       )
     );
 
-    // Extract the <aside> opening tag.
     const asideMatch = html.match(/<aside\b[^>]*>/);
     expect(asideMatch).not.toBeNull();
     const asideTag = asideMatch![0];
 
-    // All three of these were added together in the Oct 2026 fix.
-    // Removing any one of them re-introduces the bug — either the
-    // sidebar scrolls with the page (no sticky) or it stretches
-    // to match the main column (no self-start) or it doesn't fit
-    // on small screens (no viewport-bounded height).
-    expect(asideTag).toMatch(/\bsticky\b/);
+    // `lg:sticky` (NOT plain `sticky`) — scoped to lg+ only so it
+    // doesn't fight with the mobile `absolute`.
+    expect(asideTag).toMatch(/\blg:sticky\b/);
+    // Mobile slide-in needs `position: absolute`.
+    expect(asideTag).toMatch(/\babsolute\b/);
+    // Both breakpoints need `top-0` (sticky pins to viewport top;
+    // absolute positions at body top, which on mobile IS the
+    // viewport top because the banner is above).
     expect(asideTag).toMatch(/\btop-0\b/);
+    // `self-start` prevents cross-axis stretch.
     expect(asideTag).toMatch(/\bself-start\b/);
 
-    // Height is bounded by the viewport. We accept either
-    // `h-screen` (Tailwind shorthand for `h: 100vh`) or
-    // `h-[calc(100vh-...)]` / `h-[calc(100dvh-...)]` — both keep
-    // the sidebar in-bounds. The semantic property we care about
-    // is "the height uses a viewport unit, not the main column's
-    // intrinsic content height".
-    expect(asideTag).toMatch(/(h-screen|h-\[calc\(100d?vh)/);
+    // Defensive: the old `lg:relative` is gone. If a future
+    // contributor re-adds it, Tailwind will emit it in the
+    // @media (min-width: lg) block AFTER `lg:sticky`, and the
+    // relative position will win on desktop. The aside will
+    // scroll with the page again. Pinning its absence so the
+    // regression is caught at the test layer, not in a
+    // screenshot review.
+    expect(asideTag).not.toMatch(/\blg:relative\b/);
+  });
+
+  it('uses a viewport-bounded height so the sidebar never overshoots the screen', () => {
+    const html = renderToStaticMarkup(
+      withTheme(
+        <DashboardShell plan="free">
+          <div>stub</div>
+        </DashboardShell>
+      )
+    );
+    const asideMatch = html.match(/<aside\b[^>]*>/);
+    expect(asideMatch![0]).toMatch(/(h-screen|h-\[calc\(100d?vh)/);
   });
 
   it('does not create a scroll context that would defeat the sticky behaviour', () => {
@@ -87,10 +112,6 @@ describe('DashboardShell — sidebar positioning', () => {
         </DashboardShell>
       )
     );
-    // The wrapper is the immediate parent of `<aside>` and `<main>`.
-    // It's a <div>, and the only <div> we render at the dashboard
-    // level is the wrapper. We assert it doesn't carry an
-    // `overflow-hidden` or `overflow-y-auto` class.
     const wrapperMatch = html.match(/<div\s+class="([^"]+)">[\s\S]*?<aside\b/);
     expect(wrapperMatch).not.toBeNull();
     const wrapperClasses = wrapperMatch![1];
