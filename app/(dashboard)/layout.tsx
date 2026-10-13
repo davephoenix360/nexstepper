@@ -1,5 +1,6 @@
 import { getSubscription } from '@/lib/db/queries';
 import { asPlanId } from '@/lib/billing';
+import { FeedbackPill } from '@/components/feedback/feedback-pill';
 import { DashboardShell } from './_components/dashboard-shell';
 
 /**
@@ -9,6 +10,11 @@ import { DashboardShell } from './_components/dashboard-shell';
  * discriminator to `<DashboardShell />`. The shell handles all
  * client-only concerns (pathname highlight, mobile sidebar state,
  * banner).
+ *
+ * Also mounts the floating `<FeedbackPill />` outside the shell
+ * tree so it stays pinned to the viewport regardless of which
+ * dashboard page is showing. The pill is `position: fixed` and
+ * self-contained — no shared state with the shell.
  *
  * Doing the plan check here (server) instead of inside the shell
  * (client) means we don't need a `useUserPlan()` round-trip or
@@ -25,5 +31,10 @@ export default async function DashboardLayout({
 }) {
   const sub = await getSubscription();
   const plan = asPlanId(sub.plan);
-  return <DashboardShell plan={plan}>{children}</DashboardShell>;
+  return (
+    <DashboardShell plan={plan}>
+      {children}
+      <FeedbackPill />
+    </DashboardShell>
+  );
 }

@@ -171,6 +171,45 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Feedback form + GitHub Issues sync (new feedback channel)** —
+  branch `feat/feedback-form-and-github-sync`. Three entry
+  points, one form, one Postgres table, one optional GitHub
+  Issues fan-out. (a) A full-page route at `/feedback`
+  (marketing layout, footer included). (b) A "Send feedback"
+  item in the dashboard user-menu dropdown. (c) A floating
+  "Feedback" pill in the bottom-right of every dashboard page
+  (`FeedbackPill`, `no-print` so it never bleeds into PDFs).
+  All three feed a shared `FeedbackForm` component (radio
+  category, message textarea with live char counter, optional
+  reply-to email) which calls a single server action,
+  `submitFeedbackAction`. The action validates with Zod
+  (`feedbackInputSchema` in `lib/feedback/schema.ts`), checks
+  the URL count (≤3, anti-spam), rate-limits per IP (5/min,
+  rolling minute window, Postgres-side timestamp so it
+  survives clock skew), inserts the row in the new `feedback`
+  table (migration `0010_melodic_warpath.sql`), then
+  **best-effort** fans out to GitHub Issues via
+  `lib/feedback/github.ts` + Octokit. The Postgres row is the
+  source of truth: missing `GITHUB_ISSUES_TOKEN`, GitHub down,
+  or a 4xx/5xx all return `githubSynced: false` to the form
+  while still saving the feedback. Every submission also lands
+  in the GDPR data export (`exportFeedbackSchema` in
+  `lib/data-rights/schema.ts`) and respects `on delete set
+  null` so a user can be fully erased without losing the
+  message. The form copy is explicit that submissions become
+  public GitHub issues — "please don't include anything you
+  wouldn't want linked to your account" is rendered next to
+  the textarea. PostHog event `feedback_submitted` fires with
+  `githubSynced` + optional `githubIssueNumber`. 53 new tests
+  (`feedback-schema`, `feedback-github`, `feedback-action`,
+  `feedback-form`, `feedback-page`, `feedback-pill`,
+  `marketing-footer`, `user-menu-feedback`) — total
+  1478 → 1531. `pnpm add octokit` (5.0.5, ~50KB). Environment
+  vars live in `.env.example` under a dedicated "User feedback
+  → GitHub Issues sync" section with the same "leave it blank
+  and everything still works" pattern as
+  `SHARE_TOKEN_ENCRYPTION_KEY`.
+
 - **Print settings now actually apply on screen, not just in print** —
   branch `fix/print-settings-actually-apply`. The earlier
   `printable` + CSS-vars wiring (commit `161b5fa`) was a UI

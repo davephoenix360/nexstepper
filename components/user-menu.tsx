@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut } from 'lucide-react';
+import { LayoutDashboard, LogOut, MessageSquare } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +19,7 @@ import { authClient } from '@/lib/auth-client';
  * Avatar + dropdown shown in the top-right of authed route surfaces.
  *
  * Renders sign-in / get-started buttons for unauthed visitors, and a
- * dropdown (Dashboard link + sign out) for authed ones.
+ * dropdown (Dashboard link + Send feedback + sign out) for authed ones.
  *
  * Surface-agnostic: used by both the marketing and dashboard layouts.
  */
@@ -68,6 +68,12 @@ export function UserMenu() {
           <Link href="/dashboard" className="flex w-full items-center">
             <LayoutDashboard className="mr-2 h-4 w-4" />
             <span>Dashboard</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/feedback" className="flex w-full items-center">
+            <MessageSquare className="mr-2 h-4 w-4" />
+            <span>Send feedback</span>
           </Link>
         </DropdownMenuItem>
         <button

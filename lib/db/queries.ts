@@ -6,6 +6,7 @@ import {
   chatMessages,
   chatSessions,
   chatUsage,
+  feedback,
   resumes,
   resumeRevisions,
   resumeVariants,
@@ -17,9 +18,11 @@ import {
   type ChatMessage,
   type ChatSession,
   type ChatUsage,
+  type Feedback,
   type NewChatMessage,
   type NewChatSession,
   type NewChatUsage,
+  type NewFeedback,
   type Resume,
   type ResumeRevision,
   type ResumeVariant,
@@ -715,6 +718,63 @@ export async function updatePrintSettings(
     .returning({ id: resumes.id });
 
   return result.length > 0 ? safe : null;
+}
+
+// ─── Feedback (Oct 2026) ───────────────────────────────────────────────────────
+//
+// One row per `submitFeedbackAction` call. The action layer
+// (`app/actions/feedback.ts`) handles Zod validation, rate limiting,
+// and the best-effort GitHub sync; this query is just the persistence
+// boundary so the action file doesn't have to import the schema.
+
+/**
+ * Insert a feedback row. `userId` is nullable so anonymous footer
+ * submissions land in the same table as authed dashboard ones.
+ *
+ * The caller is responsible for:
+ *   - Validating the message/category/email shape (use
+ *     `lib/feedback/schema.ts > feedbackInputSchema`).
+ *   - Rate-limiting by IP (use `lib/feedback/rate-limit.ts`).
+ *   - Optional post-write GitHub sync (use
+ *     `lib/feedback/github.ts > createFeedbackIssue`).
+ *
+ * Returns the persisted row so the action can return the new id to
+ * the client (used in the PostHog event and in any future "thanks,
+ * we got it" confirmation that links to the issue).
+ */
+export async function insertFeedback(
+  input: NewFeedback
+): Promise<Feedback> {
+  const [row] = await db.insert(feedback).values(input).returning();
+  if (!row) {
+    // Drizzle's `.returning()` on an INSERT returns the new row(s)
+    // unconditionally. The only way `row` is undefined is if the
+    // returning clause yielded zero rows — i.e. the insert silently
+    // no-op'd, which `db.insert(...).values(...)` does not do, but
+    // the type system doesn't know that. Surface as a real error so
+    // the action returns a clear failure to the client.
+    throw new Error('insertFeedback: insert returned no rows');
+  }
+  return row;
+}
+
+/**
+ * Backfill the GitHub sync result onto a feedback row. Called from
+ * the action after `createFeedbackIssue` returns; passing `null` for
+ * both fields is a no-op (the action simply skips the call when
+ * the issue creation returns `null`).
+ */
+export async function markFeedbackSyncedToGitHub(
+  feedbackId: string,
+  issue: { url: string; number: number }
+): Promise<void> {
+  await db
+    .update(feedback)
+    .set({
+      githubIssueUrl: issue.url,
+      githubIssueNumber: issue.number
+    })
+    .where(eq(feedback.id, feedbackId));
 }
 
 /**
@@ -1690,6 +1750,11 @@ export type UserExportBundle = {
   scoreSnapshots: ScoreSnapshot[];
   chatSessions: Array<ChatSession & { messages: ChatMessage[] }>;
   chatUsage: ChatUsage[];
+  /**
+   * Feedback rows authored by this user. Anonymous footer
+   * submissions carry `userId = null` and so are NOT in this list.
+   */
+  feedback: Feedback[];
   shares: Array<{
     resumeId: string;
     resumeName: string;
@@ -1764,6 +1829,15 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
     .from(applications)
     .where(eq(applications.userId, userId));
 
+  // 4b. Feedback rows authored by this user. `on delete set null`
+  // on the FK means an erased user no longer owns these rows, so
+  // they won't show up here post-erasure — exactly the desired
+  // Art. 20 behaviour.
+  const feedbackRows = await db
+    .select()
+    .from(feedback)
+    .where(eq(feedback.userId, userId));
+
   // 5. Score snapshots — across all the user's resumes
   const scoreRows =
     resumeRows.length === 0
@@ -1825,6 +1899,7 @@ export async function getUserExportBundle(userId: string): Promise<UserExportBun
     scoreSnapshots: scoreRows,
     chatSessions: sessionsWithMessages,
     chatUsage: usageRows,
+    feedback: feedbackRows,
     shares: shareEntries
   };
 }
