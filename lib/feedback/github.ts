@@ -129,9 +129,21 @@ export async function createFeedbackIssue(
   input: CreateGitHubIssueInput,
   client: OctokitLike | null = null
 ): Promise<CreateGitHubIssueResult | null> {
-  const owner = process.env.GITHUB_REPO_OWNER;
-  const repo = process.env.GITHUB_REPO_NAME;
-  if (!owner || !repo) return null;
+  // Single source of truth for "is the GitHub side configured?" —
+  // checks token, owner, repo. Without this early return, deleting
+  // just the token in a test still created a real `new Octokit({ auth:
+  // undefined })` and tried a live, unauthenticated API call, which
+  // either 401s (with network) or hangs (in CI/restricted networks
+  // where the timeout fired). The test
+  // "returns null when env is not fully configured" depends on this
+  // return — it does NOT pass a stub client, so any network attempt
+  // here is a real one.
+  if (!githubIssuesConfigured()) return null;
+
+  // The two non-null assertions below are safe — `githubIssuesConfigured()`
+  // checked all three vars above.
+  const owner = process.env.GITHUB_REPO_OWNER!;
+  const repo = process.env.GITHUB_REPO_NAME!;
 
   const gh = client ?? getClient();
 

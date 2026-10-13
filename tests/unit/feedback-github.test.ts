@@ -118,12 +118,49 @@ describe('buildIssueBody', () => {
 
 describe('createFeedbackIssue', () => {
   it('returns null when env is not fully configured', async () => {
+    // Oct 2026 CI fix: deleting the token used to leave
+    // `process.env.GITHUB_REPO_OWNER` and `GITHUB_REPO_NAME` set,
+    // so the old `if (!owner || !repo) return null` gate did
+    // NOT fire. The function then constructed a real
+    // `new Octokit({ auth: undefined })` and made a live
+    // unauthenticated API call — which either 401s fast (with
+    // network) or hangs and times out in CI/restricted networks.
+    // The fix gates on `githubIssuesConfigured()` so all three
+    // env vars are required; the function returns null BEFORE
+    // any Octokit instantiation. No stub client needed; no
+    // network call attempted.
     delete process.env.GITHUB_ISSUES_TOKEN;
     const result = await createFeedbackIssue({
       category: 'idea',
       message: 'hello',
       signedIn: true,
       submitterLabel: 'authed (me@example.com)'
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the OWNER is missing (not just the token)', async () => {
+    // Belt-and-braces — the original gate only checked owner/repo.
+    // The new gate checks all three. Pin each missing-var case
+    // so a future "let me optimize the check" change has to
+    // re-decide the contract.
+    delete process.env.GITHUB_REPO_OWNER;
+    const result = await createFeedbackIssue({
+      category: 'idea',
+      message: 'hello',
+      signedIn: false,
+      submitterLabel: 'anonymous'
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the REPO is missing (not just the token)', async () => {
+    delete process.env.GITHUB_REPO_NAME;
+    const result = await createFeedbackIssue({
+      category: 'idea',
+      message: 'hello',
+      signedIn: false,
+      submitterLabel: 'anonymous'
     });
     expect(result).toBeNull();
   });
