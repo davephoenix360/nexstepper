@@ -171,6 +171,48 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Safari / iOS print fallback (first Apple-using customer report)**
+  — branch `fix/safari-print-fallback`, no schema or infra changes.
+  The Apple-using customer reported "I clicked Print and nothing
+  happened." Root cause: iPhone Safari *did* open the system print
+  sheet, but as a small toolbar at the bottom of the screen that
+  the user didn't see (Safari's print UX is genuinely
+  harder-than-everywhere-else to discover). The pre-existing
+  toolbar `PrintButton` was already calling `window.print()`
+  *synchronously inside the click handler* (per Apple/Safari's
+  documented "must run inside the user click, never after any
+  awaited boundary" rule) so the call itself was fine — the
+  problem was just that there was no contextual hint pointing
+  Apple users at where the sheet actually appears. Fix:
+  `lib/print/{detect-safari,safe-print}.ts` + a new
+  `PrintHelpDialog` component. `getPrintHint(probe)` returns a
+  branch-specific hint (iPhone / iPad / Mac Safari) and is wired
+  into the toolbar `PrintButton` via a small "Not opening?" link
+  (only rendered on Apple branches, so non-Apple platforms stay
+  chrome-clean). The dialog always carries the cross-platform
+  `Cmd/Ctrl+P` keyboard fallback so users with browsers that
+  block `window.print()` have a way out. Both call sites (the
+  toolbar Print button and the inline `Print / Save as PDF`
+  button inside `EditableResume`) now route through the same
+  `triggerPrint()` helper so future print fixes live in one
+  place; the helper returns a discriminated
+  `opened | error × safari-ios | safari-mac | other` union for
+  future analytics attribution. Detection honours iPadOS 13+'s
+  `Macintosh`-disguised UA by layering in
+  `navigator.maxTouchPoints > 0` (real Macs report 0 unless a
+  touchscreen is attached). All detection helpers accept an
+  injected `BrowserProbe` so tests don't read `navigator` and
+  don't leak the CI runner's UA into results. UA sniffing is
+  intentionally informational only — we never gate behavior on
+  it (we ship the same `triggerPrint` to every browser); wrong
+  copy on the wrong branch is a sentence of extra text, gating
+  on UA would silently break something on the next iOS version.
+  54 new tests across `detect-safari.test.ts` (26),
+  `safe-print.test.ts` (14), `print-help-dialog.test.tsx`
+  (10), and the existing `print-button.test.tsx` (4). Test
+  total: 1613 passing. Drift memo:
+  `docs/drift/2026-10-13-safari-print-fallback.md`.
+
 - **Feedback form + GitHub Issues sync (new feedback channel)** —
   branch `feat/feedback-form-and-github-sync`. Three entry
   points, one form, one Postgres table, one optional GitHub

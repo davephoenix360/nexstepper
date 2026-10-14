@@ -58,6 +58,7 @@ import {
   coercePrintSettings,
   printSettingsToCssVars
 } from '@/lib/print-settings';
+import { triggerPrint } from '@/lib/print/safe-print';
 import { saveResumeAction } from '@/app/(dashboard)/dashboard/resumes/actions';
 import {
   subscribeToInlineIssueApply,
@@ -314,7 +315,18 @@ export function EditableResume({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => window.print()}
+              // Routed through lib/print/safe-print.ts so the inline
+              // toolbar's print trigger and the toolbar's Print button
+              // share one safe-print code path. The toolbar Print
+              // button additionally renders a "Not opening?" help link
+              // (see app/(dashboard)/dashboard/resumes/[id]/print-button.tsx)
+              // for users on iPhone / iPad / Safari; the inline button
+              // inherits the same synchronous window.print() semantics
+              // by going through the same `triggerPrint()` helper.
+              onClick={() => {
+                triggerPrint();
+              }}
+              data-testid="editable-print-button"
             >
               <Printer className="mr-2 size-4" />
               Print / Save as PDF
