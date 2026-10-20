@@ -212,6 +212,65 @@ Experience section first. The lesson is the same one that bit the
 project before: **a count assertion needs a scope, or it is
 counting someone else's data.**
 
+## Round 3 — five fields rendered as text and were not editable (user-reported, same day)
+
+The user came back with "I noticed I couldn't edit some things."
+Rather than spot-check, I enumerated **every field in the resume
+schema** (all 12 section files) and diffed the leaf paths against
+what `jake.tsx` bound, using `modern.tsx` as the parity reference.
+
+**Five fields were printed as literal strings, so clicking them did
+nothing:**
+
+| Field | Rendered as | Parity |
+|---|---|---|
+| `basics.phone` / `email` / `url` | `<span>{phone}</span>` | Classic/Creative/Executive/Minimal all bind via `header-lines.tsx` |
+| `basics.location.address` / `city` / `region` / `postalCode` | one joined string | others bind via `LocationLineEditable` |
+| `basics.profiles[].username` | `linkedin.com/in/${username}` | Classic has a full `OnlineProfilesInline` |
+| `work[].location` | `{w.location}` | Modern exposes it |
+| `education[].degree.minors` | read-only only ("Minor: Mathematics") | — no editor control at all |
+
+**A sixth, subtler instance of the same bug.** The header blocks were
+gated on `isSet(...)`, so on a blank resume the label, address line,
+and contact row rendered **nothing at all**. There was no placeholder,
+so there was nothing to click — the field could never be filled from
+the editor. Fixed by gating on `mode.editable || isSet(...)`: read-only
+still collapses empty slots (a blank gap in a PDF looks broken), but
+the editor always renders a placeholder.
+
+**Fix.** Every value in the header is now a `<Field>`, keeping Jake's
+icons: static icon + static URL prefix + editable username. New
+`AddProfileButton` (`no-print`) is the escape hatch when no LinkedIn /
+GitHub profile exists yet — there is no path to bind to in that case,
+so the slot renders as a hint rather than a fake editable field.
+`stripScheme` on the website is a **read-only display transform only**:
+the editor must show the raw stored value or the scheme is lost on
+save. (An earlier version of this fix stripped the scheme in both
+modes; the existing "strips the scheme prefix" test caught it.)
+
+**Rule now written into the file's JSDoc:** a value that appears in
+the template must be reachable by clicking it in the editor. Read-only
+rendering is just the same `Field` with `editable: false`.
+
+**Regression tests** — 7 new, rendering `editable` inside a real
+`<FormProvider>` and asserting on the primitives' own testids:
+`editable-<path>` (Field), `keyword-chips-<path>` (FieldChips),
+`daterange-dash-<startPath>` (DateRange). Asserting on those rather
+than on rendered text is what makes this an *editability* test — a
+value can appear in the output and still be unclickable, which is
+exactly the bug. Verified all 7 fail without the component fix.
+
+**Editor verification.** `/dev/design-lab/reorder` was hardcoded to
+`ModernTemplate`, and the main design lab renders `editable={false}`,
+so there was **no way to eyeball Jake's editor** without signing in.
+Added `?template=<id>` to the reorder lab (server component reads
+`searchParams`, matching the pattern already used by the main design
+lab; unknown ids fall back to `modern`). Then confirmed in a real
+browser: all six previously-dead paths resolve to real inputs,
+clicking `basics.location.city` focuses an `<input>`, and filling it
+propagates to the address line. Screenshot at
+`output/playwright/jake-editor.png`.
+
 ## Lessons / things to remember
 
 1. **Vitest ≠ Next.js runtime.** Any `next/font/*`, `next/image`,
@@ -260,3 +319,24 @@ counting someone else's data.**
    `FieldChips` primitive but not on `BulletList`), and
    even if it did, a 4-col grid is awkward to edit in. The
    editor stays single-col; the read-only path is the grid.
+
+6. **"Renders the value" and "the value is editable" are
+   different claims, and only a binding distinguishes them.**
+   All three rounds so far were the same mistake wearing
+   different hats: a duplicated date, an uneditable phone
+   number, a location repeated per position. Each one
+   produced correct-looking output. Rendering a value as a
+   plain string is indistinguishable from binding it — until
+   someone tries to click it. When auditing a template,
+   enumerate the schema fields and diff the *paths that are
+   bound*, not the strings that appear. And prefer asserting
+   on a binding primitive's own testid over asserting on
+   rendered text.
+
+7. **Read-only transforms must never be applied on the way
+   in.** Stripping `http://` from the website for the Jake
+   print look is correct for the PDF and wrong for the
+   editor — an editor that showed the stripped string would
+   save the stripped value. The existing test caught this
+   the moment the field became a real `Field`. Keep
+   display transforms strictly on the read-only branch.

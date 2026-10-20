@@ -71,8 +71,10 @@ import {
   MapPin,
   Linkedin,
   Github,
-  Globe
+  Globe,
+  Plus
 } from 'lucide-react';
+import { useFieldArray, useFormContext } from 'react-hook-form';
 
 import { useSectionPrint } from '@/components/editable/use-section-print';
 import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
@@ -171,29 +173,60 @@ export function JakeReadOnly({ data }: { data: ResumeData }) {
 /*  Header                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Header — name, label, address line, contact row.
+ *
+ * EVERY value here is a `<Field>`, including phone / email / website
+ * and the address parts. That is not a stylistic choice: the first
+ * implementation rendered the contact row as literal `<span>` text
+ * (`<ContactItem value={phone} />`) because read-only only needs to
+ * print strings. The user then reported they could not edit their
+ * phone number, email, website, or LinkedIn/GitHub handle from the
+ * WYSIWYG editor — Classic, Creative, Executive, and Minimal all
+ * bind these through `header-lines.tsx`, so Jake was the odd one out.
+ *
+ * The rule going forward: a value that appears in the template must
+ * be reachable by clicking it in the editor. Read-only rendering is
+ * just the same `<Field>` with `editable: false`.
+ *
+ * Empty-value gating differs per mode on purpose — in read-only an
+ * empty slot must collapse (a blank gap in a PDF looks broken), but in
+ * the editor every slot must render its placeholder or the user has
+ * no way to click into a field they haven't filled in yet. That
+ * asymmetry is why these blocks check `mode.editable || isSet(...)`
+ * rather than `isSet(...)` alone.
+ */
 function JakeHeader({ mode }: { mode: FieldMode }) {
   const b = mode.data.sections.basics;
+  const profiles = b.profiles ?? [];
 
-  // Same contact / address resolution as the read-only path —
-  // derived in a single place so the header is consistent in
-  // both editor and read-only modes.
-  const phone = isSet(b.phone) ? b.phone : '';
-  const email = isSet(b.email) ? b.email : '';
-  const website = isSet(b.url) ? b.url : '';
-  const linkedin = b.profiles.find(
-    (p) => isSet(p.network) && p.network.toLowerCase().includes('linkedin')
+  // Icon + URL prefix are derived from the profile's `network`
+  // ("LinkedIn" / "GitHub" / anything else). The `username` itself is
+  // always a Field so it stays editable; only the decoration is static.
+  const linkedinIdx = profiles.findIndex((p) =>
+    /linkedin/i.test(p.network ?? '')
   );
-  const github = b.profiles.find(
-    (p) => isSet(p.network) && p.network.toLowerCase().includes('github')
+  const githubIdx = profiles.findIndex((p) =>
+    /github/i.test(p.network ?? '')
   );
-  const addressLine = [
-    isSet(b.location.address) ? b.location.address : '',
-    isSet(b.location.city) ? b.location.city : '',
-    isSet(b.location.region) ? b.location.region : '',
-    isSet(b.location.postalCode) ? b.location.postalCode : ''
-  ]
-    .filter(Boolean)
-    .join(', ');
+
+  // Read-only collapses empty parts; the editor shows every part so
+  // each is clickable.
+  const addressParts = [
+    { key: 'address', value: b.location.address },
+    { key: 'city', value: b.location.city },
+    { key: 'region', value: b.location.region },
+    { key: 'postalCode', value: b.location.postalCode }
+  ].filter((p) => mode.editable || isSet(p.value));
+
+  const hasAddress = addressParts.length > 0;
+  const hasContact =
+    mode.editable ||
+    isSet(b.phone) ||
+    isSet(b.email) ||
+    isSet(b.url) ||
+    linkedinIdx >= 0 ||
+    githubIdx >= 0;
 
   return (
     <header className="mb-5 text-center">
@@ -213,53 +246,72 @@ function JakeHeader({ mode }: { mode: FieldMode }) {
           placeholder="Your name"
         />
       </h1>
-      {isSet(b.label) && (
+      {(mode.editable || isSet(b.label)) && (
         <p className="mt-1 text-[12pt] italic text-zinc-600">
           <Field
             mode={mode}
             path="sections.basics.label"
             as="span"
             className="inline"
-            placeholder=""
+            placeholder="Your professional title"
           />
         </p>
       )}
-      {isSet(addressLine) && (
-        <p className="mt-2 flex items-center justify-center gap-1.5 text-[10.5pt] text-zinc-600">
+      {hasAddress && (
+        <p
+          className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 text-[10.5pt] text-zinc-600"
+          data-testid="jake-address-line"
+        >
           <MapPin className="size-3 shrink-0" aria-hidden={true} />
-          <span>{addressLine}</span>
+          {addressParts.map((part, i) => (
+            <React.Fragment key={part.key}>
+              {i > 0 && <span aria-hidden={true}>,</span>}
+              <Field
+                mode={mode}
+                path={`sections.basics.location.${part.key}`}
+                as="span"
+                className="inline"
+                placeholder={
+                  part.key === 'city'
+                    ? 'City'
+                    : part.key === 'region'
+                      ? 'State'
+                      : part.key === 'postalCode'
+                        ? 'ZIP'
+                        : 'Street address'
+                }
+              />
+            </React.Fragment>
+          ))}
         </p>
       )}
-      {(isSet(phone) ||
-        isSet(email) ||
-        isSet(website) ||
-        (linkedin && isSet(linkedin.username)) ||
-        (github && isSet(github.username))) && (
+      {hasContact && (
         <div
           className={cn(
             'mt-2 flex flex-wrap items-center justify-center',
             'gap-x-3 gap-y-1 text-[10.5pt] text-zinc-700'
           )}
+          data-testid="jake-contact-line"
         >
-          {isSet(phone) && <ContactItem icon={Phone} value={phone} />}
-          {isSet(email) && <ContactItem icon={Mail} value={email} />}
-          {isSet(website) && (
-            <ContactItem
-              icon={Globe}
-              value={website.replace(/^https?:\/\//, '')}
-            />
-          )}
-          {linkedin && isSet(linkedin.username) && (
-            <ContactItem
-              icon={Linkedin}
-              value={`linkedin.com/in/${linkedin.username}`}
-            />
-          )}
-          {github && isSet(github.username) && (
-            <ContactItem
-              icon={Github}
-              value={`github.com/${github.username}`}
-            />
+          <ContactItem icon={Phone} mode={mode} path="sections.basics.phone" placeholder="(555) 123-4567" />
+          <ContactItem icon={Mail} mode={mode} path="sections.basics.email" placeholder="you@example.com" />
+          <ContactItem icon={Globe} mode={mode} path="sections.basics.url" placeholder="your-site.com" stripScheme />
+          <ProfileItem
+            mode={mode}
+            icon={Linkedin}
+            prefix="linkedin.com/in/"
+            index={linkedinIdx}
+            placeholder="your-handle"
+          />
+          <ProfileItem
+            mode={mode}
+            icon={Github}
+            prefix="github.com/"
+            index={githubIdx}
+            placeholder="your-handle"
+          />
+          {mode.editable && (
+            <AddProfileButton profiles={profiles.length} />
           )}
         </div>
       )}
@@ -267,18 +319,130 @@ function JakeHeader({ mode }: { mode: FieldMode }) {
   );
 }
 
+type IconComponent = React.ComponentType<{
+  className?: string;
+  'aria-hidden'?: boolean;
+}>;
+
+/**
+ * One icon + one editable value. Same markup in both modes, so the
+ * printed PDF matches what the editor showed.
+ *
+ * `stripScheme` is a READ-ONLY display transform only. The editor has
+ * to render the raw stored value, otherwise the user edits a
+ * display-only string and the scheme is silently lost on save. Jake's
+ * print look wants "site.com" on the page, not "http://site.com" —
+ * so the transform is applied on the way out, never on the way in.
+ */
 function ContactItem({
   icon: Icon,
-  value
+  mode,
+  path,
+  placeholder,
+  stripScheme
 }: {
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-  value: string;
+  icon: IconComponent;
+  mode: FieldMode;
+  path: string;
+  placeholder: string;
+  stripScheme?: boolean;
 }) {
+  const value = read(mode.data, path);
+  const text = typeof value === 'string' ? value : '';
+  if (!mode.editable && !isSet(text)) return null;
+  const display =
+    !mode.editable && stripScheme ? text.replace(/^https?:\/\//, '') : null;
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon className="size-3 shrink-0 text-zinc-500" aria-hidden={true} />
-      <span>{value}</span>
+      {display === null ? (
+        <Field
+          mode={mode}
+          path={path}
+          as="span"
+          className="inline"
+          placeholder={placeholder}
+        />
+      ) : (
+        <span>{display}</span>
+      )}
     </span>
+  );
+}
+
+/**
+ * A LinkedIn / GitHub slot: static icon + static URL prefix + an
+ * editable username.
+ *
+ * When the resume has no such profile yet, there is no path to bind
+ * to, so the slot renders as a non-editable hint and `AddProfileButton`
+ * (editor only) is how the user creates one. Once it exists, the
+ * username becomes a real Field.
+ */
+function ProfileItem({
+  mode,
+  icon: Icon,
+  prefix,
+  index,
+  placeholder
+}: {
+  mode: FieldMode;
+  icon: IconComponent;
+  prefix: string;
+  index: number;
+  placeholder: string;
+}) {
+  if (index < 0) {
+    if (!mode.editable) return null;
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 text-zinc-400"
+        data-testid={`jake-profile-missing-${prefix}`}
+      >
+        <Icon className="size-3 shrink-0" aria-hidden={true} />
+        <span className="italic">{prefix}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Icon className="size-3 shrink-0 text-zinc-500" aria-hidden={true} />
+      <span aria-hidden={true}>{prefix}</span>
+      <Field
+        mode={mode}
+        path={`sections.basics.profiles.${index}.username`}
+        as="span"
+        className="inline"
+        placeholder={placeholder}
+      />
+    </span>
+  );
+}
+
+/**
+ * "+ Add profile" — appends a blank profile row to
+ * `sections.basics.profiles` so the user can then set network +
+ * username. Mirrors classic.tsx's `OnlineProfilesInline` affordance,
+ * minus the field-focusing requestAnimationFrame hack (Jake's slots
+ * are picked up by the `network` value on the next render, so the
+ * user fills it in by hand).
+ *
+ * Editor-only (`no-print`) — a print has no button to lose.
+ */
+function AddProfileButton({ profiles }: { profiles: number }) {
+  const { control } = useFormContext();
+  const { append } = useFieldArray({ control, name: 'sections.basics.profiles' });
+  return (
+    <button
+      type="button"
+      onClick={() => append({ network: '', username: '', url: '' })}
+      className="no-print inline-flex items-center gap-1 rounded border border-dashed border-zinc-300 px-1.5 py-0.5 text-[10pt] text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
+      data-testid={`add-profile-${profiles}`}
+      aria-label="Add a profile (LinkedIn, GitHub, ...)"
+    >
+      <Plus className="size-3" />
+      Profile
+    </button>
   );
 }
 
@@ -492,6 +656,17 @@ function JakeEducationRow({ mode, index }: { mode: FieldMode; index: number }) {
                 mode={mode}
                 path={`sections.education.${index}.degree.majors`}
                 placeholder="major"
+                className="ml-1"
+              />
+              {/* `minors` is rendered in the read-only path
+                  ("Minor: Mathematics") but had no editor control —
+                  so a minor could be seen on the page and never
+                  changed there. Same class of bug as the header
+                  contact row. */}
+              <FieldChips
+                mode={mode}
+                path={`sections.education.${index}.degree.minors`}
+                placeholder="minor"
                 className="ml-1"
               />
             </>
@@ -724,6 +899,34 @@ function JakeWorkPositions({
   );
 }
 
+/**
+ * The company-level `location`, bound as a real field.
+ *
+ * Collapses to nothing in read-only when empty (a bare italic gap in
+ * a PDF looks broken), but always renders its placeholder in the
+ * editor so the user can click into it.
+ */
+function JakeWorkLocation({
+  mode,
+  workIndex
+}: {
+  mode: FieldMode;
+  workIndex: number;
+  inline?: boolean;
+}) {
+  const w = mode.data.sections.work[workIndex] ?? EMPTY_WORK;
+  if (!mode.editable && !isSet(w.location)) return null;
+  return (
+    <Field
+      mode={mode}
+      path={`sections.work.${workIndex}.location`}
+      as="span"
+      className="inline text-[11pt] italic text-zinc-600"
+      placeholder="City, State"
+    />
+  );
+}
+
 function JakePositionRow({
   mode,
   workIndex,
@@ -764,23 +967,22 @@ function JakePositionRow({
              right-hand slot. This is the original Jake row: position
              title on the left, "City, State" on the right, both
              italic. Only ever reached for position 0 of a
-             single-position entry, so it cannot duplicate. */
-          isSet(w.location) && (
-            <span className="text-[11pt] italic text-zinc-600">
-              {w.location}
-            </span>
-          )
+             single-position entry, so it cannot duplicate.
+
+             `location` is bound as a Field, not literal text — it was
+             plain `{w.location}` here and therefore uneditable, even
+             though modern.tsx exposes `sections.work.N.location` as a
+             real field. Same bug class as the header contact row. */
+          <JakeWorkLocation mode={mode} workIndex={workIndex} inline />
         )}
       </div>
       {/* `location` is a COMPANY-level field, so it renders once per
           work entry — on the first position only. Repeating it under
           every position of a multi-position entry was the same class
           of bug as the duplicated date range. */}
-      {showDates && positionIndex === 0 && isSet(w.location) && (
+      {showDates && positionIndex === 0 && (
         <div className="flex flex-wrap items-baseline justify-end gap-x-3">
-          <span className="text-[11pt] italic text-zinc-600">
-            {w.location}
-          </span>
+          <JakeWorkLocation mode={mode} workIndex={workIndex} inline />
         </div>
       )}
       <FieldBullets

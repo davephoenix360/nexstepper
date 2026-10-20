@@ -24,11 +24,22 @@
 import * as React from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 
-import { ModernTemplate } from '@/components/resume-templates/modern';
+import { getTemplate } from '@/components/resume-templates';
 import { gallerySampleResumeData } from '@/lib/resume-schema/sample';
 import type { ResumeData } from '@/lib/resume-schema';
 
-export function ReorderLabClient() {
+export function ReorderLabClient({
+  templateId = 'modern'
+}: {
+  templateId?: string;
+}) {
+  // Resolved from the registry rather than hardcoded, so any template
+  // can be mounted with `editable` via `?template=<id>`. This route
+  // started out Modern-only; Jake's editor surface (click-to-edit
+  // header contact, drag handles on its own chrome) is not verifiable
+  // on the read-only /dev/design-lab page at all.
+  const Template = getTemplate(templateId).Component;
+
   const form = useForm({
     // Resolved on the client, but the gallery sample is fully
     // deterministic (no Date.now() / Math.random()), so SSR +
@@ -62,7 +73,7 @@ export function ReorderLabClient() {
       {/* The actual template render — editable, drag handles visible. */}
       <div className="rounded bg-white shadow-lg ring-1 ring-zinc-200/60">
         <FormProvider {...form}>
-          <ModernTemplate
+          <Template
             data={form.watch() as unknown as ResumeData}
             editable
           />
