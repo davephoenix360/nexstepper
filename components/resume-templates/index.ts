@@ -27,12 +27,14 @@
 import { ClassicTemplate } from "./classic";
 import { CreativeTemplate } from "./creative";
 import { ExecutiveTemplate } from "./executive";
+import { JakeTemplate } from "./jake";
 import { MinimalTemplate } from "./minimal";
 import { ModernTemplate } from "./modern";
 import {
   CLASSIC_TEMPLATE_META,
   CREATIVE_TEMPLATE_META,
   EXECUTIVE_TEMPLATE_META,
+  JAKE_TEMPLATE_META,
   MINIMAL_TEMPLATE_META,
   MODERN_TEMPLATE_META
 } from "./meta";
@@ -58,6 +60,10 @@ export const templateRegistry: Record<string, ResumeTemplate> = {
   [CREATIVE_TEMPLATE_META.id]: {
     meta: CREATIVE_TEMPLATE_META,
     Component: CreativeTemplate
+  },
+  [JAKE_TEMPLATE_META.id]: {
+    meta: JAKE_TEMPLATE_META,
+    Component: JakeTemplate
   }
 };
 

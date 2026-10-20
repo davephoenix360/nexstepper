@@ -8,6 +8,7 @@ import { ExecutiveTemplate } from '@/components/resume-templates/executive';
 import { CreativeTemplate } from '@/components/resume-templates/creative';
 import { ClassicTemplate } from '@/components/resume-templates/classic';
 import { ClassicReadOnly } from '@/components/resume-templates/classic-readonly';
+import { JakeTemplate, JakeReadOnly } from '@/components/resume-templates/jake';
 import type { ResumeData } from '@/lib/resume-schema';
 import { sampleResumeData } from '@/lib/resume-schema';
 
@@ -212,7 +213,8 @@ describe('All 5 templates — Summary section is hideable', () => {
     { name: 'minimal', Render: MinimalTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
     { name: 'modern', Render: ModernTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
     { name: 'creative', Render: CreativeTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
-    { name: 'classic', Render: ClassicTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> }
+    { name: 'classic', Render: ClassicTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
+    { name: 'jake', Render: JakeTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> }
     // executive intentionally excluded — it has no Summary
     // section header (summary is part of the inline header).
   ];
@@ -228,7 +230,7 @@ describe('All 5 templates — Summary section is hideable', () => {
   }
 });
 
-describe('All 5 templates — back-compat with no `print` envelope', () => {
+describe('All 6 templates — back-compat with no `print` envelope', () => {
   // Every existing resume in the DB predates the `print` field.
   // Each template must render without errors and without
   // applying `print:hidden` to anything.
@@ -237,7 +239,8 @@ describe('All 5 templates — back-compat with no `print` envelope', () => {
     { name: 'modern', Render: ModernTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
     { name: 'executive', Render: ExecutiveTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
     { name: 'creative', Render: CreativeTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
-    { name: 'classic', Render: ClassicTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> }
+    { name: 'classic', Render: ClassicTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> },
+    { name: 'jake', Render: JakeTemplate as React.ComponentType<{ data: ResumeData; editable?: boolean }> }
   ];
 
   for (const { name, Render } of fixtures) {
@@ -254,4 +257,33 @@ describe('All 5 templates — back-compat with no `print` envelope', () => {
       expect(html).not.toContain('print:hidden opacity-60');
     });
   }
+});
+
+describe('JakeTemplate — print-hide', () => {
+  it('applies print:hidden opacity-60 to a hidden section', () => {
+    const data = withHidden(sampleResumeData, HIDDEN_SLUG);
+    const html = renderToStaticMarkup(
+      React.createElement(JakeTemplate, { data, editable: false })
+    );
+    assertHiddenOn(html, 'section-skills', true);
+  });
+
+  it('does NOT apply print:hidden to sections not in the array', () => {
+    const data = withHidden(sampleResumeData, HIDDEN_SLUG);
+    const html = renderToStaticMarkup(
+      React.createElement(JakeTemplate, { data, editable: false })
+    );
+    assertHiddenOn(html, 'section-experience', false);
+  });
+
+  it('JakeReadOnly applies the same hidden class for the read-only path', () => {
+    // Pin the server-component path explicitly — Jake uses
+    // the same Field/FieldBullets/FieldChips dispatch as modern,
+    // so the read-only path is just <JakeTemplate editable={false} />.
+    const data = withHidden(sampleResumeData, HIDDEN_SLUG);
+    const html = renderToStaticMarkup(
+      React.createElement(JakeReadOnly, { data })
+    );
+    assertHiddenOn(html, 'section-skills', true);
+  });
 });

@@ -74,7 +74,8 @@ export const templateCategorySchema = z.enum([
   "modern",
   "minimal",
   "executive",
-  "creative"
+  "creative",
+  "jake"
 ]);
 export type TemplateCategory = z.infer<typeof templateCategorySchema>;
 
@@ -285,4 +286,51 @@ export const CREATIVE_TEMPLATE_META: TemplateMeta = {
   maxPages: "auto",
   pageSize: "letter",
   tags: ["single-column", "sans-serif", "creative", "color"]
+};
+
+/**
+ * Default meta for the Jake template (Jake's Resume). Picked to
+ * complement the existing five with a LaTeX-academic look that
+ * students and engineers reach for first:
+ *   - tier: 'free' — keeps the starter set free
+ *   - atsSafe: true — single column, no graphics, no tables. The
+ *     Jake template is built on a pure single-column flow with
+ *     inline icons for the contact line; nothing an ATS can't
+ *     parse. Section rules are hairline horizontal lines (not
+ *     boxes, not backgrounds).
+ *   - category: 'jake' — separate picker lane so the gallery can
+ *     group it under its own "Academic" header rather than mixing
+ *     it with the editorial "Classic" set.
+ *   - accent: 'slate' — the academic chrome leans neutral; the
+ *     section rules stay slate-700 for that print-Look-and-Feel.
+ *     Picker can still override per template via the accent CSS
+ *     variable.
+ *   - maxPages: 'auto' — same as the rest of the free set
+ *   - pageSize: 'letter' — US default
+ *   - tags: ['single-column', 'serif', 'academic', 'latex-style']
+ *     — picker filters so users can find it by searching
+ *     "academic", "LaTeX", or "serif"
+ *
+ * Use case: CS / engineering / pre-grad-school candidates who
+ * want the famous Jake's Resume look — centered name in small
+ * caps, single-line contact with inline icons, hairline rules
+ * under each section heading, two-column name/date rows for
+ * education + experience + projects, and a 4-column coursework
+ * grid for the education block. Visual identity is
+ * intentionally close to the LaTeX template it was modelled on;
+ * the body uses a serif (Lora) for the same look-and-feel.
+ */
+export const JAKE_TEMPLATE_META: TemplateMeta = {
+  id: "jake",
+  name: "Jake",
+  version: "1.0.0",
+  description:
+    "Academic, LaTeX-style. Centered name, inline contact icons, hairline section rules, 4-col coursework.",
+  tier: "free",
+  atsSafe: true,
+  category: "jake",
+  accent: "slate",
+  maxPages: "auto",
+  pageSize: "letter",
+  tags: ["single-column", "serif", "academic", "latex-style"]
 };

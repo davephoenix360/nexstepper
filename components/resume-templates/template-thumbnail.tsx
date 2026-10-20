@@ -25,6 +25,9 @@
  *                 titles with slate underline rule
  *   - Creative  : left-aligned bold sans-serif, rose accent rules
  *                 between sections, rose header rule
+ *   - Jake      : centered small-caps name, centered single-line
+ *                 contact row, hairline rule UNDER each section title
+ *                 (the LaTeX / academic look)
  *
  * The thumbnails share a 320×192 viewBox so the cards' thumbnail areas
  * stay the same aspect ratio (5:3) regardless of which template is
@@ -86,6 +89,8 @@ export function TemplateThumbnail({
       );
     case 'creative':
       return <CreativeThumbnail className={className} accent={accentHex} />;
+    case 'jake':
+      return <JakeThumbnail className={className} accent={accentHex} />;
     default:
       // Unknown template — render a neutral page outline so the card
       // doesn't crash. The Preview modal still handles the real render.
@@ -383,6 +388,87 @@ function CreativeThumbnail({
         <rect x="20" y="140" width="120" height="3" rx="1" fill={INK} />
         <rect x="20" y="148" width="220" height="2" rx="1" fill={INK_MUTED} />
         <rect x="20" y="155" width="160" height="2" rx="1" fill={INK_MUTED} />
+      </g>
+    </PaperFrame>
+  );
+}
+
+/**
+ * Jake — centered small-caps name, centered single-line contact
+ * row with inline icon dots, hairline slate rule UNDER each
+ * section title (matching the LaTeX template it was modelled on).
+ */
+function JakeThumbnail({
+  accent,
+  className
+}: {
+  accent: string;
+  className?: string;
+}) {
+  return (
+    <PaperFrame className={className}>
+      {/* Header — centered name in small caps + center-aligned
+          contact line with three small dot-markers representing
+          the inline contact icons (phone, email, linkedin). */}
+      <g>
+        <rect x="100" y="18" width="120" height="9" rx="1" fill={INK} />
+        <rect x="60" y="34" width="200" height="2.5" rx="1" fill={INK_MUTED} />
+        {/* The "icons + contact" line — three tiny squares
+            (icons) followed by a single thin line. */}
+        <circle cx="118" cy="48" r="1.4" fill={INK_MUTED} />
+        <circle cx="158" cy="48" r="1.4" fill={INK_MUTED} />
+        <circle cx="200" cy="48" r="1.4" fill={INK_MUTED} />
+        <rect x="74" y="46.5" width="180" height="2" rx="1" fill={INK_MUTED} />
+      </g>
+
+      {/* Section 1 — small-caps title + slate hairline rule + body */}
+      <g>
+        <rect
+          x="48"
+          y="64"
+          width="60"
+          height="4"
+          rx="0.5"
+          fill={INK}
+        />
+        <rect x="48" y="72" width="224" height="0.75" fill={accent} />
+        <rect x="48" y="84" width="120" height="3" rx="1" fill={INK} />
+        <rect x="48" y="92" width="200" height="2" rx="1" fill={INK_MUTED} />
+        <rect x="48" y="99" width="180" height="2" rx="1" fill={INK_MUTED} />
+      </g>
+
+      {/* Section 2 — second section. Same chrome, different
+          body content. Slightly shorter so the visual fits the
+          320×192 frame. */}
+      <g>
+        <rect
+          x="48"
+          y="118"
+          width="48"
+          height="4"
+          rx="0.5"
+          fill={INK}
+        />
+        <rect x="48" y="126" width="224" height="0.75" fill={accent} />
+        <rect x="48" y="138" width="100" height="3" rx="1" fill={INK} />
+        <rect x="48" y="146" width="220" height="2" rx="1" fill={INK_MUTED} />
+        <rect x="48" y="153" width="160" height="2" rx="1" fill={INK_MUTED} />
+      </g>
+
+      {/* Section 3 — short Technical Skills-style row. Jake's
+          "Technical Skills" section is bold-category + value,
+          no chips, no background. */}
+      <g>
+        <rect
+          x="48"
+          y="170"
+          width="40"
+          height="4"
+          rx="0.5"
+          fill={INK}
+        />
+        <rect x="48" y="178" width="224" height="0.75" fill={accent} />
+        <rect x="48" y="186" width="180" height="2" rx="1" fill={INK_MUTED} />
       </g>
     </PaperFrame>
   );

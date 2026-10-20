@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CLASSIC_TEMPLATE_META,
   MODERN_TEMPLATE_META,
+  JAKE_TEMPLATE_META,
   templateMetaSchema,
   templateTierSchema,
   templateCategorySchema,
@@ -37,6 +38,11 @@ describe("TemplateMeta Zod schema", () => {
 
   it("accepts the Modern template's meta", () => {
     const result = templateMetaSchema.safeParse(MODERN_TEMPLATE_META);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts the Jake template's meta", () => {
+    const result = templateMetaSchema.safeParse(JAKE_TEMPLATE_META);
     expect(result.success).toBe(true);
   });
 
@@ -105,14 +111,15 @@ describe("Tier enum", () => {
 });
 
 describe("Category enum", () => {
-  it("includes the five picker lanes", () => {
+  it("includes the six picker lanes", () => {
     expect(templateCategorySchema.options).toEqual(
       expect.arrayContaining([
         "classic",
         "modern",
         "minimal",
         "executive",
-        "creative"
+        "creative",
+        "jake"
       ])
     );
   });
@@ -168,7 +175,20 @@ describe("Default template meta constants", () => {
     expect(CLASSIC_TEMPLATE_META.id).not.toBe(MODERN_TEMPLATE_META.id);
   });
 
-  it("both default templates parse against the schema (import-time safety net)", () => {
+  it("Jake is free, atsSafe, jake category, slate accent", () => {
+    expect(JAKE_TEMPLATE_META.tier).toBe("free");
+    expect(JAKE_TEMPLATE_META.atsSafe).toBe(true);
+    expect(JAKE_TEMPLATE_META.category).toBe("jake");
+    expect(JAKE_TEMPLATE_META.accent).toBe("slate");
+    expect(JAKE_TEMPLATE_META.pageSize).toBe("letter");
+  });
+
+  it("Jake's id is unique vs the rest of the registry (no collision)", () => {
+    expect(JAKE_TEMPLATE_META.id).not.toBe(CLASSIC_TEMPLATE_META.id);
+    expect(JAKE_TEMPLATE_META.id).not.toBe(MODERN_TEMPLATE_META.id);
+  });
+
+  it("all default templates parse against the schema (import-time safety net)", () => {
     // If the constants ever drift from the schema, this throws.
     expect(() =>
       templateMetaSchema.parse(CLASSIC_TEMPLATE_META)
@@ -176,15 +196,19 @@ describe("Default template meta constants", () => {
     expect(() =>
       templateMetaSchema.parse(MODERN_TEMPLATE_META)
     ).not.toThrow();
+    expect(() =>
+      templateMetaSchema.parse(JAKE_TEMPLATE_META)
+    ).not.toThrow();
   });
 });
 
 describe("Template registry", () => {
-  it("contains all five shipped templates", () => {
+  it("contains all six shipped templates", () => {
     expect(Object.keys(templateRegistry).sort()).toEqual([
       "classic",
       "creative",
       "executive",
+      "jake",
       "minimal",
       "modern"
     ]);
@@ -206,6 +230,7 @@ describe("Template registry", () => {
     expect(getTemplate("minimal").meta.id).toBe("minimal");
     expect(getTemplate("executive").meta.id).toBe("executive");
     expect(getTemplate("creative").meta.id).toBe("creative");
+    expect(getTemplate("jake").meta.id).toBe("jake");
   });
 
   it("getTemplate falls back to Classic for unknown / null / undefined ids", () => {

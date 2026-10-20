@@ -11,6 +11,7 @@ import {
   CLASSIC_TEMPLATE_META,
   EXECUTIVE_TEMPLATE_META,
   CREATIVE_TEMPLATE_META,
+  JAKE_TEMPLATE_META,
   MODERN_TEMPLATE_META,
   MINIMAL_TEMPLATE_META
 } from '@/components/resume-templates/meta';
@@ -103,13 +104,14 @@ describe('TemplateGalleryGrid', () => {
     );
   }
 
-  it('renders exactly 5 cards — one per registered template', () => {
+  it('renders exactly 6 cards — one per registered template', () => {
     const html = render(CLASSIC_TEMPLATE_META.id);
     expect(html).toContain('data-testid="template-card-classic"');
     expect(html).toContain('data-testid="template-card-modern"');
     expect(html).toContain('data-testid="template-card-minimal"');
     expect(html).toContain('data-testid="template-card-executive"');
     expect(html).toContain('data-testid="template-card-creative"');
+    expect(html).toContain('data-testid="template-card-jake"');
   });
 
   it('renders the grid wrapper with the expected testid', () => {
@@ -120,11 +122,12 @@ describe('TemplateGalleryGrid', () => {
   it('marks the active template with the "Current" badge and only that one', () => {
     const html = render(EXECUTIVE_TEMPLATE_META.id);
     expect(html).toContain('data-testid="template-card-current-executive"');
-    // The other four templates should NOT carry the Current badge.
+    // The other five templates should NOT carry the Current badge.
     expect(html).not.toContain('template-card-current-classic');
     expect(html).not.toContain('template-card-current-modern');
     expect(html).not.toContain('template-card-current-minimal');
     expect(html).not.toContain('template-card-current-creative');
+    expect(html).not.toContain('template-card-current-jake');
   });
 
   it('disables the "Use this template" CTA on the current card', () => {
@@ -142,6 +145,7 @@ describe('TemplateGalleryGrid', () => {
     expect(html).toContain('data-testid="template-card-preview-minimal"');
     expect(html).toContain('data-testid="template-card-preview-executive"');
     expect(html).toContain('data-testid="template-card-preview-creative"');
+    expect(html).toContain('data-testid="template-card-preview-jake"');
   });
 
   it('renders the template name + version on each card', () => {
@@ -291,7 +295,8 @@ describe('TemplateCard button state via the grid', () => {
       MODERN_TEMPLATE_META,
       MINIMAL_TEMPLATE_META,
       EXECUTIVE_TEMPLATE_META,
-      CREATIVE_TEMPLATE_META
+      CREATIVE_TEMPLATE_META,
+      JAKE_TEMPLATE_META
     ]) {
       // Card should contain the version, prefixed with 'v'.
       expect(html).toContain('v' + meta.version);
@@ -306,7 +311,8 @@ describe('TemplateThumbnail (visual schematic)', () => {
       MODERN_TEMPLATE_META,
       MINIMAL_TEMPLATE_META,
       EXECUTIVE_TEMPLATE_META,
-      CREATIVE_TEMPLATE_META
+      CREATIVE_TEMPLATE_META,
+      JAKE_TEMPLATE_META
     ]) {
       const html = renderToStaticMarkup(
         <TemplateThumbnail
@@ -361,7 +367,8 @@ describe('TemplateThumbnail (visual schematic)', () => {
       'modern',
       'minimal',
       'executive',
-      'creative'
+      'creative',
+      'jake'
     ]) {
       expect(html).toContain(`data-testid="template-thumbnail-${id}"`);
     }
@@ -386,7 +393,8 @@ describe('TemplateCard — visual hierarchy', () => {
       'modern',
       'minimal',
       'executive',
-      'creative'
+      'creative',
+      'jake'
     ]) {
       expect(html).toContain(`data-testid="template-card-category-${id}"`);
     }
@@ -399,7 +407,8 @@ describe('TemplateCard — visual hierarchy', () => {
       'modern',
       'minimal',
       'executive',
-      'creative'
+      'creative',
+      'jake'
     ]) {
       expect(html).toContain(`data-testid="template-card-ats-${id}"`);
     }
@@ -421,7 +430,8 @@ describe('TemplateCard — visual hierarchy', () => {
       'modern',
       'minimal',
       'executive',
-      'creative'
+      'creative',
+      'jake'
     ]) {
       expect(html).toContain(`data-testid="template-card-tags-${id}"`);
     }
