@@ -72,7 +72,8 @@ import {
   Linkedin,
   Github,
   Globe,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -198,17 +199,6 @@ export function JakeReadOnly({ data }: { data: ResumeData }) {
  */
 function JakeHeader({ mode }: { mode: FieldMode }) {
   const b = mode.data.sections.basics;
-  const profiles = b.profiles ?? [];
-
-  // Icon + URL prefix are derived from the profile's `network`
-  // ("LinkedIn" / "GitHub" / anything else). The `username` itself is
-  // always a Field so it stays editable; only the decoration is static.
-  const linkedinIdx = profiles.findIndex((p) =>
-    /linkedin/i.test(p.network ?? '')
-  );
-  const githubIdx = profiles.findIndex((p) =>
-    /github/i.test(p.network ?? '')
-  );
 
   // Read-only collapses empty parts; the editor shows every part so
   // each is clickable.
@@ -225,8 +215,7 @@ function JakeHeader({ mode }: { mode: FieldMode }) {
     isSet(b.phone) ||
     isSet(b.email) ||
     isSet(b.url) ||
-    linkedinIdx >= 0 ||
-    githubIdx >= 0;
+    (b.profiles?.length ?? 0) > 0;
 
   return (
     <header className="mb-5 text-center">
@@ -296,23 +285,7 @@ function JakeHeader({ mode }: { mode: FieldMode }) {
           <ContactItem icon={Phone} mode={mode} path="sections.basics.phone" placeholder="(555) 123-4567" />
           <ContactItem icon={Mail} mode={mode} path="sections.basics.email" placeholder="you@example.com" />
           <ContactItem icon={Globe} mode={mode} path="sections.basics.url" placeholder="your-site.com" stripScheme />
-          <ProfileItem
-            mode={mode}
-            icon={Linkedin}
-            prefix="linkedin.com/in/"
-            index={linkedinIdx}
-            placeholder="your-handle"
-          />
-          <ProfileItem
-            mode={mode}
-            icon={Github}
-            prefix="github.com/"
-            index={githubIdx}
-            placeholder="your-handle"
-          />
-          {mode.editable && (
-            <AddProfileButton profiles={profiles.length} />
-          )}
+          <JakeOnlineProfiles mode={mode} />
         </div>
       )}
     </header>
@@ -371,51 +344,126 @@ function ContactItem({
 }
 
 /**
- * A LinkedIn / GitHub slot: static icon + static URL prefix + an
- * editable username.
+ * Every `basics.profiles` row, rendered in the Jake contact row.
  *
- * When the resume has no such profile yet, there is no path to bind
- * to, so the slot renders as a non-editable hint and `AddProfileButton`
- * (editor only) is how the user creates one. Once it exists, the
- * username becomes a real Field.
+ * **Why this is a list and not two hardcoded slots.** The first
+ * version hardcoded a LinkedIn slot and a GitHub slot and looked each
+ * one up by matching `network` against the profile array. That looked
+ * fine right up until someone clicked "+ Profile": the button
+ * appended `{ network: '', username: '' }`, and because a blank
+ * `network` matched neither slot, **the new row rendered nowhere**.
+ * The data was in the form (it would have saved), but there was no
+ * field on screen to type into, so the button looked broken. The user
+ * reported the button didn't work; it was correct to check rather than
+ * assume, because the click handler itself was fine.
+ *
+ * So: every profile in the array gets a row.
+ *   - Recognised network (LinkedIn / GitHub) -> the pretty Jake
+ *     treatment: icon + static URL prefix + editable username.
+ *   - Unrecognised or blank network -> an editable `network` field
+ *     plus an editable `username`. Typing "LinkedIn" into `network`
+ *     re-renders the row as the pretty variant on the next tick,
+ *     because `mode.data` is `form.watch()`.
+ *
+ * That makes "+ Profile" actually do something visible, which is the
+ * only contract an affordance has to meet.
  */
-function ProfileItem({
-  mode,
-  icon: Icon,
-  prefix,
-  index,
-  placeholder
-}: {
-  mode: FieldMode;
+function JakeOnlineProfiles({ mode }: { mode: FieldMode }) {
+  const profiles = mode.data.sections.basics.profiles ?? [];
+
+  if (!mode.editable && profiles.length === 0) return null;
+
+  return (
+    <>
+      {profiles.map((p, i) => {
+        const known = knownProfile(p.network);
+        if (!mode.editable) {
+          if (!isSet(p.username)) return null;
+          const Icon = known?.icon ?? Globe;
+          return (
+            <span key={i} className="inline-flex items-center gap-1.5">
+              <Icon className="size-3 shrink-0 text-zinc-500" aria-hidden={true} />
+              {known && <span aria-hidden={true}>{known.prefix}</span>}
+              <span>{p.username}</span>
+            </span>
+          );
+        }
+        const Icon = known?.icon ?? Globe;
+        return (
+          <span
+            key={i}
+            className="group/profile inline-flex items-center gap-1.5"
+            data-testid={`jake-profile-row-${i}`}
+          >
+            <Icon className="size-3 shrink-0 text-zinc-500" aria-hidden={true} />
+            {/* The network field is what turns a blank appended row
+                into a usable LinkedIn / GitHub entry. It is only
+                shown for rows that don't already have a recognised
+                network, so the common case keeps the clean
+                `linkedin.com/in/handle` look. */}
+            {!known && (
+              <Field
+                mode={mode}
+                path={`sections.basics.profiles.${i}.network`}
+                as="span"
+                className="inline"
+                placeholder="Network"
+              />
+            )}
+            {known && <span aria-hidden={true}>{known.prefix}</span>}
+            <Field
+              mode={mode}
+              path={`sections.basics.profiles.${i}.username`}
+              as="span"
+              className="inline"
+              placeholder="your-handle"
+            />
+            <RemoveProfileButton index={i} />
+          </span>
+        );
+      })}
+      {mode.editable && <AddProfileButton profiles={profiles.length} />}
+    </>
+  );
+}
+
+/** Icon + URL prefix for a recognised network, else null. */
+function knownProfile(network: string | undefined): {
   icon: IconComponent;
   prefix: string;
-  index: number;
-  placeholder: string;
-}) {
-  if (index < 0) {
-    if (!mode.editable) return null;
-    return (
-      <span
-        className="inline-flex items-center gap-1.5 text-zinc-400"
-        data-testid={`jake-profile-missing-${prefix}`}
-      >
-        <Icon className="size-3 shrink-0" aria-hidden={true} />
-        <span className="italic">{prefix}</span>
-      </span>
-    );
+} | null {
+  const n = (network ?? '').toLowerCase();
+  if (n.includes('linkedin')) {
+    return { icon: Linkedin, prefix: 'linkedin.com/in/' };
   }
+  if (n.includes('github')) return { icon: Github, prefix: 'github.com/' };
+  return null;
+}
+
+/**
+ * Remove a profile row (editor only). Without this, a mis-typed
+ * network can only be corrected by retyping it — and if the user
+ * wants to drop a profile entirely there is no other affordance in
+ * the Jake header. Classic has the same control in
+ * `OnlineProfilesInline`.
+ */
+function RemoveProfileButton({ index }: { index: number }) {
+  const { control } = useFormContext();
+  const { remove } = useFieldArray({
+    control,
+    name: 'sections.basics.profiles'
+  });
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <Icon className="size-3 shrink-0 text-zinc-500" aria-hidden={true} />
-      <span aria-hidden={true}>{prefix}</span>
-      <Field
-        mode={mode}
-        path={`sections.basics.profiles.${index}.username`}
-        as="span"
-        className="inline"
-        placeholder={placeholder}
-      />
-    </span>
+    <button
+      type="button"
+      onClick={() => remove(index)}
+      aria-label={`Remove profile ${index + 1}`}
+      title={`Remove profile ${index + 1}`}
+      data-testid={`remove-profile-${index}`}
+      className="no-print inline-flex size-3.5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:text-zinc-700 group-hover/profile:opacity-100 focus:opacity-100 focus:outline-none"
+    >
+      <X className="size-2.5" />
+    </button>
   );
 }
 

@@ -271,6 +271,53 @@ clicking `basics.location.city` focuses an `<input>`, and filling it
 propagates to the address line. Screenshot at
 `output/playwright/jake-editor.png`.
 
+## Round 4 — the "+ Profile" button appended data that rendered nowhere
+
+Asked directly whether "+ Profile" worked. It did not, and the reason
+was specific enough to be worth recording.
+
+**Symptom.** Clicking it incremented the row count (`add-profile-2` →
+`add-profile-3` — proof the `append` ran and the data was in the form,
+so it *would* have saved) but **no new field appeared on screen.**
+
+**Root cause.** Round 3's header hardcoded two slots — a LinkedIn one
+and a GitHub one — and looked each up by scanning `profiles` for a
+matching `network`. A newly appended row is `{ network: '', username:
+'' }`, which matches neither, so it rendered nowhere. The user could
+click the button and type nothing, because there was nothing to type
+into. The click handler was correct; the *rendering* was the bug.
+
+**Fix.** Stop hardcoding slots; render **one row per profile**.
+- Recognised network → the pretty Jake treatment (icon + static URL
+  prefix + editable username), `network` field hidden.
+- Blank / unrecognised network → an editable `network` field **and**
+  an editable `username`. Typing "LinkedIn" into `network` re-renders
+  the row as the pretty variant on commit, because `mode.data` is
+  `form.watch()`.
+
+Added `RemoveProfileButton` (per row, `no-print`) — without it a
+mistyped network could only be corrected by retyping, and dropping a
+profile entirely had no affordance at all. Classic has the same
+control in `OnlineProfilesInline`.
+
+**A second bug found while verifying.** A stray `title={...}` had
+landed in the button's *children* position rather than its attribute
+position, so it rendered as the literal text "title=3 profiles" in
+the contact row. Caught by reading the live `textContent` of
+`jake-contact-line` in the browser — no test would have flagged it,
+because the string contains no assertion-relevant tokens. Moved it to
+a real `title` attribute.
+
+**Tests:** +2 (`renders an editable row for EVERY profile, including
+blank ones`, `flips a blank-network row to the pretty form once
+network is set`). The first was verified failing without the fix.
+
+**Browser verification** of the whole cycle: click "+ Profile" → new
+row with `network` + `username` inputs → type "LinkedIn" → blur to
+commit → network field disappears, row reads
+`linkedin.com/in/ <handle>`. Screenshot at
+`output/playwright/jake-profiles-fixed.png`.
+
 ## Lessons / things to remember
 
 1. **Vitest ≠ Next.js runtime.** Any `next/font/*`, `next/image`,
@@ -340,3 +387,20 @@ propagates to the address line. Screenshot at
    save the stripped value. The existing test caught this
    the moment the field became a real `Field`. Keep
    display transforms strictly on the read-only branch.
+
+8. **An affordance that appends data but renders no field
+   is broken, even though the handler is correct.** The
+   "+ Profile" button's `append` worked perfectly; the
+   array grew; the data would have saved. It still looked
+   dead because nothing appeared. When reviewing UI, check
+   that a new row is *visible and typeable*, not merely
+   that the underlying state changed — and when a component
+   looks up rows by matching a value (like `network`),
+   remember the empty/initial value matches nothing.
+
+9. **Rendering a list beats hardcoding slots.** The LinkedIn
+   slot + GitHub slot design could not represent a third
+   network, an unrecognised one, or a brand-new blank row.
+   A `map` over the array degrades gracefully; two hardcoded
+   slots have exactly the coverage of whatever the matching
+   expression happens to match.

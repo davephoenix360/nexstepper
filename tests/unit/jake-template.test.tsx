@@ -564,8 +564,8 @@ describe('JakeTemplate — editor exposes every field it renders', () => {
   });
 
   it('does NOT bind a profile-username path when no profile exists', () => {
-    // Nothing to bind to — the slot is a hint plus the
-    // "+ Profile" button, not a fake editable field.
+    // Nothing to bind to — there are no rows, and the escape hatch
+    // to create one is the "+ Profile" button.
     const noProfiles: ResumeData = {
       ...sampleResumeData,
       sections: {
@@ -577,8 +577,83 @@ describe('JakeTemplate — editor exposes every field it renders', () => {
     expect(html).not.toContain(
       'data-testid="editable-sections.basics.profiles.0.username"'
     );
-    // …but the escape hatch to create one is present.
     expect(html).toContain('data-testid="add-profile-0"');
+  });
+
+  /**
+   * Regression: "+ Profile" appended a row that rendered nowhere.
+   *
+   * The header used to hardcode a LinkedIn slot and a GitHub slot and
+   * look each up by matching `network` against the array. A newly
+   * appended row is `{ network: '', username: '' }`, which matched
+   * neither — so the click appended data (it would have saved) but put
+   * no field on screen. The button looked broken.
+   *
+   * The contract being pinned: EVERY profile in the array gets a
+   * visible, editable row. A blank-network row in particular must
+   * expose BOTH `network` and `username`, because `network` is what
+   * turns it into a usable LinkedIn / GitHub entry.
+   */
+  it('renders an editable row for EVERY profile, including blank ones', () => {
+    const withBlank: ResumeData = {
+      ...sampleResumeData,
+      sections: {
+        ...sampleResumeData.sections,
+        basics: {
+          ...sampleResumeData.sections.basics,
+          profiles: [
+            { network: 'LinkedIn', username: 'ada', url: '' },
+            { network: '', username: '', url: '' },
+            { network: 'GitHub', username: 'ada-codes', url: '' }
+          ]
+        }
+      }
+    };
+    const html = renderEditable(withBlank);
+    // A row exists for each index…
+    for (const i of [0, 1, 2]) {
+      expect(html).toContain(`data-testid="jake-profile-row-${i}"`);
+      expect(html).toContain(
+        `data-testid="editable-sections.basics.profiles.${i}.username"`
+      );
+    }
+    // …and the blank row exposes its `network` too, otherwise the
+    // user has no way to say "LinkedIn" and nothing to type into.
+    expect(html).toContain(
+      'data-testid="editable-sections.basics.profiles.1.network"'
+    );
+    // Recognised rows keep the clean URL-prefix form and hide the
+    // redundant network field.
+    expect(html).toContain('linkedin.com/in/');
+    expect(html).not.toContain(
+      'data-testid="editable-sections.basics.profiles.0.network"'
+    );
+    // Each row is individually removable.
+    for (const i of [0, 1, 2]) {
+      expect(html).toContain(`data-testid="remove-profile-${i}"`);
+    }
+  });
+
+  it('flips a blank-network row to the pretty form once network is set', () => {
+    // The user types "LinkedIn" into the network field; because
+    // `mode.data` is `form.watch()`, the row re-renders as
+    // icon + `linkedin.com/in/` + username and the network field goes
+    // away. Verified here by rendering the post-typing state.
+    const set: ResumeData = {
+      ...sampleResumeData,
+      sections: {
+        ...sampleResumeData.sections,
+        basics: {
+          ...sampleResumeData.sections.basics,
+          profiles: [{ network: 'LinkedIn', username: 'ada', url: '' }]
+        }
+      }
+    };
+    const html = renderEditable(set);
+    expect(html).toContain('linkedin.com/in/');
+    expect(html).not.toContain(
+      'data-testid="editable-sections.basics.profiles.0.network"'
+    );
   });
 
   it('keeps read-only output free of editor affordances', () => {
