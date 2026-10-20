@@ -613,9 +613,31 @@ function JakeExperience({ mode }: { mode: FieldMode }) {
 
 function JakeWorkRow({ mode, index }: { mode: FieldMode; index: number }) {
   const w = mode.data.sections.work[index] ?? EMPTY_WORK;
+  // The schema stores dates on POSITIONS, not on the work entry
+  // itself. So the company row can only ever show a date range by
+  // borrowing one from a position — and if it borrows positions[0]'s
+  // range, that same range must NOT also render on the position row,
+  // or the reader sees the same range twice.
+  //
+  // Rule: the range renders EXACTLY ONCE per work entry.
+  //   1 position  -> company row. This is the original Jake layout
+  //                  ("Electronics Company — May 2020 – August 2020")
+  //                  and by far the common case.
+  //   2+ positions -> the company row stays bare and each position
+  //                  row shows its own range, because the ranges
+  //                  genuinely differ and a single borrowed span
+  //                  would misrepresent the whole entry.
+  //
+  // This was a real bug: both rows rendered a DateRange bound to
+  // positions[0], so a single-position entry printed "2022 – Present"
+  // twice. See tests/unit/jake-template.test.tsx → "renders the date
+  // range exactly once per work entry".
+  const positionCount = w.positions?.length ?? 0;
+  const dateOnCompanyRow = positionCount === 1;
   return (
     <div>
-      {/* Top row: company + dates */}
+      {/* Top row: company + (dates, only when a single position owns
+          them — see the rule above). */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 print:break-inside-avoid">
         <span className="text-[12pt] font-semibold text-zinc-900">
           <Field
@@ -626,42 +648,38 @@ function JakeWorkRow({ mode, index }: { mode: FieldMode; index: number }) {
             placeholder="Company"
           />
         </span>
-        {/* For a single-position work entry, the company's
-            date range is the position's date range. For a
-            multi-position entry, the company's own dates
-            would apply — but our schema only stores dates on
-            positions, so we fall back to the first position's
-            dates (matching the read-only rendering). */}
-        <DateRange
-          editable={mode.editable}
-          start={w.positions?.[0]?.startDate}
-          end={w.positions?.[0]?.endDate}
-          startPath={
-            has(w.positions)
-              ? `sections.work.${index}.positions.0.startDate`
-              : undefined
-          }
-          endPath={
-            has(w.positions)
-              ? `sections.work.${index}.positions.0.endDate`
-              : undefined
-          }
-        />
+        {dateOnCompanyRow && (
+          <DateRange
+            editable={mode.editable}
+            start={w.positions?.[0]?.startDate}
+            end={w.positions?.[0]?.endDate}
+            startPath={`sections.work.${index}.positions.0.startDate`}
+            endPath={`sections.work.${index}.positions.0.endDate`}
+          />
+        )}
       </div>
       {/* Position-level sub-rows. For a one-position work entry
           we still render the position to keep editor + read-only
           structurally identical. */}
-      <JakeWorkPositions mode={mode} workIndex={index} />
+      <JakeWorkPositions
+        mode={mode}
+        workIndex={index}
+        showPositionDates={!dateOnCompanyRow}
+      />
     </div>
   );
 }
 
 function JakeWorkPositions({
   mode,
-  workIndex
+  workIndex,
+  showPositionDates
 }: {
   mode: FieldMode;
   workIndex: number;
+  /** False when the company row already owns the date range, so
+   *  the position rows must not repeat it. */
+  showPositionDates: boolean;
 }) {
   const w = mode.data.sections.work[workIndex] ?? EMPTY_WORK;
   const positions = w.positions ?? [];
@@ -678,7 +696,14 @@ function JakeWorkPositions({
         testIdPrefix={`jake-work-${workIndex}-pos`}
         defaultRow={EMPTY_POSITION}
       >
-        {(j) => <JakePositionRow mode={mode} workIndex={workIndex} positionIndex={j} />}
+        {(j) => (
+          <JakePositionRow
+            mode={mode}
+            workIndex={workIndex}
+            positionIndex={j}
+            showDates={showPositionDates}
+          />
+        )}
       </JakeEditableNestedFieldArray>
     );
   }
@@ -687,7 +712,12 @@ function JakeWorkPositions({
     <div className="mt-1.5 space-y-3">
       {positions.map((p, j) => (
         <div key={`w-${workIndex}-p-${j}`}>
-          <JakePositionRow mode={mode} workIndex={workIndex} positionIndex={j} />
+          <JakePositionRow
+            mode={mode}
+            workIndex={workIndex}
+            positionIndex={j}
+            showDates={showPositionDates}
+          />
         </div>
       ))}
     </div>
@@ -697,11 +727,15 @@ function JakeWorkPositions({
 function JakePositionRow({
   mode,
   workIndex,
-  positionIndex
+  positionIndex,
+  showDates
 }: {
   mode: FieldMode;
   workIndex: number;
   positionIndex: number;
+  /** False when the company row already renders this position's
+   *  date range (single-position entries). */
+  showDates: boolean;
 }) {
   const w = mode.data.sections.work[workIndex] ?? EMPTY_WORK;
   const p = w.positions?.[positionIndex] ?? EMPTY_POSITION;
@@ -717,15 +751,32 @@ function JakePositionRow({
             placeholder="Position"
           />
         </span>
-        <DateRange
-          editable={mode.editable}
-          start={p.startDate}
-          end={p.endDate}
-          startPath={`sections.work.${workIndex}.positions.${positionIndex}.startDate`}
-          endPath={`sections.work.${workIndex}.positions.${positionIndex}.endDate`}
-        />
+        {showDates ? (
+          <DateRange
+            editable={mode.editable}
+            start={p.startDate}
+            end={p.endDate}
+            startPath={`sections.work.${workIndex}.positions.${positionIndex}.startDate`}
+            endPath={`sections.work.${workIndex}.positions.${positionIndex}.endDate`}
+          />
+        ) : (
+          /* No date on this row, so the location takes the
+             right-hand slot. This is the original Jake row: position
+             title on the left, "City, State" on the right, both
+             italic. Only ever reached for position 0 of a
+             single-position entry, so it cannot duplicate. */
+          isSet(w.location) && (
+            <span className="text-[11pt] italic text-zinc-600">
+              {w.location}
+            </span>
+          )
+        )}
       </div>
-      {isSet(w.location) && (
+      {/* `location` is a COMPANY-level field, so it renders once per
+          work entry — on the first position only. Repeating it under
+          every position of a multi-position entry was the same class
+          of bug as the duplicated date range. */}
+      {showDates && positionIndex === 0 && isSet(w.location) && (
         <div className="flex flex-wrap items-baseline justify-end gap-x-3">
           <span className="text-[11pt] italic text-zinc-600">
             {w.location}

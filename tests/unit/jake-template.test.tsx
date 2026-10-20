@@ -4,7 +4,7 @@ import React from 'react';
 
 import { JakeTemplate, JakeReadOnly } from '@/components/resume-templates/jake';
 import { sampleResumeData } from '@/lib/resume-schema';
-import type { ResumeData } from '@/lib/resume-schema';
+import type { Position, ResumeData } from '@/lib/resume-schema';
 
 /**
  * Jake-template-specific tests. The shared template-meta / gallery /
@@ -239,6 +239,143 @@ describe('JakeTemplate — read-only alias', () => {
     expect(html).toContain('font-variant:small-caps');
     expect(html).toContain('Relevant Coursework');
     expect(html).toContain('Technical Skills');
+  });
+});
+
+/**
+ * Regression: the date range (and the company location) used to render
+ * TWICE on a work entry.
+ *
+ * The schema stores dates on positions, not on the work entry, so the
+ * company row can only show a range by borrowing positions[0]'s. The
+ * first implementation rendered a DateRange on the company row *and*
+ * another on position 0's row, both bound to positions[0] — so every
+ * single-position entry printed "2022 – Present" twice, stacked. The
+ * user caught this in a design-lab screenshot.
+ *
+ * Each rendered DateRange emits exactly one `daterange-dash-readonly`
+ * testid, so counting those is a direct assertion on "how many date
+ * ranges did we print" — no fragile class-name or DOM-order checks.
+ */
+describe('JakeTemplate — work entries render each fact once', () => {
+  // Scope to the Experience section ONLY, bounded by the next
+  // `<section` that follows it. A document-wide count also picks up
+  // the Education / Volunteer date ranges and makes these assertions
+  // lie about what they measure; hard-coding "…up to section-projects"
+  // breaks the moment a fixture empties projects.
+  const experienceOf = (html: string) => {
+    const start = html.indexOf('id="section-experience"');
+    const nextSection = html.indexOf('<section ', start + 1);
+    return html.slice(start, nextSection === -1 ? html.length : nextSection);
+  };
+
+  const countDashes = (html: string) =>
+    (html.match(/data-testid="daterange-dash-readonly"/g) ?? []).length;
+
+  const workWith = (positions: Position[]) =>
+    renderToStaticMarkup(
+      React.createElement(JakeTemplate, {
+        data: {
+          ...JAKE_SAMPLE,
+          sections: {
+            ...JAKE_SAMPLE.sections,
+            projects: [],
+            work: [
+              {
+                company: 'Solo Co',
+                location: 'Austin, TX',
+                url: '',
+                description: '',
+                positions
+              }
+            ]
+          }
+        },
+        editable: false
+      })
+    );
+
+  it('renders the date range exactly once for a single-position entry', () => {
+    const html = workWith([
+      {
+        title: 'Engineer',
+        startDate: '2021-03-01',
+        endDate: '2024-08-01',
+        highlights: ['Did the thing.']
+      }
+    ]);
+    const exp = experienceOf(html);
+    // Exactly one date range for one position. Before the fix the
+    // company row AND position 0 both rendered a DateRange bound to
+    // positions[0], so this was 2.
+    expect(countDashes(exp)).toBe(1);
+    // The range itself still renders — a count of 0 would satisfy the
+    // assertion above while silently dropping the dates.
+    expect(exp).toContain('2021');
+    expect(exp).toContain('2024');
+  });
+
+  it('renders one date range per position for a multi-position entry', () => {
+    const html = workWith([
+      {
+        title: 'Senior',
+        startDate: '2022-03-01',
+        endDate: '',
+        highlights: []
+      },
+      {
+        title: 'Junior',
+        startDate: '2019-08-01',
+        endDate: '2022-02-28',
+        highlights: []
+      }
+    ]);
+    // Two positions -> two ranges, and NOT a third borrowed range on
+    // the company row.
+    expect(countDashes(experienceOf(html))).toBe(2);
+  });
+
+  it('renders the company location once, not once per position', () => {
+    const html = workWith([
+      {
+        title: 'Senior',
+        startDate: '2022-03-01',
+        endDate: '',
+        highlights: []
+      },
+      {
+        title: 'Junior',
+        startDate: '2019-08-01',
+        endDate: '2022-02-28',
+        highlights: []
+      }
+    ]);
+    // `location` is a company-level field. Two positions must not
+    // print "Austin, TX" twice.
+    const exp = experienceOf(html);
+    expect((exp.match(/Austin, TX/g) ?? []).length).toBe(1);
+  });
+
+  it('places the location inline on the single-position row (original Jake)', () => {
+    // The source PDF puts the city on the SAME line as the position
+    // title, right-aligned: "Software Engineer Intern   City, State".
+    // Assert that no </div> closes between the title and the location
+    // — i.e. they are siblings inside one flex row, not stacked rows.
+    const exp = experienceOf(
+      workWith([
+        {
+          title: 'Engineer',
+          startDate: '2021-03-01',
+          endDate: '2024-08-01',
+          highlights: []
+        }
+      ])
+    );
+    const titleAt = exp.indexOf('Engineer');
+    const locAt = exp.indexOf('Austin, TX');
+    expect(titleAt).toBeGreaterThan(-1);
+    expect(locAt).toBeGreaterThan(titleAt);
+    expect(exp.slice(titleAt, locAt)).not.toContain('</div>');
   });
 });
 

@@ -168,6 +168,50 @@ banner overlaps the second Experience row. Not a template
 defect — it's `app/_components/cookie-consent.tsx` doing
 its job (consent gate) and the design lab is dev-only.
 
+## Round 2 — the date range printed twice (user-reported, same day)
+
+The user screenshotted the design lab and pointed at the Experience
+section: `2022 – Present` appeared on **both** the company row and
+the position row.
+
+**Root cause.** The schema stores dates on `positions[]`, not on the
+work entry, so the company row could only show a range by borrowing
+`positions[0]`'s. The first implementation rendered a `DateRange` on
+the company row *and* another on position 0's row, both bound to
+`sections.work.0.positions.0.*`. Every single-position entry
+therefore printed the same range twice, stacked.
+
+**The same bug, second instance.** `location` is a *company*-level
+field, but it was rendered under **every** position. A two-position
+entry printed the city once per position. I only caught this because
+the fix for the date forced me to look at the whole row.
+
+**Fix — each fact renders exactly once:**
+
+| Positions | Company row | Position rows |
+|---|---|---|
+| exactly 1 | company name + **date range** | title + **location** (inline, right — the original Jake row) |
+| 2 or more | company name only (bare) | title + **its own** date range; location once, on position 0 |
+
+A single borrowed range on the company row of a multi-position entry
+would misrepresent the whole stint anyway, so "bare" is the honest
+rendering there.
+
+**Regression tests** (4 new, in `jake-template.test.tsx`): each
+`DateRange` emits exactly one `daterange-dash-readonly` testid, so
+counting those inside the Experience section is a direct assertion on
+"how many ranges did we print". Verified they fail without the fix
+(2-vs-1 and 3-vs-2, plus 2-vs-1 locations) and pass with it.
+
+**Honest note on writing those tests.** My first version counted the
+testid across the *whole document* and asserted 1. It failed with
+"expected 3 to be 1" — because Education and Volunteer also render
+date ranges. The failure looked like the component was still broken;
+it was the test measuring the wrong thing. Fixed by slicing to the
+Experience section first. The lesson is the same one that bit the
+project before: **a count assertion needs a scope, or it is
+counting someone else's data.**
+
 ## Lessons / things to remember
 
 1. **Vitest ≠ Next.js runtime.** Any `next/font/*`, `next/image`,
