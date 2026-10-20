@@ -109,7 +109,7 @@ import {
   EMPTY_WORK
 } from '@/lib/resume-schema/defaults';
 import { isSectionHiddenFromPrint } from '@/lib/resume-schema/resume-data';
-import type { ResumeData } from '@/lib/resume-schema';
+import type { Profile, ResumeData } from '@/lib/resume-schema';
 import { cn } from '@/lib/utils';
 import { JAKE_TEMPLATE_META } from './meta';
 
@@ -369,29 +369,49 @@ function ContactItem({
  * only contract an affordance has to meet.
  */
 function JakeOnlineProfiles({ mode }: { mode: FieldMode }) {
-  const profiles = mode.data.sections.basics.profiles ?? [];
+  // Two components, because the editor half needs RHF hooks and the
+  // read-only half must render with no FormProvider (SSR / PDF /
+  // share). Same split `DateRange` uses for the same reason.
+  if (!mode.editable) {
+    return (
+      <JakeProfilesReadOnly
+        profiles={mode.data.sections.basics.profiles ?? []}
+      />
+    );
+  }
+  return <JakeProfilesEditor mode={mode} />;
+}
 
-  if (!mode.editable && profiles.length === 0) return null;
+/** Editor path — one `useFieldArray` for the whole list. */
+function JakeProfilesEditor({ mode }: { mode: FieldMode }) {
+  const { control } = useFormContext();
+  // **ONE `useFieldArray` for the entire list.**
+  //
+  // An earlier version called `useFieldArray` inside each row's remove
+  // button, i.e. N competing subscriptions on the same field name.
+  // Each instance overwrites RHF's internal `_fields` state for
+  // `sections.basics.profiles`, so `remove(i)` operated against
+  // clobbered state: it unset the row's values without shrinking the
+  // array, which the user saw as "the handle cleared but the field
+  // stayed", or nothing happening at all.
+  //
+  // Rows also render from `fields` (the array RHF actually manages),
+  // not from `mode.data` — same as `EditableSectionInner`. Mixing the
+  // two is what made removal inconsistent.
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'sections.basics.profiles'
+  });
+  const profiles = mode.data.sections.basics.profiles ?? [];
 
   return (
     <>
-      {profiles.map((p, i) => {
-        const known = knownProfile(p.network);
-        if (!mode.editable) {
-          if (!isSet(p.username)) return null;
-          const Icon = known?.icon ?? Globe;
-          return (
-            <span key={i} className="inline-flex items-center gap-1.5">
-              <Icon className="size-3 shrink-0 text-zinc-500" aria-hidden={true} />
-              {known && <span aria-hidden={true}>{known.prefix}</span>}
-              <span>{p.username}</span>
-            </span>
-          );
-        }
+      {fields.map((field, i) => {
+        const known = knownProfile(profiles[i]?.network);
         const Icon = known?.icon ?? Globe;
         return (
           <span
-            key={i}
+            key={field.id}
             className="group/profile inline-flex items-center gap-1.5"
             data-testid={`jake-profile-row-${i}`}
           >
@@ -418,11 +438,50 @@ function JakeOnlineProfiles({ mode }: { mode: FieldMode }) {
               className="inline"
               placeholder="your-handle"
             />
-            <RemoveProfileButton index={i} />
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              aria-label={`Remove profile ${i + 1}`}
+              title={`Remove profile ${i + 1}`}
+              data-testid={`remove-profile-${i}`}
+              className="no-print inline-flex size-3.5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:text-zinc-700 group-hover/profile:opacity-100 focus:opacity-100 focus:outline-none"
+            >
+              <X className="size-2.5" />
+            </button>
           </span>
         );
       })}
-      {mode.editable && <AddProfileButton profiles={profiles.length} />}
+      <button
+        type="button"
+        onClick={() => append({ network: '', username: '', url: '' })}
+        aria-label="Add a profile (LinkedIn, GitHub, ...)"
+        data-testid={`add-profile-${fields.length}`}
+        className="no-print inline-flex items-center gap-1 rounded border border-dashed border-zinc-300 px-1.5 py-0.5 text-[10pt] text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
+      >
+        <Plus className="size-3" />
+        Profile
+      </button>
+    </>
+  );
+}
+
+/** Read-only path — no hooks, no FormProvider required. */
+function JakeProfilesReadOnly({ profiles }: { profiles: Profile[] }) {
+  if (profiles.length === 0) return null;
+  return (
+    <>
+      {profiles.map((p, i) => {
+        if (!isSet(p.username)) return null;
+        const known = knownProfile(p.network);
+        const Icon = known?.icon ?? Globe;
+        return (
+          <span key={i} className="inline-flex items-center gap-1.5">
+            <Icon className="size-3 shrink-0 text-zinc-500" aria-hidden={true} />
+            {known && <span aria-hidden={true}>{known.prefix}</span>}
+            <span>{p.username}</span>
+          </span>
+        );
+      })}
     </>
   );
 }
@@ -438,60 +497,6 @@ function knownProfile(network: string | undefined): {
   }
   if (n.includes('github')) return { icon: Github, prefix: 'github.com/' };
   return null;
-}
-
-/**
- * Remove a profile row (editor only). Without this, a mis-typed
- * network can only be corrected by retyping it — and if the user
- * wants to drop a profile entirely there is no other affordance in
- * the Jake header. Classic has the same control in
- * `OnlineProfilesInline`.
- */
-function RemoveProfileButton({ index }: { index: number }) {
-  const { control } = useFormContext();
-  const { remove } = useFieldArray({
-    control,
-    name: 'sections.basics.profiles'
-  });
-  return (
-    <button
-      type="button"
-      onClick={() => remove(index)}
-      aria-label={`Remove profile ${index + 1}`}
-      title={`Remove profile ${index + 1}`}
-      data-testid={`remove-profile-${index}`}
-      className="no-print inline-flex size-3.5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:text-zinc-700 group-hover/profile:opacity-100 focus:opacity-100 focus:outline-none"
-    >
-      <X className="size-2.5" />
-    </button>
-  );
-}
-
-/**
- * "+ Add profile" — appends a blank profile row to
- * `sections.basics.profiles` so the user can then set network +
- * username. Mirrors classic.tsx's `OnlineProfilesInline` affordance,
- * minus the field-focusing requestAnimationFrame hack (Jake's slots
- * are picked up by the `network` value on the next render, so the
- * user fills it in by hand).
- *
- * Editor-only (`no-print`) — a print has no button to lose.
- */
-function AddProfileButton({ profiles }: { profiles: number }) {
-  const { control } = useFormContext();
-  const { append } = useFieldArray({ control, name: 'sections.basics.profiles' });
-  return (
-    <button
-      type="button"
-      onClick={() => append({ network: '', username: '', url: '' })}
-      className="no-print inline-flex items-center gap-1 rounded border border-dashed border-zinc-300 px-1.5 py-0.5 text-[10pt] text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
-      data-testid={`add-profile-${profiles}`}
-      aria-label="Add a profile (LinkedIn, GitHub, ...)"
-    >
-      <Plus className="size-3" />
-      Profile
-    </button>
-  );
 }
 
 /* -------------------------------------------------------------------------- */

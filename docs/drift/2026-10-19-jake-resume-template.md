@@ -318,6 +318,66 @@ commit → network field disappears, row reads
 `linkedin.com/in/ <handle>`. Screenshot at
 `output/playwright/jake-profiles-fixed.png`.
 
+## Round 5 — the per-row remove button didn't remove the row
+
+User report: added a profile handle, tried to delete it, and it
+either didn't remove or "cleared the handle and social data but the
+field still stayed."
+
+**Root cause: `useFieldArray` called once per row.** Round 4 put the
+remove button in its own component (`RemoveProfileButton`), and that
+component called `useFieldArray({ control, name:
+'sections.basics.profiles' })` for itself. With N rows there were N
+competing subscriptions registered on the same field name, each
+overwriting RHF's internal `_fields` state. `remove(i)` therefore ran
+against clobbered state: it unset that row's values without shrinking
+the array, which renders as exactly what the user described.
+
+Two secondary contributors:
+- Rows rendered from `mode.data.sections.basics.profiles.map(...)`
+  instead of from `useFieldArray`'s `fields`. Mixing the two means the
+  render can disagree with the array RHF actually manages.
+- The add button lived in a separate component with its own
+  `useFieldArray`, compounding the subscription count.
+
+**Fix.** One `useFieldArray` for the entire list, inside
+`JakeProfilesEditor`, rendering rows from `fields` — exactly what
+`EditableSectionInner` in `editable-section.tsx` does. `remove` and
+`append` are now called from that single instance, inline in the row
+and footer. Both per-row hook components were deleted.
+
+**Editor / read-only split.** `JakeOnlineProfiles` now dispatches to
+`JakeProfilesEditor` (hooks, needs `FormProvider`) or
+`JakeProfilesReadOnly` (no hooks). Required, because the read-only
+path is server-rendered with no provider — calling `useFormContext`
+unconditionally would throw in SSR / PDF / share. Same split
+`DateRange` uses for the same reason.
+
+**Browser-verified** (the only way to verify this — see below):
+- Remove profile 0 of 2 → array 2→1, remaining entry shifts to index
+  0, add button back to `add-profile-1`
+- Add + fill a profile, then remove it → row and both its fields gone,
+  contact line back to one profile
+- Remove the **last** profile → 0 rows, 0 profile fields, button back
+  to `add-profile-0`
+
+**On test coverage — an honest limit.** `renderToStaticMarkup` never
+dispatches a click, so **no unit test in this repo can prove that
+clicking the remove button removes a row.** Every test added across
+rounds 3–5 that asserted `remove-profile-N` *exists* would have
+passed against the broken implementation. The suite is not
+jsdom-based and adding an interaction harness is a larger change than
+this bug warrants.
+
+What the suite *can* pin is the structural invariant that caused it:
+a new test asserts `jake.tsx` declares **exactly one**
+`useFieldArray(` and that `JakeProfilesReadOnly` touches neither
+`useFieldArray` nor `useFormContext`. That is a source-level
+assertion, which is normally a smell — but the failure mode here is
+*where a hook is declared*, and no rendered-markup assertion can see
+that. The read-only split is independently covered: every
+read-only render test would throw outright if hooks leaked in.
+
 ## Lessons / things to remember
 
 1. **Vitest ≠ Next.js runtime.** Any `next/font/*`, `next/image`,
@@ -404,3 +464,21 @@ commit → network field disappears, row reads
    A `map` over the array degrades gracefully; two hardcoded
    slots have exactly the coverage of whatever the matching
    expression happens to match.
+
+10. **One `useFieldArray` per field array. Never one per
+    row.** Calling `useFieldArray` with the same `name` from
+    several components registers competing subscriptions; they
+    overwrite each other's `_fields` state, and `remove()` /
+    `move()` silently operate on clobbered data. The symptom
+    is not a crash — it is an array that unsets values
+    without shrinking. Render rows from `fields`, not from
+    `form.watch()`, so the render and the array RHF manages
+    cannot disagree.
+
+11. **`renderToStaticMarkup` cannot test interaction.** Five
+    rounds of Jake bugs, and rounds 4 and 5 were both
+    interaction bugs that a markup assertion would have sailed
+    straight past. Adding a remove button and asserting its
+    `data-testid` proves it *renders*, not that it *works*.
+    Interaction claims need a browser, and saying so is part
+    of reporting the result honestly.

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   FormProvider,
   useForm,
@@ -654,6 +656,73 @@ describe('JakeTemplate — editor exposes every field it renders', () => {
     expect(html).not.toContain(
       'data-testid="editable-sections.basics.profiles.0.network"'
     );
+  });
+
+  /**
+   * Regression: the per-row remove button didn't remove the row.
+   *
+   * `RemoveProfileButton` used to call `useFieldArray` for itself, so
+   * N buttons meant N competing subscriptions on the same field name.
+   * Each overwrote RHF's internal `_fields` state for
+   * `sections.basics.profiles`, and `remove(i)` ran against clobbered
+   * state: the row's values were unset but the array didn't shrink.
+   * The user saw "the handle cleared but the field stayed", or
+   * nothing at all.
+   *
+   * NOTE ON WHAT THIS TEST CAN AND CANNOT DO. `renderToStaticMarkup`
+   * never dispatches a click, so no unit test in this file can prove
+   * that clicking the button removes a row — that needs a real DOM.
+   * It was verified by hand in a browser (add a profile, fill it,
+   * click remove, assert the row and its fields are gone; and the
+   * same for the last remaining profile).
+   *
+   * What this test *can* pin is the structural invariant that caused
+   * it: exactly one `useFieldArray` for the whole list, and no
+   * component other than `JakeProfilesEditor` touching the profile
+   * field array. The editor/read-only split also keeps the read-only
+   * path free of `useFormContext` — the existing read-only renders
+   * below would throw outright if hooks leaked into that path.
+   */
+  it('declares exactly ONE useFieldArray for the profiles list', () => {
+    // Source-level check, deliberately: the failure mode is *where*
+    // the hook is declared, and no rendered-markup assertion can see
+    // that. Two declarations on the same name is the bug.
+    const src = readFileSync(
+      join(process.cwd(), 'components/resume-templates/jake.tsx'),
+      'utf8'
+    );
+    const declarations = src.match(/useFieldArray\(\{/g) ?? [];
+    expect(declarations).toHaveLength(1);
+    // …and the read-only half must not reach for form context.
+    const readOnly = src.slice(
+      src.indexOf('function JakeProfilesReadOnly'),
+      src.indexOf('function JakeProfilesReadOnly') + 1200
+    );
+    expect(readOnly).not.toContain('useFieldArray');
+    expect(readOnly).not.toContain('useFormContext');
+  });
+
+  it('renders one remove control per profile row', () => {
+    const withThree: ResumeData = {
+      ...sampleResumeData,
+      sections: {
+        ...sampleResumeData.sections,
+        basics: {
+          ...sampleResumeData.sections.basics,
+          profiles: [
+            { network: 'LinkedIn', username: 'a', url: '' },
+            { network: 'GitHub', username: 'b', url: '' },
+            { network: 'Mastodon', username: 'c', url: '' }
+          ]
+        }
+      }
+    };
+    const html = renderEditable(withThree);
+    for (const i of [0, 1, 2]) {
+      expect(html).toContain(`data-testid="remove-profile-${i}"`);
+    }
+    // The add button indexes off the live row count.
+    expect(html).toContain('data-testid="add-profile-3"');
   });
 
   it('keeps read-only output free of editor affordances', () => {
