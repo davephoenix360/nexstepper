@@ -287,6 +287,44 @@ const session = await stripe.checkout.sessions.create({
 
 But there's no good reason to disable it. Managed Payments is better.
 
+### Products need a tax code — or every Checkout session 500s
+
+Second, completely separate consequence of Managed Payments being on by
+default: **a product with no `tax_code` cannot be used in a Checkout
+session at all.** Hit on 2026-10-21, live mode, as a bare `500` from
+`POST /pricing` with no Stripe error surfaced anywhere in the UI.
+
+`stripe.checkout.sessions.create` returns:
+
+```
+400 Bad Request
+Invalid line_items[0]: the product tax code is missing. A tax code is
+required for Managed Payments, which is enabled by default on your
+account. Update the product's tax code, or pass
+managed_payments[enabled]=false to disable it for this request.
+```
+
+Set the code once per product — it is a **product** field, so every
+price under it inherits it and no code change is needed:
+
+```bash
+stripe products update prod_VTzO3C7OsTxptr --live -d "tax_code=txcd_10103000"
+stripe products update prod_VIVzxjY5zV6CPi       -d "tax_code=txcd_10103000"
+```
+
+`txcd_10103000` is "Software as a service (SaaS) - personal use".
+List what's available with `stripe tax_codes list --live --limit 100`.
+
+Both the live and the sandbox product now carry it. **A newly created
+product needs this set before the first checkout attempt**, otherwise
+you get the same 500.
+
+> **A tax code is not a tax rate.** It is a classification label
+> ("what kind of thing is this") that Managed Payments needs before it
+> will let you charge at all. Setting it does **not** start collecting
+> GST/HST — that needs Stripe Tax with `automatic_tax` enabled, which is
+> deliberately deferred until GST/HST registration.
+
 ---
 
 ## 4. Troubleshooting
@@ -349,6 +387,30 @@ complete checkout. If it's silent, the forwarder died — restart it.
 `plan.priceId === null` and shows a disabled button — see
 `app/(marketing)/pricing/page.tsx:117`. Set the Price ID in
 `.env.local` and restart.
+
+### 4.8 Upgrade button yields a bare `500` and nothing else
+
+The worst failure mode in this integration, because nothing about it is
+visible from the outside. No error on the page, no toast, and **Sentry
+is useless here** — Next.js masks server-component errors in production
+and gives you a digest (`900773909`) with zero stack frames. The only
+place the real message appears is the Vercel runtime log:
+
+```bash
+npx --yes vercel@latest logs --since 10m
+```
+
+Use `--since 10m`, not `1h` — the Hobby plan does not retain runtime
+logs beyond ~10 minutes and the command fails outright for longer ranges.
+You have to be reproducing the error while you watch.
+
+If the log says `the product tax code is missing`, see §3 — set
+`tax_code` on the product and retry. No redeploy is needed for a Stripe
+Dashboard change; the next click picks it up.
+
+The other common 500 here is a wrong-mode key: a live product + a
+sandbox key (or the reverse) surfaces as a price/permission error rather
+than anything about tax codes.
 
 ---
 
