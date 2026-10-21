@@ -34,19 +34,53 @@ Consequences:
 - A `No such price` error almost always means you're holding a sandbox
   key and asking for a live Price ID (or vice versa). See §4.3.
 
+> **Consequence that wastes time:** because these are two *accounts*, the
+> Stripe CLI — which is logged into the **live** one — cannot see the
+> sandbox's products or prices at all. Asking the CLI for a sandbox
+> product ID returns `No such product: 'prod_…'`, which reads exactly
+> like a deleted object but means "wrong account". Route sandbox calls
+> through the `.env.local` key instead — either
+> `stripe products list` with `STRIPE_API_KEY` set from `.env.local`, or
+> call the REST API directly.
+
 ### Live objects that exist (created 2026-10-21)
 
 These are identifiers, not secrets, and are safe to commit:
 
 | object | id |
 |---|---|
-| Product `Nextep Pro` (live) | `prod_VTzO3C7OsTxptr` |
+| Product `Nexstepper Pro` (live) | `prod_VTzO3C7OsTxptr` |
 | Price CAD 5.00/month (live) | `price_1UT2DfRL5953MIrUXj3FsHMc` |
 | Webhook endpoint (live) | `we_1UT2DlRL5953MIrUIR7ISThI` → `https://www.nexstepper.com/api/stripe/webhook` |
 
 The webhook endpoint is registered for `customer.subscription.created`,
 `.updated`, and `.deleted` — exactly the three cases
 `app/api/stripe/webhook/route.ts` handles.
+
+The product's `description` is customer-visible (invoices, the customer
+portal, and Stripe emails), so it is held to the same truthfulness
+standard as the marketing pages: it names the 500K daily chat budget,
+ATS scoring with inline rewrites, and sharing links — **not** reviews,
+collab, or "unlimited" chat, none of which exist or are accurate.
+
+### Proving the checkout path works before spending real money
+
+```bash
+node scripts/smoke-checkout-session.cjs
+```
+
+This creates a real Checkout Session using the **exact** parameter set
+from `createCheckoutSession()` in `lib/payments/stripe.ts`, against the
+sandbox, then **expires it immediately** so it can never be charged. It
+costs nothing and catches the whole class of parameter-level 500s — the
+tax-code bug in §4.8 was found this way, after the fact.
+
+It validates Stripe's request validation only. It does **not** prove a
+card can be authorized, and it does not touch the live account.
+
+> If you change the params in `createCheckoutSession()`, change them in
+> the smoke test too — otherwise it silently stops testing the real
+> thing. Both files say so in a comment.
 
 ### Price history
 
@@ -62,6 +96,11 @@ subscription.
 | `price_1UT2DfRL5953MIrUXj3FsHMc` | **live** | CAD 5.00 | active, product default |
 
 Currency is **CAD**, not USD — the primary market is Canada.
+
+Both products also carry `tax_code: txcd_10103000` (§3) — without it no
+Checkout session can be created at all. The sandbox product is
+`prod_VIVzxjY5zV6CPi`, which the CLI cannot see because it lives in the
+other account.
 
 ### Restricted keys and permissions
 
