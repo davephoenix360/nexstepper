@@ -104,7 +104,7 @@ export async function Hero() {
             href="/pricing"
             className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
           >
-            Pricing — Pro launching soon
+            or see pricing
           </Link>
         </div>
 
@@ -119,7 +119,7 @@ export async function Hero() {
           </li>
           <li className="flex items-center gap-1.5">
             <CheckCircle2 className="size-4 text-primary" />
-            Pro launching soon
+            Pro is live at CAD 5/month
           </li>
         </ul>
 

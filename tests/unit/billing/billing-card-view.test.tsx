@@ -21,10 +21,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { BillingCardView } from '@/app/(dashboard)/dashboard/general/_components/billing-card';
 
 describe('BillingCardView', () => {
-  it('renders plan name + status for Free users and shows Pro-launching-soon CTA', () => {
-    // Soft launch: Free users see the waitlist badge, not a live
-    // Upgrade button. When Pro goes live, this test should flip
-    // back to asserting `data-testid="upgrade-button"`.
+  it('renders plan name + status for Free users and shows the Upgrade CTA', () => {
+    // Pro went live 2026-10-21, so Free users get a real
+    // `UpgradeButton` linking to /pricing rather than a waitlist mailto.
+    // Flip back to `pro-launching-soon-badge` if checkout is ever
+    // suspended again.
     const html = renderToStaticMarkup(
       <BillingCardView
         plan="free"
@@ -36,7 +37,7 @@ describe('BillingCardView', () => {
 
     expect(html).toContain('Free');
     expect(html).toContain('Inactive');
-    expect(html).toContain('data-testid="pro-launching-soon-badge"');
+    expect(html).toContain('data-testid="upgrade-button"');
     expect(html).not.toContain('data-testid="manage-billing-button"');
   });
 
@@ -88,10 +89,10 @@ describe('BillingCardView', () => {
     expect(html).not.toContain('Renews on');
   });
 
-  it('shows Pro-launching-soon CTA for Pro users in canceled state (no longer Pro-effective)', () => {
+  it('shows the Upgrade CTA for Pro users in canceled state (no longer Pro-effective)', () => {
     // Edge case: user upgraded to Pro, then canceled. Status moves to
     // 'canceled'. Even though plan is 'pro', isProEffective is false,
-    // so we render the waitlist CTA, not Manage billing.
+    // so we render the upgrade CTA, not Manage billing.
     const html = renderToStaticMarkup(
       <BillingCardView
         plan="pro"
@@ -101,8 +102,9 @@ describe('BillingCardView', () => {
       />
     );
 
-    expect(html).toContain('data-testid="pro-launching-soon-badge"');
+    expect(html).toContain('data-testid="upgrade-button"');
     expect(html).not.toContain('data-testid="manage-billing-button"');
     expect(html).toContain('Canceled');
   });
 });
+
