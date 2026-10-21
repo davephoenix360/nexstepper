@@ -312,7 +312,32 @@ export function FieldBullets({
   return (
     <ul className={cn('list-outside list-disc space-y-1 pl-5', className)}>
       {values.map((v, i) => (
-        <li key={i} className={itemClassName}>
+        // Per-bullet break avoidance (Oct 2026).
+        //
+        // The bug this fixes: when the whole WORK ENTRY carried
+        // `break-inside-avoid`, an entry whose bullets spilled past
+        // the page boundary was pushed ENTIRELY to the next page,
+        // leaving ~half a page of dead space. The user reported this
+        // as "page breaks are reluctant to break between bullet
+        // points, they'd rather move the whole work experience
+        // section down."
+        //
+        // The fix is a two-level preference:
+        //   - The title row carries `break-inside-avoid` so a
+        //     header can never orphan at the bottom of a page.
+        //   - Each individual <li> carries `break-inside-avoid` so a
+        //     bullet is never split mid-sentence across pages.
+        //   - The <ul> and the entry wrapper carry NOTHING, so the
+        //     browser is free to break BETWEEN bullets — which is
+        //     exactly the behaviour a reader expects.
+        //
+        // Previously no template had the per-<li> guard, so bullets
+        // could split mid-sentence (Modern) or the whole entry jumped
+        // (classic / minimal / executive / creative). This line makes
+        // all six templates behave identically: never orphan a
+        // header, never split a bullet, always allow a break between
+        // two bullets.
+        <li key={i} className={cn('print:break-inside-avoid', itemClassName)}>
           {v}
         </li>
       ))}
