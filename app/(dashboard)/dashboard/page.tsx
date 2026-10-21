@@ -88,10 +88,11 @@ export default async function DashboardHome() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-5 w-5 text-muted-foreground" />
-              Sharing & reviews
+              Share a resume
             </CardTitle>
             <CardDescription>
-              Public links, peer feedback, real-time collab (Phase 5).
+              Publish a read-only link for any resume and see how often it
+              gets opened. Turn it off whenever.
             </CardDescription>
           </CardHeader>
         </Card>

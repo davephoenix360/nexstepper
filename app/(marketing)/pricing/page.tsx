@@ -46,11 +46,26 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   'Everything in Free, plus:',
-  'Unlimited AI chat (3am cram sessions included)',
+  // Not "unlimited". `PLANS.pro.chatTokensPerDay` bounds spend at
+  // 500K tokens/day (~$2.10/mo worst case at the chat model's list
+  // price), and claiming otherwise is a false advertisement the moment
+  // a user hits it. Free keeps its honest "20 messages a day".
+  'Generous AI chat — 500K tokens a day, resets at midnight',
+  // The one genuinely Pro-only feature that ships. `enrichBulletAction`
+  // returns exactly 3 rewrites, deduped and padded, and refuses
+  // without a JD attached.
   'Inline AI rewrites — click any weak bullet, get 3 fixes',
-  'Peer reviews (your friends roast your resume; you pick the keepers)',
-  'Real-time collaboration (study-group energy, but for jobs)',
-  'Priority email support — a human reads these, mostly'
+  // REMOVED 2026-10-21: "Peer reviews" and "Real-time collaboration".
+  // Neither exists. There is no reviews table, no invite flow, and
+  // `lib/liveblocks/server.ts` is imported by nothing. Both were
+  // advertised while Pro was soft-launched and nobody could reach the
+  // purchase page — the first time this list was actually sellable we
+  // checked. Do not re-add either until the feature is built.
+  //
+  // "Priority email support" has no queue or SLA either, but it is
+  // true the moment support@nexstepper.com exists and gets answered:
+  // Free users have no support channel to be deprioritised against.
+  'Priority email support'
 ];
 
 export default async function PricingPage() {
@@ -210,8 +225,8 @@ export default async function PricingPage() {
       </div>
 
       <p className="text-center text-sm text-gray-500 mt-12 max-w-md mx-auto">
-        Free is everything most people need. Pro is the next chapter —
-        launching soon.
+        Free is everything most people need. Pro is CA$5 a month — cancel
+        whenever.
       </p>
     </main>
   );

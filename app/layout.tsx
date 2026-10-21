@@ -14,7 +14,7 @@ import { getSiteOrigin, googleSiteVerification } from '@/lib/site';
 export const metadata: Metadata = {
   title: 'Nexstepper — AI-assisted resume builder',
   description:
-    'Take the next step. Master-resume → tailored variants, ATS-style scoring, peer reviews, and real-time collaboration.',
+    'Take the next step. Master-resume → tailored variants, ATS-style scoring, and inline AI rewrites.',
   // Without this, Next.js resolves relative OG/canonical/image URLs against
   // localhost and emits them broken. Same resolver feeds robots.ts + sitemap.ts.
   metadataBase: new URL(getSiteOrigin()),

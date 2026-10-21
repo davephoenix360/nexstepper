@@ -10,12 +10,15 @@ import { Button } from '@/components/ui/button';
  * Used twice on the landing page: once mid-page (pricing teaser) and
  * once at the bottom (final CTA). Accepts a variant for each.
  *
- * Pro is gated as "coming soon" — the product launches Free-only, so
- * neither variant shows an active "Upgrade to Pro" or pricing checkout
- * button. The pricing page itself (`app/(marketing)/pricing/page.tsx`)
- * remains reachable for users who navigate to it directly, and renders
- * its own disabled-CTA state when Stripe is unconfigured. Both
- * surfaces point back at the Free sign-up flow as the primary CTA.
+ * Both variants still point at the Free sign-up flow as the primary CTA —
+ * that is deliberate, because the audience here has not seen the product
+ * yet and "start free" converts better than "pay CA$5". The badge is
+ * informational: it tells them Pro exists and what it costs, so the
+ * pricing page is not a surprise. Actual checkout lives only on
+ * `/pricing`.
+ *
+ * History: the soft-launch build suppressed the upgrade path entirely
+ * and this copy said "Pro is launching soon". Pro went live 2026-10-21.
  */
 export function CtaSection({
   variant = 'final'
@@ -28,16 +31,15 @@ export function CtaSection({
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <Badge variant="secondary" className="mb-4 gap-1.5 px-3 py-1 text-sm">
             <Sparkles className="size-3.5" />
-            Pro — coming soon
+            Pro is live — CA$5/month
           </Badge>
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Free to start today. Pro is launching soon.
+            Free to start. Pro is CA$5 a month.
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            The full product — unlimited resumes, ATS scoring, and AI chat
-            — is free today. Pro will add inline rewrites, peer reviews,
-            and real-time collaboration when it ships. Join the free tier
-            and we&apos;ll let you know when Pro goes live.
+            Unlimited resumes, ATS scoring, and AI chat are free today. Pro
+            adds generous AI chat, inline AI rewrites on any bullet, and
+            priority email support.
           </p>
           <div className="mt-8">
             <Button asChild size="lg" className="h-11 px-6 text-base">
@@ -66,7 +68,7 @@ export function CtaSection({
             className="mb-4 gap-1.5 border border-background/20 bg-background/10 px-3 py-1 text-sm text-background"
           >
             <Sparkles className="size-3.5" />
-            Pro — coming soon
+            Pro is live — CA$5/month
           </Badge>
           <h2 className="text-3xl font-bold tracking-tight text-background sm:text-4xl">
             Ready to land the next one?

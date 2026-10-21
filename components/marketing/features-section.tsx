@@ -82,15 +82,23 @@ export function FeaturesSection() {
             title="Job context attached"
             description="Paste a job URL or text, and Nexstepper parses the requirements, must-haves, and seniority. Your variant adapts to match."
           />
+          {/* REPLACED 2026-10-21: the two cards here used to be
+              "Peer reviews" and "Real-time collaboration". Neither
+              exists — there is no reviews table or invite flow, and
+              `lib/liveblocks/server.ts` is imported by nothing. Both
+              were advertised while Pro was soft-launched and the
+              purchase page was unreachable, so nobody could check.
+              Replaced with two features that actually ship rather
+              than deleted, to keep the 3x2 grid intact. */}
           <FeatureCard
             icon={<Users className="size-5" />}
-            title="Peer reviews"
-            description="Share a private link, collect inline comments and thumbs-up/down from people you trust. No more 'send me a Word doc' email chains."
+            title="Private sharing links"
+            description="Publish one read-only link for a specific resume. Track how many times a recruiter opened it, and kill the link whenever you want."
           />
           <FeatureCard
             icon={<Zap className="size-5" />}
-            title="Real-time collaboration"
-            description="Co-edit a resume with a coach or friend. See cursors, edits, and suggestions live — built on Liveblocks, no Google Docs round-trip."
+            title="Inline AI rewrites"
+            description="Flag a weak bullet, get three alternatives grounded in the job description, and keep the one you like. Pro."
           />
         </div>
       </div>
