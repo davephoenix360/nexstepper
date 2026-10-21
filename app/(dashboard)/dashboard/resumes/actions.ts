@@ -29,19 +29,12 @@ import {
 import {
   enableShare as enableShareQuery,
   disableShare as disableShareQuery,
-  getShareStatus,
-  rotateShareToken as rotateShareTokenQuery
+  getShareStatus
 } from '@/lib/db/queries';
 import {
   buildShareUrl,
-  generateShareTokenRaw,
-  hashShareToken
+  deriveShareToken
 } from '@/lib/share';
-import {
-  decryptShareToken,
-  encryptShareToken,
-  tokenMatchesHash
-} from '@/lib/share/token-crypto';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
 import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
 import { trackServer } from '@/lib/posthog/server';
@@ -757,25 +750,38 @@ export type ShareActionResult =
 /**
  * Result of re-reading an existing share link.
  *
- * `unavailable` is deliberately distinct from the error codes: it is a
- * normal, expected outcome for links created before encrypted storage
- * existed, and the UI shows an explanation with a recovery path rather
- * than treating it as a failure.
+ * After Phase 2.5b the only failure mode is "sharing is off" — the
+ * token is derivable on demand, so `not_enabled` is the one code
+ * the dialog handles. `not_found`, `not_signed_in`, and `db_failure`
+ * are the universal action errors. The previous `unavailable` code
+ * (legacy pre-encryption link, no key, stale ciphertext) is gone —
+ * none of those states can exist any more.
  */
-export type ShareUrlErrorCode = ShareActionErrorCode | 'not_enabled' | 'unavailable';
+export type ShareUrlErrorCode =
+  | ShareActionErrorCode
+  | 'not_enabled';
 
 export type ShareUrlResult =
   | { ok: true; data: { url: string } }
   | { ok: false; code: ShareUrlErrorCode; error: string };
 
 /**
- * Enable public sharing for a resume. Generates a fresh 21-char
- * CSPRNG token, stores the SHA-256 hash in the DB, and returns the
- * raw token (in the URL) to the caller.
+ * Enable public sharing for a resume. The token is derived here
+ * (HMAC-SHA256 of the resume id, truncated, base64url) — the
+ * action does NOT take one from the client and the database column
+ * holds the token verbatim, not a digest of it.
  *
- * The raw token is NEVER persisted in plaintext — only the hash is
- * in `resumes.shareTokenHash`. A DB leak therefore doesn't leak
- * shareable URLs.
+ * Re-enables are idempotent: re-running this for a row that
+ * already has sharing on returns the same URL, because
+ * `deriveShareToken(resumeId)` is a pure function. The owner never
+ * has to email a new link after a toggle off / on cycle.
+ *
+ * The raw token is persisted in plaintext in `resumes.share_token`
+ * — that is the point of the deterministic design. A DB leak
+ * still yields no usable URLs because the HMAC key
+ * (`SHARE_LINK_SECRET`) lives in the environment, not the
+ * database; this is the same property the prior hash-only design
+ * gave us, with the bonus that the owner can re-read their URL.
  */
 export async function enableShareAction(
   input: unknown
@@ -797,46 +803,42 @@ export async function enableShareAction(
     return { ok: false, code: 'not_found', error: 'Resume not found' };
   }
 
-  const token = generateShareTokenRaw();
-  const tokenHash = hashShareToken(token);
-  // Also store the token encrypted so the owner can re-read this link
-  // later. Null when no encryption key is configured — sharing still
-  // works exactly as before in that case.
-  const tokenCiphertext = encryptShareToken(token);
-
+  let enabled: { token: string; createdAt: Date } | null;
   try {
-    const ok = await enableShareQuery(
-      parsed.data.id,
-      session.user.id,
-      tokenHash,
-      tokenCiphertext
-    );
-    if (!ok) {
-      return { ok: false, code: 'not_found', error: 'Resume not found' };
-    }
+    enabled = await enableShareQuery(parsed.data.id, session.user.id);
   } catch (err) {
     console.error('[enableShareAction] DB failure:', err);
     return { ok: false, code: 'db_failure', error: 'Could not enable sharing' };
   }
+  if (!enabled) {
+    return { ok: false, code: 'not_found', error: 'Resume not found' };
+  }
 
-  trackServer(session.user.id, PostHogEvents.SHARE_LINK_CREATED, {
-    resumeId: parsed.data.id
-  });
+  // Distinguish first-ever enable from re-enable for analytics:
+  // re-enable still fires "disabled" first because the user's last
+  // state was off. We can use `status.enabled` (the read-before-
+  // write snapshot) to gate this — it's already what we have.
+  if (!status.enabled) {
+    trackServer(session.user.id, PostHogEvents.SHARE_LINK_CREATED, {
+      resumeId: parsed.data.id
+    });
+  }
 
   return {
     ok: true,
     data: {
-      url: buildShareUrl(token),
+      url: buildShareUrl(enabled.token),
       viewCount: status.viewCount,
-      createdAt: new Date()
+      createdAt: enabled.createdAt
     }
   };
 }
 
 /**
  * Disable public sharing. The existing URL immediately stops working
- * (the lookup query requires `shareEnabled = true`). We keep the
- * token hash around so a future re-enable starts from a known state.
+ * (the lookup query requires `shareEnabled = true`). The token column
+ * is preserved verbatim — re-enabling writes the same value back
+ * without any DB-column rotation.
  */
 export async function disableShareAction(
   input: unknown
@@ -876,81 +878,6 @@ export async function disableShareAction(
   };
 }
 
-/**
- * Rotate the share token. The old URL immediately stops working; the
- * new one is returned. Useful when the user suspects the link has
- * leaked (e.g. recruiter-forwarded email went sideways).
- *
- * Requires `shareEnabled = true` — rotation of a disabled link is a
- * no-op (call `enableShareAction` instead, which generates a fresh
- * token from scratch).
- */
-export async function rotateShareTokenAction(
-  input: unknown
-): Promise<ShareActionResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
-    return { ok: false, code: 'not_signed_in', error: 'Not signed in' };
-  }
-
-  const parsed = enableShareSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, code: 'not_found', error: 'Invalid resume id' };
-  }
-
-  const status = await getShareStatus(parsed.data.id, session.user.id);
-  if (!status) {
-    return { ok: false, code: 'not_found', error: 'Resume not found' };
-  }
-  if (!status.enabled) {
-    return {
-      ok: false,
-      code: 'not_found',
-      error: 'Sharing is not enabled on this resume'
-    };
-  }
-
-  const token = generateShareTokenRaw();
-  const tokenHash = hashShareToken(token);
-  const tokenCiphertext = encryptShareToken(token);
-
-  try {
-    const ok = await rotateShareTokenQuery(
-      parsed.data.id,
-      session.user.id,
-      tokenHash,
-      tokenCiphertext
-    );
-    if (!ok) {
-      return {
-        ok: false,
-        code: 'not_found',
-        error: 'Could not rotate — sharing may be disabled'
-      };
-    }
-  } catch (err) {
-    console.error('[rotateShareTokenAction] DB failure:', err);
-    return {
-      ok: false,
-      code: 'db_failure',
-      error: 'Could not rotate the share link'
-    };
-  }
-
-  trackServer(session.user.id, PostHogEvents.SHARE_LINK_ROTATED, {
-    resumeId: parsed.data.id
-  });
-
-  return {
-    ok: true,
-    data: {
-      url: buildShareUrl(token),
-      viewCount: status.viewCount,
-      createdAt: new Date()
-    }
-  };
-}
-
 const enableShareSchema = z.object({
   id: z.string().min(1, 'Resume id is required')
 });
@@ -958,27 +885,12 @@ const enableShareSchema = z.object({
 /**
  * Re-read the owner's own share link.
  *
- * This is what makes "sharing is on" an actionable state rather than a
- * dangling one. The raw token is stored encrypted (see
- * `lib/share/token-crypto.ts`); we decrypt it here, owner-only, and
- * hand back the public URL.
- *
- * ## Why the hash check
- *
- * Decrypting successfully only proves the envelope was written by this
- * app under a key we hold. It does not prove the row still *points* at
- * that token — a rotation could in principle leave a stale ciphertext
- * beside a fresh hash. So the decrypted token is re-hashed and compared
- * against `share_token_hash` with a constant-time compare. If they
- * disagree we fall back to the same "not retrievable" path as a legacy
- * link rather than returning a URL that 404s.
- *
- * ## Why `unavailable` is a normal result
- *
- * It is returned — not thrown — for every expected case: sharing off,
- * no ciphertext stored (link predates encryption), no encryption key
- * configured, or a row we cannot decrypt. The UI renders an honest
- * explanation for each rather than an error.
+ * Post-Phase-2.5b there is nothing to "recover": the token is
+ * derived deterministically from the resume id, every time. So
+ * `getShareUrlAction` returns the URL for any row with
+ * `shareEnabled = true` and surfaces only `not_signed_in`,
+ * `not_found`, `not_enabled`, and `db_failure`. The old
+ * `unavailable` code (legacy pre-encrypted link) is gone.
  */
 export async function getShareUrlAction(
   input: unknown
@@ -1007,24 +919,11 @@ export async function getShareUrlAction(
     return { ok: false, code: 'not_found', error: 'Resume not found' };
   }
 
-  if (!status.enabled || !status.tokenHash) {
+  if (!status.enabled) {
     return { ok: false, code: 'not_enabled', error: 'Sharing is off' };
   }
 
-  const token = decryptShareToken(status.tokenCiphertext);
-
-  if (!token || !tokenMatchesHash(token, status.tokenHash, hashShareToken)) {
-    // Legacy link (pre-encryption) or an undecryptable row. The owner
-    // recovers by rotating, which is the only forward path.
-    return {
-      ok: false,
-      code: 'unavailable',
-      error:
-        'This link was created before encrypted storage, so it cannot be shown again. Generate a new link to get one you can re-read.'
-    };
-  }
-
-  return { ok: true, data: { url: buildShareUrl(token) } };
+  return { ok: true, data: { url: buildShareUrl(deriveShareToken(parsed.data.id)) } };
 }
 
 /**

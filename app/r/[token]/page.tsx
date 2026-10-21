@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
 import { getResumeByShareToken, recordShareView } from '@/lib/db/queries';
-import { hashShareToken } from '@/lib/share';
 import { getTemplate } from '@/components/resume-templates';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
@@ -15,8 +14,13 @@ import { PostHogEvents } from '@/lib/posthog/events';
  * capability.
  *
  * The lookup:
- *   1. Hash the incoming token (SHA-256, hex).
- *   2. Query `resumes` by hash WHERE shareEnabled = true.
+ *   1. Validate token shape (deterministic tokens are exactly 22
+ *      chars, base64url; reject anything else before hitting the DB).
+ *   2. Query `resumes` by `share_token = ?` WHERE shareEnabled = true.
+ *      The token IS the lookup key — no second hash step. This is
+ *      safe because what we store is an HMAC, not a secret: an
+ *      attacker without `SHARE_LINK_SECRET` cannot reproduce tokens
+ *      from the column.
  *   3. If no row → 404 (don't leak which half was wrong).
  *   4. Validate the JSONB revision data (defense in depth).
  *   5. Render via the same template registry the editor uses.
@@ -40,9 +44,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   // Don't even look at the DB for metadata — every shareable page
   // returns the same generic title, and the data isn't fetched
-  // until the page render (which is the only point we hash + query).
-  // Avoiding the lookup here saves a DB round-trip for crawlers and
-  // the rate-limit window.
+  // until the page render (which is the only point we look up the
+  // token). Avoiding the lookup here saves a DB round-trip for
+  // crawlers and the rate-limit window.
   return {
     title: 'Resume',
     robots: {
@@ -61,13 +65,16 @@ export default async function SharedResumePage({
 }) {
   const { token } = await params;
 
-  // Cheap input guard: nanoid tokens are 21 chars, alphabet-
-  // constrained. A 1KB string is obviously wrong and would just
-  // waste a hash + DB round-trip. Cap at 64 to be safe.
-  if (!token || token.length > 64) notFound();
+  // Cheap input guard: `deriveShareToken` produces exactly 22 chars
+  // (16 bytes base64url-encoded). A 1KB string is obviously wrong
+  // and would just waste a DB round-trip. The shape check is also a
+  // pre-migration safety net — old URLs that held 64-char SHA-256
+  // hex digests fail here before they hit a query plan.
+  if (!token || token.length !== 22 || !/^[A-Za-z0-9_-]+$/.test(token)) {
+    notFound();
+  }
 
-  const tokenHash = hashShareToken(token);
-  const result = await getResumeByShareToken(tokenHash);
+  const result = await getResumeByShareToken(token);
   if (!result) notFound();
 
   // Render via the same template registry the editor uses — single

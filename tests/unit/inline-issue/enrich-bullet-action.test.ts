@@ -127,7 +127,7 @@ const OWNED_RESUME = {
     isMaster: false,
     parentResumeId: 'master-1',
     currentRevisionId: 'rev-1',
-    shareTokenHash: null,
+    shareToken: null,
     shareEnabled: false,
     shareViewCount: 0,
     shareLastViewedAt: null,

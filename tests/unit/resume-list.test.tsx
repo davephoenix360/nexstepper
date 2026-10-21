@@ -38,7 +38,7 @@ function makeResume(overrides: Partial<Resume>): Resume {
     isMaster: false,
     parentResumeId: null,
     currentRevisionId: 'rev-id',
-    shareTokenHash: null,
+    shareToken: null,
     shareEnabled: false,
     shareViewCount: 0,
     shareLastViewedAt: null,

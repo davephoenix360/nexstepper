@@ -1,95 +1,60 @@
 import 'server-only';
 
-import { createHash, randomBytes } from 'node:crypto';
-import { customAlphabet } from 'nanoid';
 import { absoluteUrl } from '@/lib/site';
 
 /**
- * Public shareable link — token + hash + URL builder.
+ * Deterministic share-link builder.
  *
- * ## Why we store a hash, not the raw token
+ * The token itself is derived in `deterministic-token.ts`:
  *
- * A leaked DB backup should not let an attacker reconstruct all
- * active shareable URLs. We SHA-256 the raw token, store the digest,
- * and on lookup hash the incoming URL token and compare. This is the
- * same pattern magic-link auth uses (see securityboulevard 2026 +
- * Auth0 docs).
+ *   deriveShareToken(resumeId)
+ *     = base64url( HMAC-SHA256( SHARE_LINK_SECRET, resumeId )[:16] )
  *
- * ## Why nanoid 21
+ * This module is a thin layer that owns the URL shape and the
+ * constant pieces of the public-link identity. Nothing else lives
+ * here on purpose — there are no random or one-way-hash stages
+ * anymore.
  *
- * - 21 chars URL-safe (A-Za-z0-9_-) — short enough to share verbally,
- *   long enough to never collide in practice
- * - 126 bits of entropy (CSPRNG-backed by Node's `crypto.getRandomValues`)
- * - Default alphabet is unambiguous (no 0/O/1/l confusion)
+ * ## URL shape
  *
- * UUIDv4 was the alternative. We picked nanoid because:
- *   - The URL is 60% shorter (21 vs 36 chars)
- *   - Hyphen-free looks cleaner in a chat/email
- *   - 126 bits of entropy vs 122 — small but real
- *
- * ## Why not signed JWT
- *
- * - We want to be able to revoke instantly (set `shareEnabled = false`).
- *   JWT revocation needs a denylist, which mostly defeats the
- *   statelessness benefit.
- * - The token is a *capability*, not an *identity*. We don't need
- *   any claims in it — the lookup goes straight to the resume row.
+ * `/r/{token}` — short, magic-link style, deliberately not
+ * `/share/{token}` (longer and signals to crawlers that the page
+ * is meant to be shared, while `/r/` is listed in
+ * `app/robots.ts`'s disallow set so these links cannot end up in a
+ * search index even if the token leaks).
  */
 
-// `urlSafe` alphabet (A-Za-z0-9_-) without ambiguous chars by
-// pinning the alphabet explicitly rather than using nanoid's default.
-// Length 21 = 126 bits of entropy.
-const SHARE_ALPHABET =
-  '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-const generateShareToken = customAlphabet(SHARE_ALPHABET, 21);
+const SHARE_PATH_PREFIX = '/r/';
 
 /**
- * Generate a fresh share token. CSPRNG-backed (nanoid uses
- * `crypto.getRandomValues` in Node). The caller is responsible for
- * giving the raw token to the user exactly once (to put in the URL)
- * and storing only the SHA-256 hash.
- */
-export function generateShareTokenRaw(): string {
-  return generateShareToken();
-}
-
-/**
- * SHA-256 hex digest of the token. Used as the DB lookup key.
+ * Build the full public URL for a deterministic share token. Reads
+ * `NEXT_PUBLIC_APP_URL` (falls back to `BASE_URL`, then to
+ * `http://localhost:3000` for dev — see `lib/site.ts`).
  *
- * We use SHA-256 (not bcrypt/argon) because:
- *   - The token already has 126 bits of entropy — no work-factor
- *     increase needed to slow down brute force
- *   - The token is *high-entropy random*, not a low-entropy password
- *   - We need fast lookups (every public render hashes once)
- *
- * A peppered hash (server-side secret) is an option for the future
- * if we ever need to defend against rainbow tables. Not needed today
- * because the input space is already 2^126.
- */
-export function hashShareToken(token: string): string {
-  return createHash('sha256').update(token, 'utf8').digest('hex');
-}
-
-/**
- * Build the full public URL for a given token. Reads `NEXT_PUBLIC_APP_URL`
- * (falls back to `BASE_URL` then `http://localhost:3000` for dev).
- *
- * The shape is `/r/{token}` — short, magic-link style. Not
- * `/share/{token}` because that's longer and tells crawlers the page
- * is meant to be shared (we'd rather it stays quiet).
- *
- * That second half is now enforced rather than merely intended: `/r/` is
- * listed in `app/robots.ts`'s disallow set, so these links cannot end up in
- * a search index even if the token leaks.
+ * The caller is responsible for producing `token` from
+ * `deriveShareToken(resumeId)`. `buildShareUrl` is deliberately
+ * pure: passing it any string and getting a URL back lets the
+ * test suite exercise it without booting env-driven derivations.
  */
 export function buildShareUrl(token: string): string {
-  return absoluteUrl(`/r/${token}`);
+  return absoluteUrl(`${SHARE_PATH_PREFIX}${token}`);
 }
 
 /**
- * Random hex token for internal use (e.g. CSRF for share management
- * — not currently used but kept as a helper).
+ * `true` when the token string is exactly the shape we generate
+ * (`deriveShareToken`). Used to recognize pre-migration values
+ * in `resumes.share_token` (which used to hold 64-char SHA-256
+ * hex digests) so we can hand the owner an honest "this row
+ * hasn't been refreshed yet" copy during the transition window.
+ *
+ * Length 22 derives from `16 bytes base64url-encoded`. Strict
+ * length keeps the check from accidentally passing URL fragments
+ * or accidentally-formatted old ciphertext.
  */
-export function generateInternalSecret(bytes = 32): string {
-  return randomBytes(bytes).toString('hex');
+export function looksLikeDeterministicShareToken(token: string | null): boolean {
+  return (
+    typeof token === 'string' &&
+    token.length === 22 &&
+    /^[A-Za-z0-9_-]+$/.test(token)
+  );
 }
