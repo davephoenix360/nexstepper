@@ -482,3 +482,73 @@ read-only render test would throw outright if hooks leaked in.
     `data-testid` proves it *renders*, not that it *works*.
     Interaction claims need a browser, and saying so is part
     of reporting the result honestly.
+
+## Round 6 — closing the branch (2026-10-20)
+
+The user explicitly asked for a real jsdom interaction harness
+rather than one more visual round:
+
+> "you can go ahead to include this so we can close this branch
+> as done and merge it in after on final test"
+
+What landed:
+
+- `tests/interaction/harness.tsx` — minimal helper:
+  `renderWithForm(defaultValues, ui)` wraps a `FormProvider`
+  around whatever you render and exposes a
+  `FormCapture` that surfaces the live form handle. Pair with
+  `user()` (`@testing-library/user-event`) so clicks fire
+  under a real act() boundary.
+- `tests/interaction/editable-section-interaction.test.tsx` —
+  6 tests against the shared `EditableSection`:
+  add-to-empty, append, first-row remove, last-row remove,
+  sequential add+remove, full round-trip via save+reload.
+- `tests/interaction/jake-profiles-interaction.test.tsx` —
+  5 tests for Jake's profile array: add to empty, add to
+  non-empty, remove middle, sequential, round-trip. Each one
+  asserts DOM *and* `form.getValues('sections.basics.profiles')`
+  so a future bug where `remove()` unsets without shrinking
+  the array fails the test instead of getting past it.
+- `vitest.config.ts` — added `tests/interaction/**` to
+  `include`. Global environment kept at `node`, jsdom opted
+  into **per file** via the `@vitest-environment jsdom`
+  docblock on each test. Why not a global flip: 120+ existing
+  suites render through `renderToStaticMarkup` with no DOM
+  and run meaningfully faster under `node`; flipping the
+  global would slow them all and risk changing behaviour in
+  suites that only accidentally work today (e.g. the
+  `server-only` alias stub). Keeping DOM tests in their own
+  folder makes the dependency obvious to the next reader.
+- `package.json` devDeps: `jsdom@^25`,
+  `@testing-library/react@^16`, `@testing-library/user-event@^14`.
+  `@testing-library/jest-dom` removed (unused).
+
+Mutation evidence — the harness actually catches the bug it
+was written for. Reintroducing a per-row `useFieldArray` in
+`JakeProfilesEditor` (the bug we shipped round 5 to fix)
+made **4 of 5** Jake profile interaction tests fail with
+the exact `expected [ { username: 'ada' } ] to have a length
+of +0 but got 1` assertion the user typed in their bug
+report ("cleared the handle and the field still stayed").
+Reverted; suites green.
+
+**Final verification (this round):**
+- `pnpm typecheck` clean.
+- `pnpm vitest run` → **1663 passed** across **126 files**
+  (1652 → 1663, the 11 new interaction tests; the existing
+  1588 tests unbroken).
+- `pnpm build` → compiled successfully, 25 routes, BUILD_ID
+  `J-pE-ljzago5tlflG5Wzg`.
+
+Branch state: 6 commits ahead of `1a82acc`:
+
+| Commit | What |
+| --- | --- |
+| `b9bb6a8` | feat(templates): add Jake's Resume template as sixth registry entry |
+| `ae3c509` | fix(templates): Jake work entries printed the date range and location twice |
+| `2e69432` | fix(templates): Jake header/work fields rendered as text and were not editable |
+| `7260dc2` | fix(templates): '+ Profile' appended a row that rendered nowhere |
+| `cd554cb` | fix(templates): per-row useFieldArray made the profile remove button not remove |
+| `9d0676c` | test: add jsdom interaction harness for repeatable form arrays |
+
+Closed in favor of merging into `main`.

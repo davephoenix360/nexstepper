@@ -230,6 +230,25 @@ plan. Drift memo:
   bold category labels). Drift memo:
   `docs/drift/2026-10-19-jake-resume-template.md`.
 
+  **Closed with a jsdom interaction harness.** User asked
+  for "one more round" — a real DOM test for the repeatable
+  form arrays. New `tests/interaction/` directory with
+  `harness.tsx` (`renderWithForm` + `user()` + `FormCapture`),
+  6 `EditableSection` interaction tests, 5
+  `JakeProfilesEditor` interaction tests that assert DOM
+  **and** `form.getValues`. Vitest config picks up the new
+  directory; `environment: 'node'` is kept global, jsdom is
+  opted into per-file via the `@vitest-environment jsdom`
+  docblock (120+ `renderToStaticMarkup` suites stay fast). New
+  devDeps: `jsdom@^25`, `@testing-library/react@^16`,
+  `@testing-library/user-event@^14`. Mutation proof:
+  reintroducing per-row `useFieldArray` in the Jake profiles
+  editor (the bug shipped round 5 to fix) makes 4/5 tests
+  fail with the user's exact symptom — harness catches what
+  markup assertions cannot. Final state: 1663 tests / 126
+  files, `pnpm typecheck` + `pnpm build` clean, merged into
+  `main` as 6 commits behind the prior `1a82acc`.
+
 - **Safari / iOS print fallback (first Apple-using customer report)**
   — branch `fix/safari-print-fallback`, no schema or infra changes.
   The Apple-using customer reported "I clicked Print and nothing
