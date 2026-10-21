@@ -303,9 +303,9 @@ function ClassicWithForm({
             {sections.work.map((w, i) => (
               <div
                 key={`work-${i}`}
-                className="group/work-entry mb-4 last:mb-0 print:break-inside-avoid"
+                className="group/work-entry mb-4 last:mb-0"
               >
-                <div className="flex items-baseline justify-between gap-3">
+                <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
                   {editable ? (
                     <EditableText
                       path={`sections.work.${i}.company`}
@@ -409,9 +409,9 @@ function ClassicWithForm({
                 {sections.projects.map((p, i) => (
                   <div
                     key={`proj-${i}`}
-                    className="mb-3 last:mb-0 print:break-inside-avoid"
+                    className="mb-3 last:mb-0"
                   >
-                    <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
                       <h3 className="text-[12pt] font-semibold text-zinc-900">
                         {isSet(p.name) ? p.name : "Project"}
                       </h3>
@@ -490,9 +490,9 @@ function ClassicWithForm({
                 {sections.education.map((e, i) => (
                   <div
                     key={`edu-${i}`}
-                    className="mb-3 last:mb-0 print:break-inside-avoid"
+                    className="mb-3 last:mb-0"
                   >
-                    <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
                       <h3 className="text-[12pt] font-semibold text-zinc-900">
                         {isSet(e.institution) ? e.institution : "Institution"}
                       </h3>
@@ -537,9 +537,9 @@ function ClassicWithForm({
                 {sections.volunteer.map((v, i) => (
                   <div
                     key={`vol-${i}`}
-                    className="mb-3 last:mb-0 print:break-inside-avoid"
+                    className="mb-3 last:mb-0"
                   >
-                    <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
                       <h3 className="text-[12pt] font-semibold text-zinc-900">
                         {isSet(v.organization)
                           ? v.organization

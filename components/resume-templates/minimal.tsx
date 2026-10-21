@@ -195,11 +195,8 @@ function MinimalExperience({ mode }: { mode: FieldMode }) {
   const renderRow = (i: number) => {
     const w = mode.data.sections.work[i] ?? EMPTY_WORK;
     return (
-      <div
-        className="print:break-inside-avoid"
-        data-testid={`work-entry-${i}`}
-      >
-        <div className="flex items-baseline justify-between gap-3">
+      <div data-testid={`work-entry-${i}`}>
+        <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
           <Field
             mode={mode}
             path={`sections.work.${i}.company`}

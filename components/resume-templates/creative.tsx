@@ -290,11 +290,8 @@ function CreativeExperience({ mode }: { mode: FieldMode }) {
   const renderRow = (i: number) => {
     const w = mode.data.sections.work[i] ?? EMPTY_WORK;
     return (
-      <div
-        className="print:break-inside-avoid"
-        data-testid={`work-entry-${i}`}
-      >
-        <div className="flex items-baseline justify-between gap-3">
+      <div data-testid={`work-entry-${i}`}>
+        <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
           <Field
             mode={mode}
             path={`sections.work.${i}.company`}
@@ -475,11 +472,8 @@ function CreativeEducation({ mode }: { mode: FieldMode }) {
   const renderRow = (i: number) => {
     const e = mode.data.sections.education[i] ?? EMPTY_EDUCATION;
     return (
-      <div
-        className="print:break-inside-avoid"
-        data-testid={`edu-entry-${i}`}
-      >
-        <div className="flex items-baseline justify-between gap-3">
+      <div data-testid={`edu-entry-${i}`}>
+        <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
           <Field
             mode={mode}
             path={`sections.education.${i}.institution`}
@@ -555,11 +549,8 @@ function CreativeProjects({
   const renderRow = (i: number) => {
     const p = mode.data.sections.projects[i] ?? EMPTY_PROJECT;
     return (
-      <div
-        className="print:break-inside-avoid"
-        data-testid={`proj-entry-${i}`}
-      >
-        <div className="flex items-baseline justify-between gap-3">
+      <div data-testid={`proj-entry-${i}`}>
+        <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
           <Field
             mode={mode}
             path={`sections.projects.${i}.name`}
@@ -644,8 +635,8 @@ function CreativeVolunteer({ mode }: { mode: FieldMode }) {
   const renderRow = (i: number) => {
     const v = mode.data.sections.volunteer[i] ?? EMPTY_VOLUNTEER;
     return (
-      <div key={`vol-${i}`} className="print:break-inside-avoid">
-        <div className="flex items-baseline justify-between gap-3">
+      <div key={`vol-${i}`}>
+        <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
           <Field
             mode={mode}
             path={`sections.volunteer.${i}.organization`}
