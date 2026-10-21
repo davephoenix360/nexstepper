@@ -10,9 +10,28 @@ interface ChatInputProps {
   isStreaming: boolean;
   disabled?: boolean;
   rateLimit?: { limit: number; used: number } | null;
+  /**
+   * A server-supplied explanation for why the last send was rejected,
+   * rendered above the quota readout.
+   *
+   * WHY THIS EXISTS — the quota readout is a turn counter, so it is
+   * `null` on an unlimited-turn Pro plan. The 2026-10-21 token cap can
+   * therefore reject a turn with no visible cause: `rateLimit` stays
+   * null, the composer never disables, and the send looks like it did
+   * nothing at all. That's the "it did something weird" failure mode
+   * this file's siblings were hardened against, so the cap ships with
+   * an explicit notice rather than a silent no-op.
+   */
+  notice?: string | null;
 }
 
-export function ChatInput({ onSend, isStreaming, disabled, rateLimit }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  isStreaming,
+  disabled,
+  rateLimit,
+  notice
+}: ChatInputProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -37,6 +56,17 @@ export function ChatInput({ onSend, isStreaming, disabled, rateLimit }: ChatInpu
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      {/* Server-supplied rejection reason (e.g. the daily token cap). */}
+      {notice && (
+        <div
+          role="status"
+          className="flex items-start gap-1.5 rounded-md border border-amber-300/60 bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+        >
+          <span aria-hidden="true">⚠</span>
+          <span>{notice}</span>
+        </div>
+      )}
+
       {/* Rate limit indicator */}
       {rateLimit && remaining !== null && (
         <div className="flex items-center justify-between text-xs text-muted-foreground px-1">

@@ -37,6 +37,11 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
   const [rateLimit, setRateLimit] = useState<{ limit: number; used: number } | null>(
     isPro ? null : null
   );
+  // Server-supplied rejection reason for the last send (e.g. the daily
+  // token cap). Separate from `rateLimit` because the readout is a TURN
+  // counter and is `null` on an unlimited-turn Pro plan — so without
+  // this the cap would reject a send with nothing on screen.
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Portal target only exists on the client. Wait for mount so SSR
   // doesn't crash on `document.body`.
@@ -134,6 +139,11 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
           setRateLimit({ ...rateLimit, used: rateLimit.limit });
         }
       }
+      // The daily token cap. Turn limits already explain themselves via
+      // the readout above; this one has no readout on a Pro plan, so the
+      // server's message is the only thing telling the user why their
+      // send did nothing.
+      setNotice(code === 'TOKEN_LIMIT_REACHED' ? err : null);
     }
   });
 
@@ -145,6 +155,10 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
   const handleSend = useCallback(
     async (content: string) => {
       setIsStreaming(true);
+      // Clear the previous rejection notice optimistically — a fresh
+      // attempt that succeeds must not leave a stale "you've used
+      // today's allowance" banner sitting above the composer.
+      setNotice(null);
       // Pass the live transcript so the hook APPENDS to it. Without this the
       // hook seeded its own two-message array and the whole conversation
       // disappeared from the panel the moment you sent anything.
@@ -201,6 +215,7 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
           messages={messages}
           isStreaming={isStreaming}
           rateLimit={rateLimit}
+          notice={notice}
           onClose={() => setIsOpen(false)}
           onNewChat={handleNewChat}
           onSend={handleSend}

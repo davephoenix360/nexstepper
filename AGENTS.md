@@ -50,7 +50,7 @@ Adding any of these needs a discussion, not a drive-by edit:
 | ORM | Drizzle (no Prisma) |
 | Auth | Better Auth 1.6+ (no NextAuth, no Clerk) |
 | Billing | Stripe (Free + Pro ≈ the price of a coffee; see `docs/setup/stripe.md` for the actual amount + brand-voice rationale) |
-| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`. **Two tiers:** `PARSER_MODEL = mistral/mistral-nemo` for structured extraction (it is one of the few free-tier models with `structured_output` support) and `CHAT_MODEL = inclusionai/ling-3.1-flash` for the agentic chat (tool-use + reasoning, $0/$0, 262K ctx), each with its own fallback chain — see `docs/ai-models-reference.md` and `docs/plans/chat-agent-v2.md` |
+| AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`. **Two tiers:** `PARSER_MODEL = mistral/mistral-nemo` for structured extraction ($0.03/$0.03, 131K ctx, 12B) and `CHAT_MODEL = anthropic/claude-haiku-5.5` for the agentic chat ($0.10/$0.50, 1M ctx, 4 endpoints), each with its own fallback chain. **The Gateway requires paid credits** — without a top-up most paid models return `403 Free tier users do not have access`, so every chat fallback chain starts with $0 models. Model comments are dated snapshots and rot; re-verify with `npx --yes vercel@latest ai-gateway models endpoints <id> --format json` before planning against any of them — see `docs/ai-models-reference.md` and `docs/plans/chat-agent-v2.md` |
 | Email | Resend |
 | Observability | Sentry (errors) + PostHog (analytics) |
 | Background jobs | Inngest |
@@ -1203,12 +1203,35 @@ The model split in this repo is not a quality preference:
 
 | need | requirement | model |
 |---|---|---|
-| parse a PDF into `ResumeSections` (strict JSON Schema) | `structured_output` | `mistral/mistral-nemo` (12B) |
-| agentic chat with tool calls, 262K resume context | tool-use + reasoning | `inclusionai/ling-3.1-flash` (560B/25B active) |
+| parse a PDF into `ResumeSections` (strict JSON Schema) | `structured_output` | `mistral/mistral-nemo` |
+| agentic chat with tool calls, 1M resume context | tool-use + reasoning | `anthropic/claude-haiku-5.5` |
 
-Nemo has `structured_output` and no `reasoning`; Ling has `reasoning` and no
-`structured_output`. Each is wrong for the other's job. Check
-`endpoints[].supported_parameters` before moving a model between tiers.
+The split holds, but **not for the reason it was originally written**.
+Nemo is no longer "wrong for chat because it lacks reasoning" — the actual
+reason, verified by live call on 2026-10-21, is that **Nemo's tool calling
+is unreliable**: on 2 of 3 forced `tool_choice` calls it narrated the call as
+prose and returned an empty `tool_calls` array. In the chat loop that reads as
+"the model had nothing to say" rather than "the tool call failed", which is
+silent data loss. So Nemo is parser-only and must not appear in
+`CHAT_FALLBACKS`.
+
+Check `endpoints[].supported_parameters` before moving a model between tiers —
+and then **call it**, because the flag lied about three models this year.
+
+### 6a. Catalog metadata is not evidence — call the model
+
+Every price, tag, and capability claim in this repo's docs is a dated
+snapshot that rots. Four separate times this year a model we had documented as
+free turned out not to be callable, and twice a model tagged `tool-use`
+silently failed to call a tool. The standing rule:
+
+```powershell
+npx --yes vercel@latest ai-gateway models endpoints <model-id> --format json
+```
+
+`endpoints` beats `models ls` beats the vercel.com browser page. And neither
+substitutes for a live request with the capability you need. Full changelog
+with the four documented failures: `docs/ai-models-reference.md`.
 
 ### 7. Never hand-roll an `IN (...)` list — use `inArray`
 

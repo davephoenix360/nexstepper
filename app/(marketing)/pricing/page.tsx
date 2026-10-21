@@ -101,12 +101,13 @@ export default async function PricingPage() {
         ? 'less than your morning coffee, more useful than a LinkedIn coach'
         : null,
       features: PRO_FEATURES,
-      // Soft launch: Pro is wired but not sold. Force `priceId: null`
-      // so the disabled-button branch below renders instead of a live
-      // <CheckoutButton>. When we enable paid Pro, restore
-      // `priceId: PRICE_IDS.pro` and update the cta below.
-      priceId: null,
-      cta: 'Get notified when Pro launches',
+      // Live since 2026-10-21. Pro is sold: live Stripe product
+      // prod_VTzO3C7OsTxptr, price price_1UT2DfRL5953MIrUXj3FsHMc
+      // (CAD 5.00/month). `PRICE_IDS.pro` reads
+      // `STRIPE_PRICE_ID_PRO`, which must be set in the deploy
+      // environment or this silently falls back to the disabled button.
+      priceId: PRICE_IDS.pro,
+      cta: 'Upgrade to Pro',
       highlight: true
     }
   ];
@@ -180,10 +181,11 @@ export default async function PricingPage() {
                 </ul>
                 {isCurrent || plan.priceId === null ? (
                   plan.id === 'pro' && !isCurrent ? (
-                    // Soft-launch gating: show a real (mailto) waitlist CTA
-                    // instead of a dead disabled button. The mailto is the
-                    // single source of truth for "I want Pro" until we wire
-                    // live checkout.
+                    // Degraded fallback, kept on purpose: this branch is
+                    // now reached only when `STRIPE_PRICE_ID_PRO` is unset
+                    // in the deployed environment. A live mailto asking for
+                    // interest beats a dead disabled button, and it is the
+                    // single inbox thread for "I want Pro".
                     <a
                       href="mailto:hi@nexstepper.com?subject=Pro%20waitlist"
                       className="block w-full py-2 px-4 rounded-full text-sm font-medium bg-primary text-primary-foreground text-center hover:bg-primary/90 transition-colors"

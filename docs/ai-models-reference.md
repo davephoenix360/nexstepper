@@ -1,130 +1,177 @@
 # AI model reference for nexstepper
 
-> Reference doc, not code. Captures which models we can / can't use
-> via Vercel AI Gateway, with pricing, and which are confirmed
-> free-tier as of **Sep 18, 2026**.
+> Reference doc, not code. Which models we can / can't call via Vercel AI
+> Gateway, what they cost, and what they can actually do.
+>
+> **Everything below was verified by live API call on 2026-10-21** on the
+> Nexstepper account, after a Gateway credit top-up. Superseded numbers are
+> kept in the changelog at the bottom rather than deleted, because the
+> pattern of them changing is the most useful thing in this file.
 
-The codebase doesn't import or reference this file. It's purely a
-handbook for future decisions about which model to swap in.
+The codebase doesn't import this file. It's a handbook for future model
+decisions.
 
-## TL;DR
+## Source of truth, in priority order
 
-For pre-launch dev / launch-stage traffic, **add $5 of credits** to
-Vercel AI Gateway. That unlocks every model below (including the
-Claude Sonnet 4.5 we originally wanted). At our projected usage
-(~2-5K parses/day), $5 lasts months.
+1. **A live call.** Not the CLI. Not the website. The only thing that
+   settles whether a model works for us is a request that exercises the
+   capability we need.
+2. `npx --yes vercel@latest ai-gateway models endpoints <id> --format json`
+   — account-level. Says what *this* account is served, and gives per-endpoint
+   price, latency, uptime, and `supported_parameters`.
+3. `npx --yes vercel@latest ai-gateway models ls --format json` — global
+   catalog. Says what exists. Prices here are the post-credit list price and
+   do **not** reflect free-tier access.
+4. <https://vercel.com/ai-gateway/models> — marketing metadata. Has been
+   wrong on this account four separate times. Do not plan against it.
 
-The truly-free models (no credits needed) are listed in the
-**Confirmed free tier** section — useful for a no-credit safety net
-or for experimenting with a second model in the fallback chain.
+> Use `npx --yes vercel@latest`, never the global `vercel`. The global CLI on
+> this machine is 45.0.8 and has no `ai-gateway` subcommand — it silently
+> prints `vercel deploy` help instead of erroring.
 
-## Source of truth
+## The free-tier trap
 
-- **Vercel CLI** (`npx vercel@latest ai-gateway models list --json`) —
-  returns the model catalog with the `tags` array. Models with
-  `"free"` in their tags are the actual free-tier subset.
-- **`https://ai-gateway.vercel.sh/v1/models`** — same data, public,
-  no auth needed, used as a cross-check.
-- **Vercel dashboard** — https://vercel.com/ai-gateway/models?freeTier=true
+A model is only free for this account when the call succeeds **and** the
+endpoint is priced at 0. Every one of these carried a `free` tag or a
+"$0" marketing claim and still could not be called:
 
-The CLI is authoritative for "does this model exist + is it free?"
-because it queries your account's tier directly.
+| model | claimed by | reality |
+|---|---|---|
+| `zai/glm-5.3-flash` | vercel.com browser page | 20 healthy endpoints, **none** free-tagged, $0.06–$0.45 per 1M in |
+| `inclusionai/ling-3.0-flash-fin-free` | the CLI's own free-tier listing | `403 Free tier users do not have access`; id later left the catalog |
+| `reflection/beam-free` | the catalog's `free` tag | `403` until credits were added — then $0, as advertised |
+| `minimax/minimax-m3.1-flash` | $0 price in the catalog | callable, but silently fails both capabilities we need |
 
-## Confirmed free tier (from CLI on Sep 18, 2026)
+And the inverse trap, which is worse: a model that **is** reachable and
+**is** tagged `free` still may not do the job.
 
-These models have the `"free"` tag in the Vercel catalog and respond
-with structured output reliably.
+```powershell
+# Re-verify anything before you plan against it
+npx --yes vercel@latest ai-gateway models endpoints <model-id> --format json
+```
 
-### Text generation
+## What we run today
 
-| Model ID | Name | Latency | Why it might fit |
+| role | model | in/out per 1M | context | why |
+|---|---|---|---|---|
+| **parser** (JD, resume, formatter, intent) | `mistral/mistral-nemo` | $0.03 / $0.03 | 131K | cheapest model that emits *schema-exact* JSON reliably |
+| parser fallbacks | `reflection/beam-free` → `amazon/nova-micro` → `openai/gpt-4o-mini` | $0 → $0.04 → $0.15 | 1M / 128K / 128K | all verified schema-exact |
+| **chat** (agentic assistant) | `anthropic/claude-haiku-5.5` | $0.10 / $0.50 | 1M | frontier reasoning, 4 real endpoints, verified tools + schemas |
+| chat fallbacks | `reflection/beam-free` → `amazon/nova-micro` → `zai/glm-5.3-flash` → `nvidia/nemotron-3.5-lightning-free` | $0 → $0.04 → $0.06 → $0 | 1M each | degrades to $0 rather than failing |
+
+Constants live in `lib/ai/providers.ts`. That file's header carries a
+standing re-verify rule — read it before trusting any comment in it.
+
+### Why two models
+
+Structured extraction and agentic tool use are different jobs, and one
+model is rarely good at both on this Gateway:
+
+- **Strict structured output** needs `response_format: json_schema` support.
+  Very few cheap models honour the *schema* — several return syntactically
+  valid JSON that doesn't match.
+- **Agentic tool use** needs reliable tool calls and a large context, because
+  every turn re-sends the whole resume. A small window makes the agent
+  truncate and appear to "forget" the user's own data.
+
+Verified behaviour, all on 2026-10-21 against live requests:
+
+| model | strict JSON schema | forced tool call | verdict |
 |---|---|---|---|
-| `inclusionai/ling-3.0-flash-fin-free` | Ling 3.0 Flash Fin (Free) | 0.4s | **Best pick** — fastest of the free tier |
-| `inclusionai/ling-3.0-flash-sante-free` | Ling 3.0 Flash Sante (Free) | 0.8s | Backup, different inclusionai variant |
-| `inclusionai/ling-3.0-flash-vl-free` | Ling 3.0 Flash VL (Free) | 0.8s | Vision-language (heavier but capable) |
-| `poolside/laguna-s-2.1-free` | Laguna S 2.1 Free | 1.5s | Different provider → independent infra |
-| `inclusionai/ling-3.0-flash-fin` | Ling 3.0 Flash Fin | 0.4s | Same as `-free` but without the suffix (also tagged free) |
-| `inclusionai/ling-3.0-flash-sante` | Ling 3.0 Flash Sante | 0.8s | Same family |
-| `inclusionai/ling-3.0-flash-vl` | Ling 3.0 Flash VL | 0.8s | Same family |
+| `anthropic/claude-haiku-5.5` | ✅ schema-exact | ✅ clean args | chat primary |
+| `mistral/mistral-nemo` | ✅ schema-exact | ⚠️ **narrated the call as prose, empty `tool_calls`, 2 of 3 runs** | **parser only** |
+| `amazon/nova-micro` | ✅ | ✅ | best all-rounder |
+| `reflection/beam-free` | ✅ | ✅ best bullet rewrite of the set | $0, first fallback |
+| `zai/glm-5.3-flash` | ✅ | ✅ | 20 endpoints, best failover diversity |
+| `nvidia/nemotron-3.5-lightning-free` | ⚠️ weak — returned `{"output":"ok"}` for a `{score,label}` schema | ✅ | $0, last resort |
+| `inclusionai/ling-3.1-flash` | ❌ `400 Bad Request` | ⚠️ leaked reasoning into the arguments | **removed 2026-10-21** |
+| `meta/llama-3.1-8b` | ❌ returned `{}` | ❌ `400 Bad Request` | **removed 2026-10-21** |
+| `minimax/minimax-m3.1-flash` | ❌ empty string | ❌ ignored `tool_choice` | unusable |
+| `inclusionai/ling-3.0-flash-fin` | ✅ | ✅ | ❌ **48.8s** — unusable latency |
 
-**Used in code**: `PARSER_MODEL` = `inclusionai/ling-3.0-flash-fin-free`,
-`PARSE_FALLBACKS` = the four `-free` suffixed models (inclusionai
-flavors + poolside).
+## Cost model
 
-### Audio (not used by us)
+Assumes a chat turn re-sends the resume: ~8–10K input, 0.8–1K output, plus
+JD parses and bullet enrichment. At the chat model's $0.10/$0.50:
 
-| Model ID | Type |
+| profile | tokens/mo | AI cost/mo |
+|---|---|---|
+| moderate (300 chat turns + 30 parses + 100 enriches) | ~3.0M | **~$0.45** |
+| heavy (1000 turns + 60 parses + 300 enriches) | ~12.0M | **~$1.72** |
+
+Both fit inside a $5 subscription. What does *not* fit is an uncapped user —
+one runaway agent loop could exceed a full month of revenue alone. Hence the
+Pro daily token cap (`PLANS.pro.chatTokensPerDay = 500_000`), which bounds
+worst case at ~$2.10/mo regardless of behaviour.
+
+**Pro is $5/mo, not $3.** At $3 the worst case is 70% of revenue — a knife
+edge. At $5 it's 42%. Both are "coffee money"; only one has room for a power
+user while we're still learning real usage.
+
+## Gateway credits
+
+There is **no** usable free-tier credit to rely on. Without a top-up, the
+account is on Vercel's free tier and most paid models return
+`403 Free tier users do not have access to this model` — including
+`anthropic/claude-haiku-5.5` and `zai/glm-5.3-flash`.
+
+The chat fallback chain contains $0 models precisely so that credits running
+out degrades quality instead of taking the feature down.
+
+Also worth configuring: `npx --yes vercel@latest ai-gateway budgets ls` was
+**empty** as of 2026-10-21 — no metered spend ceiling exists. Add one as a
+backstop behind the per-user cap.
+
+## Models we ruled out
+
+| model | why not |
 |---|---|
-| `fish-audio/s1-free` | speech |
-| `fish-audio/s2-pro-free` | speech |
-| `fish-audio/s2.1-pro-free` | speech |
-| `fish-audio/transcribe-1-free` | speech |
+| `anthropic/claude-sonnet-5` ($2/$10) | ~$34/mo for a heavy user. 10x over budget. |
+| `anthropic/claude-haiku-5.5-batch` ($0.05/$0.25) | batch endpoints aren't real-time; wrong tool for interactive chat |
+| `inclusionai/ling-3.1-flash` | repriced to $0.30/$0.90 and leaks reasoning into tool args |
+| `google/gemini-2.5-flash` | Vertex routing degradation caused 30–60s latency in Sep 2026 |
+| `openai/gpt-4o-mini` as primary | unmovable `max_output_tokens` cap under strict json_schema; kept only as a deep parser fallback |
+| anything `*_meta/mixedbread` etc. | no verified capability on this account |
 
-## Paid models we'd want with credits
+## Changelog
 
-These are NOT in the free tier. To use them, add credits at
-vercel.com/dashboard → AI Gateway → Credits ($5 minimum).
+### 2026-10-21 — Live re-verification and chat model swap
+Gateway credits added, then every candidate was called for real (basic,
+strict json_schema, forced tool call). Findings: `ling-3.1-flash` had been
+repriced from `$0/$0` to `$0.30/$0.90` and its comments were still claiming
+free; `meta/llama-3.1-8b` and `minimax/minimax-m3.1-flash` could not do the
+job they were listed for; `mistral/mistral-nemo`'s tool calling was flaky
+(2 of 3 failures), demoting it to parser-only. `CHAT_MODEL` moved to
+`anthropic/claude-haiku-5.5` — cheaper on both axes than what it replaced,
+with better reasoning. Added the Pro daily token cap.
 
-| Model ID | Input / Output | Why |
-|---|---|---|
-| `anthropic/claude-sonnet-4.5` | $3 / $15 | Best structured extraction in production |
-| `anthropic/claude-sonnet-5` | $2 / $10 | New value pick (was intro price, now permanent) |
-| `anthropic/claude-haiku-4.5` | $1 / $5 | 3-5x cheaper than Sonnet, similar for text rewrites |
-| `google/gemini-2.5-flash` | $0.30 / $2.50 | Was our first pick; Vertex AI routing was unstable late Sep 2026 |
-| `openai/gpt-4o-mini` | $0.15 / $0.60 | Solid OpenAI baseline |
-| `meta/llama-3.3-70b` | $0.72 / $0.72 | Open weights, no provider lock-in |
+### 2026-10-01 — Chat agent v2
+`CHAT_MODEL` set to `inclusionai/ling-3.1-flash`, then verified `$0/$0`,
+`free`-tagged, 262K context. Correct at the time.
 
-## Cost math at our scale (illustrative, Sep 2026 rates)
+### 2026-09-18 — AI Gateway migration + parser moved to Mistral
+Centralized model constants in `lib/ai/providers.ts`. Router moved to
+`@ai-sdk/gateway@3`. Original primary was `claude-sonnet-4.5`, which hit
+"Free tier users do not have access"; Gemini Flash hit 30–60s latency;
+`zai/glm-5.3-flash` 403'd. Settled on `mistral/mistral-nemo` after
+`openai/gpt-4o-mini` produced empty responses under the output cap.
 
-**Per-call cost for one Optimize-style call** (~2K input tokens
-resume section + 1K JD context, ~500 output tokens):
-
-| Model | Cost / call | 10K calls |
-|---|---|---|
-| `claude-sonnet-4.5` | ~$0.014 | ~$140 |
-| `claude-haiku-4.5` | ~$0.005 | ~$50 |
-| `gemini-2.5-flash` | ~$0.002 | ~$20 |
-| `inclusionai/ling-3.0-flash-fin-free` | **$0** (free tier) | **$0** until you exceed the $5/mo credit cap |
-| `zai/glm-5.3-flash` | ~$0.001 | ~$10 |
-
-At our projected launch-stage volume (~2-5K parses/day, ~10K Optimize
-calls/month once Optimize ships), the $5/mo free credit covers the
-entire bill. Adding credits at $5 minimum gets us 4-6 months of
-Sonnet-quality parsing for the same price.
-
-## Historical notes
-
-### 2026-09-01 — `lib/jd-parser/parse-jd.ts` ships
-Original primary was `claude-sonnet-4-5` via `@ai-sdk/anthropic`
-direct. Plan called this out as the production-quality default.
-
-### 2026-09-18 — AI Gateway migration
-Switched to `lib/ai/providers.ts` centralizing all model constants.
-Routing went through `@ai-sdk/gateway@3`. Original model stayed the
-same (Sonnet 4.5).
-
-### 2026-09-18 — `db:push` script removed
-AGENTS.md documents the `db:generate` + `db:migrate` workflow we
-should use instead. Migration sync script exists for the one-off
-reconciliation.
+### 2026-09-18 — `db:push` removed
+`db:generate` + `db:migrate` is the workflow now.
 
 ### 2026-09-18 — Password reset flow ships
-Email + Better Auth + Resend wired up. The reset-password action
-catches and re-throws `NEXT_REDIRECT` to avoid the framework's
-sentinel error surfacing to the user.
+Email + Better Auth + Resend, with `NEXT_REDIRECT` caught and re-thrown so
+the framework's sentinel error never reaches the user.
 
-### 2026-09-18 — Switched parsers to free-tier Gemini Flash
-Hit "Free tier users do not have access" on Sonnet/Haiku. Tried
-Gemini 2.5 Flash next, hit 30-60s latency spikes (known Vercel +
-Vertex AI routing issue).
+## Adding a model: the checklist
 
-### 2026-09-18 — Switched to Z.AI GLM 5.3 Flash
-Per marketing-page claims of being in the free tier. Also blocked.
+Do not add a model to any chain until you have:
 
-### 2026-09-18 — Added fallback chain
-Created `lib/ai/fallback.ts` with `generateObjectWithFallbacks` that
-walks a model chain, preserves usage, and skips fallback on schema
-validation failures (model problem, not infra).
+1. `endpoints` output showing a healthy endpoint on **this** account.
+2. A live call returning **200**, with the capability you need actually
+   exercised — a strict schema for parsers, a forced `tool_choice` for chat.
+3. Output you actually inspected. A `200` with empty content is a failure.
+4. A note here with the date and the provider, because it will rot.
 
-### 2026-09-18 — Switched to inclusionai/ling-3.0-flash-fin-free
-This is the CLI-verified free-tier pick. Primary works.
+And a pin in `tests/unit/ai/providers.test.ts` so the next person gets the
+same protection.

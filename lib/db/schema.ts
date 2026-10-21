@@ -133,12 +133,51 @@ export type NewSubscription = typeof subscriptions.$inferInsert;
 /**
  * Plan constants — referenced by code paths that gate features
  * (e.g. chat rate limiting, Optimize tool availability).
+ *
+ * ## Why Pro has BOTH an unlimited turn count and a token cap
+ *
+ * `chatMessagesPerDay: Infinity` used to be the whole story. It is
+ * not, because a turn is not a cost: every chat turn re-sends the
+ * whole resume, so turn count and spend are only loosely related.
+ * A user with a long resume on a 6-step agentic turn can spend ~20x
+ * what a short one does.
+ *
+ * At the Pro price point (~$5/mo) and the chat model's list price
+ * (~$0.10 in / $0.50 out per 1M, verified 2026-10-21), the projected
+ * usage profiles are roughly:
+ *
+ * | profile | tokens/mo | AI cost/mo |
+ * |---|---|---|
+ * | moderate | ~3.0M | ~$0.45 |
+ * | heavy | ~12.0M | ~$1.72 |
+ *
+ * Both fit inside $5. What does NOT fit is an *uncapped* user — one
+ * runaway agent loop, one pasted 40-page resume, or one scripted
+ * caller could exceed a full month of subscription revenue on their
+ * own. The token cap is the floor under the margin; the turn limit
+ * is the product decision.
+ *
+ * `chatTokensPerDay` is deliberately generous — roughly 12x a
+ * moderate user's daily burn and slightly above a heavy user's — so
+ * that normal use never touches it and it only ever engages for
+ * genuine abuse or runaway cost.
+ *
+ * It is a SOFT cap: `addChatTokens` runs after the stream drains, so
+ * the gate sees the previous turn's total. A user can overshoot by
+ * roughly one turn. That is acceptable — the purpose is bounding
+ * worst-case spend, not exact metering.
  */
 export const PLANS = {
   free: {
     id: 'free' as const,
     name: 'Free',
     chatMessagesPerDay: 20,
+    /**
+     * Safety net, not a UX limit. 20 turns/day at ~10K input tokens
+     * per turn is ~200K, so the turn limit almost always binds first.
+     * This only catches one pathological giant message.
+     */
+    chatTokensPerDay: 300_000,
     canOptimize: false,
     canCollab: false
   },
@@ -146,6 +185,12 @@ export const PLANS = {
     id: 'pro' as const,
     name: 'Pro',
     chatMessagesPerDay: Infinity,
+    /**
+     * Worst case at $0.10/$0.50 per 1M is ~$0.07/day ≈ $2.10/mo,
+     * i.e. ~42% of a $5 subscription. See the header comment for
+     * why this number and not a turn limit is what protects margin.
+     */
+    chatTokensPerDay: 500_000,
     canOptimize: true,
     canCollab: true
   }

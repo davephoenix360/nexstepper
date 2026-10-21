@@ -210,16 +210,28 @@ export default function PrivacyPage() {
           <strong>Actual model providers</strong> (configured in{' '}
           <code>lib/ai/providers.ts</code>):
           <ul>
-            <li><strong>Mistral</strong> (<code>mistral/mistral-nemo</code>) — primary. Free-tier.</li>
-            <li><strong>Meta</strong> (<code>meta/llama-3.1-8b</code>) — first fallback.</li>
-            <li><strong>Amazon</strong> (<code>amazon/nova-micro</code>) — second fallback.</li>
-            <li><strong>OpenAI</strong> (<code>openai/gpt-4o-mini</code>) — third fallback.</li>
+            <li><strong>Mistral</strong> (<code>mistral/mistral-nemo</code>) — primary for structured extraction (JD/resume parsing, formatting, scoring intent).</li>
+            <li><strong>Anthropic</strong> (<code>anthropic/claude-haiku-5.5</code>) — primary for the AI chat assistant, which can read your resume and propose edits to it.</li>
+            <li><strong>Reflection</strong> (<code>reflection/beam-free</code>) — first fallback for both chains.</li>
+            <li><strong>Amazon</strong> (<code>amazon/nova-micro</code>) — second fallback for both chains.</li>
+            <li><strong>OpenAI</strong> (<code>openai/gpt-4o-mini</code>) — last fallback for structured extraction only.</li>
+            <li><strong>Z.ai</strong> (<code>zai/glm-5.3-flash</code>) — third fallback for the chat assistant.</li>
+            <li><strong>NVIDIA</strong> (<code>nvidia/nemotron-3.5-lightning-free</code>) — final fallback for the chat assistant.</li>
           </ul>
           The fallback chain kicks in only when the previous model fails or
           times out. Your prompt is sent to at most one provider per
           request. We may swap the primary or fallbacks without notice
           (e.g. if a provider&apos;s free tier changes); the current
           configuration is always visible at the GitHub link in §11.
+          <br />
+          <br />
+          <strong>Chat assistant scope.</strong> The chat assistant
+          receives your full resume and conversation history, and may
+          propose edits to your resume content. Structured extraction
+          (parsing a job description or a resume) also receives your
+          content, but operates one-shot and keeps no conversation history.
+          Model providers process this content solely to return a response
+          to your request; see §8 for retention.
         </li>
       </ul>
       <p>

@@ -9,19 +9,18 @@ import { UserMenu } from '@/components/user-menu';
 import { Home, Settings, Shield, Menu, FileText } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
 
-import { ProLaunchingSoonBanner } from '@/components/billing/pro-launching-soon-cta';
 import type { PlanId } from '@/lib/billing';
 
 /**
  * Dashboard shell — the chrome around every dashboard page (sidebar
- * + mobile top bar + top banner for Free users). Split out from
- * `app/(dashboard)/layout.tsx` so the layout itself can stay a
- * Server Component and read the user's subscription directly.
+ * + mobile top bar). Split out from `app/(dashboard)/layout.tsx` so
+ * the layout itself can stay a Server Component and read the user's
+ * subscription directly.
  *
- * The `<ProLaunchingSoonBanner />` is rendered above the page
- * content for Free users so they see "Pro is coming" without
- * having to navigate to /dashboard/general. When Pro goes live
- * this conditional becomes a no-op (all users are Pro).
+ * The soft-launch `<ProLaunchingSoonBanner />` that used to render
+ * above the page content for Free users was removed 2026-10-21, when
+ * Pro went on sale. The `plan` prop is retained because the shell
+ * still needs it for plan-aware nav in future, not for a banner.
  */
 export function DashboardShell({
   plan,
@@ -43,8 +42,6 @@ export function DashboardShell({
 
   return (
     <div className="flex flex-col min-h-screen w-full">
-      {plan === 'free' ? <ProLaunchingSoonBanner /> : null}
-
       <div className="no-print lg:hidden flex items-center justify-between bg-background border-b border-border p-4">
         <Link
           href="/"
