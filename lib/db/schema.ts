@@ -188,14 +188,30 @@ export const resumes = pgTable(
     /** The revision that should be rendered / edited. */
     currentRevisionId: text('current_revision_id'),
 
-    // ─── Public sharing (Phase 2.5) ────────────────────────────────
+    // ─── Public sharing (Phase 2.5; deterministic since Phase 2.5b) ─
     /**
-     * SHA-256 hex digest of the share token. We never store the raw
-     * token — it's sent in the URL, hashed on the way in, and compared
-     * to this column. This means a DB leak doesn't leak shareable
-     * URLs. Nullable: only set when the owner has enabled sharing.
+     * The public-share token. Stored verbatim — there is no lookup
+     * hash on top, because the token itself is a derivation rather
+     * than a secret: `deriveShareToken(resumeId)` returns the same
+     * value on every server.
+     *
+     * Why we can store a lookup-equality column safely:
+     *   - The token is `HMAC-SHA256(SHARE_LINK_SECRET, resume_id)`,
+     *     truncated to 16 bytes and base64url-encoded (~22 chars).
+     *   - The HMAC key (`SHARE_LINK_SECRET`) lives in the environment,
+     *     not the database — so a stolen DB dump does NOT yield usable
+     *     URLs, the same property the prior hash-only design gave us.
+     *   - Without rotating the secret you can never change a token,
+     *     which is the point: enable is idempotent, the same resume
+     *     always renders at the same URL, and the owner can re-read
+     *     it forever by recomputing `derive(resume_id)`.
+     *
+     * Nullable: NULL = never been shared. The full unique partial
+     * index is declared in the migration (`0011_*`) because drizzle's
+     * `index().on()` builder doesn't expose a partial WHERE clause.
+     * See `lib/share/deterministic-token.ts`.
      */
-    shareTokenHash: text('share_token_hash'),
+    shareToken: text('share_token'),
     /** Master switch for public access. False = link returns 404. */
     shareEnabled: boolean('share_enabled').notNull().default(false),
     /** Increments on every successful public render. */
@@ -204,21 +220,6 @@ export const resumes = pgTable(
     shareLastViewedAt: timestamp('share_last_viewed_at'),
     /** When sharing was first enabled — for the "shared X days ago" UI. */
     shareCreatedAt: timestamp('share_created_at'),
-    /**
-     * AES-256-GCM envelope of the same token, keyed by
-     * `SHARE_TOKEN_ENCRYPTION_KEY` from the environment.
-     *
-     * The hash above is one-way by design and cannot be reversed, which
-     * left the owner unable to re-read a link they had already shared.
-     * This column exists so they can. It does NOT weaken the hash-only
-     * protection of a DB leak: the key lives in the environment, so a
-     * stolen dump contains ciphertext and no key to open it.
-     *
-     * Nullable, and null for every row that predates this column — such
-     * links are hash-only and become recoverable on their next rotation.
-     * See `lib/share/token-crypto.ts`.
-     */
-    shareTokenCiphertext: text('share_token_ciphertext'),
 
     // ─── Print settings (Oct 2026) ──────────────────────────────────────
     /**
@@ -243,9 +244,11 @@ export const resumes = pgTable(
   (table) => [
     index('resumes_user_idx').on(table.userId),
     index('resumes_parent_idx').on(table.parentResumeId),
-    // Lookup-by-token: a single btree index on the hash column
-    // (B-Tree supports equality, which is all we need).
-    index('resumes_share_token_idx').on(table.shareTokenHash)
+    // Lookup-by-token: a single partial-unique btree index on
+    // `share_token`. The full index (including the `WHERE NOT NULL`
+    // partial predicate) is added in the migration because drizzle's
+    // `index().on()` builder doesn't expose `.where()`.
+    index('resumes_share_token_idx').on(table.shareToken)
   ]
 );
 

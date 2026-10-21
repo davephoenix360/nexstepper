@@ -1,16 +1,7 @@
 'use client';
 
-import { useState, useTransition, useRef, useEffect } from 'react';
-import {
-  Check,
-  Copy,
-  Eye,
-  Link2,
-  Loader2,
-  PowerOff,
-  RefreshCw,
-  Share2
-} from 'lucide-react';
+import { useState, useTransition, useEffect } from 'react';
+import { Check, Copy, Eye, Link2, Loader2, PowerOff, Share2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -19,8 +10,7 @@ import { cn } from '@/lib/utils';
 import {
   disableShareAction,
   enableShareAction,
-  getShareUrlAction,
-  rotateShareTokenAction
+  getShareUrlAction
 } from '@/app/(dashboard)/dashboard/resumes/actions';
 
 type ShareStatusView = {
@@ -33,26 +23,31 @@ type ShareStatusView = {
 /**
  * Share button + dialog for a resume.
  *
- * Server-rendered parent passes `initialStatus` so the dialog opens
- * with the right state. The dialog then drives all mutations through
- * the three server actions.
+ * Post-Phase-2.5b the share token is deterministic — a pure
+ * function of the resume id plus the server's `SHARE_LINK_SECRET`.
+ * That makes the dialog a much simpler piece of UI than it used to
+ * be:
  *
- * State machine:
- *   disabled ──[Enable]──> enabled  (server returns the URL)
- *   enabled  ──[Stop]──> disabled   (no URL returned; client clears)
- *   enabled  ──[Rotate]──> enabled  (new URL returned; viewCount preserved)
+ *   disabled ──[Enable]──> enabled     (same URL each time)
+ *   enabled  ──[Stop]──> disabled      (URL forgotten on close)
+ *   enabled  ──[open]──> enabled       (URL fetched on demand;
+ *                                       always succeeds)
+ *
+ * Why "fetched on demand" still exists when the URL is recoverable:
+ * the client's dialog holds the URL in a piece of React state, and
+ * dropping the URL when the dialog closes is a small privacy win
+ * (no leaking it through a DOM serialization or screenshot).
  *
  * UI rules:
- *   - `enabled` is seeded from the server (`initialStatus.enabled`) and
- *     is the single source of truth for which view renders. It is NOT
- *     derived from whether we happen to be holding a URL.
- *   - The URL is shown only AFTER a successful enable/rotate, because
- *     the raw token is never persisted — only its SHA-256 hash. A
- *     reload therefore cannot restore the link, and we say so plainly
- *     rather than implying sharing switched itself off.
+ *   - `enabled` is seeded from the server (`initialStatus.enabled`)
+ *     and is the single source of truth for which view renders.
+ *   - The URL is fetched from the server on dialog open so the
+ *     first render of `EnabledView` already has it. There is no
+ *     "sharing is on but we can't show your link" state any more —
+ *     the token is derivable end-to-end.
  *   - "Copy" copies the current URL to the clipboard; flash the
  *     check icon for 1.5s.
- *   - All three actions are owner-only (server enforces ownership).
+ *   - Both actions are owner-only (server enforces ownership).
  *   - The dialog description warns that the URL is public.
  */
 export function ShareButton({
@@ -72,35 +67,18 @@ export function ShareButton({
   );
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /**
-   * Why the link can't be shown, when sharing is on but retrieval
-   * failed. Distinguishes "created before encrypted storage" from a
-   * generic failure so the dialog can say something true.
-   */
-  const [retrievalNote, setRetrievalNote] = useState<string | null>(null);
 
-  // On open, recover the owner's existing link from the server. The raw
-  // token is stored encrypted (see lib/share/token-crypto.ts), so this
-  // is what makes "sharing is on" an actionable state rather than a
-  // dangling one.
-  //
-  // Deliberately keyed on `open` alone: if this re-ran whenever
-  // `enabled` flipped, clicking Enable inside the dialog would re-fetch
-  // and briefly clobber the URL the action had just returned. `enabled`
-  // is read through a ref so the closure always sees the current value.
-  //
-  // `viewCount` / `createdAt` are server state and need no refetch —
-  // they arrived with the page.
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
-
+  // On open, recover the owner's link from the server. The action
+  // derives the token from `(resumeId, SHARE_LINK_SECRET)`; this is
+  // what makes "sharing is on" an actionable state rather than a
+  // dangling one, and it always succeeds — there is no
+  // `unavailable` failure mode any more.
   useEffect(() => {
     if (!open) return;
 
     setError(null);
-    setRetrievalNote(null);
 
-    if (!enabledRef.current) {
+    if (!enabled) {
       setUrl(null);
       return;
     }
@@ -114,15 +92,13 @@ export function ShareButton({
         return;
       }
       setUrl(null);
-      // Every failure carries a human-readable message; show it rather
-      // than guessing which kind it was.
-      setRetrievalNote(result.error);
+      setError(result.error);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, enabled, resumeId]);
 
   function handleEnable() {
     setError(null);
@@ -134,7 +110,6 @@ export function ShareButton({
       }
       setEnabled(true);
       setUrl(result.data.url);
-      setRetrievalNote(null);
       setCreatedAt(result.data.createdAt?.toISOString() ?? null);
     });
   }
@@ -149,24 +124,8 @@ export function ShareButton({
       }
       setEnabled(false);
       setUrl(null);
-      setRetrievalNote(null);
       setViewCount((c) => c); // unchanged
       setCreatedAt(null);
-    });
-  }
-
-  function handleRotate() {
-    setError(null);
-    startTransition(async () => {
-      const result = await rotateShareTokenAction({ id: resumeId });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setEnabled(true);
-      setUrl(result.data.url);
-      setRetrievalNote(null);
-      setCreatedAt(result.data.createdAt?.toISOString() ?? null);
     });
   }
 
@@ -216,7 +175,6 @@ export function ShareButton({
         {showEnabledView ? (
           <EnabledView
             url={url}
-            note={retrievalNote}
             viewCount={viewCount}
             createdAt={createdAt}
             initialViewCount={initialStatus.viewCount}
@@ -224,7 +182,6 @@ export function ShareButton({
             pending={pending}
             onCopy={handleCopy}
             copied={copied}
-            onRotate={handleRotate}
             onDisable={handleDisable}
           />
         ) : (
@@ -290,7 +247,6 @@ function DisabledView({
 
 function EnabledView({
   url,
-  note,
   viewCount,
   createdAt,
   initialViewCount,
@@ -298,12 +254,9 @@ function EnabledView({
   pending,
   onCopy,
   copied,
-  onRotate,
   onDisable
 }: {
   url: string | null;
-  /** Why the link is missing, when retrieval failed. */
-  note: string | null;
   viewCount: number;
   createdAt: string | null;
   initialViewCount: number;
@@ -311,7 +264,6 @@ function EnabledView({
   pending: boolean;
   onCopy: () => void;
   copied: boolean;
-  onRotate: () => void;
   onDisable: () => void;
 }) {
   return (
@@ -347,21 +299,17 @@ function EnabledView({
               )}
             </Button>
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Keep your own copy — stop sharing to remove the link.
+          </p>
         </div>
       ) : (
         <div
-          data-testid="share-url-unavailable"
-          className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+          data-testid="share-url-loading"
+          className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground"
         >
-          <p className="font-semibold">Sharing is on, but we can't show your link.</p>
-          <p className="mt-1">
-            {note ??
-              'This link was created before encrypted storage, so all we kept was a one-way hash of it. Keep your own copy.'}
-          </p>
-          <p className="mt-1">
-            Generating a new link below immediately disables the one you
-            already shared.
-          </p>
+          <Loader2 className="mr-2 inline h-3 w-3 animate-spin" />
+          Loading your link…
         </div>
       )}
 
@@ -401,19 +349,6 @@ function EnabledView({
       </p>
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRotate}
-          disabled={pending}
-        >
-          {pending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          Generate new link
-        </Button>
         <Button
           variant="ghost"
           size="sm"

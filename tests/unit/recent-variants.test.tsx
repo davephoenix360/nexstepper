@@ -31,7 +31,7 @@ function makeVariant(overrides: Partial<Resume>): Resume {
     isMaster: false,
     parentResumeId: 'master-id',
     currentRevisionId: 'rev-id',
-    shareTokenHash: null,
+    shareToken: null,
     shareEnabled: false,
     shareViewCount: 0,
     shareLastViewedAt: null,

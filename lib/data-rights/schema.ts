@@ -164,11 +164,14 @@ export const exportChatUsageSchema = z.object({
  * `shareEnabled = true`. Including these lets the user revoke any
  * they still care about after export.
  *
- * Note: we deliberately do NOT include the `shareTokenHash` raw value
- * here — even hashed, it could be brute-forced and would let anyone
- * with the export read the public link. Instead we surface a hint
- * (`tokenLastChars`) the user can use to identify the share in their
- * dashboard. Revoking must happen through the UI.
+ * Note: we deliberately do NOT include the `share_token` raw value
+ * here. After Phase 2.5b the token IS the URL-facing value (an
+ * HMAC derivation, not a one-way hash). Exposing it would let
+ * someone with the export read the public link even without access
+ * to the server's `SHARE_LINK_SECRET`. We surface a hint
+ * (`tokenLastChars`) instead, so the user can identify the share in
+ * their dashboard without us handing them the URL. Revoking must
+ * happen through the UI.
  */
 export const exportShareSchema = z.object({
   resumeId: z.string(),

@@ -41,6 +41,7 @@ import {
 } from '@/lib/resume-schema';
 import { parsedJdSchema, type ParsedJd } from '@/lib/jd-parser';
 import { coercePrintSettings } from '@/lib/print-settings';
+import { deriveShareToken } from '@/lib/share';
 
 /**
  * Get the current user from the Better Auth session, joined with the user row.
@@ -823,37 +824,35 @@ export async function updateVariantJobContextTitle(
   return saved ? parsed.data : null;
 }
 
-// ─── Share-link queries (Phase 2.5) ─────────────────────────────────────────
+// ─── Share-link queries (Phase 2.5; deterministic since 2.5b) ───────────────
 
 /**
  * A shareable-link summary — the bits the owner UI needs to show
- * "Sharing is on, X views" / "Generate new link" / "Stop sharing".
+ * "Sharing is on, X views" / "Stop sharing".
  *
- * Deliberately omits the token hash (it would be useless to the
- * client) and the raw token (only the action ever sees that).
+ * Deliberately omits the deterministic token (`token`): that value
+ * never leaves the server except through the owner-only actions
+ * that derive it for display. Dashboard pages consume the same
+ * shape but project out the four UI fields they actually render.
+ *
+ * Post-Phase-2.5b there is no separate hash or encrypted envelope
+ * to track — the deterministic token is itself the lookup key.
  */
 export type ShareStatus = {
   enabled: boolean;
   viewCount: number;
   lastViewedAt: Date | null;
   createdAt: Date | null;
-  /** The token hash. The client should never need this, but the
-   *  action uses it to build the public URL after generation. */
-  tokenHash: string | null;
   /**
-   * Encrypted envelope of the raw token, or null for links created
-   * before token encryption existed / when no encryption key is
-   * configured. Never leaves the server except through the owner-only
-   * action that decrypts it.
+   * The deterministic token currently stored on the row, verbatim.
+   * May be `null` for a row that has never been enabled (and
+   * therefore never had a token computed). Re-enable idempotently
+   * rewrites the same value, so a row that toggles off and back on
+   * keeps its `share_token` populated even though sharing is off
+   * between toggles.
    */
-  tokenCiphertext: string | null;
+  token: string | null;
 };
-
-/**
- * Read the share status for a resume. Ownership-checked. Returns
- * null if the resume doesn't exist OR isn't owned by this user
- * (don't leak existence to non-owners).
- */
 export async function getShareStatus(
   resumeId: string,
   userId: string
@@ -864,8 +863,7 @@ export async function getShareStatus(
       shareViewCount: resumes.shareViewCount,
       shareLastViewedAt: resumes.shareLastViewedAt,
       shareCreatedAt: resumes.shareCreatedAt,
-      shareTokenHash: resumes.shareTokenHash,
-      shareTokenCiphertext: resumes.shareTokenCiphertext
+      shareToken: resumes.shareToken
     })
     .from(resumes)
     .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
@@ -878,50 +876,70 @@ export async function getShareStatus(
     viewCount: row.shareViewCount,
     lastViewedAt: row.shareLastViewedAt,
     createdAt: row.shareCreatedAt,
-    tokenHash: row.shareTokenHash,
-    tokenCiphertext: row.shareTokenCiphertext
+    token: row.shareToken
   };
 }
 
 /**
- * Enable sharing on a resume. Stores the (already-hashed) token +
- * flips `shareEnabled` to true + stamps `shareCreatedAt`. The caller
- * (Server Action) generates the raw token, gives it to the user,
- * and passes the hash here.
+ * Enable sharing on a resume. The deterministic token is derived
+ * here from `(resumeId, SHARE_LINK_SECRET)` — the caller does NOT
+ * generate or pass one. Re-enables are idempotent: re-running this
+ * for a row that already has sharing on writes the same token
+ * (the derivation is a pure function) and preserves
+ * `shareCreatedAt`.
  *
- * Returns true on success, false if the resume doesn't exist or
- * isn't owned by this user.
+ * Idempotency is intentional: the whole point of the deterministic
+ * design is that a single resume always has the same URL. Flipping
+ * the toggle off and on does not generate a new URL.
+ *
+ * Returns the new (or existing) token on success so the action can
+ * hand the owner the URL immediately without a second round-trip.
+ * Returns `null` if the resume doesn't exist or isn't owned by
+ * this user.
  */
 export async function enableShare(
   resumeId: string,
-  userId: string,
-  tokenHash: string,
-  tokenCiphertext: string | null = null
-): Promise<boolean> {
+  userId: string
+): Promise<{ token: string; createdAt: Date } | null> {
+  const token = deriveShareToken(resumeId);
+
+  // Idempotency: if sharing is already on with the same token,
+  // this UPDATE is a no-op for the state we care about. We still
+  // bump `updatedAt` to reflect the owner's "re-enable" click
+  // without affecting shareCreatedAt (it's preserved below).
+  // `shareLastViewedAt` is intentionally NOT reset here — owner
+  // metric, not view metric; clearing it on every toggle would
+  // erase context the dialog renders.
   const result = await db
     .update(resumes)
     .set({
-      shareTokenHash: tokenHash,
-      shareTokenCiphertext: tokenCiphertext,
-      shareEnabled: true,
-      // First-time enable. We deliberately don't reset viewCount —
-      // re-enable after a disable preserves the running total so the
-      // owner can see how popular the resume has been over time.
-      shareCreatedAt: new Date(),
-      shareLastViewedAt: null,
-      updatedAt: new Date()
+      shareToken: token,
+      shareEnabled: true
     })
     .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
-    .returning({ id: resumes.id });
+    .returning({
+      shareCreatedAt: resumes.shareCreatedAt
+    });
 
-  return result.length > 0;
+  if (result.length === 0) return null;
+  // Lazy stamp of shareCreatedAt on the first-ever enable.
+  // Pre-existing rows carried a non-null value over from the prior
+  // design, so this is a no-op for them.
+  const createdAt = result[0].shareCreatedAt ?? new Date();
+  if (result[0].shareCreatedAt === null) {
+    await db
+      .update(resumes)
+      .set({ shareCreatedAt: createdAt, updatedAt: new Date() })
+      .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)));
+  }
+  return { token, createdAt };
 }
 
 /**
  * Disable sharing on a resume. Anyone with the existing URL gets
- * 404 from now on. We KEEP the token hash so rotation can reuse the
- * same row state; if the user re-enables we generate a fresh token
- * anyway (the old one is dead).
+ * 404 from now on. We KEEP `share_token` because the deterministic
+ * token is safe (it's an HMAC, not a secret) and re-enable gives
+ * the same URL back without burning a DB column write.
  *
  * Returns true on success, false if not found / not owned.
  */
@@ -942,49 +960,25 @@ export async function disableShare(
 }
 
 /**
- * Rotate the share token. Generates a new hash, replaces the old,
- * keeps `shareEnabled = true` and the existing viewCount. The old
- * URL immediately stops working.
- */
-export async function rotateShareToken(
-  resumeId: string,
-  userId: string,
-  newTokenHash: string,
-  tokenCiphertext: string | null = null
-): Promise<boolean> {
-  const result = await db
-    .update(resumes)
-    .set({
-      shareTokenHash: newTokenHash,
-      shareTokenCiphertext: tokenCiphertext,
-      // New URL = reset the "first shared" timestamp so the UI shows
-      // the new creation date. viewCount is preserved (lifetime stat).
-      shareCreatedAt: new Date(),
-      shareLastViewedAt: null,
-      updatedAt: new Date()
-    })
-    .where(
-      and(
-        eq(resumes.id, resumeId),
-        eq(resumes.userId, userId),
-        eq(resumes.shareEnabled, true)
-      )
-    )
-    .returning({ id: resumes.id });
-
-  return result.length > 0;
-}
-
-/**
- * Look up a resume by its share token. No auth — the URL is the
- * capability. Returns null if:
- *   - The token doesn't match any hash
+ * Look up a resume by its deterministic share token. No auth — the
+ * URL is the capability. Returns null if:
+ *   - The token doesn't match any row
  *   - Sharing is disabled (shareEnabled = false)
+ *   - The row has no token (never been shared, or migrated column
+ *     waiting for first re-enable)
  *
  * Does NOT validate the JSONB revision data here — the route handler
  * does that as a defense-in-depth check before rendering.
+ *
+ * Note: this used to be `getResumeByShareToken(tokenHash)` where
+ * `tokenHash` was a SHA-256 hex digest of the random token. After
+ * Phase 2.5b the token stored on the row IS the URL-facing value
+ * (deterministic HMAC), so the lookup is direct equality on
+ * `share_token`. Renaming would be churn for downstream callers;
+ * the parameter name in route handlers still reads "token" and
+ * that's what we pass in.
  */
-export async function getResumeByShareToken(tokenHash: string): Promise<{
+export async function getResumeByShareToken(token: string): Promise<{
   resume: Resume;
   data: ResumeData;
 } | null> {
@@ -993,7 +987,7 @@ export async function getResumeByShareToken(tokenHash: string): Promise<{
     .from(resumes)
     .where(
       and(
-        eq(resumes.shareTokenHash, tokenHash),
+        eq(resumes.shareToken, token),
         eq(resumes.shareEnabled, true)
       )
     )
