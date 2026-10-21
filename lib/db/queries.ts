@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { db } from './drizzle';
 import {
   applications,
@@ -1648,13 +1648,43 @@ export async function appendChatMessage(
  *               clause is then omitted entirely rather than
  *               comparing against `Infinity` (which Postgres
  *               can't represent).
+ * @param tokenLimit Max tokens allowed in the current window. Same
+ *               `Infinity` handling as `limit`. Omit or pass
+ *               `Infinity` to gate on turns only.
+ *
+ * WHY THE TOKEN GATE LIVES HERE AND NOT IN THE ROUTE
+ *   A turn is not a cost — every chat turn re-sends the whole
+ *   resume, so the same number of turns can cost 20x more on a
+ *   long resume than a short one. Gating tokens in application
+ *   code reintroduces exactly the TOCTOU race this function
+ *   exists to prevent: N concurrent requests would all read the
+ *   same `tokens_used` and all pass. Keeping both predicates in
+ *   the single `ON CONFLICT ... DO UPDATE ... WHERE` means
+ *   Postgres evaluates them against the post-lock state, so
+ *   overshoot is bounded by one in-flight turn rather than by
+ *   the number of simultaneous requests.
+ *
+ * LIMITATION — this is a SOFT cap by construction. `tokens_used` is
+ * only updated by `addChatTokens`, which runs *after* the stream
+ * drains. The predicate therefore reads the PREVIOUS turn's total.
+ * A user can overshoot the cap by approximately one turn. That is
+ * the deliberate trade: bounding worst-case spend without holding
+ * the row lock open across a multi-second model call.
  */
 export async function tryConsumeChatTurn(
   userId: string,
-  limit: number
+  limit: number,
+  tokenLimit: number = Infinity
 ): Promise<ChatUsage | null> {
   const today = new Date().toISOString().slice(0, 10);
   const unlimited = !Number.isFinite(limit);
+  const tokenUnlimited = !Number.isFinite(tokenLimit);
+
+  // Both gates are omitted independently so an unlimited plan never
+  // asks Postgres to evaluate a comparison against `Infinity`.
+  const conditions = [];
+  if (!unlimited) conditions.push(lt(chatUsage.turnsUsed, limit));
+  if (!tokenUnlimited) conditions.push(lt(chatUsage.tokensUsed, tokenLimit));
 
   const [row] = await db
     .insert(chatUsage)
@@ -1675,12 +1705,34 @@ export async function tryConsumeChatTurn(
       // yields an empty array → we return `null` → caller 429s.
       // Omitted for unlimited plans so the always-true comparison
       // doesn't have to be evaluated.
-      ...(unlimited
-        ? {}
-        : { setWhere: sql`${chatUsage.turnsUsed} < ${limit}` })
+      ...(conditions.length === 0 ? {} : { setWhere: and(...conditions) })
     })
     .returning();
 
+  return row ?? null;
+}
+
+/**
+ * Read today's `chat_usage` row for a user without consuming a turn.
+ *
+ * WHY THIS EXISTS (2026-10-21)
+ *   `tryConsumeChatTurn` returns `null` both when the turn limit is
+ *   hit AND when the token cap is hit. A user who runs out of daily
+ *   tokens on an unlimited-turn Pro plan would otherwise see
+ *   "Daily limit reached" with `limit: null`, which reads as a bug.
+ *
+ *   The route calls this ONLY on the rejection path, which is rare,
+ *   so the extra round-trip does not touch the hot path.
+ */
+export async function getTodayChatUsage(
+  userId: string
+): Promise<ChatUsage | null> {
+  const today = new Date().toISOString().slice(0, 10);
+  const [row] = await db
+    .select()
+    .from(chatUsage)
+    .where(and(eq(chatUsage.userId, userId), eq(chatUsage.date, today)))
+    .limit(1);
   return row ?? null;
 }
 

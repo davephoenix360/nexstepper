@@ -26,11 +26,13 @@ import {
   countVariantsByMasterId,
   listChatSessions,
   parseChatToolCalls,
+  getTodayChatUsage,
   tryConsumeChatTurn,
   updateChatSessionTitle
 } from '@/lib/db/queries';
 import { PLANS } from '@/lib/db/schema';
 import { asPlanId } from '@/lib/billing';
+import { decideChatQuotaRejection } from '@/lib/billing/chat-quota';
 import { buildSystemPrompt, type ResumeKind } from '@/lib/chat/system-prompt';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
@@ -246,25 +248,26 @@ export async function POST(req: NextRequest) {
   }
   const freeLimit = PLANS[plan].chatMessagesPerDay;
   const unlimited = !Number.isFinite(freeLimit);
-  const usage = await tryConsumeChatTurn(userId, freeLimit);
+  const tokenLimit = PLANS[plan].chatTokensPerDay;
+  const usage = await tryConsumeChatTurn(userId, freeLimit, tokenLimit);
   if (!usage) {
-    // Zero rows back means the `WHERE turns_used < limit` predicate
-    // failed — we're at or over quota. We don't have a row to read
-    // `resetsAt` from, so compute today's date directly; the counter
-    // resets at UTC midnight because that's what the `date` column
-    // is keyed on. `limit` is `null` for unlimited plans (would be a
-    // 429 on an unlimited plan only if the plan lookup itself raced —
-    // shouldn't happen, but we surface null rather than Infinity to
-    // keep the client type honest).
-    return NextResponse.json(
-      {
-        error: 'Daily limit reached',
-        code: 'RATE_LIMITED',
-        limit: unlimited ? null : freeLimit,
-        resetsAt: new Date().toISOString().slice(0, 10)
-      },
-      { status: 429 }
-    );
+    // Zero rows back means one of the two `ON CONFLICT ... WHERE`
+    // predicates failed — we're at or over quota on turns or tokens.
+    // We don't have a row to read `resetsAt` from, so the decision
+    // helper recomputes today's UTC date, matching what the `date`
+    // column is keyed on.
+    //
+    // The two limits are genuinely different events and the copy has to
+    // distinguish them: on an unlimited-turn Pro plan, "Daily limit
+    // reached / limit: null" reads as a bug rather than as a spend cap
+    // doing its job. This read is on the rejection path only (rare), so
+    // the extra query never touches the hot path.
+    const decision = decideChatQuotaRejection({
+      usage: await getTodayChatUsage(userId),
+      tokenLimit,
+      turnLimit: freeLimit
+    });
+    return NextResponse.json(decision.body, { status: 429 });
   }
 
   // ── Resolve or create session ─────────────────────────────────────────────

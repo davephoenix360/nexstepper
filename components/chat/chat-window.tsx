@@ -21,6 +21,8 @@ interface ChatWindowProps {
   messages: ChatMessageRow[];
   isStreaming: boolean;
   rateLimit: { limit: number; used: number } | null;
+  /** See `ChatInput` — why the last send was rejected, if it was. */
+  notice: string | null;
   onClose: () => void;
   onNewChat: () => void;
   onSend: (content: string) => void;
@@ -36,6 +38,7 @@ export function ChatWindow({
   messages,
   isStreaming,
   rateLimit,
+  notice,
   onClose,
   onNewChat,
   onSend,
@@ -232,6 +235,7 @@ export function ChatWindow({
               onSend={onSend}
               isStreaming={isStreaming}
               rateLimit={rateLimit}
+              notice={notice}
             />
           </div>
         </div>
