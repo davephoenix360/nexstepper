@@ -30,6 +30,18 @@
  * `createCheckoutSession()` in lib/payments/stripe.ts. If the app's
  * params change, this test silently stops testing the real thing.
  *
+ * ⚠️  PROMOTION CODES ARE NOT TESTABLE HERE. An earlier version of this
+ * script accepted a promo code and applied it via
+ * `discounts[0][promotion_code]`. That path returns
+ * `No such promotion code: '…'` on this account for every code tried —
+ * including bare ones with no restrictions — while the sibling
+ * `discounts[0][coupon]` applies correctly. The codes themselves are
+ * fine: NEXSTEP50 was confirmed working 2026-10-21 by customer entry at
+ * the live Checkout page (CA$5.00 → −CA$2.50, GST recomputed on the
+ * discounted subtotal). So the restriction is on the server-side apply
+ * path, not on promotion codes. Verifying one requires the real browser
+ * UI, which this script deliberately does not drive.
+ *
  * Usage: node scripts/smoke-checkout-session.cjs
  */
 const fs = require('node:fs');
@@ -76,7 +88,12 @@ function checkoutSessionParams() {
 function encode(params) {
   const out = {};
   for (const [k, v] of Object.entries(params)) {
-    if (v !== null && typeof v === 'object') {
+    // Drop undefined/null rather than sending the literal string "undefined".
+    // A param conditionally omitted by setting it to undefined is NOT the same
+    // as a param set to undefined — Stripe sees the latter as a real value and
+    // rejects it.
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'object') {
       for (const [sk, sv] of Object.entries(v)) out[`${k}[${sk}]`] = sv;
     } else {
       out[k] = v;
@@ -126,6 +143,7 @@ async function main() {
   console.log(`  currency      : ${json.currency}`);
   console.log(`  amount_total  : ${json.amount_total}`);
   console.log(`  has url       : ${Boolean(json.url)}`);
+  console.log(`  promo codes   : ${json.allow_promotion_codes ? 'enabled (customer entry)' : 'disabled'}`);
   if (json.amount_total === 0) {
     console.log('');
     console.log('  Note: amount_total is 0 because the 7-day trial applies. The');

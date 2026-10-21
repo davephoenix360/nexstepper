@@ -52,6 +52,12 @@ These are identifiers, not secrets, and are safe to commit:
 | Product `Nexstepper Pro` (live) | `prod_VTzO3C7OsTxptr` |
 | Price CAD 5.00/month (live) | `price_1UT2DfRL5953MIrUXj3FsHMc` |
 | Webhook endpoint (live) | `we_1UT2DlRL5953MIrUIR7ISThI` → `https://www.nexstepper.com/api/stripe/webhook` |
+| Dev-test coupon (live) | `DQN3WDZg` — 50% off, duration `once`, 5 redemptions, expires 2027-01-19 |
+| Dev-test promotion code (live) | `NEXSTEP50` → `promo_1UT6sDRL5953MIrUZyPydr7r` |
+
+The sandbox has the same code (`NEXSTEP50`, coupon `fGBZzW7v`), which is
+what `pnpm dev` talks to. `node scripts/create-test-promo-code.cjs`
+creates or reports it idempotently.
 
 The webhook endpoint is registered for `customer.subscription.created`,
 `.updated`, and `.deleted` — exactly the three cases
@@ -450,6 +456,41 @@ Dashboard change; the next click picks it up.
 The other common 500 here is a wrong-mode key: a live product + a
 sandbox key (or the reverse) surfaces as a price/permission error rather
 than anything about tax codes.
+
+### 4.9 Promotion codes: the API can't verify them, the browser can
+
+Confirmed working 2026-10-21 at live Checkout — `NEXSTEP50` typed into
+the "Add promotion code" box produced `CA$5.00 → −CA$2.50`, with GST
+correctly recomputed on the discounted subtotal. Customer entry works.
+
+But applying a code **server-side** when creating the session does not:
+
+```
+400 Invalid object — No such promotion code: 'NEXSTEP50'
+```
+
+This happens on both accounts, for every code, including bare coupons
+with no `max_redemptions` and no `redeem_by`. The sibling
+`discounts[0][coupon]` applies correctly at the same moment, and the
+promotion code object itself reads `active: true`. So the restriction is
+on the server-side apply path — not on promotion codes, and not a config
+error.
+
+Two more traps in the same area:
+
+- `allow_promotion_codes` and `discounts` are **mutually exclusive** —
+  sending both fails with *"You may only specify one of these
+  parameters."*
+- `promotion_codes.create` no longer accepts a top-level `coupon`. It
+  needs the nested form `promotion[type]=coupon` plus
+  `promotion[coupon]=<id>`. The old flat param fails with *"Received
+  unknown parameter: coupon."*
+
+The practical consequence: `scripts/smoke-checkout-session.cjs` reports
+whether a session can be created and whether the promo box is enabled,
+but **cannot** verify that a specific code resolves. Only the browser
+can, because only the browser does the lookup. The script header says so
+rather than offering a check that always reports a false failure.
 
 ---
 
