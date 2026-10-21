@@ -171,6 +171,84 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Jake's Resume template (sixth entry in the registry)** — branch
+  `feat/jake-resume-template`. Modelled on Jake Gutierrez's famous
+  LaTeX/Overleaf template. Jake is the only SERIF template in the
+  set (Lora fallback via `font-serif` so it renders in vitest
+  without a `next/font/google` load); every other template is
+  sans-serif. Visual identity: centered NAME in
+  `[font-variant:small-caps]` + uppercase, single-line contact row
+  with inline lucide icons (phone, mail, globe, LinkedIn, GitHub),
+  hairline slate rule UNDER every section title (not the
+  accent-bar-to-the-left of Modern / Executive), two-column
+  name/date rows on Education / Experience / Projects / Volunteer,
+  italic role / city rows under the name, **4-column coursework
+  grid** in the Education block (the academic touch no other
+  template has), bold `Category:` + value rows for Technical
+  Skills (no chips, no border), and the LaTeX project's
+  `Name | tech-stack` format on the Projects line. Section
+  title renames: "Skills" → "Technical Skills",
+  "Volunteer" → "Leadership / Extracurricular". Architecture: a
+  single `JakeTemplate` (modern pattern, Field primitive, no
+  classic two-file split), exporting `JakeReadOnly` as a thin
+  `<JakeTemplate editable={false} />` alias so the print-hide /
+  design-lab tests can target the read-only path explicitly.
+  The article wrapper carries `data-template="jake"`,
+  `data-accent="slate"`, `data-max-pages="auto"`,
+  `data-page-size="letter"` so the existing print-CSS / page
+  rules just work. Picker lane `category: "jake"`, accent
+  `slate`, tier `free`, atsSafe `true` (single column, no
+  tables, no graphics). New thumbnail SVG (`JakeThumbnail`)
+  in `template-thumbnail.tsx` — same Slate-hairline chrome as
+  the real template, generic enough to read at 320×192.
+  **Coverage:** the schema's full 11 sections render
+  (Summary, Education, Experience, Projects, Skills,
+  Volunteer, Awards, Certificates, Publications, Languages,
+  Interests) plus References — every existing section, with
+  Jake's chrome applied to all of them. **Tests:** new
+  `tests/unit/jake-template.test.tsx` pins the visual identity
+  (15 tests): small-caps + uppercase on the h1, centered
+  header, every contact channel present, scheme-prefix
+  stripped from the website, hairline rule under section
+  titles, "Leadership / Extracurricular" + "Technical Skills"
+  renames, 4-col coursework grid testid, all 8 courses
+  rendered, "Relevant Coursework" sub-header, project
+  " | tech-stack" line, every section ID present when it has
+  content, empty sections suppressed, `font-serif` on the
+  article wrapper. Existing tests updated to 6-template
+  reality: `template-meta.test.ts` (registry size 5→6, Jake
+  meta + category, Jake is free / atsSafe / jake / slate),
+  `template-gallery.test.tsx` (Jake card, thumbnail, badges,
+  preview, version), `print-hide-templates.test.tsx` (Jake
+  in summary-hide, in back-compat, new JakeTemplate describe
+  block), `design-lab.test.ts` (5→6 anchors + design-lab
+  page text "five" → "six"). **Visual verification:**
+  Playwright headed screenshot at
+  `output/playwright/jake-template.png` — visually matches
+  the original Jake LaTeX template (centered name,
+  hairline rules, 4-col coursework, inline contact icons,
+  bold category labels). Drift memo:
+  `docs/drift/2026-10-19-jake-resume-template.md`.
+
+  **Closed with a jsdom interaction harness.** User asked
+  for "one more round" — a real DOM test for the repeatable
+  form arrays. New `tests/interaction/` directory with
+  `harness.tsx` (`renderWithForm` + `user()` + `FormCapture`),
+  6 `EditableSection` interaction tests, 5
+  `JakeProfilesEditor` interaction tests that assert DOM
+  **and** `form.getValues`. Vitest config picks up the new
+  directory; `environment: 'node'` is kept global, jsdom is
+  opted into per-file via the `@vitest-environment jsdom`
+  docblock (120+ `renderToStaticMarkup` suites stay fast). New
+  devDeps: `jsdom@^25`, `@testing-library/react@^16`,
+  `@testing-library/user-event@^14`. Mutation proof:
+  reintroducing per-row `useFieldArray` in the Jake profiles
+  editor (the bug shipped round 5 to fix) makes 4/5 tests
+  fail with the user's exact symptom — harness catches what
+  markup assertions cannot. Final state: 1663 tests / 126
+  files, `pnpm typecheck` + `pnpm build` clean, merged into
+  `main` as 6 commits behind the prior `1a82acc`.
+
 - **Safari / iOS print fallback (first Apple-using customer report)**
   — branch `fix/safari-print-fallback`, no schema or infra changes.
   The Apple-using customer reported "I clicked Print and nothing

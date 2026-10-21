@@ -122,7 +122,7 @@ function IntroCard() {
   return (
     <div className="mx-auto max-w-3xl rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
       <p>
-        Visual review surface for the five registered templates. All
+        Visual review surface for the six registered templates. All
         of them render against the same{' '}
         <code className="rounded bg-zinc-100 px-1 py-0.5 text-[12px]">
           gallerySampleResumeData

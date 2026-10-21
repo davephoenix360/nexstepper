@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
  * Tests here pin the contract:
  *   - no auth gate (the page is reachable without a session)
  *   - noindex (not user-facing; must not appear in search indexes)
- *   - all five registered templates render
+ *   - all six registered templates render
  *   - the dev tool is visibly marked (so nobody mistakes it for the
  *     marketing site)
  *   - a sticky nav lets you jump between templates
@@ -85,7 +85,7 @@ describe('Design Lab: dev-tool chrome', () => {
     expect(PAGE).toMatch(/Dev tool/);
   });
 
-  it('renders all five templates by id as scroll anchors', () => {
+  it('renders all six templates by id as scroll anchors', () => {
     // The client island builds the anchor id from the registry
     // entry. A simple substring check is enough — no need to
     // enumerate the five ids, listTemplates() guarantees coverage.
