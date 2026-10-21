@@ -12,6 +12,75 @@ one.
 
 ---
 
+## 0. There are TWO Stripe accounts (read this first)
+
+Verified 2026-10-21. This is the single most confusing thing about the
+current setup, and getting it wrong means a real charge lands somewhere
+unexpected or the price silently 404s.
+
+| account | id | holds |
+|---|---|---|
+| **`nexstepper-saas`** | `acct_1UHupKRL5953MIrU` | **the real one.** Live mode. CLI is logged into this. |
+| `nexstepper sandbox` | `acct_1UHupREuyi4weBFQ` | dev/test only. `.env` and `.env.local` point HERE. Has `Hamlet (e-book)` and `Test One-off product` leftovers from account setup. |
+
+Consequences:
+
+- **`.env` / `.env.local` are wired to the sandbox account.** That is
+  correct and intentional for local dev — do not "fix" it to point at
+  production.
+- Going live is therefore **not just a key swap, it's an account swap.**
+  The live key comes from `nexstepper-saas`, not from the key currently
+  in `.env.local`.
+- A `No such price` error almost always means you're holding a sandbox
+  key and asking for a live Price ID (or vice versa). See §4.3.
+
+### Live objects that exist (created 2026-10-21)
+
+These are identifiers, not secrets, and are safe to commit:
+
+| object | id |
+|---|---|
+| Product `Nextep Pro` (live) | `prod_VTzO3C7OsTxptr` |
+| Price CAD 5.00/month (live) | `price_1UT2DfRL5953MIrUXj3FsHMc` |
+| Webhook endpoint (live) | `we_1UT2DlRL5953MIrUIR7ISThI` → `https://www.nexstepper.com/api/stripe/webhook` |
+
+The webhook endpoint is registered for `customer.subscription.created`,
+`.updated`, and `.deleted` — exactly the three cases
+`app/api/stripe/webhook/route.ts` handles.
+
+### Price history
+
+Pro is **CAD 5.00/month**. Stripe Prices are immutable, so a price change
+means *create a new price and leave the old one active* — an active
+subscription references the old id, and archiving it breaks that
+subscription.
+
+| price | mode | amount | status |
+|---|---|---|---|
+| `price_1UHuxIEuyi4weBFQRzOp2YMQ` | sandbox/test | CAD 3.00 | **active — do not archive.** Referenced by `sub_1UHwXaEuyi4weBFQDal2hieB`. |
+| `price_1UT1GmEuyi4weBFQYBlJL0nF` | sandbox/test | CAD 5.00 | active, product default (`.env.local`) |
+| `price_1UT2DfRL5953MIrUXj3FsHMc` | **live** | CAD 5.00 | active, product default |
+
+Currency is **CAD**, not USD — the primary market is Canada.
+
+### Restricted keys and permissions
+
+The live key is a **restricted key** (`rk_live_…`), which is correct
+practice for production: the app does not need blanket access. Setup is
+gated per-permission and Stripe fails loudly, one at a time:
+
+| operation | permission | needed at |
+|---|---|---|
+| create product | `product_write` | setup only |
+| create price | `plan_write` | setup only |
+| register webhook | `webhook_write` | setup only |
+| create Checkout session, read customers/subscriptions | — | **runtime** |
+
+Grant the first three on your setup key; the *app* only needs the
+runtime set.
+
+---
+
 ## 1. Local dev (Stripe test mode)
 
 ### 1.1 Get test API keys
@@ -288,7 +357,19 @@ complete checkout. If it's silent, the forwarder died — restart it.
 After every env change, run:
 
 ```bash
-# In your Next.js dev console or a quick Node REPL:
+node scripts/verify-stripe-setup.cjs
+```
+
+It reports which **mode** the key is in (test vs live — the single most
+common silent failure), whether the Pro price exists and is active /
+recurring / monthly, and which webhook endpoints are registered and for
+which events. Secrets are masked; only mode and last 4 chars are printed.
+
+Point it at a different env file with `ENV_FILE=.env.production.local`.
+
+Or, manually, in your Next.js dev console or a quick Node REPL:
+
+```bash
 node -e "console.log({secret: !!process.env.STRIPE_SECRET_KEY, webhook: !!process.env.STRIPE_WEBHOOK_SECRET, pro: !!process.env.STRIPE_PRICE_ID_PRO})"
 ```
 
@@ -296,6 +377,20 @@ All three should be `true`. If `STRIPE_SECRET_KEY` is somehow unset
 even after editing `.env.local`, check that `.env.local` is in the
 project root (not a subdirectory) and that `pnpm dev` was restarted
 after the edit.
+
+### 5.1 Production state as of 2026-10-21
+
+- Live product, price, and webhook endpoint: **created and verified.**
+- Vercel Production env vars: **still unset.** No `STRIPE_SECRET_KEY`,
+  `STRIPE_PRICE_ID_PRO`, or `STRIPE_WEBHOOK_SECRET` in any scope.
+  `/api/stripe/webhook` will fail signature verification until they land,
+  and the pricing page renders the soft-launch waitlist CTA rather than
+  a checkout button.
+- **Do not restore the live Pro CTA** until one real purchase has
+  round-tripped through checkout + webhook. See
+  `docs/drift/2026-09-27-soft-launch-pro-gating.md` for the 6-step
+  restore, and `scripts/grant-founder-pro.cjs` for granting Pro without
+  a purchase (which deliberately does **not** exercise that path).
 
 ---
 
