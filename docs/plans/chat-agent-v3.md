@@ -87,6 +87,20 @@ Missing, in rough priority order:
    stale. The agent should be able to refresh it and tell the user what
    moved. *(Also fixes a real product gap: nothing recomputes the score
    after an AI edit today.)*
+
+   **This tool costs the user nothing.** Verified 2026-10-21: the ATS
+   engine makes **zero** AI Gateway calls. `lib/scoring/` is pure
+   TypeScript — BM25, dictionaries, structural checks, weighted
+   composition — and there is a purity test (`tests/unit/scoring/purity.test.ts`)
+   that fails the build if an AI call is introduced there. The hybrid
+   path's semantic half runs `Xenova/all-MiniLM-L6-v2` **locally** via
+   `@huggingface/transformers` + ONNX (dynamic import, ~25 MB model
+   cached in `/tmp`), which costs Vercel CPU time and cold start, not
+   tokens. So there is nothing to gate: keep ATS recompute free for
+   everyone, as decided. The only AI cost in the JD path is the
+   one-time `mustHaveSkills` extraction when the JD is first pasted —
+   which already happens, and is not part of recompute.
+
 3. **`getPrintSettings` / `updatePrintSettings`** — margin, line height,
    font size, section spacing. "Make it fit on one page" is a request we
    currently cannot answer.
@@ -112,9 +126,10 @@ every turn.
 
 Shape:
 
-- **Trigger:** first user message in a chat session where a
-  `jobContext` exists and no analysis has been recorded for this
-  resume + JD hash yet.
+- **Trigger:** the moment the user pastes the JD and the variant is
+  created — which is when resume + JD + ATS score are all simultaneously
+  available. That is the earliest point the analysis can run, and it is
+  the point the user already expects to wait (see the Q3 decision).
 - **Runs once, cached** against the JD hash so editing the resume does
   not re-trigger it.
 - **Produces** a structured critique the agent can reference for the rest
@@ -172,18 +187,73 @@ Phase D — proactivity
 - agent-initiated recommendations after each edit ("this removed a
   keyword the JD asked for")
 
-## 8. Open questions
+## 8. Decisions (2026-10-21)
 
-1. **How much do we let it write without asking?** A resume is the
-   user's; over-writing it is worse than under-writing it. Proposal:
-   edit freely when the request is explicit, propose-and-confirm when
-   it is inferred ("you have no metrics, want me to add them?").
-2. **Does the ATS-recompute tool need Pro gating?** It is a real model
-   call; a Free user spamming it is a bill.
-3. **How long should the first-session analysis take to stream before
-   the agent responds normally?** Probably: respond immediately with the
-   critique streaming in behind it, rather than blocking.
-4. **Do we expose "what changed" as a diff the user accepts/rejects per
-   edit?** This is the difference between "removed a step" and "moved a
-   step". Strongly inclined yes, but it is a UI project, not an agent
-   project.
+**Q1 — How much may the agent write without asking?**
+Decided: **edit freely when the user asked directly; propose first when
+the agent inferred it.** "Rewrite my summary for this role" just happens.
+"You have no metrics on any bullet — want me to add them?" asks first.
+The test is intent, not verb: if the user named the change, do it; if the
+agent noticed something the user did not mention, raise it.
+
+**Q2 — Gate the ATS recompute tool behind Pro?**
+Decided: **no.** Recompute is free to run and stays free for everyone —
+see the §4 note, it is pure TypeScript with a build-time purity test.
+There is no bill to protect against, and gating it would mean taking away
+something that costs us nothing.
+
+**Q3 — Loading screen for the first analysis?**
+Decided: **yes — and it should be a screen, not an inline spinner.**
+Reuse the resume-upload loading screen the user already knows, triggered
+at the moment they paste the JD. Rationale: at that instant we have
+resume + JD + ATS score simultaneously, which is the earliest and
+cheapest moment to run the analysis, and it front-loads the wait into a
+moment the user already expects to wait. Then the chat opens with the
+analysis already done, rather than making the first message feel slow.
+
+**Q4 — Per-edit diff with accept/reject?**
+Decided: **no, not now.** The agent already explains what it changed, and
+the user's own argument is that a 1–2 page tailored resume is short enough
+to read directly. Revisit only if users report not knowing what the agent
+did — and capture that signal first rather than building it speculatively.
+
+## 9. Cost of the first-session analysis
+
+Priced against `anthropic/claude-haiku-5.5`, verified live via
+`vercel ai-gateway models endpoints` on 2026-10-21: **$0.10 in / $0.50
+out per 1M**, identical across all four endpoints (anthropic, bedrock,
+claudeaws, vertexAnthropic).
+
+Realistic payload, using the measured size of the CleerDental variant:
+
+| input | tokens |
+|---|---|
+| resume revision (~20 KB) | ~5,000 |
+| JD description (~3.4 KB) | ~900 |
+| JD markdown (if present, ~6 KB) | ~1,500 |
+| system prompt incl. dynamic templates + persona | ~3,000 |
+| instructions + output schema | ~1,000 |
+| **total input** | **~11,400** |
+
+Output: a structured critique, ~2,000–3,000 tokens.
+
+| | rate | cost |
+|---|---|---|
+| input | 11,400 × $0.10/1M | $0.00114 |
+| output | 3,000 × $0.50/1M | $0.00150 |
+| **total per analysis** | | **~$0.0027** |
+
+**Roughly a quarter of a cent.** Even a deliberately generous multi-pass
+version (4 calls: overall critique, per-section detail, rewrite
+proposals, gap ranking) lands around **$0.01**.
+
+Scale check against the product: 1,000 analyses costs **CA$2.70**. Every
+free user creating two JD variants a month, 100 users, is **CA$0.60/month**
+— noise against CA$5/mo Pro revenue. **The economics are not a constraint
+here**; latency and quality are the real questions, not price.
+
+> **Gap worth closing:** `vercel ai-gateway budgets list` returns *no
+> budgets*. There is no metered spend ceiling on the AI Gateway at all. Not
+> urgent at current volume, but the per-user token cap in `lib/db/queries.ts`
+> is the only thing standing between a runaway loop and a surprise bill.
+> Worth adding a gateway-level budget as a backstop above it.
