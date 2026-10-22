@@ -21,6 +21,10 @@ import {
   toEducationLike,
   type EligibilityNote
 } from './qualifications';
+import {
+  scoreJevRequirementFit,
+  type JevRequirementEvaluation
+} from './jev-requirements';
 import { flattenJobText, flattenResumeText } from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
@@ -215,6 +219,25 @@ export type ScoreBreakdown = {
    * See `lib/scoring/qualifications.ts`.
    */
   eligibility?: EligibilityNote[];
+  /**
+   * The JD's genuine requirements, as measured by Jev, and which of them
+   * the resume does not evidence.
+   *
+   * Present only when a Jev evaluation ran. When it is there, the
+   * "add these missing keywords" tip uses THIS list rather than the raw
+   * token difference — otherwise the tip would list "build, dental,
+   * clinics" while the score next to it came from Jev's measurement, and
+   * the two would contradict each other.
+   *
+   * Optional because score snapshots are persisted and older rows
+   * predate the field.
+   */
+  jevRequirements?: {
+    /** The genuine requirements, with their evidence depth (0–3). */
+    requirements: Array<{ text: string; evidence: number }>;
+    /** The ones the resume does not evidence at all. */
+    missing: string[];
+  };
 };
 
 export type ScoreableResume = ResumeTextSource & {
@@ -270,6 +293,25 @@ export type PrecomputedRoleFit = {
 export type PrecomputedSeniorityFit = {
   /** Result of `scoreSeniorityFit` over the wide envelope + job. */
   seniorityFit: SeniorityFitResult;
+};
+
+/**
+ * v3 — the pre-computed Jev requirement evaluation.
+ *
+ * Jev (`typesafe-ai/jev`) is a decision model, not a chat model: it
+ * answers typed questions with calibrated probabilities. It is asked
+ * which of a JD's requirement lines are genuine skills, and how strongly
+ * the resume evidences each one — the evaluation the token-based ATS
+ * Keyword Match sub-criterion cannot make.
+ *
+ * The evaluation is computed OUTSIDE `lib/scoring/` (it needs the
+ * network) and passed in, exactly like `PrecomputedRoleFit`. When it is
+ * absent the engine falls back to the token-based keyword score, so the
+ * sync path stays pure, instant and free.
+ */
+export type PrecomputedJevRequirements = {
+  /** The evaluation, or null when Jev could not be reached. */
+  evaluation: JevRequirementEvaluation | null;
 };
 
 /**
@@ -344,6 +386,62 @@ function hasV2Intent(job: ScoreableJob): boolean {
  * refactor that changes the weights without updating the formula
  * will fail CI.
  */
+/**
+ * Compose the overall score from the seven dimension scores.
+ *
+ * ONE implementation, used by both the sync engine and the async
+ * hybrid wrapper.
+ *
+ * That matters: the hybrid wrapper used to hard-code the v1 weights
+ * (0.3 / 0.2 / 0.3 / 0.2) and recompose the score from four dimensions
+ * only, dropping Intent Coverage, Role Fit and Seniority Fit entirely.
+ * So the "semantic" score and the sync score were on different scales —
+ * the same resume scored differently depending on which button the user
+ * pressed.
+ *
+ * @param dimensionScores The seven dimension values.
+ * @param useV2Weights True when the JD has v2 intent data (the sync
+ *   engine's `useV2Weights` rule), false for the v1 weight set.
+ */
+export function composeOverallScore(
+  dimensionScores: Record<DimensionKeyV2, number>,
+  useV2Weights: boolean
+): number {
+  const w = useV2Weights
+    ? {
+        atsMatching: WEIGHTS_V2.atsMatching,
+        structure: WEIGHTS_V2.structure,
+        contentQuality: WEIGHTS_V2.contentQuality,
+        alignment: WEIGHTS_V2.alignment,
+        intentCoverage: WEIGHTS_V2.intentCoverage,
+        roleFit: WEIGHTS_V2.roleFit,
+        seniorityFit: WEIGHTS_V2.seniorityFit
+      }
+    : {
+        atsMatching: WEIGHTS.atsMatching,
+        structure: WEIGHTS.structure,
+        contentQuality: WEIGHTS.contentQuality,
+        alignment: WEIGHTS.alignment,
+        intentCoverage: 0,
+        roleFit: 0,
+        seniorityFit: 0
+      };
+
+  return (
+    w.atsMatching * dimensionScores.atsMatching +
+    w.structure * dimensionScores.structure +
+    w.contentQuality * dimensionScores.contentQuality +
+    w.alignment * dimensionScores.alignment +
+    w.intentCoverage * dimensionScores.intentCoverage +
+    w.roleFit * dimensionScores.roleFit +
+    w.seniorityFit * dimensionScores.seniorityFit
+  );
+}
+
+/**
+ * Compose into a single `w` value with a stable shape so the
+ * arithmetic below is one branch instead of two.
+ */
 export function scoreResume(
   resume: ScoreableResume,
   job: ScoreableJob,
@@ -363,13 +461,34 @@ export function scoreResume(
    * but their date-relative status degrades to `unknown` rather than
    * guessing.
    */
-  now: Date | null = null
+  now: Date | null = null,
+  /**
+   * The pre-computed Jev requirement evaluation.
+   *
+   * When present, the ATS Keyword Match sub-criterion measures the JD's
+   * genuine requirements and how strongly the resume evidences each
+   * one, instead of counting every non-stop-word token in the JD. The
+   * eligibility requirements also come from Jev's classification when
+   * it is available, which supersedes the pattern-matching detector.
+   *
+   * When absent, the engine uses the token-based keyword score and the
+   * deterministic eligibility detector — the same behaviour as before,
+   * which is what keeps the sync path pure, instant and free.
+   */
+  jevRequirements: PrecomputedJevRequirements | null = null
 ): ScoreBreakdown {
   const t0 = nowMs();
   const resumeText = flattenResumeText(resume);
   const jobText = flattenJobText(job);
 
-  const ats = scoreAtsMatching(resume, job, { resumeText, jobText });
+  const jevFit = scoreJevRequirementFit(jevRequirements?.evaluation ?? null);
+
+  const ats = scoreAtsMatching(
+    resume,
+    job,
+    { resumeText, jobText },
+    jevFit ? { keywordScore: jevFit.keywordScore } : undefined
+  );
   const structure = scoreStructure(resume);
   const content = scoreContentQuality(resume);
   const alignment = scoreAlignment(resume, job, {
@@ -437,34 +556,18 @@ export function scoreResume(
   // score formula — neutral weight, neutral contribution.
   // Compose into a single `w` value with a stable shape so the
   // arithmetic below is one branch instead of two.
-  const w = useV2Weights
-    ? {
-        atsMatching: WEIGHTS_V2.atsMatching,
-        structure: WEIGHTS_V2.structure,
-        contentQuality: WEIGHTS_V2.contentQuality,
-        alignment: WEIGHTS_V2.alignment,
-        intentCoverage: WEIGHTS_V2.intentCoverage,
-        roleFit: WEIGHTS_V2.roleFit,
-        seniorityFit: WEIGHTS_V2.seniorityFit
-      }
-    : {
-        atsMatching: WEIGHTS.atsMatching,
-        structure: WEIGHTS.structure,
-        contentQuality: WEIGHTS.contentQuality,
-        alignment: WEIGHTS.alignment,
-        intentCoverage: 0,
-        roleFit: 0,
-        seniorityFit: 0
-      };
-
-  const overall =
-    w.atsMatching * ats.value +
-    w.structure * structure.value +
-    w.contentQuality * content.value +
-    w.alignment * alignment.value +
-    w.intentCoverage * intentCoverageBreakdown.value +
-    w.roleFit * roleFitBreakdown.value +
-    w.seniorityFit * seniorityFitBreakdown.value;
+  const overall = composeOverallScore(
+    {
+      atsMatching: ats.value,
+      structure: structure.value,
+      contentQuality: content.value,
+      alignment: alignment.value,
+      intentCoverage: intentCoverageBreakdown.value,
+      roleFit: roleFitBreakdown.value,
+      seniorityFit: seniorityFitBreakdown.value
+    },
+    useV2Weights
+  );
 
   // `performance.now()` is a high-resolution clock, so the raw delta is a
   // float like `15.795039999997243`. It lands in `score_snapshots.computed_in_ms`,
@@ -514,7 +617,18 @@ export function scoreResume(
     },
     computedInMs,
     intentCoverageBreakdown,
-    eligibility
+    eligibility,
+    ...(jevFit && jevRequirements?.evaluation
+      ? {
+          jevRequirements: {
+            requirements: jevRequirements.evaluation.requirements.map((r) => ({
+              text: r.text,
+              evidence: r.evidence
+            })),
+            missing: jevFit.missing
+          }
+        }
+      : {})
   };
 }
 
@@ -564,7 +678,14 @@ export function scoreResumeFromEnvelope(
   resume: ResumeData,
   job: JobPosting | null,
   now: Date,
-  precomputed: PrecomputedRoleFit = { roleFitSimilarity: null }
+  precomputed: PrecomputedRoleFit = { roleFitSimilarity: null },
+  /**
+   * The pre-computed Jev requirement evaluation.
+   *
+   * Optional: when absent the engine uses the token-based ATS Keyword
+   * Match score. The async path (`score-hybrid.ts`) computes it.
+   */
+  jevRequirements: PrecomputedJevRequirements | null = null
 ): ScoreBreakdown {
   // Compute Seniority Fit from the envelope BEFORE adapting to the
   // scoreable shape — the scoreable shape strips work-history
@@ -602,7 +723,8 @@ export function scoreResumeFromEnvelope(
         },
     precomputed,
     { seniorityFit },
-    now
+    now,
+    jevRequirements
   );
 }
 

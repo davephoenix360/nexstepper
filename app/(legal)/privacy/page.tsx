@@ -217,6 +217,15 @@ export default function PrivacyPage() {
             <li><strong>OpenAI</strong> (<code>openai/gpt-4o-mini</code>) — last fallback for structured extraction only.</li>
             <li><strong>Z.ai</strong> (<code>zai/glm-5.3-flash</code>) — third fallback for the chat assistant.</li>
             <li><strong>NVIDIA</strong> (<code>nvidia/nemotron-3.5-lightning-free</code>) — final fallback for the chat assistant.</li>
+            <li>
+              <strong>TypeSafe</strong> (<code>typesafe-ai/jev</code>) — the
+              decision model behind the enhanced ATS score. It receives your
+              resume text and the job description&apos;s requirement lists to
+              measure which requirements your resume evidences and how
+              strongly. It does not receive your conversation history, and
+              the request is pinned to TypeSafe&apos;s zero-data-retention
+              endpoint.
+            </li>
           </ul>
           The fallback chain kicks in only when the previous model fails or
           times out. Your prompt is sent to at most one provider per

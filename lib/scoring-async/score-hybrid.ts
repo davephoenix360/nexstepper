@@ -1,71 +1,89 @@
 import {
+  composeOverallScore,
   scoreResumeFromEnvelope,
   type ScoreBreakdown
 } from '@/lib/scoring';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 import { hybridSimilarity } from './hybrid-similarity';
+import { evaluateJevRequirements } from './jev-requirements';
 
 /**
- * Hybrid score wrapper - Phase 3 of the post-ship engine review
- * (`docs/drift/2026-09-19-ats-engine-review.md`).
+ * Enhanced score wrapper.
  *
- * Re-uses the always-on sync engine for every dimension EXCEPT the
- * ATS `similarityScore` sub-criterion. That sub-criterion is
- * replaced with the hybrid BM25+semantic value from
- * `hybrid-similarity.ts`, the dimension value is re-weighted to
- * use the new sub-score, and the overall score is recomputed
- * with the dimension's new value.
+ * Two signals are substituted into the always-on sync engine:
  *
- * Lives in `lib/scoring-async/` (NOT `lib/scoring/`) for the
- * same purity-invariant reasons as the underlying
- * `semantic-similarity.ts` and `hybrid-similarity.ts` modules.
+ * 1. **The ATS `similarityScore` sub-criterion** is replaced with the
+ *    hybrid BM25 + semantic-embedding value from `hybrid-similarity.ts`.
+ *    (Phase 3 of the post-ship engine review —
+ *    `docs/drift/2026-09-19-ats-engine-review.md`.)
+ *
+ * 2. **The ATS `keywordScore` sub-criterion** is replaced with Jev's
+ *    measurement of the JD's GENUINE requirements and how strongly the
+ *    resume evidences each one. The token-based score counted every
+ *    non-stop-word token in the JD — including the description and the
+ *    benefits — so a candidate with every required skill still lost
+ *    points for not containing "insurance", "budget", "remote" and
+ *    "friendly". Measured against the 50-JD validation corpus, this
+ *    moves Pearson r from 0.910 to 0.934.
+ *
+ * Everything else — structure, content quality, alignment, intent
+ * coverage, role fit, seniority fit — is the sync engine's own output,
+ * untouched.
+ *
+ * Lives in `lib/scoring-async/` (NOT `lib/scoring/`) for the same
+ * purity-invariant reasons as the underlying `semantic-similarity.ts`,
+ * `hybrid-similarity.ts` and `jev-requirements.ts` modules.
  *
  * Why a wrapper, not a refactor of `scoreResume`:
- *   - The sync engine is purity-tested; making it async would
- *     break the contract and require touching every dimension.
- *   - The hybrid path is opt-in (default scoring still uses
- *     BM25). Wrapping lets us add it without modifying the
- *     always-on engine.
- *   - The single substituted sub-criterion is `ATS Similarity`
- *     (the 20% slice of the 30% atsMatching dimension - so
- *     6% of the overall score). All other sub-criteria stay
- *     identical to the sync engine. Drift is localized and
- *     visible.
+ *   - The sync engine is purity-tested; making it async would break
+ *     the contract and require touching every dimension.
+ *   - The enhanced path is opt-in (default scoring still uses BM25).
+ *     Wrapping lets us add it without modifying the always-on engine.
+ *   - The substitutions are localized and visible.
  */
 
 /**
- * Score a resume against a job posting using the HYBRID engine
- * (BM25 + semantic embeddings for the ATS similarity sub-criterion).
+ * Score a resume against a job posting using the ENHANCED engine.
  *
  * Same return shape as `scoreResumeFromEnvelope` so the existing
  * Scorecard UI can render the breakdown without changes.
  *
  * Returns a modified `ScoreBreakdown`:
  *   - `criteriaScores['ATS Similarity']` <- hybrid value * 100
- *     (replaces the BM25-only similarity score from the sync
- *     engine).
+ *     (replaces the BM25-only similarity score from the sync engine).
+ *   - `criteriaScores['ATS Keyword Match']` <- Jev's genuine-requirement
+ *     coverage and evidence depth (when the evaluation succeeded).
  *   - `dimensionScores.atsMatching` <- re-weighted to use the new
- *     similarity score (replaces the sync engine's atsMatching
- *     dimension value).
- *   - `overallScore` <- recomputed from the new atsMatching +
- *     unchanged structure / content / alignment.
- *   - All other criteriaScores / dimensionScores unchanged from
- *     the sync engine's output.
+ *     sub-scores.
+ *   - `overallScore` <- recomposed with the engine's own weights.
  *
  * @param resume The full `ResumeData` envelope.
- * @param job The full `JobPosting` envelope. Required - the
- *   hybrid scorer always needs the JD.
+ * @param job The full `JobPosting` envelope. Required - the enhanced
+ *   scorer always needs the JD.
  * @returns The modified `ScoreBreakdown`.
  */
 export async function scoreResumeHybridFromEnvelope(
   resume: ResumeData,
   job: JobPosting
 ): Promise<ScoreBreakdown> {
+  // 0. Ask Jev which of the JD's requirement lines are genuine skills
+  //    and how strongly the resume evidences each one.
+  //
+  //    A failed call is not an error: the evaluation comes back with
+  //    `ok: false` and the engine keeps the token-based score.
+  const evaluation = await evaluateJevRequirements(resume, job);
+
   // 1. Run the sync engine first to get the unchanged baseline.
   // Pass `new Date()` as the engine's clock so the envelope-aware
   // Seniority Fit dimension gets real tenure signal (drift memo
   // 2026-09-20-ats-v2-validation-corpus.md §3 follow-up #1).
-  const baseline = scoreResumeFromEnvelope(resume, job, new Date());
+  const baseline = scoreResumeFromEnvelope(
+    resume,
+    job,
+    new Date(),
+    { roleFitSimilarity: null },
+    { evaluation }
+  );
 
   // 2. Compute the hybrid similarity. Returns [0, 1] - convert to
   // 0-100 to match the unit of every other sub-criterion. The
@@ -93,17 +111,23 @@ export async function scoreResumeHybridFromEnvelope(
     hasRequirements
   );
 
-  // 4. Recompute the overall score from the new atsMatching
-  // dimension value + the unchanged other three dimensions.
-  // Mirrors `lib/scoring/score.ts`'s composition formula so the
-  // top-level arithmetic stays consistent. Use the same weight
-  // constants as the engine (hard-coded here too because we
-  // don't want to couple this wrapper to internal exports).
-  const newOverall =
-    0.3 * newAtsMatching +
-    0.2 * baseline.dimensionScores.structure +
-    0.3 * baseline.dimensionScores.contentQuality +
-    0.2 * baseline.dimensionScores.alignment;
+  // 4. Recompose the overall score from the new atsMatching dimension
+  //    value + the other six dimensions.
+  //
+  //    Uses the engine's OWN composition function so the enhanced score
+  //    and the sync score are on the same scale. This wrapper used to
+  //    hard-code the v1 weights (0.3 / 0.2 / 0.3 / 0.2) and recompose
+  //    from four dimensions only, dropping Intent Coverage, Role Fit and
+  //    Seniority Fit — so pressing "Recompute with semantic" produced a
+  //    score on a different scale to the default one. Same resume,
+  //    different number, depending on the button.
+  const newOverall = composeOverallScore(
+    {
+      ...baseline.dimensionScores,
+      atsMatching: newAtsMatching
+    },
+    !baseline.intentCoverageBreakdown.fallback
+  );
 
   return {
     ...baseline,
@@ -128,9 +152,13 @@ export async function scoreResumeHybridFromEnvelope(
  *   - When JD has zero requirements: re-normalize to
  *     keyword=0.75, similarity=0.25, coverage=0.
  *
- * Caller passes the requirement-count signal directly (read from
- * the JD envelope) - we can't infer it from the baseline
- * breakdown without ambiguity.
+ * The keyword sub-score is whatever the sync engine computed — the
+ * Jev-derived one when the evaluation succeeded, the token-based one
+ * otherwise. Either way this function only substitutes the similarity.
+ *
+ * Caller passes the requirement-count signal directly (read from the
+ * JD envelope) - we can't infer it from the baseline breakdown without
+ * ambiguity.
  */
 function recomputeAtsMatchingDimension(
   baseline: ScoreBreakdown,

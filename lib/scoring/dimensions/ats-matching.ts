@@ -61,9 +61,28 @@ export function scoreAtsMatching(
   flatten: {
     resumeText: string;
     jobText: string;
+  },
+  options?: {
+    /**
+     * Override the keyword sub-score.
+     *
+     * When a Jev requirement evaluation is available, the keyword
+     * sub-criterion measures the JD's GENUINE requirements and how
+     * strongly the resume evidences each one, instead of counting every
+     * non-stop-word token in the JD. The token-based score counts a JD's
+     * prose — `insurance`, `budget`, `remote`, `friendly` — as keywords
+     * the resume is expected to contain.
+     *
+     * The other two sub-criteria (similarity, coverage) are untouched,
+     * so the scorecard's criteria still decompose the dimension.
+     *
+     * See `lib/scoring/jev-requirements.ts`.
+     */
+    keywordScore?: number;
   }
 ): AtsMatchingScore {
-  const keywordScore = computeKeywordScore(job, flatten.resumeText);
+  const keywordScore =
+    options?.keywordScore ?? computeKeywordScore(job, flatten.resumeText);
   // Phase 2 calibration drift: replace the Jaccard token-set
   // similarity with a proper BM25 retrieval signal. The Jaccard
   // version treated every shared token as equal — "the" counted

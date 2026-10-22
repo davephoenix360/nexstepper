@@ -154,6 +154,34 @@ function lineMatchesSkill(line, skill) {
   return short.every((t) => long.includes(t));
 }
 
+/**
+ * Classify a set of JD lines with Jev (one binary question each).
+ *
+ * @param jdState The shared state.
+ * @param lines The lines to classify.
+ */
+async function classifyLines(jdState, lines) {
+  const r = await jev(
+    jdState,
+    Object.fromEntries(
+      lines.map((line, i) => [
+        `line${i}`,
+        {
+          type: 'noul',
+          instructions:
+            `Is "${line}" naming a specific skill, tool, technology, or technique ` +
+            `that the candidate would use on the job? Answer no if it describes ` +
+            `a degree, a certification, a number of years of experience, a ` +
+            `management or soft skill, or a duty rather than a tool.`
+        }
+      ])
+    )
+  );
+  return lines.map((line, i) => ({
+    line,
+    pSkill: r.answers[`line${i}`]?.noul ?? null
+  }));
+}
 (async () => {
   const t0 = Date.now();
   let totalInputTokens = 0;
@@ -161,7 +189,16 @@ function lineMatchesSkill(line, skill) {
 
   const measured = await mapLimit(corpus, CONCURRENCY, async (entry) => {
     const jd = entry.jd;
-    const lines = [...(jd.requirements ?? []), ...(jd.niceToHaves ?? [])]
+    // PRODUCTION-SHAPED input: the intent extractor's skill lists, not
+    // the JD's `requirements` array. The variant editor stores the pasted
+    // JD as raw text in `jobContext.description` and leaves
+    // `requirements` / `niceToHaves` / `benefits` empty forever — the
+    // only structured requirement lists production has are the ones the
+    // extractor fills in.
+    const lines = [
+      ...(jd.mustHaveSkills ?? []),
+      ...(jd.niceToHaveSkills ?? [])
+    ]
       .map((l) => String(l).trim())
       .filter(Boolean);
 
@@ -174,6 +211,20 @@ function lineMatchesSkill(line, skill) {
       ...lines.map((l, i) => `${i + 1}. ${l}`)
     ].join('\n');
     const resumeText = flattenResume(entry.resume);
+
+    // The CLASSIFICATION measurement: the JD's requirement lines,
+    // validated against the hand-authored skill lists. Non-circular —
+    // the lines and the ground truth are different things.
+    const requirementLines = [
+      ...(jd.requirements ?? []),
+      ...(jd.niceToHaves ?? [])
+    ]
+      .map((l) => String(l).trim())
+      .filter(Boolean);
+    const lineClassification =
+      requirementLines.length > 0
+        ? await classifyLines(jdState, requirementLines)
+        : [];
 
     // ── 1. vocabulary curation ────────────────────────────────────────
     const r1 = await jev(
@@ -284,6 +335,7 @@ function lineMatchesSkill(line, skill) {
       tier: entry.tier,
       idealScore: entry.idealScore,
       lineCount: lines.length,
+      requirementLineClassification: lineClassification,
       classified,
       skillLineCount: skillLines.length,
       evidence,
@@ -303,7 +355,7 @@ function lineMatchesSkill(line, skill) {
       ...(corpus.find((e) => e.id === m.id)?.jd.niceToHaveSkills ?? []),
       ...(corpus.find((e) => e.id === m.id)?.jd.implicitSkills ?? [])
     ];
-    for (const c of m.classified) {
+    for (const c of m.requirementLineClassification ?? []) {
       const isPositive = truth.some((s) => lineMatchesSkill(c.line, s));
       (isPositive ? positives : negatives).push({ ...c, isPositive });
     }
@@ -332,6 +384,8 @@ function lineMatchesSkill(line, skill) {
     corpusSize: measured.length,
     linesClassified: positives.length + negatives.length,
     skillLineRate: (skillLinesTotal(measured) / (positives.length + negatives.length)),
+    classificationInput: "the JD's requirement lines (non-circular against the hand-authored lists)",
+    scoreInput: "the intent extractor's skill lists (what production stores)",
     meanPSkillForRealSkills: mean(positives.map((p) => p.pSkill)),
     meanPSkillForNonSkills: mean(negatives.map((n) => n.pSkill)),
     auc,

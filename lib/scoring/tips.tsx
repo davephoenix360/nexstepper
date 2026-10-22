@@ -123,13 +123,26 @@ export function buildDynamicTips(
 
   // ATS Matching (3 sub-criteria).
   if (job) {
-    const missingKeywords = computeMissingKeywords(job, resumeText);
+    // When a Jev evaluation ran, the ATS Keyword Match sub-score came
+    // from Jev's measurement of the JD's GENUINE requirements — so the
+    // tip must list those, not the raw token difference. Otherwise the
+    // tip would say "add build, dental, clinics" next to a score that
+    // was computed from something else entirely.
+    const jevMissing = breakdown.jevRequirements?.missing;
+    const missingKeywords = jevMissing ?? computeMissingKeywords(job, resumeText);
+
     if (missingKeywords.length > 0) {
       const top = missingKeywords.slice(0, MAX_KEYWORDS_IN_TIP);
       const tail = missingKeywords.length > MAX_KEYWORDS_IN_TIP
         ? ` (top ${MAX_KEYWORDS_IN_TIP} of ${missingKeywords.length})`
         : '';
-      out['ATS Keyword Match'] = (
+      out['ATS Keyword Match'] = jevMissing ? (
+        <>
+          These requirements from the JD are not evidenced in your resume:{' '}
+          <strong>{top.join(', ')}</strong>
+          {tail}.
+        </>
+      ) : (
         <>
           Add these missing keywords from the JD:{' '}
           <strong>{top.join(', ')}</strong>
