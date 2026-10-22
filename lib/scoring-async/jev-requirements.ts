@@ -118,9 +118,19 @@ export async function evaluateJevRequirements(
   try {
     classified = await jevDecide({ state: jobState, questions: classifyQuestions });
     assertZeroDataRetention(classified);
-  } catch {
+  } catch (err) {
     // A scoring path must not fail because a decision model was
     // unreachable. Fall back to the token-based signal.
+    //
+    // But it is logged: a silent fallback would mean every user quietly
+    // gets the old (broken) keyword score with nothing in the logs to
+    // say why. If the provider pin ever stops working, this line is
+    // where it shows up.
+    console.warn(
+      `[jev] classification unavailable, keeping the token-based keyword score: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
     return empty;
   }
 
@@ -171,10 +181,15 @@ export async function evaluateJevRequirements(
       questions: evidenceQuestions
     });
     assertZeroDataRetention(evidenced);
-  } catch {
+  } catch (err) {
     // The classification is still usable even if the evidence pass
     // failed — but without evidence there is no depth signal, so the
     // caller falls back rather than scoring on half the signal.
+    console.warn(
+      `[jev] evidence pass unavailable, keeping the token-based keyword score: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
     return empty;
   }
 
