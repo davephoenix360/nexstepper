@@ -74,7 +74,8 @@ export default async function MeasurePage({
     margin: pickString(params.margin),
     lineHeight: pickString(params.lineHeight),
     fontSize: pickString(params.fontSize),
-    sectionSpacing: pickString(params.sectionSpacing)
+    sectionSpacing: pickString(params.sectionSpacing),
+    itemSpacing: pickString(params.itemSpacing)
   };
 
   const settings: PrintSettings = coercePrintSettings({

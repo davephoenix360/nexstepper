@@ -19,11 +19,33 @@
  * excluded section to zero height. That is the render the user's PDF
  * gets.
  *
+ * ## The measurement width matters
+ *
+ * The DOM has to be measured at the PAPER CONTENT WIDTH (paper width
+ * minus the page margin), because that is the width the text wraps at
+ * when it prints. Measuring at the 8.5in screen width wraps less text
+ * and reports a shorter resume than the one that prints — which makes
+ * every per-section figure wrong.
+ *
+ * The `@page` margin also only applies once the root mirror has run, so
+ * the harness waits for it; see scripts/lib/print-harness.cjs.
+ *
  * Usage:
  *   node scripts/measure-section-space.cjs [--templates=classic,modern] [--out=output/x]
  */
 const fs = require('node:fs');
 const path = require('node:path');
+
+const {
+  SETTINGS,
+  contentWidthPx,
+  settingMarginIn,
+  usableHeightIn,
+  openMeasurePage,
+  printableHeightIn,
+  resolvePlaywright,
+  settingsQuery
+} = require('./lib/print-harness.cjs');
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
@@ -52,55 +74,6 @@ const SECTIONS = [
   'interests',
   'references'
 ];
-
-const SETTINGS = {
-  standard: { margin: 'standard', lineHeight: 'standard', fontSize: 'standard', sectionSpacing: 'standard' },
-  compact: { margin: 'compact', lineHeight: 'compact', fontSize: 'standard', sectionSpacing: 'compact' },
-  tightest: { margin: 'compact', lineHeight: 'compact', fontSize: 'small', sectionSpacing: 'compact' }
-};
-
-function resolvePlaywright() {
-  try {
-    return require('playwright');
-  } catch {
-    /* fall through to the npx cache */
-  }
-  const roots = [
-    path.join(process.env.LOCALAPPDATA ?? '', 'npm-cache', '_npx'),
-    path.join(process.env.HOME ?? '', '.npm', '_npx')
-  ];
-  const browserCache = path.join(process.env.LOCALAPPDATA ?? '', 'ms-playwright');
-  const candidates = [];
-  for (const root of roots) {
-    if (!fs.existsSync(root)) continue;
-    for (const dir of fs.readdirSync(root)) {
-      const base = path.join(root, dir, 'node_modules');
-      const core = path.join(base, 'playwright-core');
-      const pw = path.join(base, 'playwright');
-      if (!fs.existsSync(pw) || !fs.existsSync(core)) continue;
-      let revision = null;
-      try {
-        const spec = JSON.parse(fs.readFileSync(path.join(core, 'browsers.json'), 'utf8'));
-        revision =
-          spec.browsers?.find((b) => b.name === 'chromium-headless-shell')?.revision ??
-          spec.browsers?.find((b) => b.name === 'chromium')?.revision ??
-          null;
-      } catch {
-        /* ignore */
-      }
-      const have =
-        revision &&
-        (fs.existsSync(path.join(browserCache, `chromium_headless_shell-${revision}`)) ||
-          fs.existsSync(path.join(browserCache, `chromium-${revision}`)));
-      candidates.push({ p: pw, have, mtime: fs.statSync(pw).mtimeMs });
-    }
-  }
-  const usable = candidates.filter((c) => c.have);
-  const pool = usable.length ? usable : candidates;
-  pool.sort((a, b) => b.mtime - a.mtime);
-  if (!pool.length) throw new Error('Playwright not found.');
-  return require(pool[0].p);
-}
 
 (async () => {
   const { chromium } = resolvePlaywright();
@@ -131,31 +104,30 @@ function resolvePlaywright() {
     // processes across ~200 navigations and eventually starved the
     // machine.
     const browser = await chromium.launch();
-    const page = await browser.newPage({ viewport: { width: 816, height: 1056 } });
 
     async function totalInches(setting, hidden) {
-      const s = SETTINGS[setting];
       const url =
         `${BASE}/dev/design-lab/measure?template=${template}` +
         `&roles=3&bullets=3&base=full` +
-        `&margin=${s.margin}&lineHeight=${s.lineHeight}` +
-        `&fontSize=${s.fontSize}&sectionSpacing=${s.sectionSpacing}` +
+        `&${settingsQuery(setting)}` +
         (hidden ? `&hidden=${hidden}` : '');
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-      await page.waitForSelector('.printable', { timeout: 20_000 });
-      await page.evaluate(() => document.fonts.ready);
-      await page.emulateMedia({ media: 'print' });
-      return page.evaluate(() => {
-        const p = document.querySelector('.printable');
-        return Math.round((p.scrollHeight / 96) * 100) / 100;
-      });
+
+      // The viewport has to be the paper content width for this setting's
+      // margin — that is the width the text wraps at when it prints.
+      const vw = contentWidthPx(settingMarginIn(setting));
+      const page = await browser.newPage({ viewport: { width: vw, height: 1056 } });
+      try {
+        await openMeasurePage(page, url);
+        return await printableHeightIn(page);
+      } finally {
+        await page.close();
+      }
     }
 
     for (const setting of Object.keys(SETTINGS)) {
       if (!wanted.has(setting)) continue;
 
-      const usable =
-        11 - (SETTINGS[setting].margin === 'compact' ? 0.5 : 0.75) * 2;
+      const usable = usableHeightIn(settingMarginIn(setting));
       const full = await totalInches(setting, '');
       const sections = {};
 
