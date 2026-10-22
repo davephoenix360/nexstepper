@@ -8,7 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { auth } from '@/lib/auth';
 import {
   getResume,
-  saveResumeRevision
+  saveResumeRevision,
+  recordResumeAnalysis
 } from '@/lib/db/queries';
 import {
   jobPostingSchema,
@@ -18,6 +19,10 @@ import {
 } from '@/lib/resume-schema';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
 import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
+import {
+  hashJobDescription,
+  runFirstSessionAnalysis
+} from '@/lib/chat/first-session-analysis';
 
 /**
  * Set the job context on a variant resume.
@@ -82,7 +87,15 @@ export async function setVariantJobContextAction(
   // that remain empty.
   //
   // Plan: docs/plans/ats-scoring-v2.md
-  const extractResult = await extractJdIntent(parsed.data.jdText);
+  //
+  // The FIRST-SESSION ANALYSIS rides along in the same batch. It reads
+  // the resume and the RAW JD text, so it has no dependency on the
+  // other two — three parallel round-trips cost the same as the
+  // slowest one.
+  const [extractResult, analysisResult] = await Promise.all([
+    extractJdIntent(parsed.data.jdText),
+    runFirstSessionAnalysis(existing.data, parsed.data.jdText)
+  ]);
 
   const existingJobContext = existing.data.jobContext;
   const useExistingIntent = !extractResult.ok;
@@ -154,6 +167,28 @@ export async function setVariantJobContextAction(
   );
   if (!saved) {
     return { ok: false, error: 'Could not save the job context' };
+  }
+
+  // The FIRST-SESSION ANALYSIS ran in parallel with the intent
+  // extractor above; store it now.
+  //
+  // Cached against (resume, jd_hash), so it runs ONCE per JD. Editing
+  // the JD changes the hash and invalidates it automatically; editing
+  // the resume does not, because the critique is about the gap, which
+  // the user can close themselves.
+  //
+  // Best-effort: never blocks the attach.
+  if (analysisResult.ok) {
+    await recordResumeAnalysis(
+      parsed.data.resumeId,
+      session.user.id,
+      hashJobDescription(parsed.data.jdText),
+      analysisResult.data
+    );
+  } else {
+    console.warn(
+      `[setVariantJobContext] first-session analysis unavailable (${analysisResult.code}): ${analysisResult.error}`
+    );
   }
 
   revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);

@@ -28,12 +28,16 @@ import {
   parseChatToolCalls,
   getTodayChatUsage,
   tryConsumeChatTurn,
-  updateChatSessionTitle
+  updateChatSessionTitle,
+  getLatestResumeAnalysis
 } from '@/lib/db/queries';
 import { PLANS } from '@/lib/db/schema';
 import { asPlanId } from '@/lib/billing';
 import { decideChatQuotaRejection } from '@/lib/billing/chat-quota';
 import { buildSystemPrompt, type ResumeKind } from '@/lib/chat/system-prompt';
+import { hashJobDescription } from '@/lib/chat/first-session-analysis';
+import type { FirstSessionAnalysis } from '@/lib/chat/first-session-analysis';
+import { coercePrintSettings } from '@/lib/print-settings';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
@@ -312,11 +316,32 @@ export async function POST(req: NextRequest) {
         )
       : null;
 
+  // The FIRST-SESSION ANALYSIS, if one has been computed for this
+  // (resume, JD) pair. It is written when the user pastes a job
+  // description — see `runFirstSessionAnalysis` — and cached against
+  // the JD's hash, so changing the JD invalidates it automatically.
+  //
+  // When present it goes into the system prompt, so the assistant
+  // OPENS the conversation already knowing the verdict, the strengths,
+  // the gaps and — importantly — the skills the resume already
+  // demonstrates, so it does not ask the user for things they already
+  // listed.
+  const analysis = resume.data.jobContext
+    ? await getLatestResumeAnalysis(
+        resume.resume.id,
+        hashJobDescription(resume.data.jobContext.description ?? '')
+      )
+    : null;
+
   const system = buildSystemPrompt(
     resume.data,
     resume.data.jobContext ?? undefined,
     atsScore,
-    await resolveResumeKind(resume.resume, userId)
+    await resolveResumeKind(resume.resume, userId),
+    resume.data.jobContext
+      ? coercePrintSettings(resume.resume.printSettings)
+      : null,
+    analysis as FirstSessionAnalysis | null
   );
 
   // ── Load chat history (last 20 messages to keep prompt size manageable) ───

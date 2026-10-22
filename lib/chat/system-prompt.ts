@@ -4,6 +4,8 @@ import type { ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring/score';
 import type { PrintSettings } from '@/lib/print-settings';
 import { printSettingsSummary } from '@/lib/print-settings';
+import type { FirstSessionAnalysis } from './first-session-analysis';
+import { ANALYSIS_DISPLAY_LIMITS } from './first-session-analysis';
 import {
   AVAILABLE_TEMPLATES,
   describeTemplate,
@@ -49,6 +51,82 @@ function formatLocation(loc: ResumeData['sections']['basics']['location']): stri
   if (!loc) return '(none)';
   const parts = [loc.city, loc.region, loc.countryCode].filter(Boolean);
   return parts.length > 0 ? parts.join(', ') : '(none)';
+}
+
+/**
+ * Render the first-session analysis for the system prompt.
+ *
+ * Kept compact: this text is sent on EVERY chat turn, so every line
+ * costs tokens on every message. The full critique lives in the
+ * database; the prompt gets the actionable summary.
+ */
+function buildAnalysisContext(analysis: FirstSessionAnalysis): string {
+  const lines: string[] = [];
+  const L = ANALYSIS_DISPLAY_LIMITS;
+
+  lines.push('=== REVIEW OF THIS RESUME FOR THIS JOB ===');
+  lines.push(
+    'A recruiter-level review was already done on this resume against this job.'
+  );
+  lines.push('');
+  lines.push(`Verdict: ${analysis.verdict}`);
+  lines.push(`Headline: ${analysis.headline}`);
+  if (analysis.lengthNote) {
+    lines.push(`Length: ${analysis.lengthNote}`);
+  }
+
+  const strengths = analysis.strengths.slice(0, L.strengths);
+  if (strengths.length) {
+    lines.push('');
+    lines.push('What already works:');
+    for (const s of strengths) {
+      lines.push(`  - ${s.point} — ${s.evidence}`);
+    }
+  }
+
+  const gaps = analysis.gaps.slice(0, L.gaps);
+  if (gaps.length) {
+    lines.push('');
+    lines.push('What is missing (ranked by severity):');
+    for (const g of gaps) {
+      lines.push(`  - [${g.severity}] ${g.point} — ${g.why}`);
+    }
+  }
+
+  const keywordGaps = analysis.keywordGaps.slice(0, L.keywordGaps);
+  if (keywordGaps.length) {
+    lines.push('');
+    lines.push(
+      `Job requirements the resume does NOT show: ${keywordGaps.join(', ')}.`
+    );
+  }
+
+  const alreadyCovered = analysis.alreadyCovered.slice(0, L.alreadyCovered);
+  if (alreadyCovered.length) {
+    lines.push('');
+    lines.push(
+      `Job requirements the resume ALREADY shows: ${alreadyCovered.join(', ')}.`
+    );
+    lines.push(
+      'Do NOT ask the user for these — they are already on the resume.'
+    );
+  }
+
+  const nextActions = analysis.nextActions.slice(0, L.nextActions);
+  if (nextActions.length) {
+    lines.push('');
+    lines.push('Suggested next actions, highest leverage first:');
+    for (const a of nextActions) {
+      lines.push(`  - ${a}`);
+    }
+  }
+
+  lines.push('');
+  lines.push(
+    'Use this review to be specific and to start where it matters most. Do not repeat it back verbatim — the user may not have seen it.'
+  );
+
+  return lines.join('\n');
 }
 
 /**
@@ -393,7 +471,8 @@ export function buildSystemPrompt(
   jobContext?: ResumeData['jobContext'],
   atsScore?: ScoreBreakdown | null,
   resumeKind?: ResumeKind,
-  printSettings?: PrintSettings | null
+  printSettings?: PrintSettings | null,
+  analysis?: FirstSessionAnalysis | null
 ): string {
   const resumeText = buildResumeContext(data);
   const templateName = data.template ?? 'classic';
@@ -461,6 +540,17 @@ export function buildSystemPrompt(
   // against, and a neutral fallback is just noise.
   const atsSection =
     atsScore && jobSection ? '\n\n' + buildAtsContext(atsScore) : '';
+
+  // The first-session analysis, when one exists for this (resume, JD).
+  //
+  // This is what lets the assistant OPEN the conversation already
+  // informed instead of making the user ask "what do you think?".
+  // Critically, `alreadyCovered` is the anti-repetition list: skills the
+  // resume already demonstrates, which the assistant must NOT ask the
+  // user for.
+  const analysisSection = analysis
+    ? '\n\n' + buildAnalysisContext(analysis)
+    : '';
 
   return `You are the Nexstepper assistant — a professional resume writer, resume reviewer, and hiring recruiter, all in one. You are embedded in the user's resume editor, you can see their actual resume below, and you have tools that edit it. You are expected to DO things, not just suggest them.
 
@@ -621,7 +711,7 @@ Users will ask how the product works. Answer from this — do not guess, and do 
 
 # Context
 
-${untrustedBlock('untrusted_resume', resumeText)}${kindSection}${jobSection}${atsSection}
+${untrustedBlock('untrusted_resume', resumeText)}${kindSection}${jobSection}${atsSection}${analysisSection}
 
 Current active template: ${describeTemplate(templateName)}.
 

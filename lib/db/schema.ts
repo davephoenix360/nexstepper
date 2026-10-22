@@ -5,9 +5,11 @@ import {
   boolean,
   jsonb,
   index,
+  uniqueIndex,
   integer,
   primaryKey
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 import type { ResumeData } from '@/lib/resume-schema';
 
@@ -290,10 +292,21 @@ export const resumes = pgTable(
     index('resumes_user_idx').on(table.userId),
     index('resumes_parent_idx').on(table.parentResumeId),
     // Lookup-by-token: a single partial-unique btree index on
-    // `share_token`. The full index (including the `WHERE NOT NULL`
-    // partial predicate) is added in the migration because drizzle's
-    // `index().on()` builder doesn't expose `.where()`.
-    index('resumes_share_token_idx').on(table.shareToken)
+    // `share_token`. The index is UNIQUE and PARTIAL (`WHERE NOT NULL`),
+    // matching migration 0011.
+    //
+    // This was previously declared as a plain `index(...).on(...)`, on the
+    // belief that "drizzle's `index().on()` builder doesn't expose
+    // `.where()`". It does. The consequence was a schema/DB drift: the
+    // database had a UNIQUE partial index while the schema said plain,
+    // so the next `db:generate` produced a migration that DROPPED the
+    // unique partial index and replaced it with a plain one — silently
+    // discarding the uniqueness guarantee on the public share token the
+    // moment the migration ran. Declaring it the way it actually exists
+    // makes the diff empty, so migrations leave it alone.
+    uniqueIndex('resumes_share_token_idx')
+      .on(table.shareToken)
+      .where(sql`${table.shareToken} IS NOT NULL`)
   ]
 );
 
@@ -507,6 +520,83 @@ export const scoreSnapshots = pgTable(
 
 export type ScoreSnapshot = typeof scoreSnapshots.$inferSelect;
 export type NewScoreSnapshot = typeof scoreSnapshots.$inferInsert;
+
+/**
+ * First-session analysis — the deep "review my resume against this job
+ * description" pass, run ONCE per (resume, JD) pair.
+ *
+ * ## Why a table
+ *
+ * The analysis is expensive relative to the other derived artifacts (one
+ * model call, ~11K input tokens, ~3K output — about $0.003). It must
+ * NOT run on every chat turn, and it must not re-run when the user
+ * edits their resume: the critique is about the resume-vs-JD GAP, which
+ * changes only when the JD changes or the user asks for a fresh look.
+ *
+ * So it is keyed on `(resume_id, jd_hash)`:
+ *
+ *   - `jd_hash` is a digest of the job description text. Editing the
+ *     JD changes the hash, which invalidates the cached analysis
+ *     automatically — no explicit invalidation logic to get wrong.
+ *   - The resume is deliberately NOT part of the key beyond `resume_id`.
+ *     The critique stays valid across resume edits; the agent re-measures
+ *     the ATS score separately, and that IS recomputed per turn.
+ *
+ * ## Why not a column on `resumes`
+ *
+ * The analysis is a conversation artifact, not resume content. Putting
+ * it in `resume_revisions.data` would mean every content save carried it
+ * along, and every resume revision would carry AI output the user never
+ * wrote. This table keeps the user's document and the assistant's
+ * commentary separate.
+ *
+ * Rows are append-only; a new analysis for the same (resume, jd_hash)
+ * replaces the old one by virtue of `ORDER BY created_at DESC`.
+ */
+export const resumeAnalyses = pgTable(
+  'resume_analyses',
+  {
+    id: text('id').primaryKey(),
+    resumeId: text('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /**
+     * Digest of the job description text. Change the JD and the hash
+     * changes, which is what invalidates the cached analysis.
+     */
+    jdHash: text('jd_hash').notNull(),
+    /**
+     * The structured critique. Shape pinned by
+     * `lib/chat/first-session-analysis.ts`.
+     */
+    analysis: jsonb('analysis').$type<unknown>(),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [
+    // "Latest analysis for this resume + JD" lookup — the only read
+    // pattern. DESC created_at supports ORDER BY … LIMIT 1 without a
+    // sort step.
+    index('resume_analyses_resume_jd_created_idx').on(
+      table.resumeId,
+      table.jdHash,
+      table.createdAt.desc()
+    ),
+    // One analysis per (resume, JD) at a time. `recordResumeAnalysis`
+    // upserts on this pair, so the constraint is what makes the upsert
+    // work — without it the second write for the same JD would insert
+    // a duplicate row instead of replacing the stale critique.
+    uniqueIndex('resume_analyses_resume_jd_uniq').on(
+      table.resumeId,
+      table.jdHash
+    )
+  ]
+);
+
+export type ResumeAnalysisRow = typeof resumeAnalyses.$inferSelect;
+export type NewResumeAnalysisRow = typeof resumeAnalyses.$inferInsert;
 
 // ─── Chat tables (Phase 4) ────────────────────────────────────────────────────
 

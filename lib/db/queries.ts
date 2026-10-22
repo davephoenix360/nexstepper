@@ -8,6 +8,7 @@ import {
   chatUsage,
   feedback,
   resumes,
+  resumeAnalyses,
   resumeRevisions,
   resumeVariants,
   scoreSnapshots,
@@ -1551,6 +1552,64 @@ export async function recordScoreSnapshot(
     computedInMs: Math.round(snapshot.computedInMs)
   });
   return { id };
+}
+
+/**
+ * Store the first-session analysis for a (resume, JD) pair.
+ *
+ * Upserts on `(resume_id, jd_hash)`: re-running the analysis for the same
+ * JD REPLACES the previous critique rather than accumulating rows. The
+ * old one is superseded by definition — it described the same resume
+ * against the same job description.
+ */
+export async function recordResumeAnalysis(
+  resumeId: string,
+  userId: string,
+  jdHash: string,
+  analysis: unknown
+): Promise<{ id: string } | null> {
+  const owned = await db
+    .select({ id: resumes.id })
+    .from(resumes)
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .limit(1);
+  if (owned.length === 0) return null;
+
+  const id = crypto.randomUUID();
+  await db
+    .insert(resumeAnalyses)
+    .values({ id, resumeId, userId, jdHash, analysis })
+    .onConflictDoUpdate({
+      target: [resumeAnalyses.resumeId, resumeAnalyses.jdHash],
+      set: { analysis, createdAt: new Date() }
+    });
+  return { id };
+}
+
+/**
+ * The cached analysis for a (resume, JD) pair, or null.
+ *
+ * The JD hash is the cache key, so changing the job description
+ * invalidates the analysis automatically — there is no invalidation
+ * logic anywhere that could get it wrong.
+ */
+export async function getLatestResumeAnalysis(
+  resumeId: string,
+  jdHash: string
+): Promise<unknown | null> {
+  const rows = await db
+    .select({ analysis: resumeAnalyses.analysis })
+    .from(resumeAnalyses)
+    .where(
+      and(
+        eq(resumeAnalyses.resumeId, resumeId),
+        eq(resumeAnalyses.jdHash, jdHash)
+      )
+    )
+    .orderBy(desc(resumeAnalyses.createdAt))
+    .limit(1);
+
+  return rows[0]?.analysis ?? null;
 }
 
 /**

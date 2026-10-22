@@ -247,11 +247,13 @@ export function CreateVariantFromJdButton({
       <AiParsingModal
         open={stage !== 'idle'}
         stageLabel={
-          stage === 'done' ? 'Done' : 'Reading the job description…'
+          stage === 'done'
+            ? 'Done'
+            : 'Reading the job description and reviewing your resume…'
         }
         done={stage === 'done'}
         doneTitle="Your tailored variant is ready 🎉"
-        doneMessage="We matched it against your master and scored it — taking you there now…"
+        doneMessage="We matched it against your master, scored it, and reviewed it against the role — taking you there now…"
         onDismiss={
           createdVariantId
             ? () => {

@@ -205,11 +205,26 @@ Phase B — capability. ✅ DONE (branch `feat/chat-agent-v3-phase-a`)
 - ✅ **measured** length guidelines, replacing guesswork — see
   docs/plans/resume-length-guidelines.md and the section below
 
-Phase C — the expensive work
-- first-session analysis, cached per (resume, JD hash), behind a
-  loading screen at JD-paste time
-- industry-convention table (the agent prompt now carries a short
-  version; the fuller table is Phase C)
+Phase C — the expensive work. ✅ DONE (branch `feat/chat-agent-v3-phase-a`)
+
+- ✅ first-session analysis, cached per (resume, JD hash), run at
+  JD-paste time behind the EXISTING parsing modal — no new loading
+  screen needed, the product already had one there
+- ✅ all three JD-time AI calls (formatter, intent extractor, analysis)
+  run in parallel, so the wait is the slowest call rather than the sum
+- ✅ the analysis reaches the system prompt, including the
+  `alreadyCovered` anti-repetition list — the assistant does not ask for
+  skills the resume already shows
+- ✅ the fuller industry-convention table (the prompt carries a short
+  version today)
+
+Verified live against the user's own CleerDental variant: it caught the
+Edmonton-vs-Ottawa hard requirement, the missing voice-AI and
+healthcare-data exposure, and the absence of agentic work — while
+correctly listing Python, TypeScript, LLMs and integrations as already
+covered.
+
+Cost: ~$0.003 per analysis (7.5K input / 3.5K output on Haiku 5.5).
 
 Phase D — proactivity
 - agent-initiated recommendations after each edit ("this removed a

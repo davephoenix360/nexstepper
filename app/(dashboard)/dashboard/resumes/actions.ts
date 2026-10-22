@@ -15,7 +15,8 @@ import {
   saveResumeRevision,
   autosaveResumeData,
   updatePrintSettings,
-  updateVariantJobContextTitle
+  updateVariantJobContextTitle,
+  recordResumeAnalysis
 } from '@/lib/db/queries';
 import {
   jobPostingSchema,
@@ -38,6 +39,10 @@ import {
 } from '@/lib/share';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
 import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
+import {
+  hashJobDescription,
+  runFirstSessionAnalysis
+} from '@/lib/chat/first-session-analysis';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
 import {
@@ -556,9 +561,20 @@ export async function createVariantFromJdAction(
   // never-rejecting calls cannot reject.
   //
   // Plan: docs/plans/ats-scoring-v2.md
-  const [formatResult, extractResult] = await Promise.all([
+  //
+  // The FIRST-SESSION ANALYSIS joins this batch. It reads the RESUME
+  // (the master — the variant is a copy of it) and the RAW JD text, so
+  // it has no dependency on the other two and runs alongside them.
+  //
+  // Three AI round-trips in sequence would put ~20 seconds of silence
+  // in front of the user. In parallel it costs the same as the slowest
+  // one (~18s), and the user is already looking at a loading modal that
+  // says "reviewing your resume".
+  const master = await getResume(parsed.data.masterId, session.user.id);
+  const [formatResult, extractResult, analysisResult] = await Promise.all([
     formatJdAsMarkdown(parsed.data.jdText),
-    extractJdIntent(parsed.data.jdText)
+    extractJdIntent(parsed.data.jdText),
+    runFirstSessionAnalysis(master?.data ?? null, parsed.data.jdText)
   ]);
 
   // Both of these fail SILENTLY by design — the variant is still
@@ -609,6 +625,29 @@ export async function createVariantFromJdAction(
   });
   if (!variant) {
     return { ok: false, error: 'Master resume not found' };
+  }
+
+  // The analysis ran in parallel with the parser above; store it now.
+  //
+  // Cached against (resume, jd_hash), so it runs ONCE per JD. Editing
+  // the JD changes the hash and invalidates it automatically; editing
+  // the resume does not, because the critique is about the gap, which
+  // the user can close themselves.
+  //
+  // Best-effort: a failure here must never stop the variant from being
+  // created. The user gets a working resume either way, and the chat
+  // simply starts without the pre-analysis.
+  if (analysisResult.ok) {
+    await recordResumeAnalysis(
+      variant.id,
+      session.user.id,
+      hashJobDescription(parsed.data.jdText),
+      analysisResult.data
+    );
+  } else {
+    console.warn(
+      `[createVariantFromJd] first-session analysis unavailable (${analysisResult.code}): ${analysisResult.error}`
+    );
   }
 
   trackServer(session.user.id, PostHogEvents.VARIANT_CREATED_FROM_JD, {
