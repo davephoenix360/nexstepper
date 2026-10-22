@@ -171,6 +171,32 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The score no longer changes twice on Recompute** — branch
+  `feat/chat-agent-v3-phase-a`. The user reported it on the live site:
+  pressing Recompute showed the score go to **57, then back to 51** less
+  than a second later, with the keywords dimension doing the same
+  (**66, then back to 37**). Three things lined up: (1) the Recompute
+  action runs the ENHANCED engine (BM25 + semantic embeddings + Jev's
+  requirement measurement) and returns the new breakdown, which the
+  client renders; (2) the variant page RSC **recomputed the score
+  itself** with the SYNC engine — pure, instant, and with no Jev
+  evaluation, so it produced the old token-based numbers; (3) the
+  scorecard client resets its state when the prop changes, and the
+  action's `revalidatePath` re-rendered the page with the sync
+  breakdown, so the number snapped back. The persisted headline and the
+  rendered headline disagreed the whole time. This was pre-existing —
+  the page has ALWAYS recomputed rather than read the snapshot — but it
+  was invisible while both paths produced the same number; the Jev work
+  made them diverge. **The fix:** `score_snapshots` gains a nullable
+  `breakdown` JSONB column (migration `0013_lively_randall.sql`) holding
+  the full `ScoreBreakdown`; the Recompute action persists it; the page
+  reads it and only computes a score itself when there is no snapshot
+  yet. The decision is a pure function
+  (`lib/scoring/snapshot-breakdown.ts`), so it is testable without a
+  database, and a malformed persisted row is ignored rather than
+  rendered. Drift memo:
+  `docs/drift/2026-10-22-recompute-score-flicker.md`.
+
 - **The ATS keyword score is rebuilt on Jev** — branch
   `feat/chat-agent-v3-phase-a`. The ATS Keyword Match sub-criterion
   counted **every non-stop-word token** in the JD (title, description,
