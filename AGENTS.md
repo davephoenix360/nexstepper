@@ -171,6 +171,38 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The agent can now MEASURE page length instead of guessing it** —
+  branch `feat/chat-agent-v3-phase-a`. New tool `estimatePageCount`
+  (`lib/chat/tools/estimate-page-count.ts`, backed by
+  `lib/chat/page-fit.ts`) returns the estimated page count, the content
+  height in inches, where the height went, and — the part users ask for
+  — what hiding each visible section would save and what the resume
+  would then print as. The numbers behind it are **measured**: 486 real
+  resumes were rendered through the real templates under the real print
+  CSS, printed to PDF, and their pages counted; the height formula
+  `height = fixed + roles x (perRole + bullets x perBullet)` reproduces
+  **478 of those 486 page counts (98.4%)**. The prompt tables are
+  GENERATED (`lib/chat/page-fit.generated.ts`,
+  `lib/chat/section-space.generated.ts`) — the old hand-written
+  "2 roles / 3 roles / 4 roles" table was measured at the wrong width
+  and with the wrong margin and nothing would have flagged it.
+  **Two measurement bugs found and fixed** (both had made every earlier
+  number wrong while looking entirely reasonable): the DOM was being
+  measured at the 8.5in SCREEN width instead of the 7.0in PAPER
+  content width, so text wrapped less and every height was short; and
+  the `@page` margin was not in force when the PDFs were rendered,
+  because the per-resume CSS variable is mirrored onto `:root` inside a
+  `useEffect` and the harness printed before that ran — so all 486 PDFs
+  had silently used the 0.4in fallback margin. Both are now handled in
+  one place, `scripts/lib/print-harness.cjs`, which all three
+  measurement scripts use. The estimator was also checked against five
+  real resumes from the dev database that were printed and counted
+  (5/5 correct). Fixture of the 486 real page counts committed at
+  `tests/fixtures/measured-page-counts.json` so a harness regression
+  fails the build instead of shipping optimistic numbers. Drift memo:
+  `docs/drift/2026-10-22-page-fit-measurement-fix.md`. Data:
+  `docs/plans/resume-length-guidelines.md`.
+
 - **Jake's Resume template (sixth entry in the registry)** — branch
   `feat/jake-resume-template`. Modelled on Jake Gutierrez's famous
   LaTeX/Overleaf template. Jake is the only SERIF template in the
