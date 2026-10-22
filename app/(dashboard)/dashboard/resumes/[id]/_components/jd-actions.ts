@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 
 import { auth } from '@/lib/auth';
@@ -87,15 +88,41 @@ export async function setVariantJobContextAction(
   // that remain empty.
   //
   // Plan: docs/plans/ats-scoring-v2.md
-  //
-  // The FIRST-SESSION ANALYSIS rides along in the same batch. It reads
+  const extractResult = await extractJdIntent(parsed.data.jdText);
+
+  // The FIRST-SESSION ANALYSIS rides along with this batch. It reads
   // the resume and the RAW JD text, so it has no dependency on the
   // other two — three parallel round-trips cost the same as the
   // slowest one.
-  const [extractResult, analysisResult] = await Promise.all([
-    extractJdIntent(parsed.data.jdText),
-    runFirstSessionAnalysis(existing.data, parsed.data.jdText)
-  ]);
+  //
+  // It is NOT awaited, though. This path (the right-rail JD panel) has
+  // no loading screen, so blocking here would put ~18 seconds of
+  // spinner on a small Save button — the "it took ages and then just
+  // appeared" complaint, in a place that has no excuse for it. The
+  // create-variant path DOES have the parsing modal, and there the
+  // analysis is awaited, so the wait is expected.
+  //
+  // `after()` runs it once the response has been sent. By the time the
+  // user opens the chat on this variant, the review is normally there;
+  // if it is not, the chat still works, just without the pre-analysis.
+  after(async () => {
+    const analysisResult = await runFirstSessionAnalysis(
+      nextData,
+      parsed.data.jdText
+    );
+    if (analysisResult.ok) {
+      await recordResumeAnalysis(
+        parsed.data.resumeId,
+        session.user.id,
+        hashJobDescription(parsed.data.jdText),
+        analysisResult.data
+      );
+    } else {
+      console.warn(
+        `[setVariantJobContext] first-session analysis unavailable (${analysisResult.code}): ${analysisResult.error}`
+      );
+    }
+  });
 
   const existingJobContext = existing.data.jobContext;
   const useExistingIntent = !extractResult.ok;
@@ -167,28 +194,6 @@ export async function setVariantJobContextAction(
   );
   if (!saved) {
     return { ok: false, error: 'Could not save the job context' };
-  }
-
-  // The FIRST-SESSION ANALYSIS ran in parallel with the intent
-  // extractor above; store it now.
-  //
-  // Cached against (resume, jd_hash), so it runs ONCE per JD. Editing
-  // the JD changes the hash and invalidates it automatically; editing
-  // the resume does not, because the critique is about the gap, which
-  // the user can close themselves.
-  //
-  // Best-effort: never blocks the attach.
-  if (analysisResult.ok) {
-    await recordResumeAnalysis(
-      parsed.data.resumeId,
-      session.user.id,
-      hashJobDescription(parsed.data.jdText),
-      analysisResult.data
-    );
-  } else {
-    console.warn(
-      `[setVariantJobContext] first-session analysis unavailable (${analysisResult.code}): ${analysisResult.error}`
-    );
   }
 
   revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
