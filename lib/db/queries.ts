@@ -544,6 +544,80 @@ export async function saveResumeRevision(
 }
 
 /**
+ * Autosave: update the CURRENT revision's data in place.
+ *
+ * ## Why this does not go through `saveResumeRevision`
+ *
+ * `saveResumeRevision` inserts a new `resume_revisions` row on every call.
+ * That is right for an explicit Save — the revision list is the user's
+ * history — and catastrophically wrong for autosave, which fires every
+ * few seconds of typing. One editing session would bury the real history
+ * under hundreds of near-identical rows.
+ *
+ * So the two have deliberately different contracts:
+ *
+ *   - autosave → mutate the working copy (`data` on the current revision)
+ *     and bump `updatedAt`. No new row, no history entry.
+ *   - explicit → append a revision, the user's undo/audit trail.
+ *
+ * User-visible consequence: closing the tab mid-edit loses nothing, but
+ * the revision list shows checkpoints the user actually saved rather
+ * than every debounce tick.
+ *
+ * ## Why it does NOT touch `resumes.name` / `note` / `status` / `template`
+ *
+ * Those derived columns are owned by explicit operations — the inline
+ * rename control and `saveResumeRevision`. If autosave also wrote them
+ * from form state, the form becomes a second writer for the same column
+ * and a stale value could clobber a rename that had just succeeded (the
+ * exact bug fixed in `renameResume` above). Keeping autosave to `data`
+ * alone leaves one writer per column.
+ *
+ * Returns false when the resume isn't owned or has no current revision
+ * (legacy rows) — there is nothing to autosave into in that case.
+ */
+export async function autosaveResumeData(
+  resumeId: string,
+  userId: string,
+  rawData: unknown
+): Promise<boolean> {
+  const parsed = resumeDataSchema.parse(rawData);
+
+  const [row] = await db
+    .select({
+      id: resumes.id,
+      currentRevisionId: resumes.currentRevisionId
+    })
+    .from(resumes)
+    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+    .limit(1);
+
+  if (!row?.currentRevisionId) return false;
+
+  // Hoisted out of the transaction callback: TS does not narrow a
+  // possibly-null property across a closure boundary, even though the
+  // guard above already returned.
+  const revisionId = row.currentRevisionId;
+
+  return db.transaction(async (tx) => {
+    const updated = await tx
+      .update(resumeRevisions)
+      .set({ data: parsed })
+      .where(eq(resumeRevisions.id, revisionId))
+      .returning({ id: resumeRevisions.id });
+
+    if (!updated.length) return false;
+
+    await tx
+      .update(resumes)
+      .set({ updatedAt: new Date() })
+      .where(eq(resumes.id, resumeId));
+
+    return true;
+  });
+}
+
+/**
  * Restore a resume to a previous revision. Reads the target revision, inserts
  * a NEW revision with its data (preserving append-only history), and bumps
  * `currentRevisionId`.

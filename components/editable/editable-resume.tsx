@@ -59,7 +59,7 @@ import {
   printSettingsToCssVars
 } from '@/lib/print-settings';
 import { triggerPrint } from '@/lib/print/safe-print';
-import { saveResumeAction } from '@/app/(dashboard)/dashboard/resumes/actions';
+import { saveResumeAction, autosaveResumeAction } from '@/app/(dashboard)/dashboard/resumes/actions';
 import {
   subscribeToInlineIssueApply,
   InlineIssueTip,
@@ -67,6 +67,7 @@ import {
 } from '@/lib/inline-issue';
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { PrintSettings } from '@/lib/print-settings';
+import { useDebouncedAutosave } from './use-debounced-autosave';
 
 interface EditableResumeProps {
   resumeId: string;
@@ -183,6 +184,31 @@ export function EditableResume({
     }
   }, []);
 
+  /**
+   * Autosave.
+   *
+   * A safety net, not the source of truth: the explicit Save below stays
+   * authoritative (it validates, appends a revision, and refreshes the
+   * page). This only keeps the working copy current so navigating away
+   * or crashing doesn't lose edits.
+   *
+   * Disabled while an explicit save is in flight so the two can't race,
+   * and while the form is mounted-but-empty during the first paint.
+   */
+  const autosave = useDebouncedAutosave({
+    // `form` is built with `as never` casts (see useForm above), so its
+    // control is `Control<never>` and not assignable to `Control`. The
+    // cast matches the rest of this file's convention; the hook only
+    // JSON-serializes what it watches, so there is nothing type-unsafe
+    // about it.
+    control: form.control as never,
+    enabled: !pending,
+    save: async (values) => {
+      const result = await autosaveResumeAction({ id: resumeId, data: values });
+      return result.ok;
+    }
+  });
+
   async function handleSave(values: ResumeData) {
     // Clear any prior validation banner — a successful save has no errors.
     setError(null);
@@ -195,6 +221,9 @@ export function EditableResume({
         return;
       }
       setSavedAt(new Date());
+      // The explicit save just persisted these exact values; tell the
+      // autosave hook so it doesn't immediately re-persist them.
+      autosave.markSaved(values);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save');
@@ -399,6 +428,21 @@ export function EditableResume({
           {savedAt && !error && validationErrors.length === 0 && (
             <p className="text-muted-foreground" aria-live="polite">
               Saved {savedAt.toLocaleTimeString()}.
+            </p>
+          )}
+          {/* Autosave state. Deliberately subordinate to the explicit
+              "Saved at <time>" line above — the user should never wonder
+              whether their work is safe, so this only needs to be
+              truthful, not prominent. */}
+          {!savedAt && !error && autosave.state !== 'idle' && (
+            <p
+              className="text-muted-foreground"
+              aria-live="polite"
+              data-testid="autosave-status"
+            >
+              {autosave.state === 'pending' && 'Saving…'}
+              {autosave.state === 'saved' && 'All changes saved.'}
+              {autosave.state === 'error' && 'Autosave failed — press Save.'}
             </p>
           )}
         </div>

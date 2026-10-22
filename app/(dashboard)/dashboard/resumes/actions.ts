@@ -13,6 +13,7 @@ import {
   getResume,
   renameResume,
   saveResumeRevision,
+  autosaveResumeData,
   updatePrintSettings,
   updateVariantJobContextTitle
 } from '@/lib/db/queries';
@@ -380,6 +381,64 @@ const saveResumeSchema = z.object({
   id: z.string().min(1, 'Resume id is required'),
   data: z.unknown()
 });
+
+/**
+ * Autosave the editor's working copy.
+ *
+ * Distinct from `saveResumeAction` on purpose — see `autosaveResumeData`
+ * in lib/db/queries.ts. This updates the current revision IN PLACE and
+ * does not append to the revision history, so a debounced keystroke
+ * stream doesn't drown the user's undo trail.
+ *
+ * No `revalidatePath` here, and that is intentional: autosave runs on a
+ * timer, and re-rendering the Server Component (and therefore resetting
+ * every field the user is currently typing into) several times a minute
+ * would be far worse than a slightly stale list-view timestamp. The
+ * explicit Save still revalidates, so anything that needs fresh server
+ * data waits for it.
+ *
+ * Invalid data is a silent success. The user mid-edit can transiently
+ * have an empty required field; that is not an error worth surfacing
+ * from a background timer, and the last VALID state is already safely
+ * on disk. The explicit Save button is where validation is reported,
+ * via <ValidationSummary>.
+ */
+export async function autosaveResumeAction(
+  input: unknown
+): Promise<ActionResult<{ savedAt: string }>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return { ok: false, error: 'Not signed in' };
+  }
+
+  const parsed = saveResumeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: 'Invalid input' };
+  }
+
+  // Same defense-in-depth parse as the explicit save — a Server Action is
+  // a public endpoint and can't trust the wire shape.
+  const dataResult = resumeDataSchema.safeParse(parsed.data.data);
+  if (!dataResult.success) {
+    return { ok: false, error: 'Invalid resume data' };
+  }
+
+  const existing = await getResume(parsed.data.id, session.user.id);
+  if (!existing) {
+    return { ok: false, error: 'Resume not found' };
+  }
+
+  let saved = false;
+  try {
+    saved = await autosaveResumeData(parsed.data.id, session.user.id, dataResult.data);
+  } catch {
+    // Never let a background timer surface an error to the user. The
+    // explicit Save is the authoritative path and will report properly.
+    return { ok: false, error: 'Autosave failed' };
+  }
+
+  return { ok: true, data: { savedAt: new Date().toISOString() } };
+}
 
 /**
  * Create a variant of an existing master resume. The variant starts as a
