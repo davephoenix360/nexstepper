@@ -1,7 +1,11 @@
 import 'server-only';
 
 import { templateListForPrompt } from '../templates';
-import { editResumeArgsSchema, switchTemplateArgsSchema } from './types';
+import {
+  editResumeArgsSchema,
+  getAtsScoreArgsSchema,
+  switchTemplateArgsSchema
+} from './types';
 
 /**
  * Tool definitions for the AI chat assistant.
@@ -73,6 +77,21 @@ export const CHAT_TOOLS = {
       'professional".'
     ].join('\n'),
     parameters: switchTemplateArgsSchema
+  },
+
+  getAtsScore: {
+    description: [
+      'Get the current ATS match score for this resume against the attached job description.',
+      '',
+      'Call this AFTER making an edit, to check whether the edit actually moved the',
+      'score — and to tell the user what changed. The score in your context was',
+      'computed before this turn\'s edits, so it is stale once you edit anything.',
+      '',
+      'Returns the overall score, every dimension, and which skills are still',
+      'missing. Use it to prioritise: fixing the weakest dimension is worth more',
+      'than polishing a strong one.'
+    ].join('\n'),
+    parameters: getAtsScoreArgsSchema
   }
 } as const;
 

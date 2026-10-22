@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { TEMPLATE_IDS } from '../templates';
+
 /**
  * Argument shapes for the chat assistant's tools.
  *
@@ -283,15 +285,46 @@ export type EditResumeArgs = z.infer<typeof editResumeArgsSchema>;
 
 /**
  * Argument shape for the `switchTemplate` tool.
+ *
+ * The template enum is DERIVED from the registry rather than hand-listed.
+ * This was the FOURTH hand-written copy of the template ids, and it was
+ * the most restrictive one: `z.enum([...])` is what the AI SDK validates
+ * the model's tool arguments against, so a template missing from this
+ * list could not be named by the model even in principle — it never
+ * reached the executor's validator.
+ *
+ * The cast to a non-empty tuple is safe: the registry is a compile-time
+ * constant with six entries and cannot be empty at runtime.
  */
 export const switchTemplateArgsSchema = z.object({
-  templateId: z.enum(['minimal', 'classic', 'executive', 'creative', 'modern'])
+  templateId: z.enum(
+    TEMPLATE_IDS as unknown as [string, ...string[]]
+  )
 });
 
 export type SwitchTemplateArgs = z.infer<typeof switchTemplateArgsSchema>;
 
+/**
+ * Argument shape for the `getAtsScore` tool.
+ *
+ * Deliberately empty, and STRICT. The tool operates on the resume the
+ * chat session is already attached to, so passing an id would only give
+ * the model a way to ask about a resume it cannot see.
+ *
+ * `strictObject` rather than `object`: a plain `z.object({})` is in
+ * Zod's "strip" mode, which silently DROPS unknown keys instead of
+ * rejecting them. The model could then call this with `{resumeId: ...}`
+ * and have it quietly ignored, which reads as the tool ignoring a
+ * legitimate argument. Strict mode also emits `additionalProperties:
+ * false` into the generated JSON schema, so the model is told up front
+ * that there are no arguments.
+ */
+export const getAtsScoreArgsSchema = z.strictObject({});
+
+export type GetAtsScoreArgs = z.infer<typeof getAtsScoreArgsSchema>;
+
 /** Union of all tool argument shapes. */
-export type ChatToolArgs = EditResumeArgs | SwitchTemplateArgs;
+export type ChatToolArgs = EditResumeArgs | SwitchTemplateArgs | GetAtsScoreArgs;
 
 /** Tool identifiers surfaced to the AI. */
-export type ChatToolName = 'editResume' | 'switchTemplate';
+export type ChatToolName = 'editResume' | 'switchTemplate' | 'getAtsScore';

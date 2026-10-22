@@ -1,7 +1,15 @@
 import 'server-only';
 
-import { editResumeArgsSchema, switchTemplateArgsSchema } from './tools/types';
-import type { EditResumeArgs, SwitchTemplateArgs } from './tools/types';
+import {
+  editResumeArgsSchema,
+  getAtsScoreArgsSchema,
+  switchTemplateArgsSchema
+} from './tools/types';
+import type {
+  EditResumeArgs,
+  GetAtsScoreArgs,
+  SwitchTemplateArgs
+} from './tools/types';
 
 /**
  * Dispatch a tool call from the AI to the appropriate handler.
@@ -45,6 +53,18 @@ export async function executeTool(
         resumeId,
         parsed.data as SwitchTemplateArgs
       );
+    }
+
+    case 'getAtsScore': {
+      const parsed = getAtsScoreArgsSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: `Invalid getAtsScore arguments: ${parsed.error.message}`
+        };
+      }
+      const { executeGetAtsScore } = await import('./tools/get-ats-score');
+      return await executeGetAtsScore(resumeId);
     }
 
     default:
