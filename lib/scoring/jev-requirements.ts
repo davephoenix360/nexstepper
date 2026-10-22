@@ -40,35 +40,56 @@
  * elsewhere (`lib/scoring-async/jev-requirements.ts`) and passed in.
  */
 
-/** One JD requirement line, classified and (if it is a skill) scored. */
+/** Which intent-coverage priority list an entry came from. */
+export type JevPriorityBucket = 'must' | 'nice' | 'implicit';
+
+/** One JD requirement entry, classified and (if applicable) scored. */
 export interface JevRequirementLine {
   /** The JD's own wording. */
   text: string;
+  /** Which priority list it came from. */
+  bucket: JevPriorityBucket;
   /**
-   * Probability that this line names a specific skill, tool or technique
+   * Probability that this entry names a specific skill, tool or technique
    * the candidate would use on the job. 0–1.
    */
   pSkill: number;
   /**
-   * True when the line is an eligibility gate rather than a skill — a
-   * degree, a certification, work authorisation.
+   * Probability that this entry is an eligibility GATE — a degree, a
+   * certification, work authorisation, or a years-of-experience
+   * threshold the candidate cannot satisfy by adding content. 0–1.
+   *
+   * Gates are excluded from the Intent Coverage penalty. Everything else
+   * stays scored: a duty or a soft skill is something the candidate CAN
+   * show evidence of, so "demonstrated" is decided by the evidence score
+   * rather than by dropping the entry.
    */
-  isGate: boolean;
+  pGate: number;
   /**
-   * Evidence depth, 0–3, for a skill line. The probability-weighted
-   * position on the rubric, so it is fractional. Null for gate lines.
+   * Evidence depth, 0–3. The probability-weighted position on the
+   * rubric, so it is fractional. Null when it was not computed.
    */
   evidence: number | null;
 }
 
 /** The result of one Jev evaluation pass over a JD and a resume. */
 export interface JevRequirementEvaluation {
-  /** Every JD requirement line, classified. */
+  /** Every requirement entry, classified. */
   lines: JevRequirementLine[];
-  /** The genuine skill requirements, with their evidence depth. */
+  /**
+   * The genuine skill requirements, with their evidence depth.
+   *
+   * This is the vocabulary the ATS Keyword Match sub-score is measured
+   * against.
+   */
   requirements: Array<{ text: string; evidence: number }>;
   /** The eligibility gates, in the JD's wording. */
   gates: string[];
+  /**
+   * Per priority bucket, the entries that are NOT gates — the ones the
+   * Intent Coverage dimension scores.
+   */
+  scorable: Record<JevPriorityBucket, string[]>;
   /** Whether the evaluation is usable at all. */
   ok: boolean;
 }
@@ -96,6 +117,22 @@ export const EVIDENCE_RUBRIC = [
 /** The weight of coverage against depth inside the keyword sub-score. */
 export const COVERAGE_WEIGHT = 0.5;
 export const DEPTH_WEIGHT = 0.5;
+
+/**
+ * The evidence depth at which a requirement counts as COVERED.
+ *
+ * The evidence score is a probability-weighted position on the 0–3
+ * rubric, so a resume that simply LISTS a skill does not land on 1.0 —
+ * it lands on about 0.99, because the model puts a little mass on the
+ * other levels. A threshold of 1.0 therefore reported skills the
+ * candidate plainly has as missing.
+ *
+ * The rubric's own structure gives the right cut: position 0 is "no
+ * mention at all" and position 1 is "listed as a skill or keyword
+ * only". Anything at or above the midpoint between them means the
+ * resume says the skill somewhere.
+ */
+export const EVIDENCE_COVERED_THRESHOLD = 0.5;
 
 /**
  * Turn an evaluation into the ATS Keyword Match sub-score.

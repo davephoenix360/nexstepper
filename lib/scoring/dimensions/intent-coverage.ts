@@ -1,9 +1,10 @@
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
-import { buildSkillIndex, findMissingSkills, type SkillIndex } from '../skill-match';
+import { buildSkillIndex, findMissingSkills, isSkillCovered, type SkillIndex } from '../skill-match';
 import {
   partitionRequirements,
   type EligibilityRequirement
 } from '../qualifications';
+import { EVIDENCE_COVERED_THRESHOLD } from '../jev-requirements';
 
 /**
  * v2 Intent Coverage dimension.
@@ -108,6 +109,34 @@ export function scoreIntentCoverageParams(params: {
    * pass across all three priority lists.
    */
   resumeTextLower: string | SkillIndex;
+  /**
+   * Jev's measurement of the same entries, when it ran.
+   *
+   * It changes TWO things:
+   *
+   * 1. **Which entries are scored.** Jev separates eligibility GATES — a
+   *    degree, a certification, work authorisation, a years-of-experience
+   *    threshold — from things the candidate can show evidence of. A gate
+   *    is not a skill gap: nobody can close it by rewording a bullet, so
+   *    "add 5+ years of experience to your resume" is not advice.
+   *
+   * 2. **Whether an entry is covered.** The token test asks whether the
+   *    JD's words appear in the resume, which is wrong in both
+   *    directions. A JD asking for `Postgres` against a resume saying
+   *    `PostgreSQL` was penalised 8 points for a skill the candidate
+   *    demonstrably has, and told to add it. Jev's evidence score asks
+   *    the semantic question instead.
+   *
+   * When absent, the token test and the deterministic gate filter are
+   * used — the same behaviour as before, which is what keeps the sync
+   * path pure, instant and free.
+   */
+  jevSkills?: {
+    /** Per priority bucket, the entries that are NOT gates. */
+    scorable: { must: string[]; nice: string[]; implicit: string[] };
+    /** Evidence depth per entry text, 0–3. */
+    evidence: Record<string, number>;
+  };
 }): IntentCoverageBreakdown {
   const { mustHaveSkills, niceToHaveSkills, implicitSkills, resumeTextLower } =
     params;
@@ -141,12 +170,38 @@ export function scoreIntentCoverageParams(params: {
   //
   // The partition is deterministic and runs at scoring time, so it works
   // on every JD already stored — no backfill, no re-extraction.
-  const mustPartition = partitionRequirements(mustHaveSkills);
-  const nicePartition = partitionRequirements(niceToHaveSkills);
+  //
+  // When Jev ran, it supplies the partition instead: it separates the
+  // gates more precisely (it also catches a years-of-experience
+  // threshold, which the pattern matcher cannot tell from "5+ years of
+  // experience with React").
+  const mustPartition = params.jevSkills
+    ? { skills: params.jevSkills.scorable.must, gates: [] as never[] }
+    : partitionRequirements(mustHaveSkills);
+  const nicePartition = params.jevSkills
+    ? { skills: params.jevSkills.scorable.nice, gates: [] as never[] }
+    : partitionRequirements(niceToHaveSkills);
+  const implicitPartition = params.jevSkills
+    ? { skills: params.jevSkills.scorable.implicit, gates: [] as never[] }
+    : { skills: implicitSkills, gates: [] as never[] };
 
-  const missedMustHave = findMissingSkills(mustPartition.skills, index);
-  const missedNiceToHave = findMissingSkills(nicePartition.skills, index);
-  const missedImplicit = findMissingSkills(implicitSkills, index);
+  // "Is this entry covered?" — the token test, or Jev's evidence score.
+  //
+  // The token test is a literal question ("does the JD's wording appear
+  // in the resume?") and the evidence score is the semantic one ("does
+  // the resume demonstrate this?"). For `Postgres` vs `PostgreSQL` they
+  // disagree, and the semantic one is right.
+  const covered = (skill: string): boolean => {
+    const evidence = params.jevSkills?.evidence[skill];
+    if (typeof evidence === 'number') {
+      return evidence >= EVIDENCE_COVERED_THRESHOLD;
+    }
+    return isSkillCovered(skill, index);
+  };
+
+  const missedMustHave = mustPartition.skills.filter((s) => !covered(s));
+  const missedNiceToHave = nicePartition.skills.filter((s) => !covered(s));
+  const missedImplicit = implicitPartition.skills.filter((s) => !covered(s));
 
   // Weighted penalty. Cap each priority list at MAX_PER_PRIORITY
   // so a JD with 50 must-haves can't push the score below 0 from
@@ -162,6 +217,16 @@ export function scoreIntentCoverageParams(params: {
   // never hits either extreme.
   const value = Math.max(0, Math.min(100, 100 - penalty));
 
+  // The eligibility NOTES come from the deterministic detector, not from
+  // Jev: it types each gate precisely (degree, certification,
+  // authorisation) and carries the level, which is what the date check
+  // needs. Jev's gate list is broader — it also catches a
+  // years-of-experience threshold, which has no date to check.
+  const deterministicGates = [
+    ...partitionRequirements(mustHaveSkills).gates,
+    ...partitionRequirements(niceToHaveSkills).gates
+  ];
+
   return {
     value,
     missed: {
@@ -171,7 +236,7 @@ export function scoreIntentCoverageParams(params: {
     },
     penalty,
     fallback: false,
-    eligibility: [...mustPartition.gates, ...nicePartition.gates]
+    eligibility: deterministicGates
   };
 }
 

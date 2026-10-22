@@ -24,6 +24,7 @@ function evaluation(
     lines: [],
     requirements,
     gates: [],
+    scorable: { must: [], nice: [], implicit: [] },
     ok: true,
     ...overrides
   };

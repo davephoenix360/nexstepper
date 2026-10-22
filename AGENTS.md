@@ -171,6 +171,41 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Intent Coverage now asks a semantic question, not a literal one** —
+  branch `feat/chat-agent-v3-phase-a`. The dimension decided "is this
+  skill covered?" by testing whether the JD's **words** appear in the
+  resume, which was wrong in BOTH directions. **False negative:** a JD
+  asking for `Postgres` against a resume saying `PostgreSQL` — the
+  candidate has the skill, and was penalised 8 points and told to add it
+  (a real resume in the dev database, not a hypothetical). **False
+  positive:** a candidate whose summary says *"No ML / Python / PyTorch
+  exposure"* **contains** the words, so they were **credited** with
+  Python and PyTorch — the corpus's needs-work resumes disclaim the very
+  skills the JD asks for. `lib/scoring/skill-match.ts` documented both
+  failure modes and said the right long-term answer is *"Jev-style
+  semantic judging"* rather than a hand-rolled synonym map — this is
+  that. The evaluation now asks three questions per requirement entry:
+  is this a genuine skill, **is this an eligibility gate** (a degree, a
+  certification, work authorisation, a years-of-experience threshold the
+  candidate cannot satisfy by adding content), and how strongly does the
+  resume demonstrate it. Gates come out of the scored lists; everything
+  else stays scored, because a duty or a soft skill IS something a
+  candidate can show evidence of. Measured on the 50-JD corpus:
+  **Pearson r 0.9103 → 0.9362**, MAE 13.40 → 12.08, and the control is
+  decisive — mean evidence **2.262** for skills the token matcher calls
+  present vs **0.328** for skills it calls absent, disagreeing on 8.3% of
+  entries, and those are the cases where the token matcher is wrong.
+  The covered threshold is **0.5**, not 1.0: the evidence score is a
+  probability-weighted position on the 0–3 rubric, so a resume that
+  merely LISTS a skill lands at ~0.99 and a threshold of 1.0 reported
+  skills the candidate plainly has as missing. **Also:** the corpus
+  measurement now calls the REAL `evaluateJevRequirements` (it used to
+  carry its own copy of the Jev calls, which was a drift trap — the
+  fixture could keep describing a system we no longer run); it lives in
+  `tests/unit/scoring/jev-corpus.measure.test.ts`, is skipped unless
+  `MEASURE_JEV=1`, and `scripts/measure-jev-corpus.cjs` just runs it. Drift
+  memo: `docs/drift/2026-10-22-jev-intent-coverage.md`.
+
 - **The score no longer changes twice on Recompute** — branch
   `feat/chat-agent-v3-phase-a`. The user reported it on the live site:
   pressing Recompute showed the score go to **57, then back to 51** less

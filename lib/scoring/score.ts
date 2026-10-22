@@ -509,7 +509,22 @@ export function scoreResume(
     mustHaveSkills: job.mustHaveSkills ?? [],
     niceToHaveSkills: job.niceToHaveSkills ?? [],
     implicitSkills: job.implicitSkills ?? [],
-    resumeTextLower: resumeText.toLowerCase()
+    resumeTextLower: resumeText.toLowerCase(),
+    // Jev's measurement, when it ran. It changes which entries are
+    // scored (eligibility gates come out) and whether an entry is
+    // covered (a semantic question, not a token test).
+    ...(jevRequirements?.evaluation
+      ? {
+          jevSkills: {
+            scorable: jevRequirements.evaluation.scorable,
+            evidence: Object.fromEntries(
+              jevRequirements.evaluation.lines
+                .filter((l) => l.evidence !== null)
+                .map((l) => [l.text, l.evidence!])
+            )
+          }
+        }
+      : {})
   });
 
   // Eligibility requirements — the JD's degrees, certifications and work
