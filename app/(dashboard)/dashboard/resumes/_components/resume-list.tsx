@@ -16,7 +16,6 @@ import {
   type ScoreTier
 } from '@/components/scorecard/dimension-bar';
 
-import { CreateVariantButton } from './create-variant-button';
 import { CreateVariantFromJdButton } from './create-variant-from-jd-button';
 import { DeleteResumeButton } from './delete-resume-button';
 
@@ -29,11 +28,20 @@ import { DeleteResumeButton } from './delete-resume-button';
  *     of truth, but the *editorial* surface is the variant.
  *   - Variants render as rows nested under their master, each linking
  *     to the variant editor.
- *   - Each master carries an "actions" slot (currently the deep-copy
- *     "Tailor this for a job" CTA; Slice 3 will add the "Create
- *     variant from JD" CTA alongside). The slot is a render prop so
- *     the list stays trivially testable in SSR without dragging in
- *     the client `useRouter` button.
+ *   - Each master's action row carries ONE variant CTA: "Tailor with a
+ *     JD". It used to carry TWO — that one and a bare "Tailor this for
+ *     a job" that created a JD-less deep copy — and they did the same
+ *     thing side by side, which is just a choice to make. The JD flow
+ *     is the one that works: it attaches the job description, gets the
+ *     resume scored against it, and runs the first-session review. A
+ *     JD-less variant cannot be scored and cannot be reviewed, so it is
+ *     a dead end for the product's whole premise.
+ *
+ *     The JD-less path is still reachable from the master resume's own
+ *     editor page, where that button is the only variant CTA.
+ *
+ *     The slot is a render prop so the list stays trivially testable in
+ *     SSR without dragging in the client `useRouter` button.
  *   - `<a>` / Link rendering is also injected so unit tests don't
  *     have to mount Next's app router to render the tree.
  *   - The list itself is a Server Component: `listResumes()` runs in
@@ -102,7 +110,6 @@ function defaultVariantActions(master: Resume, variantCount: number) {
         </Link>
       </Button>
       <CreateVariantFromJdButton masterId={masterId} masterName={masterName} />
-      <CreateVariantButton masterId={masterId} />
       <DeleteResumeButton
         resumeId={masterId}
         resumeName={masterName}

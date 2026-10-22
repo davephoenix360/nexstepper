@@ -60,14 +60,35 @@ export function CreateVariantFromJdButton({
    */
   const [stage, setStage] = useState<'idle' | 'working' | 'done'>('idle');
   const [createdVariantId, setCreatedVariantId] = useState<string | null>(null);
+  /**
+   * True from the moment the user submits until the parsing modal has
+   * handed off to the new variant.
+   *
+   * This exists because the form `<Dialog>` is a NATIVE `<dialog>`
+   * element opened with `showModal()`, which puts it in the browser's
+   * TOP LAYER. Top-layer elements paint above everything else regardless
+   * of z-index, so while the dialog is open the parsing modal is
+   * invisible no matter how high its z-index is.
+   *
+   * The fix is to CLOSE the form dialog once the variant exists, so the
+   * parsing modal becomes the only thing on screen. But closing it
+   * fires the dialog's `close` event → `onOpenChange(false)`, which
+   * used to reset the stage and kill the success beat mid-flight. This
+   * ref makes that reset conditional, so the two can no longer race.
+   */
+  const modalInFlight = useRef(false);
 
   function handleOpenChange(next: boolean) {
     if (pending) return; // don't bail mid-submit
     setOpen(next);
     if (!next) {
       setError(null);
-      setStage('idle');
-      setCreatedVariantId(null);
+      // Only reset the parsing modal if it isn't mid-flight — closing
+      // the form dialog is now part of the happy path.
+      if (!modalInFlight.current) {
+        setStage('idle');
+        setCreatedVariantId(null);
+      }
     }
   }
 
@@ -83,6 +104,7 @@ export function CreateVariantFromJdButton({
 
     // Raise the modal before the round-trip so the user gets the working
     // beat (headline + tips) for the whole parse, not just the last second.
+    modalInFlight.current = true;
     setStage('working');
 
     startTransition(async () => {
@@ -96,6 +118,7 @@ export function CreateVariantFromJdButton({
           result.fieldErrors?.jdText?.[0] ?? result.error ?? 'Could not create variant'
         );
         setStage('idle');
+        modalInFlight.current = false;
         return;
       }
 
@@ -105,7 +128,16 @@ export function CreateVariantFromJdButton({
       // here made the 30–90s JD parse a bare spinner, and the transition
       // out of it instantaneous.
       setCreatedVariantId(result.data.id);
-      setStage('working');
+      // 'done' — NOT 'working'. The success beat (and the auto-dismiss
+      // that fires `onDismiss`, and therefore the navigation) only runs
+      // when `done` is true. Setting 'working' here left the modal on
+      // the loading beat forever and the user was never navigated to
+      // their new variant.
+      setStage('done');
+      // Close the form dialog so the parsing modal is actually visible.
+      // A native <dialog> in the top layer paints over anything,
+      // including the modal's z-[100].
+      setOpen(false);
     });
   }
 
@@ -257,6 +289,7 @@ export function CreateVariantFromJdButton({
         onDismiss={
           createdVariantId
             ? () => {
+                modalInFlight.current = false;
                 setOpen(false);
                 setStage('idle');
                 setCreatedVariantId(null);
