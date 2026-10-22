@@ -106,6 +106,18 @@ export function CreateVariantFromJdButton({
     // beat (headline + tips) for the whole parse, not just the last second.
     modalInFlight.current = true;
     setStage('working');
+    // Close the form dialog NOW, not after the action resolves.
+    //
+    // A native <dialog> opened with showModal() sits in the browser's
+    // top layer and paints over everything, so while it is open the
+    // full-screen parsing modal is invisible no matter its z-index.
+    // Leaving it open for the ~20s parse left the user watching a small
+    // "Creating variant…" button instead of the progress view the code
+    // was written to give them.
+    //
+    // On failure the dialog is reopened below with the error and the
+    // text they pasted still intact.
+    setOpen(false);
 
     startTransition(async () => {
       const result = await createVariantFromJdAction({
@@ -119,25 +131,20 @@ export function CreateVariantFromJdButton({
         );
         setStage('idle');
         modalInFlight.current = false;
+        // Bring the form back so the error is somewhere the user can see
+        // it and can retry.
+        setOpen(true);
         return;
       }
 
       setJdText('');
-      // Hold the dialog open and hand off to the parsing modal's success
-      // beat, which owns the timing and then navigates. Closing + pushing
-      // here made the 30–90s JD parse a bare spinner, and the transition
-      // out of it instantaneous.
+      // Hold the parsing modal's success beat, which owns the timing and
+      // then navigates. `done` (NOT 'working') is what triggers the
+      // auto-dismiss and therefore the navigation — setting 'working'
+      // here left the modal on the loading beat forever and the user
+      // was never taken to their new variant.
       setCreatedVariantId(result.data.id);
-      // 'done' — NOT 'working'. The success beat (and the auto-dismiss
-      // that fires `onDismiss`, and therefore the navigation) only runs
-      // when `done` is true. Setting 'working' here left the modal on
-      // the loading beat forever and the user was never navigated to
-      // their new variant.
       setStage('done');
-      // Close the form dialog so the parsing modal is actually visible.
-      // A native <dialog> in the top layer paints over anything,
-      // including the modal's z-[100].
-      setOpen(false);
     });
   }
 

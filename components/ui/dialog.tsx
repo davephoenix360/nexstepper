@@ -86,6 +86,8 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/scroll-lock';
+
 import { cn } from '@/lib/utils';
 
 interface DialogProps {
@@ -127,15 +129,16 @@ export function Dialog({
     else if (!open && el.open) el.close();
   }, [open]);
 
-  // Body scroll lock — see the docstring above. We capture and
-  // restore the previous `overflow` value so we don't stomp on a
-  // pre-existing inline style (rare, but defensive).
+  // Body scroll lock — see the docstring above. Uses the shared
+  // ref-counted lock rather than capturing/restoring the value
+  // directly: this dialog and the full-screen parsing modal can be
+  // open at the same time, and two independent capture/restore pairs
+  // leave the body locked depending on which one unmounts last.
   React.useEffect(() => {
     if (!open || !mounted) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlockBodyScroll();
     };
   }, [open, mounted]);
 

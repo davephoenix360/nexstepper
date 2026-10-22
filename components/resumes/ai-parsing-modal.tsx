@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Sparkles } from 'lucide-react';
 
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/scroll-lock';
+
 import {
   HEADLINE_INTERVAL_MS,
   PARSING_HEADLINES,
@@ -170,12 +172,16 @@ export function AiParsingModal({
   const tip = useMemo(() => tips[tipIndex % tips.length], [tips, tipIndex]);
 
   // Prevent the page behind the modal from scrolling while it's open.
+  //
+  // Shared ref-counted lock — this modal can sit on top of the
+  // "Tailor with a JD" form dialog, and two independent
+  // capture/restore pairs left the body locked after the flow
+  // completed, so the new variant could not be scrolled.
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = previous;
+      unlockBodyScroll();
     };
   }, [open]);
 
