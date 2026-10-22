@@ -329,7 +329,7 @@ Terraform"* instead of *"insurance, budget, remote, friendly"*.
 
 **Confidence: high.** Pearson r 0.910 → 0.927, MAE 13.40 → 10.60.
 
-### R4 — deterministic eligibility, no model call (the degree case specifically)
+### R4 — deterministic eligibility, no model call (the degree case specifically) — **SHIPPED 2026-10-22**
 
 Two thirds of the degree problem need no model at all.
 
@@ -344,7 +344,18 @@ and if the end date is in the future, say so:
 That is strictly better than any probability: it is a fact about the
 resume, and it needs no network call.
 
-**Confidence: high.** The fields exist; only the comparison is missing.
+**Confidence: high.** The fields exist; only the comparison was missing.
+
+**Status: shipped.** `lib/scoring/qualifications.ts` detects eligibility
+gates deterministically, the intent scorer takes them out of the skill
+lists before scoring, and each one is resolved against the resume's own
+education dates. See `docs/drift/2026-10-22-degree-eligibility-fix.md`.
+
+Two thirds of the degree problem are now closed. The remaining third:
+the intent schema still has no `qualifications` field (that is the Jev
+work), and `"5+ years of experience"` is still scored as a skill —
+excluding it deterministically would risk dropping real requirements like
+"5+ years of experience with React".
 
 ### Where Jev is NOT the right tool
 

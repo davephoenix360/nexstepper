@@ -337,7 +337,8 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
           value: 84,
           missed: { mustHave: ['Kubernetes', 'Terraform'], niceToHave: [], implicit: [] },
           penalty: 16,
-          fallback: false
+          fallback: false,
+          eligibility: []
         }
       },
       resume,
@@ -457,7 +458,8 @@ function makeBreakdownStub() {
       value: 50,
       missed: { mustHave: [], niceToHave: [], implicit: [] },
       penalty: 0,
-      fallback: true
+      fallback: true,
+      eligibility: []
     }
   };
 }

@@ -1,6 +1,9 @@
 import { jaccard, tokenize, type TokenSet } from '../similarity';
 import type { JobTextSource, ResumeTextSource } from '../similarity';
 import { STOP_WORDS } from '../dictionaries';
+import {
+  jobTokensWithoutStopWords as sharedJobTokensWithoutStopWords
+} from '../jd-tokens';
 import { bm25Similarity } from './bm25-similarity';
 
 /**
@@ -208,23 +211,16 @@ function computeCreditedKeywordTokens(
   return credited;
 }
 
+/**
+ * The JD's non-stop-word token vocabulary.
+ *
+ * Shared with `lib/scoring/tips.tsx` via `lib/scoring/jd-tokens.ts`, so
+ * the "add these missing keywords" tip can never disagree with the score
+ * it explains. Eligibility vocabulary (degree, certification, clearance)
+ * is excluded when the JD states an eligibility requirement.
+ */
 function jobTokensWithoutStopWords(job: JobTextSource): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  const push = (text: string) => {
-    for (const t of tokensFromText(text)) {
-      if (STOP_WORDS.has(t)) continue;
-      if (seen.has(t)) continue;
-      seen.add(t);
-      out.push(t);
-    }
-  };
-  push(job.title ?? '');
-  push(job.description ?? '');
-  for (const r of job.requirements ?? []) push(r);
-  for (const n of job.niceToHaves ?? []) push(n);
-  for (const b of job.benefits ?? []) push(b);
-  return out;
+  return sharedJobTokensWithoutStopWords(job);
 }
 
 function tokensFromText(text: string): string[] {

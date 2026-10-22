@@ -13,6 +13,7 @@ import {
   TIER_BADGE
 } from './dimension-bar';
 import { EmptyScorecardState } from './empty-state';
+import { EligibilityList } from './eligibility-list';
 import { MissList } from './miss-list';
 import { AtsRadar } from './radar';
 import { cn } from '@/lib/utils';
@@ -228,6 +229,12 @@ export function ScorecardPanel({
           onIssueClick={onIssueSkillClick}
         />
       )}
+
+      {/* Eligibility requirements — a degree, a certification, work
+          authorisation. Kept OUT of the miss list on purpose: a degree
+          you are three months from finishing is not a skill gap, and
+          "add bachelor's degree to your resume" is not advice. */}
+      <EligibilityList notes={breakdown.eligibility} />
 
       <p className="mt-4 text-xs text-muted-foreground">
         Computed in {breakdown.computedInMs} ms.

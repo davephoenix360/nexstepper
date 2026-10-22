@@ -55,7 +55,8 @@ function makeScore(overrides: Partial<ScoreBreakdown['dimensionScores']> = {}): 
         implicit: ['observability', 'on-call']
       },
       penalty: 50,
-      fallback: false
+      fallback: false,
+      eligibility: []
     }
   };
 }

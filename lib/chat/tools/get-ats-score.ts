@@ -166,12 +166,28 @@ function formatScoreForModel(
 
   const weakest = [...dims].sort((a, b) => a[1] - b[1])[0];
 
+  // Eligibility requirements are not skill gaps — they get their own
+  // block so the assistant can say something useful about them instead
+  // of reporting "missing: Bachelor's degree".
+  const eligibility = breakdown.eligibility ?? [];
+  const eligibilityLines = eligibility.map(
+    (note) =>
+      `  ${note.requirement.text} — ${note.status}` +
+      (note.completesOn ? ` (completes ${note.completesOn})` : '') +
+      (note.message ? ` — ${note.message}` : '')
+  );
+
   return `Overall ATS match: ${breakdown.overallScore} / 100
 
 Dimension scores (strongest first):
 ${dimLines}
 
-${missedLines.length ? 'Missing skills:\n' + missedLines.join('\n') : 'Missing skills: none reported'}
+${missedLines.length ? 'Missing skills:\n' + missedLines.join('\n') : 'Missing skills: none reported'}${
+    eligibilityLines.length
+      ? '\n\nEligibility requirements (not skill gaps — do not tell the user to add these to their resume):\n' +
+        eligibilityLines.join('\n')
+      : ''
+  }
 
 Weakest dimension: ${weakest[0]} (${Math.round(weakest[1])}). Fixing that one is worth more than polishing a stronger one.
 ${

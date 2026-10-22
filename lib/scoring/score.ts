@@ -16,6 +16,11 @@ import {
   NEUTRAL_SENIORITY_FIT_SCORE,
   type SeniorityFitResult
 } from './dimensions/seniority-fit';
+import {
+  evaluateEligibilityNotes,
+  toEducationLike,
+  type EligibilityNote
+} from './qualifications';
 import { flattenJobText, flattenResumeText } from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
@@ -191,6 +196,25 @@ export type ScoreBreakdown = {
    * legacy "missing 5 JD keywords".
    */
   intentCoverageBreakdown: IntentCoverageBreakdown;
+  /**
+   * Eligibility requirements the JD states — a degree, a certification,
+   * work authorisation — resolved against the resume.
+   *
+   * These are NOT skill gaps. A candidate cannot close a degree gap by
+   * rewording a bullet, and the assistant used to be told they were
+   * missing one as if it were a skill. Each note carries a factual
+   * status ("your BSc completes in June 2027", "your resume does not
+   * list one") so the assistant can say something true.
+   *
+   * Empty when the JD states no eligibility requirements.
+   *
+   * Optional because score snapshots are PERSISTED — a snapshot written
+   * before this field existed has none. Consumers read it as
+   * `breakdown.eligibility ?? []`.
+   *
+   * See `lib/scoring/qualifications.ts`.
+   */
+  eligibility?: EligibilityNote[];
 };
 
 export type ScoreableResume = ResumeTextSource & {
@@ -324,7 +348,22 @@ export function scoreResume(
   resume: ScoreableResume,
   job: ScoreableJob,
   precomputed: PrecomputedRoleFit = { roleFitSimilarity: null },
-  precomputedSeniority: PrecomputedSeniorityFit | null = null
+  precomputedSeniority: PrecomputedSeniorityFit | null = null,
+  /**
+   * The reference date for eligibility checks — "is this qualification
+   * finished yet?".
+   *
+   * Injected rather than read from the clock, because `lib/scoring/` is
+   * forbidden from calling `new Date()` or `Date.now()` (see
+   * `tests/unit/scoring/purity.test.ts`). Callers that hold the wide
+   * envelope should use `scoreResumeFromEnvelope`, which takes a `now`
+   * and passes it through.
+   *
+   * When null, eligibility requirements are still detected and reported,
+   * but their date-relative status degrades to `unknown` rather than
+   * guessing.
+   */
+  now: Date | null = null
 ): ScoreBreakdown {
   const t0 = nowMs();
   const resumeText = flattenResumeText(resume);
@@ -353,6 +392,19 @@ export function scoreResume(
     implicitSkills: job.implicitSkills ?? [],
     resumeTextLower: resumeText.toLowerCase()
   });
+
+  // Eligibility requirements — the JD's degrees, certifications and work
+  // authorisation, resolved against the resume's own education entries.
+  //
+  // These come out of the skill lists inside the intent scorer (so they
+  // are never penalised as missing skills) and are resolved here, where
+  // the resume's education dates are available.
+  const eligibility: EligibilityNote[] = evaluateEligibilityNotes(
+    intentCoverageBreakdown.eligibility,
+    toEducationLike(resume.education),
+    (resume.work?.length ?? 0) > 0,
+    now
+  );
 
   // v2 Phase 2 — Role Fit (sync surface). Consumes the pre-computed
   // similarity passed by the async wrapper (`score-hybrid.ts` for
@@ -461,7 +513,8 @@ export function scoreResume(
       'Soft Skills': alignment.breakdown.softSkills
     },
     computedInMs,
-    intentCoverageBreakdown
+    intentCoverageBreakdown,
+    eligibility
   };
 }
 
@@ -548,7 +601,8 @@ export function scoreResumeFromEnvelope(
           yearsRequiredMax: job.yearsRequiredMax ?? null
         },
     precomputed,
-    { seniorityFit }
+    { seniorityFit },
+    now
   );
 }
 

@@ -171,6 +171,57 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **A degree requirement is no longer a missing skill** — branch
+  `feat/chat-agent-v3-phase-a`. The user reported that a JD's
+  "Bachelor's degree" requirement landed in their resume's must-have
+  skills — they are completing that degree and will hold it by the time
+  the role starts. **The root cause:** there are TWO JD parsers and they
+  disagree. `parseJd` → `parsedJdSchema` HAS a `qualifications` field
+  (*"the requirements (degree, years of experience, certifications)"*),
+  but the ATS scorer uses the OTHER one — `extractJdIntent` →
+  `jdIntentSchema` — which has no such field, AND whose extractor prompt
+  lists **"Qualifications" as a must-have section header**. So the
+  degree had nowhere to go but `mustHaveSkills`, and the scorer did
+  exactly what it was told: an **8-point Intent Coverage penalty**, a
+  line in the scorecard's skill-gap list, and a tip reading **"Add these
+  missing keywords from the JD: bachelor, degree, computer, science…"** —
+  advice nobody can act on, pushing toward keyword-stuffing.
+  **The fix is deterministic and needs no model**, because
+  `EducationEntry` already carries `degreeLevel` / `startDate` /
+  `endDate`: new `lib/scoring/qualifications.ts` detects eligibility
+  gates (a degree; a certification ONLY when the JD phrases it as a
+  gate — "AWS Certified Solutions Architect" stays a skill; work
+  authorisation / clearance) and the intent scorer takes them out of
+  the skill lists BEFORE scoring, so they carry no penalty and appear
+  in no miss list. Each one is then resolved against the resume's own
+  dates into a status the user can act on: `met` / `in-progress` (*"your
+  BSc completes in June 2027 — you will hold it by then"*) /
+  `alternative-accepted` / `not-listed` / `unknown`, with a higher
+  degree satisfying a lower requirement. **It surfaces in three
+  places** — a new "Eligibility requirements" block in the scorecard
+  (deliberately OUT of the skill-gap list, with calmer colours), the
+  chat agent's ATS context (which now says *"do not tell them to add a
+  degree to their resume"*), and the `getAtsScore` tool output. New
+  `lib/scoring/jd-tokens.ts` is now the ONE implementation of the JD's
+  token vocabulary, shared by the ATS Keyword Match score and the
+  "add these missing keywords" tip — they used to have two copies with
+  a comment admitting they could drift, and they DID drift once
+  already. Eligibility words are excluded from that vocabulary, but
+  **only when the JD actually states an eligibility requirement**, so a
+  JD with no degree keeps exactly the vocabulary it had. The exclusion
+  list is narrow on purpose: `certificate` and `license` are NOT in it
+  ("SSL certificate", "Apache License" are real skills), and `master` is
+  only excluded when a master's-level gate was detected ("Master Data
+  Management" is a technology). **Why not a schema change:** adding a
+  `qualifications` field to the intent schema would not fix the JDs
+  already stored, and detecting at scoring time fixes them
+  retroactively for free. **Honest limit:** `"5+ years of experience"`
+  is STILL scored as a skill — it is the same kind of gate and Seniority
+  Fit already penalises it, so it is double-penalised, but excluding it
+  deterministically risks dropping real requirements like "5+ years of
+  experience with React", which is the exact class of bug this fixes.
+  Drift memo: `docs/drift/2026-10-22-degree-eligibility-fix.md`.
+
 - **ATS scoring v3 EVALUATED (nothing shipped yet)** — the ATS score was
   measuring the wrong things, and Jev's role in fixing it is now
   measured rather than guessed. Plan:

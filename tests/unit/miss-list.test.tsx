@@ -24,6 +24,7 @@ function makeBreakdown(
     value: 70,
     penalty: 0,
     fallback: false,
+    eligibility: [],
     missed: {
       mustHave: [],
       niceToHave: [],

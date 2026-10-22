@@ -46,7 +46,8 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown 
       value: 50,
       missed: { mustHave: [], niceToHave: [], implicit: [] },
       penalty: 0,
-      fallback: true
+      fallback: true,
+      eligibility: []
     },
     ...overrides,
     // Merge partial overrides for nested objects so a test can

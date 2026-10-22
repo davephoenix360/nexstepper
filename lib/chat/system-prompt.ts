@@ -323,13 +323,29 @@ export function buildAtsContext(score: ScoreBreakdown): string {
     ? '\n\nNote: intent coverage is at the neutral default because v2 intent extraction was unavailable for this JD. Prioritise keyword coverage from the JD text.'
     : '';
 
+  // Eligibility requirements — a degree, a certification, work
+  // authorisation. These are NOT skill gaps and are deliberately not in
+  // the missed list, so the assistant needs them separately or it will
+  // have nothing to say about the one requirement the user cannot
+  // rewrite their way into.
+  const eligibility = score.eligibility ?? [];
+  const eligibilitySection =
+    eligibility.length > 0
+      ? '\n\nEligibility requirements (NOT skill gaps — do not present them as missing skills, and do not suggest the user add them to their resume):\n' +
+        eligibility
+          .map((note) => `  • ${note.requirement.text} → ${note.status}${note.completesOn ? ` (completes ${note.completesOn})` : ''}`)
+          .join('\n')
+      : '';
+
   return `=== ATS SCORE (latest, vs current JD) ===
 Overall match: ${score.overallScore} / 100
 
 Dimension scores (0–100, sorted by strength):
-${dimLines}${missedSection}${fallbackNote}
+${dimLines}${missedSection}${eligibilitySection}${fallbackNote}
 
-Use these numbers to prioritise edits — fixing a 38 in intentCoverage typically lifts the overall match more than tweaking a 78. Don't invent missing skills; only surface gaps the score actually reports.`;
+Use these numbers to prioritise edits — fixing a 38 in intentCoverage typically lifts the overall match more than tweaking a 78. Don't invent missing skills; only surface gaps the score actually reports.
+
+When an eligibility requirement is listed, tell the user what it means for them and what the resume says about it — for example "this role asks for a bachelor's degree and yours completes in June 2027, so you'll meet it by then." Do not tell them to add a degree to their resume.`;
 }
 
 /**

@@ -41,6 +41,8 @@ import type { ReactNode } from 'react';
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from './score';
 import { SOFT_SKILLS, STOP_WORDS, WEAK_VERBS } from './dictionaries';
+import { jobTokensWithoutStopWords as sharedJobTokensWithoutStopWords } from './jd-tokens';
+import { partitionRequirements } from './qualifications';
 
 // ---------------------------------------------------------------------------
 // Static fallback tips — always present, plain strings.
@@ -337,9 +339,12 @@ export function flattenResumeTextForTips(resume: ResumeData): string {
 }
 
 /**
- * Compute the JD tokens that the resume text does not contain. Mirrors
- * `ats-matching.ts > jobTokensWithoutStopWords` + token-set membership
- * check closely enough for actionable advice.
+ * Compute the JD tokens that the resume text does not contain.
+ *
+ * Uses the SAME token function as the ATS Keyword Match score
+ * (`lib/scoring/jd-tokens.ts`) so the advice can never disagree with the
+ * number it explains — and so eligibility vocabulary (a degree, a
+ * certification) is excluded from both.
  */
 export function computeMissingKeywords(
   job: JobPosting,
@@ -537,8 +542,14 @@ function findMissingForTip(
   resumeTextLower: string,
   maxItems: number
 ): { items: string[]; tail: string } {
+  // Eligibility requirements (a degree, a certification, work
+  // authorisation) are NOT skill gaps. Listing them here produced the
+  // advice "Missing 1 must-have skill: Bachelor's degree in Computer
+  // Science" — which is not something anyone can act on. They are
+  // reported separately as eligibility notes.
+  const { skills: skillOnly } = partitionRequirements(skills);
   const missed: string[] = [];
-  for (const skill of skills) {
+  for (const skill of skillOnly) {
     if (typeof skill !== 'string' || skill.length === 0) continue;
     if (!resumeTextLower.includes(skill.toLowerCase())) {
       missed.push(skill);
@@ -561,23 +572,15 @@ function pluralize(count: number, singular: string, plural: string): string {
   return `Missing ${count} ${plural}`;
 }
 
+/**
+ * The JD's token vocabulary.
+ *
+ * Delegates to the shared implementation so the tip and the ATS Keyword
+ * Match score always agree — and so eligibility vocabulary is excluded
+ * from both. See `lib/scoring/jd-tokens.ts`.
+ */
 function jobTokensWithoutStopWords(job: JobPosting): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  const push = (text: string) => {
-    for (const t of tokenizeLight(text)) {
-      if (STOP_WORDS.has(t)) continue;
-      if (seen.has(t)) continue;
-      seen.add(t);
-      out.push(t);
-    }
-  };
-  push(job.title ?? '');
-  push(job.description ?? '');
-  for (const r of job.requirements ?? []) push(r);
-  for (const n of job.niceToHaves ?? []) push(n);
-  for (const b of job.benefits ?? []) push(b);
-  return out;
+  return sharedJobTokensWithoutStopWords(job);
 }
 
 function titleTokens(title: string): string[] {

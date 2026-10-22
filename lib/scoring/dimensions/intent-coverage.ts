@@ -1,5 +1,9 @@
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
 import { buildSkillIndex, findMissingSkills, type SkillIndex } from '../skill-match';
+import {
+  partitionRequirements,
+  type EligibilityRequirement
+} from '../qualifications';
 
 /**
  * v2 Intent Coverage dimension.
@@ -57,6 +61,19 @@ export interface IntentCoverageBreakdown {
   penalty: number;
   /** True when no v2 intent fields were available and we fell back to neutral. */
   fallback: boolean;
+  /**
+   * Requirements that are eligibility gates rather than skills — a
+   * degree, a certification, work authorisation.
+   *
+   * These are NOT penalised and NOT listed as missing skills. A degree
+   * you are three months from finishing is not a skill gap, and telling
+   * a candidate to add "bachelor's degree" to their resume is not
+   * advice. They are surfaced separately so the assistant can say
+   * something true and useful instead.
+   *
+   * See `lib/scoring/qualifications.ts`.
+   */
+  eligibility: EligibilityRequirement[];
 }
 
 /** Neutral score when no v2 intent is available. Pulls no signal in either direction. */
@@ -110,12 +127,25 @@ export function scoreIntentCoverageParams(params: {
       value: NEUTRAL_INTENT_COVERAGE_SCORE,
       missed: { mustHave: [], niceToHave: [], implicit: [] },
       penalty: 0,
-      fallback: true
+      fallback: true,
+      eligibility: []
     };
   }
 
-  const missedMustHave = findMissingSkills(mustHaveSkills, index);
-  const missedNiceToHave = findMissingSkills(niceToHaveSkills, index);
+  // Eligibility gates come out of the skill lists BEFORE they are
+  // scored. A degree, a certification and work authorisation are not
+  // skills: a candidate cannot close the gap by rewording a bullet, and
+  // penalising them as a "missing must-have skill" produced advice that
+  // was both wrong and unactionable ("add bachelor's degree to your
+  // resume").
+  //
+  // The partition is deterministic and runs at scoring time, so it works
+  // on every JD already stored — no backfill, no re-extraction.
+  const mustPartition = partitionRequirements(mustHaveSkills);
+  const nicePartition = partitionRequirements(niceToHaveSkills);
+
+  const missedMustHave = findMissingSkills(mustPartition.skills, index);
+  const missedNiceToHave = findMissingSkills(nicePartition.skills, index);
   const missedImplicit = findMissingSkills(implicitSkills, index);
 
   // Weighted penalty. Cap each priority list at MAX_PER_PRIORITY
@@ -140,7 +170,8 @@ export function scoreIntentCoverageParams(params: {
       implicit: missedImplicit
     },
     penalty,
-    fallback: false
+    fallback: false,
+    eligibility: [...mustPartition.gates, ...nicePartition.gates]
   };
 }
 
