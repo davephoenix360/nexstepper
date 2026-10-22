@@ -171,6 +171,47 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The ATS keyword score is rebuilt on Jev** — branch
+  `feat/chat-agent-v3-phase-a`. The ATS Keyword Match sub-criterion
+  counted **every non-stop-word token** in the JD (title, description,
+  requirements, nice-to-haves *and benefits*) and asked what fraction the
+  resume contained. For a realistic JD that is 49 tokens of which **33 are
+  missing (67%)** for a candidate who has every required skill — the
+  missing ones include `insurance`, `budget`, `remote`, `friendly`,
+  `company`. It is 60% of the ATS Matching dimension (21% of the total),
+  and the tip it produced said **"Add these missing keywords from the
+  JD"** — so the product was advising users to keyword-stuff their
+  resumes. **And it was worse in production than the corpus suggested:**
+  the variant editor stores the pasted JD as RAW TEXT in
+  `jobContext.description` and leaves `requirements` / `niceToHaves` /
+  `benefits` EMPTY forever, so the keyword score was counting a job
+  posting's boilerplate. On two real dev resumes the sub-score was
+  **10.1 / 100** and **10.0 / 100**. Now: **Jev**
+  (`typesafe-ai/jev`, on the Vercel AI Gateway at $0.042/M input and FREE
+  output) classifies which requirement entries are genuine skills
+  (**AUC 0.944** against the corpus's hand-authored lists) and scores how
+  strongly the resume evidences each one on a 0–3 rubric. Substituting
+  that into the keyword sub-criterion moves **Pearson r 0.910 → 0.935** and
+  **MAE 13.40 → 12.26** against the hand-labelled ideal scores; on the two
+  real resumes the sub-score went **10.1 → 44.6** and **10.0 → 58.2**. The
+  tip now says *"These requirements from the JD are not evidenced in your
+  resume: Node.js, Azure, Serverless architecture"*. The evidence score
+  is the **probability-weighted** rubric position, not the argmax.
+  Reached through the gateway's **TypeSafe-compatible API**
+  (`https://ai-gateway.vercel.sh/typesafe/v1/systemone`) — one `fetch`, no
+  dependency change, and it returns Jev's native shape (`noul`, inline
+  `confidence`, the score `legend`) which the AI SDK's `experimental_decide`
+  reshapes or drops. The request is pinned to the **zero-data-retention**
+  `typesafe-ai` provider and the response is refused if it came from
+  anywhere else; TypeSafe is now in the privacy policy's subprocessors.
+  A failed call is not an error — the evaluation returns `ok: false` and
+  the token-based score stands. **Also fixed:** the hybrid recompute path
+  hard-coded the **v1 weights** and recomposed from four dimensions,
+  dropping Intent Coverage / Role Fit / Seniority Fit — so the Recompute
+  button and the first-render scorecard were on different scales.
+  `composeOverallScore()` is now shared. Drift memo:
+  `docs/drift/2026-10-22-jev-ats-scoring.md`.
+
 - **A degree requirement is no longer a missing skill** — branch
   `feat/chat-agent-v3-phase-a`. The user reported that a JD's
   "Bachelor's degree" requirement landed in their resume's must-have

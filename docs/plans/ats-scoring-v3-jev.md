@@ -287,28 +287,21 @@ would replace the digit heuristic and remove the fairness problem.
 **Adopt Jev — but for the three things it does that nothing else in the
 stack does. Do not adopt it to replace the skill matcher, which works.**
 
-### R1 — classify JD requirement lines (fixes the degree problem)
+### R1 — classify JD requirement lines (fixes the degree problem) — **SHIPPED 2026-10-22**
 
-One `noul` per requirement line: *"is this a specific skill, tool or
+One `noul` per requirement entry: *"is this a specific skill, tool or
 technique the candidate uses on the job?"*, with the criteria spelled out
 so degrees, certifications, years-of-experience, management and soft skills
 all count as "no".
 
-Add `qualifications` to the intent schema. Degrees and certifications land
-there and stop being scored as missing skills.
+**Confidence: high.** Measured AUC 0.926 (requirement lines) / 0.944
+(the production-shaped input), and the live probe is exactly the user's
+case.
 
-Jev already answers the hard part of the user's question correctly — in a
-live probe against their own JD:
+**Status: shipped** as part of the Jev evaluation pass — see
+`docs/drift/2026-10-22-jev-ats-scoring.md`.
 
-| question | answer |
-|---|---|
-| "What kind of requirement is this line?" | **qualification** |
-| "Can a candidate satisfy this through work experience instead of the degree?" | **0.96 yes** |
-
-**Confidence: high.** Measured AUC 0.926, and the live probe is exactly
-the user's case.
-
-### R2 — score evidence depth (a dimension that does not exist today)
+### R2 — score evidence depth (a dimension that does not exist today) — **SHIPPED 2026-10-22**
 
 A `score` question per genuine skill requirement, on a 0–3 rubric: *listed
 as a skill → mentioned in a bullet → demonstrated with a concrete outcome*.
@@ -321,13 +314,21 @@ Kubernetes" but "you list Kubernetes but never show using it".
 **Confidence: high.** Measured above; the dimension improved the corpus
 correlation.
 
-### R3 — replace the keyword vocabulary with the curated one
+**Status: shipped.** The rubric is `EVIDENCE_RUBRIC` in
+`lib/scoring/jev-requirements.ts`.
+
+### R3 — replace the keyword vocabulary with the curated one — **SHIPPED 2026-10-22**
 
 Score ATS Matching against Jev's extracted skill set instead of the raw
-token set. The tip becomes *"Add these missing keywords: Kubernetes,
-Terraform"* instead of *"insurance, budget, remote, friendly"*.
+token set. The tip becomes *"These requirements from the JD are not
+evidenced in your resume: Kubernetes, Terraform"* instead of *"insurance,
+budget, remote, friendly"*.
 
-**Confidence: high.** Pearson r 0.910 → 0.927, MAE 13.40 → 10.60.
+**Confidence: high.** Pearson r 0.910 → **0.935**, MAE 13.40 → 12.26.
+
+**Status: shipped.** The keyword sub-criterion is substituted inside the
+existing ATS dimension (60% keyword / 20% similarity / 20% coverage), so
+the scorecard's criteria still decompose the dimension and no UI changed.
 
 ### R4 — deterministic eligibility, no model call (the degree case specifically) — **SHIPPED 2026-10-22**
 
