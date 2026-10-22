@@ -2,18 +2,19 @@ import 'server-only';
 
 import type { ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring/score';
+import {
+  AVAILABLE_TEMPLATES,
+  describeTemplate,
+  templateListForPrompt
+} from './templates';
 
 /**
- * Available resume template IDs. Keep in sync with the Zod schema default.
+ * Re-exported for back-compat. The authoritative list now lives in
+ * `./templates` and is derived from `templateRegistry` — see that file
+ * for why a hand-written list could not be trusted here.
  */
-export const AVAILABLE_TEMPLATES = [
-  'minimal',
-  'classic',
-  'executive',
-  'creative',
-  'modern'
-] as const;
-export type TemplateId = (typeof AVAILABLE_TEMPLATES)[number];
+export { AVAILABLE_TEMPLATES };
+export type TemplateId = string;
 
 /**
  * What kind of resume the chat is currently attached to.
@@ -30,14 +31,6 @@ export interface ResumeKind {
   /** How many variants hang off the master (or off this resume's master). */
   variantCount: number;
 }
-
-const TEMPLATE_DESCRIPTIONS: Record<TemplateId, string> = {
-  minimal: 'Minimal — clean, single-column, typography-focused',
-  classic: 'Classic — traditional two-column with clear hierarchy',
-  executive: 'Executive — formal, bold headers, senior-role optimised',
-  creative: 'Creative — visual, colour accents, design-forward',
-  modern: 'Modern — contemporary layout with balanced whitespace'
-};
 
 /**
  * Extract a profile URL from the basics.profiles array by network name.
@@ -498,9 +491,7 @@ Ask a clarifying question only when you genuinely cannot proceed: you would have
 # Tools
 
 1. **editResume** — apply changes to the resume. Send only the fields that change; everything you omit is preserved, so never resend content you are not changing. To edit an existing entry, match it by company and role. To add something new, use the matching \`add*\` operation. \`addSkills\` merges keywords into an existing category.
-2. **switchTemplate** — change the template. Available: ${AVAILABLE_TEMPLATES.map(
-    (t) => `${t} (${TEMPLATE_DESCRIPTIONS[t]})`
-  ).join('; ')}.
+2. **switchTemplate** — change the template. Available: ${templateListForPrompt()}.
 
 # What Nexstepper is (answer questions about this)
 
@@ -510,9 +501,7 @@ Users will ask how the product works. Answer from this — do not guess, and do 
 - **Master resume vs variants.** A *master resume* is your general, always-current resume for a broad type of role (e.g. "backend engineer") — the one you maintain and keep up to date. A *variant* is a tailored copy of that master, made for one specific job posting. You keep the master clean and generic, then create a variant per application so you can emphasise that employer's priorities without wrecking your master.
 - **Job description → score → tailor.** Paste a job description and Nexstepper parses it, then scores your resume against it across weighted dimensions (keyword/ATS matching, structure, content quality, JD alignment, intent coverage, role fit, seniority fit). The score tells you where you are weak.
 - **Variants** are created from a master plus a pasted JD. Each variant is an independent resume you can edit and print separately.
-- **Templates:** ${AVAILABLE_TEMPLATES.map(
-    (t) => `${t} (${TEMPLATE_DESCRIPTIONS[t]})`
-  ).join('; ')}.
+- **Templates:** ${templateListForPrompt()}.
 - **Sharing** generates a public link so you can send the resume to a reviewer without them needing an account.
 - **Export** is print-to-PDF from the browser (Ctrl/Cmd-P → Save as PDF). There is no server-side PDF generation and no LaTeX export.
 - **Free vs Pro.** The free plan has a daily message limit on this assistant. Pro is live and costs CA$5/month — if the user asks about upgrading, point them at the Upgrade to Pro button on the /pricing page. What Pro adds: much higher AI chat allowance, inline AI rewrites, and priority email support. Do not claim Pro includes peer reviews or real-time collaboration — neither exists yet. Never state a price other than CA$5.
@@ -530,5 +519,5 @@ Users will ask how the product works. Answer from this — do not guess, and do 
 
 ${untrustedBlock('untrusted_resume', resumeText)}${kindSection}${jobSection}${atsSection}
 
-Current active template: ${templateName} (${TEMPLATE_DESCRIPTIONS[templateName as TemplateId] ?? 'Unknown'}).`;
+Current active template: ${describeTemplate(templateName)}.`;
 }
