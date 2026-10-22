@@ -14,13 +14,16 @@ import { resolve } from 'node:path';
 import { templateRegistry } from '@/components/resume-templates';
 
 import { CHAT_TOOLS } from '@/lib/chat/tools';
+import { SECTION_TABLE } from '@/lib/inline-issue/map-path-to-section';
 
 import {
   CLEARABLE_SECTIONS,
   editResumeArgsSchema,
   getAtsScoreArgsSchema,
   getPrintSettingsArgsSchema,
+  PRINTABLE_SECTION_SLUGS,
   switchTemplateArgsSchema,
+  updatePrintHiddenSectionsArgsSchema,
   updatePrintSettingsArgsSchema,
   validateResumeArgsSchema
 } from '@/lib/chat/tools/types';
@@ -133,6 +136,62 @@ describe('getAtsScoreArgsSchema', () => {
   });
 });
 
+describe('updatePrintHiddenSectionsArgsSchema', () => {
+  it('accepts a hide request', () => {
+    const parsed = updatePrintHiddenSectionsArgsSchema.safeParse({
+      hide: ['projects']
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('accepts a show request', () => {
+    expect(
+      updatePrintHiddenSectionsArgsSchema.safeParse({ show: ['projects'] }).success
+    ).toBe(true);
+  });
+
+  it('rejects a call with neither hide nor show — it would do nothing', () => {
+    expect(updatePrintHiddenSectionsArgsSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('rejects a slug that is not a real section', () => {
+    expect(
+      updatePrintHiddenSectionsArgsSchema.safeParse({ hide: ['not-a-section'] })
+        .success
+    ).toBe(false);
+  });
+
+  it('rejects the basics slug — the header has no section to hide', () => {
+    expect(
+      updatePrintHiddenSectionsArgsSchema.safeParse({ hide: ['basics'] }).success
+    ).toBe(false);
+  });
+
+  it('rejects unknown keys', () => {
+    expect(
+      updatePrintHiddenSectionsArgsSchema.safeParse({
+        hide: ['projects'],
+        replace: true
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe('the printable section slugs cannot drift from SECTION_TABLE', () => {
+  it('matches the slugs the templates actually render', () => {
+    // SECTION_TABLE in lib/inline-issue/map-path-to-section.ts is the
+    // single source of truth for `id="section-{slug}"`. If a section is
+    // added there and not here, it becomes impossible for the agent to
+    // hide — silently, with no error.
+    const fromTable = Object.values(SECTION_TABLE)
+      .map((e) => e.slug)
+      .filter((slug) => slug !== 'basics')
+      .sort();
+
+    expect([...PRINTABLE_SECTION_SLUGS].sort()).toEqual(fromTable);
+  });
+});
+
 describe('every tool the chat advertises is dispatchable', () => {
   it('registers all six tools with a description and a schema', () => {
     // The AI SDK validates arguments against these schemas before the
@@ -143,6 +202,7 @@ describe('every tool the chat advertises is dispatchable', () => {
       'getAtsScore',
       'getPrintSettings',
       'switchTemplate',
+      'updatePrintHiddenSections',
       'updatePrintSettings',
       'validateResume'
     ]);

@@ -6,6 +6,7 @@ import {
   getAtsScoreArgsSchema,
   getPrintSettingsArgsSchema,
   switchTemplateArgsSchema,
+  updatePrintHiddenSectionsArgsSchema,
   updatePrintSettingsArgsSchema,
   validateResumeArgsSchema
 } from './types';
@@ -142,6 +143,24 @@ export const CHAT_TOOLS = {
       'save. Nothing is written either way.'
     ].join('\n'),
     parameters: validateResumeArgsSchema
+  },
+
+  updatePrintHiddenSections: {
+    description: [
+      'Hide or show sections in the PRINTED document (the PDF).',
+      '',
+      'Hiding a section does NOT delete it — the user can still see and edit it',
+      'in the editor, it just does not appear in the PDF they submit. Say that',
+      'when you use this, so they do not think their work was thrown away.',
+      '',
+      'This is often the cheapest way to fit a page: hiding a section costs',
+      'nothing from the content, while tightening the layout only buys a',
+      'little. Prefer it over cutting work the user wrote.',
+      '',
+      'Valid section slugs: experience, skills, projects, education, awards,',
+      'certificates, publications, volunteer, languages, interests, references.'
+    ].join('\n'),
+    parameters: updatePrintHiddenSectionsArgsSchema
   }
 } as const;
 

@@ -5,6 +5,7 @@ import {
   getAtsScoreArgsSchema,
   getPrintSettingsArgsSchema,
   switchTemplateArgsSchema,
+  updatePrintHiddenSectionsArgsSchema,
   updatePrintSettingsArgsSchema,
   validateResumeArgsSchema
 } from './tools/types';
@@ -13,6 +14,7 @@ import type {
   GetAtsScoreArgs,
   GetPrintSettingsArgs,
   SwitchTemplateArgs,
+  UpdatePrintHiddenSectionsArgs,
   UpdatePrintSettingsArgs,
   ValidateResumeArgs
 } from './tools/types';
@@ -112,6 +114,23 @@ export async function executeTool(
       return await executeValidateResume(
         resumeId,
         (parsed.data as ValidateResumeArgs).proposedEdit
+      );
+    }
+
+    case 'updatePrintHiddenSections': {
+      const parsed = updatePrintHiddenSectionsArgsSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: `Invalid updatePrintHiddenSections arguments: ${parsed.error.message}`
+        };
+      }
+      const { executeUpdatePrintHiddenSections } = await import(
+        './tools/print-hidden-sections'
+      );
+      return await executeUpdatePrintHiddenSections(
+        resumeId,
+        parsed.data as UpdatePrintHiddenSectionsArgs
       );
     }
 

@@ -62,6 +62,10 @@ export default async function MeasurePage({
   const roles = pickInt(params.roles, 3);
   const bullets = pickInt(params.bullets, 3);
   const base = pickString(params.base) === 'minimal' ? 'minimal' : 'full';
+  const hiddenSections = (pickString(params.hidden) ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   // Build a COMPLETE settings object before Zod sees it — the schema
   // requires all four keys, so a partial would be rejected wholesale and
@@ -80,7 +84,7 @@ export default async function MeasurePage({
     )
   });
 
-  const data = buildMeasurableResume({ roles, bullets, base });
+  const data = buildMeasurableResume({ roles, bullets, base, hiddenSections });
 
   return <MeasureClient data={data} templateId={templateId} settings={settings} />;
 }

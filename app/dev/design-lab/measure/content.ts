@@ -74,7 +74,7 @@ export type MeasurableResumeParams = {
   /** Bullets per work entry. */
   bullets: number;
   /**
-   * Which non-work content to include.
+   * Which non-work sections to include.
    *
    * `full` — everything the gallery sample has (projects, volunteer,
    * awards, certificates, education, languages, interests). This is the
@@ -86,12 +86,20 @@ export type MeasurableResumeParams = {
    * where ONE page ends, which is the number the assistant needs.
    */
   base?: 'full' | 'minimal';
+  /**
+   * Section slugs to EXCLUDE from print, mirroring
+   * `data.print.hiddenSections`. The templates apply `print:hidden` to
+   * these, so under print media they collapse to zero height — which
+   * is exactly what the user's PDF gets.
+   */
+  hiddenSections?: string[];
 };
 
 export function buildMeasurableResume({
   roles,
   bullets,
-  base = 'full'
+  base = 'full',
+  hiddenSections = []
 }: MeasurableResumeParams): ResumeData {
   const sample = structuredClone(gallerySampleResumeData);
 
@@ -124,7 +132,11 @@ export function buildMeasurableResume({
   });
 
   if (base === 'full') {
-    return { ...sample, sections: { ...sample.sections, work } };
+    return {
+      ...sample,
+      sections: { ...sample.sections, work },
+      print: { hiddenSections }
+    };
   }
 
   return {
@@ -140,6 +152,7 @@ export function buildMeasurableResume({
       languages: [],
       interests: [],
       references: []
-    }
+    },
+    print: { hiddenSections }
   };
 }

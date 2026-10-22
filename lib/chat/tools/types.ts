@@ -362,6 +362,58 @@ export const validateResumeArgsSchema = z.strictObject({
 
 export type ValidateResumeArgs = z.infer<typeof validateResumeArgsSchema>;
 
+/**
+ * Section slugs the printed document can exclude.
+ *
+ * These are the `id="section-{slug}"` values the templates render, and
+ * the values `data.print.hiddenSections` stores. `basics` is excluded
+ * because it is the header — it renders inline above the section list
+ * and has no section element to hide.
+ *
+ * `tests/unit/chat/tools-schema.test.ts` pins this list against
+ * SECTION_TABLE in lib/inline-issue/map-path-to-section.ts, so adding a
+ * section there without adding it here fails the build rather than
+ * silently making a section unhideable.
+ */
+export const PRINTABLE_SECTION_SLUGS = [
+  'experience',
+  'skills',
+  'projects',
+  'education',
+  'awards',
+  'certificates',
+  'publications',
+  'volunteer',
+  'languages',
+  'interests',
+  'references'
+] as const;
+
+export type PrintableSectionSlug = (typeof PRINTABLE_SECTION_SLUGS)[number];
+
+/**
+ * Argument shape for the `updatePrintHiddenSections` tool.
+ *
+ * ADDITIVE and SUBTRACTIVE rather than "replace the whole list": a model
+ * asked to reproduce a list it read in its context will occasionally
+ * drop an entry, and asking for the delta cannot lose anything.
+ *
+ * At least one of `hide` / `show` must be present — otherwise the call
+ * does nothing.
+ */
+export const updatePrintHiddenSectionsArgsSchema = z
+  .strictObject({
+    hide: z.array(z.enum(PRINTABLE_SECTION_SLUGS)).optional(),
+    show: z.array(z.enum(PRINTABLE_SECTION_SLUGS)).optional()
+  })
+  .refine((v) => (v.hide?.length ?? 0) + (v.show?.length ?? 0) > 0, {
+    message: 'Provide at least one of `hide` or `show`'
+  });
+
+export type UpdatePrintHiddenSectionsArgs = z.infer<
+  typeof updatePrintHiddenSectionsArgsSchema
+>;
+
 /** Union of all tool argument shapes. */
 export type ChatToolArgs =
   | EditResumeArgs
@@ -369,6 +421,7 @@ export type ChatToolArgs =
   | GetAtsScoreArgs
   | GetPrintSettingsArgs
   | UpdatePrintSettingsArgs
+  | UpdatePrintHiddenSectionsArgs
   | ValidateResumeArgs;
 
 /** Tool identifiers surfaced to the AI. */
@@ -378,4 +431,5 @@ export type ChatToolName =
   | 'getAtsScore'
   | 'getPrintSettings'
   | 'updatePrintSettings'
+  | 'updatePrintHiddenSections'
   | 'validateResume';

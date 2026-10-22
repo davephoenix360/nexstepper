@@ -112,6 +112,93 @@ Fixed by `components/editable/print-settings-vars.tsx`, which mirrors the
 four properties onto the root element. Re-measured after the fix: the
 margin column now differs from standard, as it should.
 
+## How much space does each section take?
+
+The numbers above answer "how many roles fit". The assistant also needs
+to answer "if I hide the Projects section, does that get me there?" — so
+each section's **vertical space** was measured.
+
+### How
+
+By DIFFERENCE: measure the total height of a printed resume, measure it
+again with one section hidden, and the difference IS the space that
+section occupies.
+
+A first pass measured each section's band as "distance from its heading
+to the next heading's top". That is close, but it is off for the LAST
+section (0.51in measured vs 0.72in actually saved for `interests`)
+because trailing margins and the container's `scrollHeight` do not line
+up the way the arithmetic assumes. The delta method has no such edge
+cases — and it is exactly the number the assistant needs.
+
+Chromium runs with `emulateMedia({ media: 'print' })`, so the real
+`@media print` rules apply, including `print:hidden` collapsing an
+excluded section to zero height. That is the render the user's PDF gets.
+
+### The data
+
+Vertical space in inches, default print settings, Letter. One page holds
+**9.5 inches** of content at default settings (10.0 when tightened).
+
+| template | header | experience | projects | skills | education | awards | certificates | volunteer | languages | interests | total | pages |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Classic | 2.53 | 4.84 | 2.81 | 1.75 | 1.18 | 1.89 | 0.95 | 1.24 | 1.24 | 0.99 | 19.42 | 2.04 |
+| Minimal | 2.14 | 4.86 | 2.75 | 1.82 | 1.16 | — | — | 1.20 | — | — | 13.93 | 1.47 |
+| Modern | 2.81 | 4.70 | 2.74 | 1.90 | 0.95 | 1.39 | 0.90 | 1.21 | 0.72 | 0.72 | 18.04 | 1.90 |
+| Jake | 2.60 | 4.80 | 2.37 | 1.79 | 1.75 | 1.85 | 0.98 | 1.26 | 1.28 | 1.02 | 19.70 | 2.07 |
+| Executive | 2.01 | 5.22 | 2.84 | 1.86 | 1.00 | — | — | 1.26 | — | — | 14.64 | 1.54 |
+| Creative | 2.06 | 5.24 | 3.36 | 2.17 | 1.02 | — | — | 1.28 | — | — | 15.13 | 1.59 |
+
+("header" is the name, contact line and summary — it renders outside any
+section, so it is the remainder between the total and the sections. A
+six-line summary really is a third of a page, and the assistant should
+know that.)
+
+Read across the rows and two things fall out:
+
+- **Creative and Executive are the densest.** They give up a role at
+  default settings in exchange for their visual treatment — Creative
+  spends 3.36in on Projects where Classic spends 2.81in.
+- **Projects is the most hideable section, almost everywhere.** 2.37–3.36in
+  — a quarter to a third of a page, for content that many resumes do not
+  need for a specific role.
+
+### Why this changes the advice
+
+Hiding a section costs the user **nothing** — the content stays in the
+resume and stays editable; it just does not appear in the PDF. So the
+order of levers is:
+
+1. **Hide a section** — free. Save the inches in the table above.
+2. **Tighten the layout** — free, and worth about 1.5 inches on a
+   typical resume.
+3. **Cut content** — the only one that costs the user something, so it
+   needs their sign-off.
+
+The assistant used to be told "cut content first". That was wrong, and
+wrong in the direction that annoys users: it reached for the expensive
+lever when two free ones were available.
+
+### Reproducing
+
+```bash
+pnpm dev                                             # in one shell
+node scripts/measure-section-space.cjs               # → output/section-space/section-space.json
+node scripts/build-section-space-table.cjs            # → lib/chat/section-space.generated.ts
+```
+
+The prompt table is GENERATED, not hand-written. Hand-copying 100+
+measurements into a prompt file is how they end up stale and wrong.
+
+Two things the script had to learn the hard way:
+
+- **It writes the JSON after every template, not once at the end.** The
+  first run stalled on the last template and lost every measurement,
+  because the output only appeared on completion.
+- **It launches a fresh browser per template.** One long-lived browser
+  leaked processes across ~200 navigations, ended up with 69 Chrome
+  processes alive, and starved the machine into a dev-server OOM.
+
 ## Caveats
 
 - Bullets in the generator are 110–150 characters, which is what wraps to

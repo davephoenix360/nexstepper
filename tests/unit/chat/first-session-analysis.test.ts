@@ -65,6 +65,36 @@ describe('resumeToPlainText', () => {
     expect(text).not.toContain('PUBLICATIONS');
     expect(text).not.toContain('REFERENCES');
   });
+
+  it('EXCLUDES sections the user has hidden from print', () => {
+    // The analysis must describe the document the user will SUBMIT. If
+    // a hidden section is included, the model praises content the
+    // recruiter never sees, and reports "you already show X" for
+    // something that is not there.
+    const withHidden = resumeToPlainText({
+      ...gallerySampleResumeData,
+      print: { hiddenSections: ['projects', 'interests'] }
+    });
+
+    expect(withHidden).not.toContain('PROJECTS');
+    expect(withHidden).not.toContain('INTERESTS');
+    // Everything else is still there.
+    expect(withHidden).toContain('Loom Systems');
+    expect(withHidden).toContain('SKILLS');
+  });
+
+  it('names the hidden sections so the assistant can offer to unhide them', () => {
+    const withHidden = resumeToPlainText({
+      ...gallerySampleResumeData,
+      print: { hiddenSections: ['projects'] }
+    });
+    expect(withHidden).toContain('projects');
+    expect(withHidden).toMatch(/excluded .* from the printed document/i);
+  });
+
+  it('does not mention hidden sections when nothing is hidden', () => {
+    expect(text).not.toMatch(/from the printed document/i);
+  });
 });
 
 describe('firstSessionAnalysisSchema', () => {

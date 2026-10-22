@@ -198,14 +198,54 @@ Review the resume against the job description.`;
 }
 
 /**
+ * Section key → the slug used by `data.print.hiddenSections`.
+ *
+ * Keys are the `ResumeData.sections` names; slugs are the ids the
+ * templates render (`id="section-{slug}"`) and the values the print
+ * preferences store. Mirrors SECTION_TABLE in
+ * `lib/inline-issue/map-path-to-section.ts`.
+ */
+const SECTION_KEY_TO_SLUG: Record<string, string> = {
+  work: 'experience',
+  skills: 'skills',
+  projects: 'projects',
+  education: 'education',
+  awards: 'awards',
+  certificates: 'certificates',
+  publications: 'publications',
+  volunteer: 'volunteer',
+  languages: 'languages',
+  interests: 'interests',
+  references: 'references'
+};
+
+/**
  * Render the resume as the flat text a reviewer actually reads.
  *
  * Deliberately NOT the JSON envelope — the model reasons about prose
  * much better than about a nested object, and this halves the token
  * count versus shipping the raw `ResumeData`.
+ *
+ * ## Hidden sections are EXCLUDED
+ *
+ * `data.print.hiddenSections` lists sections the user has excluded from
+ * the printable PDF. The editor still shows them, but the document the
+ * user will SUBMIT does not contain them.
+ *
+ * So they are excluded here too. If they were included, the analysis
+ * would praise a Projects section that is not in the PDF, and would
+ * report "you already demonstrate X" for content the recruiter will
+ * never see — the most damaging possible kind of wrong.
+ *
+ * The hidden sections are named in a trailing note so the assistant can
+ * still offer "you have a Projects section hidden — worth including?"
+ * rather than silently forgetting content the user wrote.
  */
 export function resumeToPlainText(data: ResumeData): string {
   const s = data.sections;
+  const hidden = new Set(data.print?.hiddenSections ?? []);
+  const isHidden = (key: string) => hidden.has(SECTION_KEY_TO_SLUG[key] ?? key);
+
   const lines: string[] = [];
 
   const b = s.basics;
@@ -222,11 +262,11 @@ export function resumeToPlainText(data: ResumeData): string {
     lines.push(`${b.name ?? ''}${b.label ? ` — ${b.label}` : ''}`.trim());
   }
   if (contact) lines.push(contact);
-  if (b.summary) {
+  if (b.summary && !isHidden('basics')) {
     lines.push('', 'SUMMARY', b.summary);
   }
 
-  if (s.work?.length) {
+  if (s.work?.length && !isHidden('work')) {
     lines.push('', 'EXPERIENCE');
     for (const w of s.work) {
       lines.push('', `${w.company}${w.location ? ` — ${w.location}` : ''}`);
@@ -238,7 +278,7 @@ export function resumeToPlainText(data: ResumeData): string {
     }
   }
 
-  if (s.projects?.length) {
+  if (s.projects?.length && !isHidden('projects')) {
     lines.push('', 'PROJECTS');
     for (const p of s.projects) {
       lines.push('', `${p.name}${p.url ? ` (${p.url})` : ''}`);
@@ -247,7 +287,7 @@ export function resumeToPlainText(data: ResumeData): string {
     }
   }
 
-  if (s.education?.length) {
+  if (s.education?.length && !isHidden('education')) {
     lines.push('', 'EDUCATION');
     for (const e of s.education) {
       const deg = e.degree?.degreeLevel
@@ -257,46 +297,56 @@ export function resumeToPlainText(data: ResumeData): string {
     }
   }
 
-  if (s.skills?.length) {
+  if (s.skills?.length && !isHidden('skills')) {
     lines.push('', 'SKILLS');
     for (const sk of s.skills) {
       lines.push(`  ${sk.name}: ${(sk.keywords ?? []).join(', ')}`);
     }
   }
 
-  if (s.certificates?.length) {
+  if (s.certificates?.length && !isHidden('certificates')) {
     lines.push('', 'CERTIFICATIONS');
     for (const c of s.certificates) {
       lines.push(`  ${c.name}${c.issuer ? ` — ${c.issuer}` : ''}${c.date ? ` (${c.date})` : ''}`);
     }
   }
 
-  if (s.awards?.length) {
+  if (s.awards?.length && !isHidden('awards')) {
     lines.push('', 'AWARDS');
     for (const a of s.awards) {
       lines.push(`  ${a.title}${a.awarder ? ` — ${a.awarder}` : ''}${a.date ? ` (${a.date})` : ''}`);
     }
   }
 
-  if (s.volunteer?.length) {
+  if (s.volunteer?.length && !isHidden('volunteer')) {
     lines.push('', 'VOLUNTEER');
     for (const v of s.volunteer) {
       lines.push(`  ${v.organization}${v.position ? ` — ${v.position}` : ''}`);
     }
   }
 
-  if (s.languages?.length) {
+  if (s.languages?.length && !isHidden('languages')) {
     lines.push('', 'LANGUAGES');
     for (const l of s.languages) {
       lines.push(`  ${l.language}${l.fluency ? ` (${l.fluency})` : ''}`);
     }
   }
 
-  if (s.interests?.length) {
+  if (s.interests?.length && !isHidden('interests')) {
     lines.push('', 'INTERESTS');
     for (const i of s.interests) {
       lines.push(`  ${i.name}${i.keywords?.length ? `: ${i.keywords.join(', ')}` : ''}`);
     }
+  }
+
+  // Name the excluded sections so the assistant can offer to bring them
+  // back, rather than silently forgetting work the user did.
+  const hiddenNames = [...hidden].filter((slug) => slug !== 'basics');
+  if (hiddenNames.length) {
+    lines.push('');
+    lines.push(
+      `NOTE: the user has excluded these sections from the printed document: ${hiddenNames.join(', ')}. They are NOT part of the resume being reviewed. Do not cite them as evidence of anything.`
+    );
   }
 
   return lines.join('\n').trim();
