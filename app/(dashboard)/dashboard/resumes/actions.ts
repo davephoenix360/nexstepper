@@ -475,19 +475,50 @@ export async function createVariantFromJdAction(
   // open. If the formatter fails (no API key, timeout, rate limit)
   // we silently leave `markdown` null and the UI falls back to raw
   // text — the user is never blocked on this enhancement.
-  const formatResult = await formatJdAsMarkdown(parsed.data.jdText);
-
+  //
   // Phase 1 v2: extract structured intent (must-have vs nice-to-have
   // skills, seniority, years required, role family, domain signals)
   // for the Intent Coverage scoring dimension. Same "best-effort,
-  // never block" pattern as the Markdown formatter above — on any
-  // failure (no API key, AI failure, empty result) we leave the v2
-  // fields at their defaults and v1 scoring carries the load. The
-  // 50ms latency hit when successful is dwarfed by the parse +
-  // format round-trips that already run above.
+  // never block" pattern as the Markdown formatter above.
+  //
+  // ## Why these two run together, not one after the other
+  //
+  // They are independent reads of the same string — neither consumes
+  // the other's output. Awaiting them in sequence doubled the wait for
+  // the variant to appear, and each is independently allowed to burn
+  // `FORMAT_TIMEOUT_MS` (30s) PER MODEL across a four-model chain.
+  // Sequentially that is a worst case of roughly four minutes of
+  // silence before the user sees anything, which is exactly the
+  // "it took ages and then it just showed up raw" report.
+  //
+  // Run together it is the slower of the two instead of the sum.
+  // Neither can block the other: each already returns a typed
+  // `{ok:false}` rather than throwing, and `Promise.all` on two
+  // never-rejecting calls cannot reject.
   //
   // Plan: docs/plans/ats-scoring-v2.md
-  const extractResult = await extractJdIntent(parsed.data.jdText);
+  const [formatResult, extractResult] = await Promise.all([
+    formatJdAsMarkdown(parsed.data.jdText),
+    extractJdIntent(parsed.data.jdText)
+  ]);
+
+  // Both of these fail SILENTLY by design — the variant is still
+  // created, just without the enhancement. That is the right product
+  // behaviour, but it made a real failure invisible: a variant created
+  // with `markdown: null` looks identical to one where the formatter
+  // worked, so "why is my JD unformatted?" had no answer anywhere.
+  // Vercel only retains ~10min of runtime logs on Hobby, so without a
+  // line here the evidence is gone by the time anyone asks.
+  if (!formatResult.ok) {
+    console.warn(
+      `[createVariantFromJd] markdown formatting unavailable (${formatResult.code}): ${formatResult.error}`
+    );
+  }
+  if (!extractResult.ok) {
+    console.warn(
+      `[createVariantFromJd] intent extraction unavailable (${extractResult.code}): ${extractResult.error}`
+    );
+  }
 
   const jobContext = jobPostingSchema.parse({
     id: randomUUID(),

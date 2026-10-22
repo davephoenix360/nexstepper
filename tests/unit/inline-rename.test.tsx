@@ -4,6 +4,19 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { InlineRename } from '@/components/editable/inline-rename';
 
 /**
+ * `InlineRename` calls `useRouter()` so that a successful rename can
+ * `router.refresh()` the Server Component and pull the new name into the
+ * editor's react-hook-form. `useRouter` reads Next's router context,
+ * which `renderToStaticMarkup` does not provide — the SSR tests below
+ * would throw "invariant expected app router to be mounted" without
+ * this stub. Mocked at module scope so the import order is safe.
+ */
+const refresh = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh })
+}));
+
+/**
  * Locks the Phase 3.5 inline rename UX (variant name + JD title).
  *
  * SSR-only assertions via `renderToStaticMarkup` — the project's

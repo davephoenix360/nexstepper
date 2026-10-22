@@ -665,14 +665,39 @@ export async function countVariantsByMasterId(
 }
 
 /**
- * Rename a resume (master or variant) — updates only the `name`
- * column on the `resumes` row. Does NOT bump the revision history
- * (the rename isn't a content change; we don't want it to appear
- * in the revisions list).
+ * Rename a resume (master or variant).
  *
- * Returns true on success. Returns false when the resume doesn't
- * exist OR doesn't belong to the user (the `and(eq(id), eq(userId))`
- * is the ownership check — same pattern as the other write helpers).
+ * ## Why this writes TWO places, not one
+ *
+ * A resume carries two copies of its name:
+ *
+ *   - `resumes.name` — the column (what list views read)
+ *   - `resume_revisions.data->>'name'` — the value inside the current
+ *     revision's JSONB (what the editor form initializes from)
+ *
+ * They were previously left to drift, and that is exactly how "I
+ * renamed the variant and it kept coming back" happened:
+ *
+ *   1. `renameResume` updated only the column.
+ *   2. The editor's react-hook-form still held the OLD `data.name`,
+ *      because `InlineRename` is a standalone control that never
+ *      touches form state.
+ *   3. The next content save called `saveResumeRevision`, which writes
+ *      `name: parsed.name` back onto the row (the update right after
+ *      the revision insert).
+ *   4. The column reverted to "<Master> — Variant". Forever.
+ *
+ * So we update the current revision's `data.name` in the same
+ * transaction. Column and revision agree, and a later
+ * `saveResumeRevision` round-trips the new name instead of clobbering it.
+ *
+ * Older revisions are deliberately left alone — the revision log is
+ * append-only history, and rewriting it would make history lie about
+ * what the resume was called at the time.
+ *
+ * Returns true on success. Returns false when the resume doesn't exist
+ * OR doesn't belong to the user (the `and(eq(id), eq(userId))` is the
+ * ownership check — same pattern as the other write helpers).
  */
 export async function renameResume(
   resumeId: string,
@@ -682,13 +707,32 @@ export async function renameResume(
   const trimmed = name.trim();
   if (!trimmed) return false;
 
-  const result = await db
-    .update(resumes)
-    .set({ name: trimmed, updatedAt: new Date() })
-    .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
-    .returning({ id: resumes.id });
+  return db.transaction(async (tx) => {
+    const result = await tx
+      .update(resumes)
+      .set({ name: trimmed, updatedAt: new Date() })
+      .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
+      .returning({
+        id: resumes.id,
+        currentRevisionId: resumes.currentRevisionId
+      });
 
-  return result.length > 0;
+    const row = result[0];
+    if (!row) return false;
+
+    // Keep the revision the editor reads in sync. Without this the
+    // rename survives exactly until the next content save undoes it.
+    if (row.currentRevisionId) {
+      await tx
+        .update(resumeRevisions)
+        .set({
+          data: sql`jsonb_set(data, '{name}', to_jsonb(${trimmed}::text))`
+        })
+        .where(eq(resumeRevisions.id, row.currentRevisionId));
+    }
+
+    return true;
+  });
 }
 
 /**

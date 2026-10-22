@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Loader2, Pencil, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,20 @@ import { cn } from '@/lib/utils';
  * on submit so the user sees the rename take effect without waiting
  * for `revalidatePath`. On server failure, we revert to `initialName`
  * and show the error message.
+ *
+ * ## Why we call `router.refresh()` after a successful rename
+ *
+ * The editor's react-hook-form was initialized from the revision's
+ * `data.name`, not from the `resumes.name` column this control writes.
+ * Left alone, the form keeps the OLD name, and the next content save
+ * sends it back to the server — which is how a rename used to silently
+ * revert on the following save.
+ *
+ * Refreshing re-renders the Server Component, hands `EditableResume` a
+ * fresh `initialData`, and its existing `form.reset(initialData)`
+ * effect syncs the form. The server-side half of the fix (writing
+ * `data.name` in the same transaction) is what makes that refreshed
+ * `initialData` actually carry the new name.
  */
 export function InlineRename({
   initialName,
@@ -67,6 +82,7 @@ export function InlineRename({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const router = useRouter();
 
   // Keep the displayed value in sync with the server-rendered prop
   // (e.g. after `revalidatePath` re-renders the page with the new name).
@@ -101,6 +117,10 @@ export function InlineRename({
         return;
       }
       setEditing(false);
+      // Pull the new name into the editor's form. Without this the
+      // form still holds the old value and the next content save
+      // writes it back, undoing the rename. See the component header.
+      router.refresh();
     });
   }
 

@@ -1,8 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { JdPanel } from '@/app/(dashboard)/dashboard/resumes/[id]/_components/jd-panel';
 import type { JobPosting } from '@/lib/resume-schema';
+
+/**
+ * `JdPanel` renders `InlineRename` for the JD title, and that component
+ * calls `useRouter()` (to refresh the page after a rename so the editor
+ * form picks the new value up). `useRouter` reads Next's router context,
+ * which `renderToStaticMarkup` does not provide, so the stub is required
+ * or every render below throws "invariant expected app router to be
+ * mounted". Mirrors the mock in tests/unit/inline-rename.test.tsx.
+ */
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() })
+}));
 
 /**
  * Locks the right-rail slot shape for Slice 2 of the variant-first

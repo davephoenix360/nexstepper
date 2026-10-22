@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { templateRegistry } from '@/components/resume-templates';
 import { editResumeArgsSchema, switchTemplateArgsSchema } from './types';
 
 /**
@@ -59,7 +60,15 @@ export const CHAT_TOOLS = {
     description: [
       'Change which template the resume renders with.',
       '',
-      'Valid IDs: minimal, classic, executive, creative, modern.',
+      // Derived from the registry, NOT hand-listed. The list used to be a
+      // hardcoded string that silently fell behind: it named five templates
+      // while the registry had six, so the model had no way to know the Jake
+      // template existed and "switch to the jake template" could only fail.
+      // A missing id here is invisible — there is no type error, no test, no
+      // warning — it just makes that template unreachable from chat.
+      `Valid IDs: ${Object.entries(templateRegistry)
+        .map(([id, t]) => `${id} (${t.meta.name})`)
+        .join(', ')}.`,
       '',
       'Call this when the user asks to change the look or style of their resume —',
       '"use the modern one", "switch to a simpler design", "make this look more',
