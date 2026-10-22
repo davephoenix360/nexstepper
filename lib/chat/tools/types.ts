@@ -332,6 +332,14 @@ export const getPrintSettingsArgsSchema = z.strictObject({});
 export type GetPrintSettingsArgs = z.infer<typeof getPrintSettingsArgsSchema>;
 
 /**
+ * Argument shape for the `estimatePageCount` tool. No arguments — it
+ * measures the attached resume as it stands.
+ */
+export const estimatePageCountArgsSchema = z.strictObject({});
+
+export type EstimatePageCountArgs = z.infer<typeof estimatePageCountArgsSchema>;
+
+/**
  * Argument shape for the `updatePrintSettings` tool.
  *
  * Every key is optional: an omitted key keeps its current value. The
@@ -423,7 +431,8 @@ export type ChatToolArgs =
   | GetPrintSettingsArgs
   | UpdatePrintSettingsArgs
   | UpdatePrintHiddenSectionsArgs
-  | ValidateResumeArgs;
+  | ValidateResumeArgs
+  | EstimatePageCountArgs;
 
 /** Tool identifiers surfaced to the AI. */
 export type ChatToolName =
@@ -433,4 +442,5 @@ export type ChatToolName =
   | 'getPrintSettings'
   | 'updatePrintSettings'
   | 'updatePrintHiddenSections'
-  | 'validateResume';
+  | 'validateResume'
+  | 'estimatePageCount';

@@ -2,6 +2,7 @@ import 'server-only';
 
 import {
   editResumeArgsSchema,
+  estimatePageCountArgsSchema,
   getAtsScoreArgsSchema,
   getPrintSettingsArgsSchema,
   switchTemplateArgsSchema,
@@ -11,6 +12,7 @@ import {
 } from './tools/types';
 import type {
   EditResumeArgs,
+  EstimatePageCountArgs,
   GetAtsScoreArgs,
   GetPrintSettingsArgs,
   SwitchTemplateArgs,
@@ -132,6 +134,20 @@ export async function executeTool(
         resumeId,
         parsed.data as UpdatePrintHiddenSectionsArgs
       );
+    }
+
+    case 'estimatePageCount': {
+      const parsed = estimatePageCountArgsSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: `Invalid estimatePageCount arguments: ${parsed.error.message}`
+        };
+      }
+      const { executeEstimatePageCount } = await import(
+        './tools/estimate-page-count'
+      );
+      return await executeEstimatePageCount(resumeId);
     }
 
     default:

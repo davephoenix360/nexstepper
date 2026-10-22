@@ -3,6 +3,7 @@ import 'server-only';
 import { templateListForPrompt } from '../templates';
 import {
   editResumeArgsSchema,
+  estimatePageCountArgsSchema,
   getAtsScoreArgsSchema,
   getPrintSettingsArgsSchema,
   switchTemplateArgsSchema,
@@ -101,10 +102,11 @@ export const CHAT_TOOLS = {
   getPrintSettings: {
     description: [
       'Read the page-layout settings for this resume: margin, line height,',
-      'font size, and the spacing between sections.',
+      'font size, the spacing between sections, and the spacing between',
+      'entries inside a section.',
       '',
       'Call this when the user says the resume is the wrong length, looks',
-      'cramped, or looks too sparse — before changing anything. These four',
+      'cramped, or looks too sparse — before changing anything. These five',
       'knobs are how you fit a resume onto fewer pages WITHOUT cutting',
       'content.'
     ].join('\n'),
@@ -162,6 +164,29 @@ export const CHAT_TOOLS = {
       'certificates, publications, volunteer, languages, interests, references.'
     ].join('\n'),
     parameters: updatePrintHiddenSectionsArgsSchema
+  },
+
+  estimatePageCount: {
+    description: [
+      'Estimate how many pages this resume will print on, and what would',
+      'bring it down.',
+      '',
+      'Call this whenever the user asks about length: "is this one page?",',
+      '"how long is this?", "will this fit?", "what do I cut?". It returns',
+      'the estimated page count, the content height in inches, where that',
+      'height went, and — for each visible section — how many inches hiding',
+      'it would save and what the resume would then print as.',
+      '',
+      'The numbers are measured, not guessed: real resumes were printed',
+      'through the real templates and their PDF pages counted. But the',
+      'assistant cannot render the document, so treat the result as an',
+      'estimate and say "about" when it is close to a page boundary.',
+      '',
+      'Call it BEFORE proposing to cut content, so you can show what the',
+      'free options (hiding a section, tightening the layout) would buy',
+      'first.'
+    ].join('\n'),
+    parameters: estimatePageCountArgsSchema
   }
 } as const;
 

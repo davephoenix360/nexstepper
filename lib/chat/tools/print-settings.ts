@@ -50,13 +50,19 @@ const SECTION_SPACING_VALUES: Record<string, string> = {
   standard: '1.25rem',
   relaxed: '2rem'
 };
+const ITEM_SPACING_VALUES: Record<string, string> = {
+  compact: '0.5rem',
+  standard: '0.875rem',
+  relaxed: '1.375rem'
+};
 
 function describeSettings(settings: import('@/lib/print-settings').PrintSettings): string {
   return [
     `margin: ${settings.margin} (${MARGIN_VALUES[settings.margin]})`,
     `lineHeight: ${settings.lineHeight} (${LINE_HEIGHT_VALUES[settings.lineHeight]})`,
     `fontSize: ${settings.fontSize} (${FONT_SIZE_VALUES[settings.fontSize]})`,
-    `sectionSpacing: ${settings.sectionSpacing} (${SECTION_SPACING_VALUES[settings.sectionSpacing]})`
+    `sectionSpacing: ${settings.sectionSpacing} (${SECTION_SPACING_VALUES[settings.sectionSpacing]})`,
+    `itemSpacing: ${settings.itemSpacing} (${ITEM_SPACING_VALUES[settings.itemSpacing]})`
   ].join('\n');
 }
 
@@ -96,6 +102,16 @@ export async function executeUpdatePrintSettings(
     lineHeight?: 'compact' | 'standard' | 'relaxed';
     fontSize?: 'small' | 'standard' | 'large';
     sectionSpacing?: 'compact' | 'standard' | 'relaxed';
+    /**
+     * The gap between entries INSIDE a section — one work role and the
+     * next, one project and the next.
+     *
+     * This was missing from the signature even though the tool's Zod
+     * schema accepted it, so the model could send `itemSpacing` and it
+     * would be applied at runtime while the type said it could not be.
+     * The schema is the contract; this signature has to match it.
+     */
+    itemSpacing?: 'compact' | 'standard' | 'relaxed';
   }
 ): Promise<{ ok: true; result: string } | { ok: false; error: string }> {
   const session = await auth.api.getSession({ headers: await headers() });

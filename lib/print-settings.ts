@@ -253,7 +253,8 @@ export function printSettingsSummary(settings: PrintSettings): string {
     `margin=${settings.margin}`,
     `line height=${settings.lineHeight}`,
     `font size=${settings.fontSize}`,
-    `section spacing=${settings.sectionSpacing}`
+    `section spacing=${settings.sectionSpacing}`,
+    `item spacing=${settings.itemSpacing}`
   ].join(', ');
 }
 
