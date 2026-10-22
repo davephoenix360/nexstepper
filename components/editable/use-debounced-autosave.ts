@@ -46,16 +46,20 @@ export function useDebouncedAutosave({
   /**
    * Only `control` is needed — the hook never reads form methods.
    *
-   * Deliberately NOT generic over the field type. The editor builds its
-   * form with `useForm({ resolver: ... } as never)`, so its
-   * `UseFormReturn` is `UseFormReturn<FieldValues>` and every attempt to
-   * bind it to a `Control<T>` for a specific `T` fails the variance
-   * check — structurally incompatible even though it is fine at
-   * runtime. Typing the values as `unknown` and letting the caller's
-   * `save` narrow is both simpler and honest about what we do with them
-   * (JSON-serialize and ship to a server action).
+   * Deliberately NOT generic over the field type, and typed `any`.
+   * `Control<T>` turns out to be invariant in practice — its
+   * `_options.validate.name` narrows to the literal field-name union, so
+   * `Control<Values>` is not assignable to `Control<any>`. The editor
+   * builds its form with `useForm({ resolver: ... } as never)` and so
+   * has `Control<never>`, while a test form has `Control<Values>`. There
+   * is no parameter type that accepts both.
+   *
+   * `any` is the honest type at this boundary rather than a workaround:
+   * the hook never reads a field by name. It watches, JSON-serializes,
+   * and hands the result to the caller's `save`, which is where the real
+   * typing happens.
    */
-  control: Control;
+  control: any;
   /** Performs the actual save. Resolves falsy on failure. */
   save: (values: unknown) => Promise<unknown>;
   /** How long to wait after the last change before saving. */

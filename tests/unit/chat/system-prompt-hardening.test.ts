@@ -163,6 +163,23 @@ describe('buildSystemPrompt — instruction hierarchy', () => {
     expect(sp).not.toMatch(/ONLY when the user explicitly asks/i);
   });
 
+  it('separates "the user asked for it" from "something you noticed"', () => {
+    // The v3 split (docs/plans/chat-agent-v3.md §8, decision Q1): edit
+    // freely when the USER asked — including implied dissatisfaction —
+    // but propose first when the AGENT noticed something the user did
+    // not mention.
+    //
+    // Both halves are guarded because getting either wrong is a real
+    // failure mode: collapsing the first half makes the assistant dead
+    // ("would you like me to...?"), and collapsing the second makes it
+    // overwrite a user's resume based on its own judgement.
+    const sp = buildPrompt();
+    expect(sp).toMatch(/The user asked for it → just do it/i);
+    expect(sp).toMatch(/Something YOU noticed → propose it first/i);
+    // The examples for each half must both survive.
+    expect(sp).toMatch(/want me to cut it to one/i);
+  });
+
   it('carries product knowledge so the assistant can answer Nexstepper questions', () => {
     const sp = buildPrompt();
     expect(sp).toMatch(/What Nexstepper is/i);

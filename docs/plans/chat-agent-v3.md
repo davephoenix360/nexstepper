@@ -169,19 +169,39 @@ compacts from, not prose pasted into the prompt every request.
 
 ## 7. Sequencing
 
-Phase A — context and correctness
-- dynamic template list in the system prompt (replaces the hardcode that
-  just bit us)
-- `getAtsScore` read tool
-- persona rewrite of `lib/chat/system-prompt.ts`
+**Phase A — context and correctness. ✅ DONE** (branch
+`feat/chat-agent-v3-phase-a`)
+
+- ✅ dynamic template list in the system prompt — and, more importantly,
+  the template ids are now derived from `templateRegistry` everywhere
+  they were previously hand-written. There were **four** stale lists, not
+  one: the tool description, the prompt's `AVAILABLE_TEMPLATES`, the
+  executor's validator, and — the strictest of all — the `z.enum([...])`
+  in the tool-argument schema, which meant the model could not even
+  *name* a template that was missing from it.
+- ✅ `getAtsScore` read tool — lets the agent re-measure the score after
+  its own edit instead of guessing whether the edit helped. It uses the
+  hybrid scorer (matching the scorecard the user is looking at) with a
+  fallback to the pure sync scorer, and it persists a snapshot so the
+  scorecard stays current.
+- ✅ persona rewrite of `lib/chat/system-prompt.ts` — writer / reviewer /
+  recruiter framing, the direct-request vs agent-noticed split, an
+  explicit "never invent, ask for the number" rule, and a resume-craft
+  section (length, bullets, summary, skills, dates, contact rules,
+  per-industry conventions).
 
 Phase B — capability
-- `recomputeAtsScore`, print-settings tools, `validateResume`
+- `recomputeAtsScore` (folded into `getAtsScore` — it recomputes anyway)
+- print-settings read/write tools
+- `validateResume` dry-run, so the agent can repair an unsaveable field
+  proactively instead of leaving the user with an error wall
 - proactive repair behaviour
 
 Phase C — the expensive work
-- first-session analysis, cached per (resume, JD hash)
-- industry-convention table
+- first-session analysis, cached per (resume, JD hash), behind a
+  loading screen at JD-paste time
+- industry-convention table (the agent prompt now carries a short
+  version; the fuller table is Phase C)
 
 Phase D — proactivity
 - agent-initiated recommendations after each edit ("this removed a

@@ -74,7 +74,7 @@ describe('useDebouncedAutosave', () => {
   });
 
   it('does not fire for an unchanged form on mount', async () => {
-    const save = vi.fn(async () => undefined);
+    const save = vi.fn(async (_values: unknown) => undefined);
     render(<Probe save={save} debounceMs={50} />);
 
     await act(async () => {
@@ -84,7 +84,7 @@ describe('useDebouncedAutosave', () => {
   });
 
   it('fires once after the debounce window closes', async () => {
-    const save = vi.fn(async () => undefined);
+    const save = vi.fn(async (_values: unknown) => undefined);
     render(<Probe save={save} debounceMs={50} />);
 
     type(screen.getByLabelText('headline'), 'Senior Engineer');
@@ -103,7 +103,7 @@ describe('useDebouncedAutosave', () => {
   });
 
   it('coalesces a burst of edits into a single save', async () => {
-    const save = vi.fn(async () => undefined);
+    const save = vi.fn(async (_values: unknown) => undefined);
     render(<Probe save={save} debounceMs={50} />);
     const input = screen.getByLabelText('headline');
 
@@ -121,7 +121,7 @@ describe('useDebouncedAutosave', () => {
   });
 
   it('saves the latest value, not the first one typed', async () => {
-    const save = vi.fn(async () => undefined);
+    const save = vi.fn(async (_values: unknown) => undefined);
     render(<Probe save={save} debounceMs={50} />);
     const input = screen.getByLabelText('headline');
 
@@ -139,7 +139,7 @@ describe('useDebouncedAutosave', () => {
   });
 
   it('reports error state when the save rejects, and does not throw', async () => {
-    const save = vi.fn(async () => {
+    const save = vi.fn(async (_values: unknown) => {
       throw new Error('network down');
     });
     render(<Probe save={save} debounceMs={50} />);
@@ -159,7 +159,7 @@ describe('useDebouncedAutosave', () => {
   });
 
   it('stays idle when disabled', async () => {
-    const save = vi.fn(async () => undefined);
+    const save = vi.fn(async (_values: unknown) => undefined);
     // `enabled={false}` path — modelled by not rendering a change path,
     // so simply assert a disabled probe never fires.
     function Disabled() {

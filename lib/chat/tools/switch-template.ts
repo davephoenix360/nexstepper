@@ -4,15 +4,7 @@ import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { saveResumeRevision } from '@/lib/db/queries';
 import type { SwitchTemplateArgs } from './types';
-import { AVAILABLE_TEMPLATES } from '../system-prompt';
-
-const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
-  minimal: 'Minimal — clean, single-column, typography-focused',
-  classic: 'Classic — traditional two-column with clear hierarchy',
-  executive: 'Executive — formal, bold headers, senior-role optimised',
-  creative: 'Creative — visual, colour accents, design-forward',
-  modern: 'Modern — contemporary layout with balanced whitespace'
-};
+import { describeTemplate, isValidTemplateId, TEMPLATE_IDS } from '../templates';
 
 /**
  * Execute a `switchTemplate` tool call.
@@ -31,13 +23,14 @@ export async function executeSwitchTemplate(
 
   const userId = session.user.id;
 
-  // Validate the requested template ID.
-  if (
-    !(AVAILABLE_TEMPLATES as readonly string[]).includes(args.templateId)
-  ) {
+  // Validate against the registry, not a hand-written list. This was the
+  // third copy of that list and the one that actually gated the feature:
+  // the Jake template was unreachable from chat even though it existed,
+  // because the validator here rejected it by name.
+  if (!isValidTemplateId(args.templateId)) {
     return {
       ok: false,
-      error: `Unknown template: ${args.templateId}. Available: ${AVAILABLE_TEMPLATES.join(', ')}`
+      error: `Unknown template: ${args.templateId}. Available: ${TEMPLATE_IDS.join(', ')}`
     };
   }
 
@@ -53,7 +46,7 @@ export async function executeSwitchTemplate(
       message: `Switched template to ${args.templateId} via AI chat`
     });
     if (!rev) return { ok: false, error: 'Failed to save template change' };
-    const desc = TEMPLATE_DESCRIPTIONS[args.templateId] ?? args.templateId;
+    const desc = describeTemplate(args.templateId);
     return {
       ok: true,
       result: `Template switched to **${args.templateId}** (${desc}). Your preview has been updated.`

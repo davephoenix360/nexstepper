@@ -9,9 +9,12 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { templateRegistry } from '@/components/resume-templates';
+
 import {
   CLEARABLE_SECTIONS,
   editResumeArgsSchema,
+  getAtsScoreArgsSchema,
   switchTemplateArgsSchema
 } from '@/lib/chat/tools/types';
 
@@ -90,14 +93,35 @@ describe('editResumeArgsSchema — no identifier the model cannot see', () => {
 });
 
 describe('switchTemplateArgsSchema', () => {
-  it('accepts the five shipped templates', () => {
-    for (const id of ['minimal', 'classic', 'executive', 'creative', 'modern']) {
+  it('accepts every template in the registry', () => {
+    // Derived from `templateRegistry`, not a hand-written list. The old
+    // list was a `z.enum([...])` of five ids, so the model could not even
+    // NAME a template that was missing from it — the AI SDK validates
+    // tool arguments against this schema before the executor ever runs.
+    for (const id of Object.keys(templateRegistry)) {
       const parsed = switchTemplateArgsSchema.safeParse({ templateId: id });
       expect(parsed.success, `templateId: ${id}`).toBe(true);
     }
   });
 
+  it('accepts the jake template (the regression)', () => {
+    expect(switchTemplateArgsSchema.safeParse({ templateId: 'jake' }).success).toBe(true);
+  });
+
   it('rejects a template that does not exist', () => {
     expect(switchTemplateArgsSchema.safeParse({ templateId: 'neon' }).success).toBe(false);
+  });
+});
+
+describe('getAtsScoreArgsSchema', () => {
+  it('accepts an empty call — the tool targets the attached resume', () => {
+    const parsed = getAtsScoreArgsSchema.safeParse({});
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects a resume id, so the agent cannot ask about a resume it cannot see', () => {
+    // The chat session is attached to one resume. Accepting an id would
+    // let the model request a score for a document it has no context for.
+    expect(getAtsScoreArgsSchema.safeParse({ resumeId: 'r-1' }).success).toBe(false);
   });
 });
