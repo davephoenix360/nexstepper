@@ -171,6 +171,50 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **ATS scoring v3 EVALUATED (nothing shipped yet)** — the ATS score was
+  measuring the wrong things, and Jev's role in fixing it is now
+  measured rather than guessed. Plan:
+  `docs/plans/ats-scoring-v3-jev.md`. Drift memo:
+  `docs/drift/2026-10-22-ats-scoring-jev-evaluation.md`.
+  **The finding:** the skill matcher is NOT broken — Jev agrees with it
+  81.6% of the time and finds zero false alarms across the 50-JD
+  corpus. What IS broken is the VOCABULARY: the ATS Keyword Match
+  sub-criterion counts every non-stop-word token in the JD (including
+  the benefits list) and asks what fraction the resume contains. For a
+  realistic JD that is 49 tokens of which **33 are missing (67%)** for
+  a candidate who has every required skill — the missing ones include
+  `insurance`, `budget`, `remote`, `friendly`, `company`. That
+  sub-criterion carries 12.6% of the score and feeds the tip that says
+  **"Add these missing keywords from the JD"**, so the product was
+  advising users to keyword-stuff their resumes. **Jev
+  (`typesafe-ai/jev`, on the Vercel AI Gateway at $0.042/M input and
+  FREE output) is genuinely good at the job it was proposed for:**
+  classifying which JD lines are genuine skills scores **AUC 0.926**
+  against the corpus's hand-authored skill lists, and substituting a
+  Jev-derived ATS Matching dimension into the real engine moves Pearson
+  r from 0.910 to **0.927** (mean absolute error 13.40 → **10.60**,
+  a 21% cut). A full 50-JD measurement sweep costs **$0.0058** and
+  takes 7.3 s. **The degree bug is three problems and only one needs a
+  model:** (a) `JobPosting` has NO field for eligibility criteria, so a
+  "Bachelor's degree" requirement has nowhere to go but into
+  `mustHaveSkills` — and the extractor prompt explicitly lists
+  "Qualifications" as a must-have section header; (b) the engine cannot
+  express "or equivalent experience" (Jev answers that at 0.96 in a live
+  probe); (c) the eligibility check needs NO model at all —
+  `EducationEntry` already carries `degreeLevel` / `startDate` /
+  `endDate`, so "will they hold it by the start date?" is arithmetic in
+  pure TypeScript. **Two integration paths, and they differ:** the
+  gateway's TypeSafe-compatible API
+  (`https://ai-gateway.vercel.sh/typesafe/v1/systemone`) was VERIFIED
+  working against the project's own `AI_GATEWAY_API_KEY` with no
+  dependency change; the AI SDK's documented `experimental_decide` needs
+  `ai` ≥ 7.0.128 and this project is on 6.0.224 (a locked-stack
+  change, deliberately not bundled in). Harness:
+  `scripts/measure-jev-corpus.cjs` → `tests/fixtures/jev-corpus-measurements.json`,
+  pinned offline by `tests/unit/scoring/jev-corpus.test.ts`. **No
+  production code changed** — the ATS score users see today is
+  unchanged.
+
 - **The agent can now MEASURE page length instead of guessing it** —
   branch `feat/chat-agent-v3-phase-a`. New tool `estimatePageCount`
   (`lib/chat/tools/estimate-page-count.ts`, backed by

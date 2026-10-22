@@ -1,0 +1,5954 @@
+{
+  "_comment": "Jev (typesafe-ai/jev) measurements over the 50-JD ATS validation corpus. Produced by scripts/measure-jev-corpus.cjs. The Pearson comparison against the current engine lives in tests/unit/scoring/jev-corpus.test.ts and reads this file, so the claim is pinned by an offline test.",
+  "summary": {
+    "model": "jev-1.14.0",
+    "measuredAt": "2026-10-22T21:19:32.812Z",
+    "corpusSize": 50,
+    "linesClassified": 428,
+    "skillLineRate": 0.7476635514018691,
+    "meanPSkillForRealSkills": 0.8725739644970419,
+    "meanPSkillForNonSkills": 0.27744444444444444,
+    "auc": 0.9255588428665352,
+    "control": {
+      "n": 299,
+      "meanPDemonstratedForPresent": 0.7656223175965661,
+      "meanPDemonstratedForAbsent": 0.1095454545454545,
+      "agreement": 0.8160535117056856
+    },
+    "usage": {
+      "inputTokens": 138464,
+      "outputTokens": 17439,
+      "estimatedCostUsd": 0.005815488,
+      "wallClockSeconds": 7.258
+    }
+  },
+  "measurements": [
+    {
+      "id": "S-001",
+      "tier": "strong",
+      "idealScore": 92,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of professional backend engineering experience",
+          "pSkill": 0.1
+        },
+        {
+          "line": "Strong TypeScript and Node.js skills",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production experience with PostgreSQL at scale",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Hands-on AWS (ECS, RDS, S3, Lambda)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Experience designing REST APIs and microservices",
+          "pSkill": 0.86
+        },
+        {
+          "line": "Track record of mentoring engineers and leading technical projects",
+          "pSkill": 0.15
+        },
+        {
+          "line": "GraphQL experience",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Redis or Memcached",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes / Helm",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform IaC",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong TypeScript and Node.js skills",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Production experience with PostgreSQL at scale",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Hands-on AWS (ECS, RDS, S3, Lambda)",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Experience designing REST APIs and microservices",
+          "pSkill": 0.86,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "GraphQL experience",
+          "pSkill": 0.98,
+          "evidence": 2.54,
+          "confidence": 0.54
+        },
+        {
+          "line": "Redis or Memcached",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Kubernetes / Helm",
+          "pSkill": 0.98,
+          "evidence": 2.79,
+          "confidence": 0.8
+        },
+        {
+          "line": "Terraform IaC",
+          "pSkill": 0.98,
+          "evidence": 2.62,
+          "confidence": 0.62
+        }
+      ],
+      "jevAtsMatching": 98.18333333333334,
+      "jevCoverage": 1,
+      "jevDepth": 0.9545833333333333,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "microservices",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "S-002",
+      "tier": "strong",
+      "idealScore": 90,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of platform or infrastructure engineering",
+          "pSkill": 0.12
+        },
+        {
+          "line": "Strong Python and Go",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production Kubernetes experience",
+          "pSkill": 0.93
+        },
+        {
+          "line": "Terraform IaC at scale",
+          "pSkill": 0.97
+        },
+        {
+          "line": "AWS (EKS, IAM, VPC, RDS)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Experience designing developer-facing platforms",
+          "pSkill": 0.28
+        },
+        {
+          "line": "Helm chart authoring",
+          "pSkill": 0.98
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Service mesh (Istio / Linkerd)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Cross-cloud experience (GCP / Azure)",
+          "pSkill": 0.77
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong Python and Go",
+          "pSkill": 0.98,
+          "evidence": 2.37,
+          "confidence": 0.36
+        },
+        {
+          "line": "Production Kubernetes experience",
+          "pSkill": 0.93,
+          "evidence": 2.99,
+          "confidence": 1
+        },
+        {
+          "line": "Terraform IaC at scale",
+          "pSkill": 0.97,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "AWS (EKS, IAM, VPC, RDS)",
+          "pSkill": 0.98,
+          "evidence": 2.93,
+          "confidence": 0.92
+        },
+        {
+          "line": "Helm chart authoring",
+          "pSkill": 0.98,
+          "evidence": 1.04,
+          "confidence": 0.95
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Service mesh (Istio / Linkerd)",
+          "pSkill": 0.98,
+          "evidence": 2.85,
+          "confidence": 0.85
+        },
+        {
+          "line": "Cross-cloud experience (GCP / Azure)",
+          "pSkill": 0.77,
+          "evidence": 1.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 91.98333333333333,
+      "jevCoverage": 1,
+      "jevDepth": 0.7995833333333334,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "Go",
+          "label": "present",
+          "pDemonstrated": 0.6
+        },
+        {
+          "skill": "Kubernetes",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Terraform",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "platform engineering",
+          "label": "present",
+          "pDemonstrated": 0.98
+        }
+      ]
+    },
+    {
+      "id": "S-003",
+      "tier": "strong",
+      "idealScore": 91,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "4+ years of frontend engineering experience",
+          "pSkill": 0.11
+        },
+        {
+          "line": "Deep React + TypeScript expertise",
+          "pSkill": 0.94
+        },
+        {
+          "line": "Production Next.js experience",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Strong CSS and responsive design fundamentals",
+          "pSkill": 0.91
+        },
+        {
+          "line": "Experience with accessibility (WCAG 2.1 AA)",
+          "pSkill": 0.83
+        },
+        {
+          "line": "Track record of leading frontend projects",
+          "pSkill": 0.14
+        },
+        {
+          "line": "React Server Components",
+          "pSkill": 0.98
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Webpack / Vite",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Design system ownership",
+          "pSkill": 0.27
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Deep React + TypeScript expertise",
+          "pSkill": 0.94,
+          "evidence": 2.79,
+          "confidence": 0.79
+        },
+        {
+          "line": "Production Next.js experience",
+          "pSkill": 0.96,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Strong CSS and responsive design fundamentals",
+          "pSkill": 0.91,
+          "evidence": 2.83,
+          "confidence": 0.83
+        },
+        {
+          "line": "Experience with accessibility (WCAG 2.1 AA)",
+          "pSkill": 0.83,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "React Server Components",
+          "pSkill": 0.98,
+          "evidence": 2.95,
+          "confidence": 0.96
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "Webpack / Vite",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 84.91428571428571,
+      "jevCoverage": 0.8571428571428571,
+      "jevDepth": 0.8371428571428571,
+      "control": [
+        {
+          "skill": "React",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Next.js",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "CSS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "accessibility",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "responsive design",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "S-004",
+      "tier": "strong",
+      "idealScore": 89,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of data engineering experience",
+          "pSkill": 0.08
+        },
+        {
+          "line": "Strong Python and SQL",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Production Spark (or Flink) at scale",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Airflow or Prefect / Dagster",
+          "pSkill": 0.98
+        },
+        {
+          "line": "dbt + data modeling",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS (S3, Glue, Redshift)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kafka / Kinesis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Snowflake / BigQuery",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform IaC",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Data observability tools (Monte Carlo / Soda)",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 9,
+      "evidence": [
+        {
+          "line": "Strong Python and SQL",
+          "pSkill": 0.96,
+          "evidence": 2.21,
+          "confidence": 0.7
+        },
+        {
+          "line": "Production Spark (or Flink) at scale",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Airflow or Prefect / Dagster",
+          "pSkill": 0.98,
+          "evidence": 2.96,
+          "confidence": 0.95
+        },
+        {
+          "line": "dbt + data modeling",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "AWS (S3, Glue, Redshift)",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Kafka / Kinesis",
+          "pSkill": 0.98,
+          "evidence": 2.95,
+          "confidence": 0.95
+        },
+        {
+          "line": "Snowflake / BigQuery",
+          "pSkill": 0.98,
+          "evidence": 1.02,
+          "confidence": 0.99
+        },
+        {
+          "line": "Terraform IaC",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "Data observability tools (Monte Carlo / Soda)",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 84.66666666666666,
+      "jevCoverage": 0.8888888888888888,
+      "jevDepth": 0.7833333333333334,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Spark",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Airflow",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "dbt",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        }
+      ]
+    },
+    {
+      "id": "S-005",
+      "tier": "strong",
+      "idealScore": 91,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of applied ML / NLP",
+          "pSkill": 0.12
+        },
+        {
+          "line": "Strong Python and PyTorch (or TensorFlow)",
+          "pSkill": 0.99
+        },
+        {
+          "line": "Experience fine-tuning and deploying transformer models",
+          "pSkill": 0.94
+        },
+        {
+          "line": "Familiarity with MLOps (model serving, monitoring, retraining)",
+          "pSkill": 0.75
+        },
+        {
+          "line": "AWS or GCP for training + serving",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Track record of shipping ML in production",
+          "pSkill": 0.17
+        },
+        {
+          "line": "RAG / vector databases (Pinecone, Weaviate)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Distributed training (FSDP, DeepSpeed)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Rust or C++ for inference optimization",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Open-source LLM contributions",
+          "pSkill": 0.44
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Strong Python and PyTorch (or TensorFlow)",
+          "pSkill": 0.99,
+          "evidence": 2.98,
+          "confidence": 0.98
+        },
+        {
+          "line": "Experience fine-tuning and deploying transformer models",
+          "pSkill": 0.94,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Familiarity with MLOps (model serving, monitoring, retraining)",
+          "pSkill": 0.75,
+          "evidence": 2.95,
+          "confidence": 0.96
+        },
+        {
+          "line": "AWS or GCP for training + serving",
+          "pSkill": 0.97,
+          "evidence": 2.93,
+          "confidence": 0.94
+        },
+        {
+          "line": "RAG / vector databases (Pinecone, Weaviate)",
+          "pSkill": 0.98,
+          "evidence": 2.92,
+          "confidence": 0.92
+        },
+        {
+          "line": "Distributed training (FSDP, DeepSpeed)",
+          "pSkill": 0.98,
+          "evidence": 1.03,
+          "confidence": 0.96
+        },
+        {
+          "line": "Rust or C++ for inference optimization",
+          "pSkill": 0.98,
+          "evidence": 0.07,
+          "confidence": 0.92
+        }
+      ],
+      "jevAtsMatching": 81.65714285714286,
+      "jevCoverage": 0.8571428571428571,
+      "jevDepth": 0.7557142857142858,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "PyTorch",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "NLP",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "transformers",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "MLOps",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        }
+      ]
+    },
+    {
+      "id": "S-006",
+      "tier": "strong",
+      "idealScore": 89,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of SRE or production engineering",
+          "pSkill": 0.1
+        },
+        {
+          "line": "Production Kubernetes experience",
+          "pSkill": 0.95
+        },
+        {
+          "line": "Terraform IaC at scale",
+          "pSkill": 0.97
+        },
+        {
+          "line": "AWS (EKS, VPC, IAM)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Prometheus + Grafana observability",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Incident response leadership",
+          "pSkill": 0.22
+        },
+        {
+          "line": "Helm chart authoring",
+          "pSkill": 0.97
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.97
+        },
+        {
+          "line": "On-call rotation experience",
+          "pSkill": 0.16
+        },
+        {
+          "line": "Chaos engineering",
+          "pSkill": 0.91
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Production Kubernetes experience",
+          "pSkill": 0.95,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Terraform IaC at scale",
+          "pSkill": 0.97,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "AWS (EKS, VPC, IAM)",
+          "pSkill": 0.98,
+          "evidence": 2.89,
+          "confidence": 0.9
+        },
+        {
+          "line": "Prometheus + Grafana observability",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Helm chart authoring",
+          "pSkill": 0.97,
+          "evidence": 1.02,
+          "confidence": 0.99
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.97,
+          "evidence": 1.03,
+          "confidence": 0.97
+        },
+        {
+          "line": "Chaos engineering",
+          "pSkill": 0.91,
+          "evidence": 2.99,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 92.22857142857143,
+      "jevCoverage": 1,
+      "jevDepth": 0.8057142857142858,
+      "control": [
+        {
+          "skill": "Kubernetes",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "Terraform",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Prometheus",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Grafana",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "incident response",
+          "label": "present",
+          "pDemonstrated": 0.98
+        }
+      ]
+    },
+    {
+      "id": "S-007",
+      "tier": "strong",
+      "idealScore": 90,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of iOS engineering",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Strong Swift and SwiftUI",
+          "pSkill": 0.98
+        },
+        {
+          "line": "iOS SDK + Xcode expertise",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Experience with Core Data or GRDB",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Unit and UI testing on iOS",
+          "pSkill": 0.85
+        },
+        {
+          "line": "App Store submission experience",
+          "pSkill": 0.56
+        },
+        {
+          "line": "Combine / Swift Concurrency",
+          "pSkill": 0.98
+        },
+        {
+          "line": "MVVM / Clean Architecture",
+          "pSkill": 0.93
+        },
+        {
+          "line": "GraphQL clients",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Accessibility (VoiceOver)",
+          "pSkill": 0.96
+        }
+      ],
+      "skillLineCount": 9,
+      "evidence": [
+        {
+          "line": "Strong Swift and SwiftUI",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "iOS SDK + Xcode expertise",
+          "pSkill": 0.97,
+          "evidence": 1.66,
+          "confidence": 0.33
+        },
+        {
+          "line": "Experience with Core Data or GRDB",
+          "pSkill": 0.98,
+          "evidence": 2.98,
+          "confidence": 0.99
+        },
+        {
+          "line": "Unit and UI testing on iOS",
+          "pSkill": 0.85,
+          "evidence": 2.99,
+          "confidence": 1
+        },
+        {
+          "line": "App Store submission experience",
+          "pSkill": 0.56,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Combine / Swift Concurrency",
+          "pSkill": 0.98,
+          "evidence": 2.18,
+          "confidence": 0.74
+        },
+        {
+          "line": "MVVM / Clean Architecture",
+          "pSkill": 0.93,
+          "evidence": 1.96,
+          "confidence": 0.9
+        },
+        {
+          "line": "GraphQL clients",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "Accessibility (VoiceOver)",
+          "pSkill": 0.96,
+          "evidence": 3,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 84.1037037037037,
+      "jevCoverage": 0.8888888888888888,
+      "jevDepth": 0.7692592592592594,
+      "control": [
+        {
+          "skill": "Swift",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "SwiftUI",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "iOS SDK",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Xcode",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Core Data",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "unit testing",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "S-008",
+      "tier": "strong",
+      "idealScore": 88,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of product management",
+          "pSkill": 0.11
+        },
+        {
+          "line": "B2B SaaS experience",
+          "pSkill": 0.19
+        },
+        {
+          "line": "Strong SQL and analytics skills",
+          "pSkill": 0.92
+        },
+        {
+          "line": "Experience with A/B testing and experimentation",
+          "pSkill": 0.9
+        },
+        {
+          "line": "Cross-functional leadership (eng, design, sales, CS)",
+          "pSkill": 0.19
+        },
+        {
+          "line": "Track record of shipping 0-to-1 and 1-to-N products",
+          "pSkill": 0.17
+        },
+        {
+          "line": "Integrations or platform PM experience",
+          "pSkill": 0.33
+        },
+        {
+          "line": "Mixpanel / Amplitude / Tableau",
+          "pSkill": 0.97
+        },
+        {
+          "line": "OKR ownership",
+          "pSkill": 0.25
+        },
+        {
+          "line": "Enterprise customer-facing experience",
+          "pSkill": 0.18
+        }
+      ],
+      "skillLineCount": 3,
+      "evidence": [
+        {
+          "line": "Strong SQL and analytics skills",
+          "pSkill": 0.92,
+          "evidence": 2.78,
+          "confidence": 0.78
+        },
+        {
+          "line": "Experience with A/B testing and experimentation",
+          "pSkill": 0.9,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Mixpanel / Amplitude / Tableau",
+          "pSkill": 0.97,
+          "evidence": 2.97,
+          "confidence": 0.97
+        }
+      ],
+      "jevAtsMatching": 98.88888888888889,
+      "jevCoverage": 1,
+      "jevDepth": 0.9722222222222222,
+      "control": [
+        {
+          "skill": "product strategy",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "roadmap",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "A/B testing",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.9
+        },
+        {
+          "skill": "analytics",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "stakeholder management",
+          "label": "present",
+          "pDemonstrated": 0.96
+        }
+      ]
+    },
+    {
+      "id": "S-009",
+      "tier": "strong",
+      "idealScore": 92,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "8+ years of backend engineering",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Production distributed systems experience",
+          "pSkill": 0.54
+        },
+        {
+          "line": "Strong systems design and architecture skills",
+          "pSkill": 0.65
+        },
+        {
+          "line": "Mentorship and technical leadership",
+          "pSkill": 0.2
+        },
+        {
+          "line": "Go or Rust at scale",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Cross-team collaboration",
+          "pSkill": 0.16
+        },
+        {
+          "line": "Kafka / Pulsar / NATS",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Consensus algorithms (Raft, Paxos)",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Open-source contributions",
+          "pSkill": 0.23
+        },
+        {
+          "line": "Performance engineering",
+          "pSkill": 0.76
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Production distributed systems experience",
+          "pSkill": 0.54,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Strong systems design and architecture skills",
+          "pSkill": 0.65,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Go or Rust at scale",
+          "pSkill": 0.97,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Kafka / Pulsar / NATS",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Consensus algorithms (Raft, Paxos)",
+          "pSkill": 0.96,
+          "evidence": 2.97,
+          "confidence": 0.98
+        },
+        {
+          "line": "Performance engineering",
+          "pSkill": 0.76,
+          "evidence": 2.95,
+          "confidence": 0.96
+        }
+      ],
+      "jevAtsMatching": 99.75555555555556,
+      "jevCoverage": 1,
+      "jevDepth": 0.9938888888888889,
+      "control": [
+        {
+          "skill": "distributed systems",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "system design",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Go",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "architecture",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "mentoring",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Kafka",
+          "label": "present",
+          "pDemonstrated": 0.98
+        }
+      ]
+    },
+    {
+      "id": "S-010",
+      "tier": "strong",
+      "idealScore": 87,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "7+ years of engineering experience",
+          "pSkill": 0.06
+        },
+        {
+          "line": "3+ years of engineering management",
+          "pSkill": 0.12
+        },
+        {
+          "line": "Strong people-management skills (hiring, performance, coaching)",
+          "pSkill": 0.23
+        },
+        {
+          "line": "Agile / sprint planning experience",
+          "pSkill": 0.8
+        },
+        {
+          "line": "Technical background in backend engineering",
+          "pSkill": 0.46
+        },
+        {
+          "line": "Cross-functional stakeholder management",
+          "pSkill": 0.25
+        },
+        {
+          "line": "OKR ownership",
+          "pSkill": 0.32
+        },
+        {
+          "line": "Budget management",
+          "pSkill": 0.27
+        },
+        {
+          "line": "Org design experience",
+          "pSkill": 0.24
+        },
+        {
+          "line": "Tech-lead or staff-engineer background",
+          "pSkill": 0.18
+        }
+      ],
+      "skillLineCount": 1,
+      "evidence": [
+        {
+          "line": "Agile / sprint planning experience",
+          "pSkill": 0.8,
+          "evidence": 2.08,
+          "confidence": 0.88
+        }
+      ],
+      "jevAtsMatching": 87.73333333333333,
+      "jevCoverage": 1,
+      "jevDepth": 0.6933333333333334,
+      "control": [
+        {
+          "skill": "team management",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "hiring",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "performance reviews",
+          "label": "present",
+          "pDemonstrated": 0.88
+        },
+        {
+          "skill": "agile",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "technical leadership",
+          "label": "present",
+          "pDemonstrated": 0.9
+        },
+        {
+          "skill": "stakeholder management",
+          "label": "present",
+          "pDemonstrated": 0.9
+        }
+      ]
+    },
+    {
+      "id": "G-001",
+      "tier": "good",
+      "idealScore": 76,
+      "lineCount": 10,
+      "classified": [
+        {
+          "line": "5+ years of backend engineering",
+          "pSkill": 0.11
+        },
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production PostgreSQL experience",
+          "pSkill": 0.97
+        },
+        {
+          "line": "REST API design",
+          "pSkill": 0.92
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 9,
+      "evidence": [
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98,
+          "evidence": 1.24,
+          "confidence": 0.77
+        },
+        {
+          "line": "Production PostgreSQL experience",
+          "pSkill": 0.97,
+          "evidence": 2.12,
+          "confidence": 0.84
+        },
+        {
+          "line": "REST API design",
+          "pSkill": 0.92,
+          "evidence": 2.12,
+          "confidence": 0.41
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89,
+          "evidence": 2.92,
+          "confidence": 0.91
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 2.77,
+          "confidence": 0.76
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 1
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 1,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 80.23703703703703,
+      "jevCoverage": 0.8888888888888888,
+      "jevDepth": 0.6725925925925926,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.53
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.36
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.9
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "microservices",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        }
+      ]
+    },
+    {
+      "id": "G-002",
+      "tier": "good",
+      "idealScore": 72,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of backend engineering",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL at scale",
+          "pSkill": 0.97
+        },
+        {
+          "line": "REST + GraphQL API design",
+          "pSkill": 0.95
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.99
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98,
+          "evidence": 1.04,
+          "confidence": 0.96
+        },
+        {
+          "line": "PostgreSQL at scale",
+          "pSkill": 0.97,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "REST + GraphQL API design",
+          "pSkill": 0.95,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89,
+          "evidence": 1.23,
+          "confidence": 0.76
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.97,
+          "evidence": 2.8,
+          "confidence": 0.79
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 0.02,
+          "confidence": 0.99
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.99,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 55.983333333333334,
+      "jevCoverage": 0.625,
+      "jevDepth": 0.46208333333333335,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.52
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.31
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "GraphQL",
+          "label": "present",
+          "pDemonstrated": 0.88
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "G-003",
+      "tier": "good",
+      "idealScore": 79,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "4+ years of fullstack engineering",
+          "pSkill": 0.11
+        },
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production Node.js + Express (or Fastify)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99
+        },
+        {
+          "line": "REST API design",
+          "pSkill": 0.91
+        },
+        {
+          "line": "Some Next.js experience",
+          "pSkill": 0.95
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Production Node.js + Express (or Fastify)",
+          "pSkill": 0.98,
+          "evidence": 2.14,
+          "confidence": 0.68
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99,
+          "evidence": 2.07,
+          "confidence": 0.85
+        },
+        {
+          "line": "REST API design",
+          "pSkill": 0.91,
+          "evidence": 1.36,
+          "confidence": 0.63
+        },
+        {
+          "line": "Some Next.js experience",
+          "pSkill": 0.95,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 56.8,
+      "jevCoverage": 0.625,
+      "jevDepth": 0.4825,
+      "control": [
+        {
+          "skill": "React",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "Next.js",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.91
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.89
+        }
+      ]
+    },
+    {
+      "id": "G-004",
+      "tier": "good",
+      "idealScore": 70,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of data engineering",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Strong Python and SQL",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Production Spark",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99
+        },
+        {
+          "line": "dbt + data modeling",
+          "pSkill": 0.97
+        },
+        {
+          "line": "AWS (S3, Glue, Redshift)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Snowflake",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong Python and SQL",
+          "pSkill": 0.96,
+          "evidence": 2.93,
+          "confidence": 0.93
+        },
+        {
+          "line": "Production Spark",
+          "pSkill": 0.96,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "dbt + data modeling",
+          "pSkill": 0.97,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "AWS (S3, Glue, Redshift)",
+          "pSkill": 0.98,
+          "evidence": 2.17,
+          "confidence": 0.48
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Snowflake",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 48.55,
+      "jevCoverage": 0.5,
+      "jevDepth": 0.46374999999999994,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Airflow",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "dbt",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "Spark",
+          "label": "absent",
+          "pDemonstrated": 0.11
+        }
+      ]
+    },
+    {
+      "id": "G-005",
+      "tier": "good",
+      "idealScore": 71,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of applied ML",
+          "pSkill": 0.11
+        },
+        {
+          "line": "Strong Python and PyTorch (or TensorFlow)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Transformer fine-tuning and deployment",
+          "pSkill": 0.94
+        },
+        {
+          "line": "MLOps (model serving, monitoring, retraining)",
+          "pSkill": 0.73
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Production ML shipping experience",
+          "pSkill": 0.26
+        },
+        {
+          "line": "RAG / vector databases",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Distributed training (FSDP, DeepSpeed)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Rust or C++ inference",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Strong Python and PyTorch (or TensorFlow)",
+          "pSkill": 0.98,
+          "evidence": 2.98,
+          "confidence": 0.98
+        },
+        {
+          "line": "Transformer fine-tuning and deployment",
+          "pSkill": 0.94,
+          "evidence": 0.99,
+          "confidence": 0.96
+        },
+        {
+          "line": "MLOps (model serving, monitoring, retraining)",
+          "pSkill": 0.73,
+          "evidence": 1.36,
+          "confidence": 0.35
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.96,
+          "evidence": 1.2,
+          "confidence": 0.79
+        },
+        {
+          "line": "RAG / vector databases",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Distributed training (FSDP, DeepSpeed)",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Rust or C++ inference",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 38.17142857142857,
+      "jevCoverage": 0.42857142857142855,
+      "jevDepth": 0.31142857142857144,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "PyTorch",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "transformers",
+          "label": "present",
+          "pDemonstrated": 0.56
+        },
+        {
+          "skill": "MLOps",
+          "label": "present",
+          "pDemonstrated": 0.4
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.83
+        },
+        {
+          "skill": "NLP",
+          "label": "absent",
+          "pDemonstrated": 0.26
+        }
+      ]
+    },
+    {
+      "id": "G-006",
+      "tier": "good",
+      "idealScore": 74,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of backend engineering",
+          "pSkill": 0.1
+        },
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production PostgreSQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "REST + GraphQL API design",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98,
+          "evidence": 1.08,
+          "confidence": 0.92
+        },
+        {
+          "line": "Production PostgreSQL",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "REST + GraphQL API design",
+          "pSkill": 0.96,
+          "evidence": 1.19,
+          "confidence": 0.4
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89,
+          "evidence": 2.99,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 2.85,
+          "confidence": 0.86
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 2.98,
+          "confidence": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 1.13,
+          "confidence": 0.86
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 77.88333333333333,
+      "jevCoverage": 0.875,
+      "jevDepth": 0.6345833333333333,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.5
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.39
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "GraphQL",
+          "label": "absent",
+          "pDemonstrated": 0.15
+        }
+      ]
+    },
+    {
+      "id": "G-007",
+      "tier": "good",
+      "idealScore": 72,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of iOS engineering",
+          "pSkill": 0.08
+        },
+        {
+          "line": "Strong Swift and SwiftUI",
+          "pSkill": 0.97
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Unit and UI testing on iOS",
+          "pSkill": 0.8
+        },
+        {
+          "line": "App Store submission experience",
+          "pSkill": 0.55
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98
+        },
+        {
+          "line": "MVVM",
+          "pSkill": 0.95
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong Swift and SwiftUI",
+          "pSkill": 0.97,
+          "evidence": 1.03,
+          "confidence": 0.97
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.98,
+          "evidence": 0.2,
+          "confidence": 0.81
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98,
+          "evidence": 0.05,
+          "confidence": 0.94
+        },
+        {
+          "line": "Unit and UI testing on iOS",
+          "pSkill": 0.8,
+          "evidence": 1.38,
+          "confidence": 0.35
+        },
+        {
+          "line": "App Store submission experience",
+          "pSkill": 0.55,
+          "evidence": 0.18,
+          "confidence": 0.83
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "MVVM",
+          "pSkill": 0.95,
+          "evidence": 1.44,
+          "confidence": 0.57
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 29.666666666666668,
+      "jevCoverage": 0.375,
+      "jevDepth": 0.17916666666666667,
+      "control": [
+        {
+          "skill": "Swift",
+          "label": "present",
+          "pDemonstrated": 0.41
+        },
+        {
+          "skill": "iOS SDK",
+          "label": "present",
+          "pDemonstrated": 0.18
+        },
+        {
+          "skill": "unit testing",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "SwiftUI",
+          "label": "absent",
+          "pDemonstrated": 0.2
+        },
+        {
+          "skill": "Xcode",
+          "label": "absent",
+          "pDemonstrated": 0.12
+        },
+        {
+          "skill": "Core Data",
+          "label": "absent",
+          "pDemonstrated": 0.15
+        }
+      ]
+    },
+    {
+      "id": "G-008",
+      "tier": "good",
+      "idealScore": 78,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of DevOps or platform engineering",
+          "pSkill": 0.12
+        },
+        {
+          "line": "Strong CI/CD (GitHub Actions, CircleCI, or Buildkite)",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Docker and Kubernetes",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform IaC",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS (EKS, ECS)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production observability",
+          "pSkill": 0.6
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Helm",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Service mesh",
+          "pSkill": 0.96
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong CI/CD (GitHub Actions, CircleCI, or Buildkite)",
+          "pSkill": 0.97,
+          "evidence": 2.96,
+          "confidence": 0.96
+        },
+        {
+          "line": "Docker and Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 2.81,
+          "confidence": 0.8
+        },
+        {
+          "line": "Terraform IaC",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "AWS (EKS, ECS)",
+          "pSkill": 0.98,
+          "evidence": 2.85,
+          "confidence": 0.85
+        },
+        {
+          "line": "Production observability",
+          "pSkill": 0.6,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.97,
+          "evidence": 2.83,
+          "confidence": 0.83
+        },
+        {
+          "line": "Helm",
+          "pSkill": 0.98,
+          "evidence": 1.03,
+          "confidence": 0.98
+        },
+        {
+          "line": "Service mesh",
+          "pSkill": 0.96,
+          "evidence": 0.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 83.3,
+      "jevCoverage": 0.875,
+      "jevDepth": 0.77,
+      "control": [
+        {
+          "skill": "CI/CD",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Docker",
+          "label": "present",
+          "pDemonstrated": 0.88
+        },
+        {
+          "skill": "Kubernetes",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Terraform",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "observability",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "G-009",
+      "tier": "good",
+      "idealScore": 73,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of product management",
+          "pSkill": 0.11
+        },
+        {
+          "line": "B2B SaaS experience",
+          "pSkill": 0.22
+        },
+        {
+          "line": "Strong SQL and analytics",
+          "pSkill": 0.93
+        },
+        {
+          "line": "A/B testing and experimentation",
+          "pSkill": 0.92
+        },
+        {
+          "line": "Cross-functional leadership",
+          "pSkill": 0.14
+        },
+        {
+          "line": "0-to-1 and 1-to-N shipping experience",
+          "pSkill": 0.22
+        },
+        {
+          "line": "Mixpanel",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Tableau",
+          "pSkill": 0.98
+        },
+        {
+          "line": "OKR ownership",
+          "pSkill": 0.19
+        }
+      ],
+      "skillLineCount": 4,
+      "evidence": [
+        {
+          "line": "Strong SQL and analytics",
+          "pSkill": 0.93,
+          "evidence": 2.86,
+          "confidence": 0.86
+        },
+        {
+          "line": "A/B testing and experimentation",
+          "pSkill": 0.92,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Mixpanel",
+          "pSkill": 0.98,
+          "evidence": 2.98,
+          "confidence": 0.98
+        },
+        {
+          "line": "Tableau",
+          "pSkill": 0.98,
+          "evidence": 2.38,
+          "confidence": 0.6
+        }
+      ],
+      "jevAtsMatching": 97.4,
+      "jevCoverage": 1,
+      "jevDepth": 0.9349999999999999,
+      "control": [
+        {
+          "skill": "product strategy",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "roadmap",
+          "label": "present",
+          "pDemonstrated": 0.87
+        },
+        {
+          "skill": "A/B testing",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.92
+        },
+        {
+          "skill": "analytics",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "stakeholder management",
+          "label": "absent",
+          "pDemonstrated": 0.55
+        }
+      ]
+    },
+    {
+      "id": "G-010",
+      "tier": "good",
+      "idealScore": 75,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of test automation",
+          "pSkill": 0.11
+        },
+        {
+          "line": "Strong Playwright or Cypress",
+          "pSkill": 0.98
+        },
+        {
+          "line": "TypeScript or Python",
+          "pSkill": 0.98
+        },
+        {
+          "line": "API testing (REST + GraphQL)",
+          "pSkill": 0.96
+        },
+        {
+          "line": "CI/CD test gates",
+          "pSkill": 0.72
+        },
+        {
+          "line": "Test architecture + strategy",
+          "pSkill": 0.28
+        },
+        {
+          "line": "Performance testing (k6, Gatling)",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Kubernetes test envs",
+          "pSkill": 0.93
+        },
+        {
+          "line": "Contract testing (Pact)",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Strong Playwright or Cypress",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "TypeScript or Python",
+          "pSkill": 0.98,
+          "evidence": 2.51,
+          "confidence": 0.51
+        },
+        {
+          "line": "API testing (REST + GraphQL)",
+          "pSkill": 0.96,
+          "evidence": 2.35,
+          "confidence": 0.59
+        },
+        {
+          "line": "CI/CD test gates",
+          "pSkill": 0.72,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Performance testing (k6, Gatling)",
+          "pSkill": 0.97,
+          "evidence": 2.1,
+          "confidence": 0.88
+        },
+        {
+          "line": "Kubernetes test envs",
+          "pSkill": 0.93,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Contract testing (Pact)",
+          "pSkill": 0.98,
+          "evidence": 2.27,
+          "confidence": 0.71
+        }
+      ],
+      "jevAtsMatching": 80.43809523809523,
+      "jevCoverage": 0.8571428571428571,
+      "jevDepth": 0.7252380952380951,
+      "control": [
+        {
+          "skill": "Playwright",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "API testing",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "REST",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "GraphQL",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "CI/CD",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "G-011",
+      "tier": "good",
+      "idealScore": 76,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of fullstack engineering",
+          "pSkill": 0.1
+        },
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production Node.js + Express (or Fastify)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99
+        },
+        {
+          "line": "REST API design",
+          "pSkill": 0.89
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Production Node.js + Express (or Fastify)",
+          "pSkill": 0.98,
+          "evidence": 2.89,
+          "confidence": 0.89
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99,
+          "evidence": 2.13,
+          "confidence": 0.81
+        },
+        {
+          "line": "REST API design",
+          "pSkill": 0.89,
+          "evidence": 2.57,
+          "confidence": 0.57
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 72.63333333333334,
+      "jevCoverage": 0.75,
+      "jevDepth": 0.6908333333333334,
+      "control": [
+        {
+          "skill": "React",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Next.js",
+          "label": "present",
+          "pDemonstrated": 0.9
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "G-012",
+      "tier": "good",
+      "idealScore": 71,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of data engineering",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Strong Python and SQL",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Production Flink (or Spark)",
+          "pSkill": 0.99
+        },
+        {
+          "line": "Kafka or Pulsar",
+          "pSkill": 0.98
+        },
+        {
+          "line": "dbt + data modeling",
+          "pSkill": 0.97
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Snowflake",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong Python and SQL",
+          "pSkill": 0.97,
+          "evidence": 1.61,
+          "confidence": 0.4
+        },
+        {
+          "line": "Production Flink (or Spark)",
+          "pSkill": 0.99,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Kafka or Pulsar",
+          "pSkill": 0.98,
+          "evidence": 2.98,
+          "confidence": 0.99
+        },
+        {
+          "line": "dbt + data modeling",
+          "pSkill": 0.97,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96,
+          "evidence": 1.68,
+          "confidence": 0.6
+        },
+        {
+          "line": "Snowflake",
+          "pSkill": 0.98,
+          "evidence": 2.95,
+          "confidence": 0.96
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.98,
+          "evidence": 2.94,
+          "confidence": 0.94
+        }
+      ],
+      "jevAtsMatching": 82.75,
+      "jevCoverage": 0.875,
+      "jevDepth": 0.75625,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "Flink",
+          "label": "present",
+          "pDemonstrated": 0.33
+        },
+        {
+          "skill": "Kafka",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "dbt",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.83
+        }
+      ]
+    },
+    {
+      "id": "P-001",
+      "tier": "partial",
+      "idealScore": 62,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years of backend engineering",
+          "pSkill": 0.1
+        },
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production PostgreSQL",
+          "pSkill": 0.96
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.96
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.91
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Strong TypeScript and Node.js",
+          "pSkill": 0.98,
+          "evidence": 1.42,
+          "confidence": 0.58
+        },
+        {
+          "line": "Production PostgreSQL",
+          "pSkill": 0.96,
+          "evidence": 2.72,
+          "confidence": 0.71
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.96,
+          "evidence": 2.94,
+          "confidence": 0.94
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.91,
+          "evidence": 1.21,
+          "confidence": 0.01
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 2.39,
+          "confidence": 0.53
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 63.23809523809524,
+      "jevCoverage": 0.7142857142857143,
+      "jevDepth": 0.5095238095238095,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.43
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.3
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.93
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "microservices",
+          "label": "absent",
+          "pDemonstrated": 0.35
+        }
+      ]
+    },
+    {
+      "id": "P-002",
+      "tier": "partial",
+      "idealScore": 56,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "3+ years of frontend engineering",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98
+        },
+        {
+          "line": "CSS and responsive design",
+          "pSkill": 0.97
+        },
+        {
+          "line": "REST or GraphQL consumption",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Testing fundamentals",
+          "pSkill": 0.61
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Redux",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Accessibility",
+          "pSkill": 0.86
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98,
+          "evidence": 2.56,
+          "confidence": 0.56
+        },
+        {
+          "line": "CSS and responsive design",
+          "pSkill": 0.97,
+          "evidence": 2.84,
+          "confidence": 0.84
+        },
+        {
+          "line": "REST or GraphQL consumption",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "Testing fundamentals",
+          "pSkill": 0.61,
+          "evidence": 2.68,
+          "confidence": 0.67
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Redux",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Accessibility",
+          "pSkill": 0.86,
+          "evidence": 0.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 41.16190476190476,
+      "jevCoverage": 0.42857142857142855,
+      "jevDepth": 0.38619047619047614,
+      "control": [
+        {
+          "skill": "React",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.91
+        },
+        {
+          "skill": "CSS",
+          "label": "present",
+          "pDemonstrated": 0.93
+        },
+        {
+          "skill": "responsive design",
+          "label": "present",
+          "pDemonstrated": 0.92
+        },
+        {
+          "skill": "REST APIs",
+          "label": "absent",
+          "pDemonstrated": 0.09
+        }
+      ]
+    },
+    {
+      "id": "P-003",
+      "tier": "partial",
+      "idealScore": 60,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years of backend engineering",
+          "pSkill": 0.11
+        },
+        {
+          "line": "Strong Python",
+          "pSkill": 0.89
+        },
+        {
+          "line": "PostgreSQL at scale",
+          "pSkill": 0.93
+        },
+        {
+          "line": "REST + GraphQL",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.96
+        },
+        {
+          "line": "FastAPI",
+          "pSkill": 0.99
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong Python",
+          "pSkill": 0.89,
+          "evidence": 1.22,
+          "confidence": 0.78
+        },
+        {
+          "line": "PostgreSQL at scale",
+          "pSkill": 0.93,
+          "evidence": 2.27,
+          "confidence": 0.69
+        },
+        {
+          "line": "REST + GraphQL",
+          "pSkill": 0.97,
+          "evidence": 2.73,
+          "confidence": 0.74
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.89,
+          "evidence": 2.94,
+          "confidence": 0.94
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.96,
+          "evidence": 2.53,
+          "confidence": 0.53
+        },
+        {
+          "line": "FastAPI",
+          "pSkill": 0.99,
+          "evidence": 0.29,
+          "confidence": 0.72
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 0.03,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 70.01666666666667,
+      "jevCoverage": 0.75,
+      "jevDepth": 0.6254166666666666,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.58
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.92
+        },
+        {
+          "skill": "GraphQL",
+          "label": "present",
+          "pDemonstrated": 0.92
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "microservices",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "P-004",
+      "tier": "partial",
+      "idealScore": 58,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years data engineering",
+          "pSkill": 0.08
+        },
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.99
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Snowflake",
+          "pSkill": 0.99
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97,
+          "evidence": 2.43,
+          "confidence": 0.43
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.98,
+          "evidence": 1.29,
+          "confidence": 0.59
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99,
+          "evidence": 1.24,
+          "confidence": 0.52
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.99,
+          "evidence": 1.26,
+          "confidence": 0.44
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 0.03,
+          "confidence": 0.98
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Snowflake",
+          "pSkill": 0.99,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 40.43333333333333,
+      "jevCoverage": 0.5,
+      "jevDepth": 0.2608333333333333,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.84
+        },
+        {
+          "skill": "Spark",
+          "label": "present",
+          "pDemonstrated": 0.27
+        },
+        {
+          "skill": "Airflow",
+          "label": "present",
+          "pDemonstrated": 0.16
+        },
+        {
+          "skill": "dbt",
+          "label": "present",
+          "pDemonstrated": 0.15
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.17
+        }
+      ]
+    },
+    {
+      "id": "P-005",
+      "tier": "partial",
+      "idealScore": 64,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years ML",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Python + PyTorch",
+          "pSkill": 0.98
+        },
+        {
+          "line": "transformer fine-tuning + deployment",
+          "pSkill": 0.95
+        },
+        {
+          "line": "MLOps",
+          "pSkill": 0.62
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.97
+        },
+        {
+          "line": "production ML shipping",
+          "pSkill": 0.21
+        },
+        {
+          "line": "RAG / vector databases",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Distributed training",
+          "pSkill": 0.95
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Python + PyTorch",
+          "pSkill": 0.98,
+          "evidence": 2.95,
+          "confidence": 0.95
+        },
+        {
+          "line": "transformer fine-tuning + deployment",
+          "pSkill": 0.95,
+          "evidence": 2.94,
+          "confidence": 0.93
+        },
+        {
+          "line": "MLOps",
+          "pSkill": 0.62,
+          "evidence": 2.47,
+          "confidence": 0.47
+        },
+        {
+          "line": "AWS or GCP",
+          "pSkill": 0.97,
+          "evidence": 2.85,
+          "confidence": 0.86
+        },
+        {
+          "line": "RAG / vector databases",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Distributed training",
+          "pSkill": 0.95,
+          "evidence": 0.03,
+          "confidence": 0.97
+        }
+      ],
+      "jevAtsMatching": 65,
+      "jevCoverage": 0.6666666666666666,
+      "jevDepth": 0.625,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "PyTorch",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "NLP",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "transformers",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "MLOps",
+          "label": "present",
+          "pDemonstrated": 0.72
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.95
+        }
+      ]
+    },
+    {
+      "id": "P-006",
+      "tier": "partial",
+      "idealScore": 55,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years backend",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Java + Spring Boot",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.91
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Java + Spring Boot",
+          "pSkill": 0.98,
+          "evidence": 1.08,
+          "confidence": 0.92
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99,
+          "evidence": 2.99,
+          "confidence": 1
+        },
+        {
+          "line": "Microservices",
+          "pSkill": 0.91,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 2.93,
+          "confidence": 0.93
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 0.02,
+          "confidence": 0.99
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 53.409523809523805,
+      "jevCoverage": 0.5714285714285714,
+      "jevDepth": 0.4780952380952381,
+      "control": [
+        {
+          "skill": "Java",
+          "label": "present",
+          "pDemonstrated": 0.36
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.95
+        },
+        {
+          "skill": "microservices",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Spring Boot",
+          "label": "absent",
+          "pDemonstrated": 0.12
+        },
+        {
+          "skill": "Kafka",
+          "label": "absent",
+          "pDemonstrated": 0.17
+        }
+      ]
+    },
+    {
+      "id": "P-007",
+      "tier": "partial",
+      "idealScore": 57,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years iOS",
+          "pSkill": 0.08
+        },
+        {
+          "line": "Swift + SwiftUI",
+          "pSkill": 0.98
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98
+        },
+        {
+          "line": "unit + UI testing",
+          "pSkill": 0.83
+        },
+        {
+          "line": "App Store",
+          "pSkill": 0.35
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98
+        },
+        {
+          "line": "MVVM",
+          "pSkill": 0.95
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "Swift + SwiftUI",
+          "pSkill": 0.98,
+          "evidence": 2.96,
+          "confidence": 0.97
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.97,
+          "evidence": 1.32,
+          "confidence": 0.68
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98,
+          "evidence": 2.36,
+          "confidence": 0.62
+        },
+        {
+          "line": "unit + UI testing",
+          "pSkill": 0.83,
+          "evidence": 2.99,
+          "confidence": 0.99
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "MVVM",
+          "pSkill": 0.95,
+          "evidence": 0.06,
+          "confidence": 0.96
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 52.780952380952385,
+      "jevCoverage": 0.5714285714285714,
+      "jevDepth": 0.46238095238095245,
+      "control": [
+        {
+          "skill": "Swift",
+          "label": "present",
+          "pDemonstrated": 0.99
+        },
+        {
+          "skill": "SwiftUI",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "iOS SDK",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "Xcode",
+          "label": "present",
+          "pDemonstrated": 0.88
+        },
+        {
+          "skill": "Core Data",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "unit testing",
+          "label": "present",
+          "pDemonstrated": 0.96
+        }
+      ]
+    },
+    {
+      "id": "P-008",
+      "tier": "partial",
+      "idealScore": 61,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years DevOps",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Strong CI/CD",
+          "pSkill": 0.47
+        },
+        {
+          "line": "Docker + Kubernetes",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.99
+        },
+        {
+          "line": "GCP (GKE, Cloud Run)",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Production observability",
+          "pSkill": 0.63
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Helm",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Docker + Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 2.64,
+          "confidence": 0.64
+        },
+        {
+          "line": "Terraform",
+          "pSkill": 0.99,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "GCP (GKE, Cloud Run)",
+          "pSkill": 0.98,
+          "evidence": 1.06,
+          "confidence": 0.93
+        },
+        {
+          "line": "Production observability",
+          "pSkill": 0.63,
+          "evidence": 2.65,
+          "confidence": 0.65
+        },
+        {
+          "line": "ArgoCD / GitOps",
+          "pSkill": 0.98,
+          "evidence": 2.97,
+          "confidence": 0.97
+        },
+        {
+          "line": "Helm",
+          "pSkill": 0.98,
+          "evidence": 1.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 89.62222222222223,
+      "jevCoverage": 1,
+      "jevDepth": 0.7405555555555556,
+      "control": [
+        {
+          "skill": "CI/CD",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Docker",
+          "label": "present",
+          "pDemonstrated": 0.81
+        },
+        {
+          "skill": "Kubernetes",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Terraform",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "GCP",
+          "label": "present",
+          "pDemonstrated": 0.47
+        },
+        {
+          "skill": "observability",
+          "label": "present",
+          "pDemonstrated": 0.95
+        }
+      ]
+    },
+    {
+      "id": "P-009",
+      "tier": "partial",
+      "idealScore": 59,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years PM",
+          "pSkill": 0.1
+        },
+        {
+          "line": "Fintech experience",
+          "pSkill": 0.17
+        },
+        {
+          "line": "Strong SQL + analytics",
+          "pSkill": 0.94
+        },
+        {
+          "line": "A/B testing",
+          "pSkill": 0.94
+        },
+        {
+          "line": "Cross-functional leadership",
+          "pSkill": 0.14
+        },
+        {
+          "line": "0-to-1 + 1-to-N",
+          "pSkill": 0.16
+        },
+        {
+          "line": "Mixpanel",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Tableau",
+          "pSkill": 0.98
+        },
+        {
+          "line": "OKR ownership",
+          "pSkill": 0.2
+        }
+      ],
+      "skillLineCount": 4,
+      "evidence": [
+        {
+          "line": "Strong SQL + analytics",
+          "pSkill": 0.94,
+          "evidence": 1.97,
+          "confidence": 0.03
+        },
+        {
+          "line": "A/B testing",
+          "pSkill": 0.94,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "Mixpanel",
+          "pSkill": 0.98,
+          "evidence": 2.97,
+          "confidence": 0.98
+        },
+        {
+          "line": "Tableau",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 71.5,
+      "jevCoverage": 0.75,
+      "jevDepth": 0.6625,
+      "control": [
+        {
+          "skill": "product strategy",
+          "label": "present",
+          "pDemonstrated": 0.9
+        },
+        {
+          "skill": "roadmap",
+          "label": "present",
+          "pDemonstrated": 0.8
+        },
+        {
+          "skill": "A/B testing",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.64
+        },
+        {
+          "skill": "analytics",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "stakeholder management",
+          "label": "absent",
+          "pDemonstrated": 0.55
+        }
+      ]
+    },
+    {
+      "id": "P-010",
+      "tier": "partial",
+      "idealScore": 63,
+      "lineCount": 9,
+      "classified": [
+        {
+          "line": "5+ years fullstack",
+          "pSkill": 0.11
+        },
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Node.js + Express/Fastify",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.95
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96
+        }
+      ],
+      "skillLineCount": 8,
+      "evidence": [
+        {
+          "line": "Strong React + TypeScript",
+          "pSkill": 0.98,
+          "evidence": 1.12,
+          "confidence": 0.88
+        },
+        {
+          "line": "Node.js + Express/Fastify",
+          "pSkill": 0.98,
+          "evidence": 2.94,
+          "confidence": 0.93
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98,
+          "evidence": 2.4,
+          "confidence": 0.51
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.95,
+          "evidence": 2.93,
+          "confidence": 0.92
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98,
+          "evidence": 1,
+          "confidence": 1
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 3,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.96,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 67.35,
+      "jevCoverage": 0.75,
+      "jevDepth": 0.55875,
+      "control": [
+        {
+          "skill": "React",
+          "label": "present",
+          "pDemonstrated": 0.56
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.98
+        },
+        {
+          "skill": "Next.js",
+          "label": "present",
+          "pDemonstrated": 0.45
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.97
+        }
+      ]
+    },
+    {
+      "id": "L-001",
+      "tier": "limited",
+      "idealScore": 42,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years backend",
+          "pSkill": 0.09
+        },
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.97
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99,
+          "evidence": 0.16,
+          "confidence": 0.83
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.97,
+          "evidence": 2.91,
+          "confidence": 0.92
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93,
+          "evidence": 0.64,
+          "confidence": 0.37
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 2.8,
+          "confidence": 0.8
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 29.599999999999998,
+      "jevCoverage": 0.2857142857142857,
+      "jevDepth": 0.3114285714285714,
+      "control": [
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.92
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.92
+        },
+        {
+          "skill": "TypeScript",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "Node.js",
+          "label": "absent",
+          "pDemonstrated": 0.16
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "absent",
+          "pDemonstrated": 0.17
+        },
+        {
+          "skill": "microservices",
+          "label": "absent",
+          "pDemonstrated": 0.13
+        }
+      ]
+    },
+    {
+      "id": "L-002",
+      "tier": "limited",
+      "idealScore": 45,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years backend",
+          "pSkill": 0.09
+        },
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99
+        },
+        {
+          "line": "REST + GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 7,
+      "evidence": [
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98,
+          "evidence": 2.03,
+          "confidence": 0.63
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.99,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "REST + GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.17,
+          "confidence": 0.83
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93,
+          "evidence": 0.03,
+          "confidence": 0.96
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Redis",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 12.857142857142854,
+      "jevCoverage": 0.14285714285714285,
+      "jevDepth": 0.1071428571428571,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.75
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.39
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "GraphQL",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        }
+      ]
+    },
+    {
+      "id": "L-003",
+      "tier": "limited",
+      "idealScore": 38,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years ML",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Python + PyTorch",
+          "pSkill": 0.98
+        },
+        {
+          "line": "transformer fine-tuning + deployment",
+          "pSkill": 0.96
+        },
+        {
+          "line": "MLOps",
+          "pSkill": 0.69
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "production ML",
+          "pSkill": 0.31
+        },
+        {
+          "line": "RAG",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Distributed training",
+          "pSkill": 0.96
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Python + PyTorch",
+          "pSkill": 0.98,
+          "evidence": 1.15,
+          "confidence": 0.84
+        },
+        {
+          "line": "transformer fine-tuning + deployment",
+          "pSkill": 0.96,
+          "evidence": 0.23,
+          "confidence": 0.77
+        },
+        {
+          "line": "MLOps",
+          "pSkill": 0.69,
+          "evidence": 0.13,
+          "confidence": 0.86
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "RAG",
+          "pSkill": 0.97,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Distributed training",
+          "pSkill": 0.96,
+          "evidence": 0.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 13.399999999999999,
+      "jevCoverage": 0.16666666666666666,
+      "jevDepth": 0.08499999999999999,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.79
+        },
+        {
+          "skill": "PyTorch",
+          "label": "present",
+          "pDemonstrated": 0.3
+        },
+        {
+          "skill": "NLP",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "transformers",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "MLOps",
+          "label": "absent",
+          "pDemonstrated": 0.08
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.08
+        }
+      ]
+    },
+    {
+      "id": "L-004",
+      "tier": "limited",
+      "idealScore": 48,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years backend",
+          "pSkill": 0.09
+        },
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.97
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98,
+          "evidence": 1.12,
+          "confidence": 0.88
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98,
+          "evidence": 1.04,
+          "confidence": 0.96
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.97,
+          "evidence": 2.96,
+          "confidence": 0.97
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93,
+          "evidence": 2.98,
+          "confidence": 0.99
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 2.94,
+          "confidence": 0.95
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 74.55555555555556,
+      "jevCoverage": 0.8333333333333334,
+      "jevDepth": 0.6138888888888888,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.36
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.31
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "present",
+          "pDemonstrated": 0.66
+        },
+        {
+          "skill": "REST APIs",
+          "label": "present",
+          "pDemonstrated": 0.94
+        },
+        {
+          "skill": "microservices",
+          "label": "present",
+          "pDemonstrated": 0.92
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.94
+        }
+      ]
+    },
+    {
+      "id": "L-005",
+      "tier": "limited",
+      "idealScore": 42,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years data engineering",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97,
+          "evidence": 2.78,
+          "confidence": 0.78
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.98,
+          "evidence": 1.15,
+          "confidence": 0.76
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99,
+          "evidence": 1.14,
+          "confidence": 0.67
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.98,
+          "evidence": 1.21,
+          "confidence": 0.43
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 0.04,
+          "confidence": 0.95
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 54.044444444444444,
+      "jevCoverage": 0.6666666666666666,
+      "jevDepth": 0.3511111111111111,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "SQL",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Spark",
+          "label": "present",
+          "pDemonstrated": 0.23
+        },
+        {
+          "skill": "Airflow",
+          "label": "present",
+          "pDemonstrated": 0.15
+        },
+        {
+          "skill": "dbt",
+          "label": "present",
+          "pDemonstrated": 0.17
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.15
+        }
+      ]
+    },
+    {
+      "id": "L-006",
+      "tier": "limited",
+      "idealScore": 39,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years iOS",
+          "pSkill": 0.08
+        },
+        {
+          "line": "Swift + SwiftUI",
+          "pSkill": 0.98
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98
+        },
+        {
+          "line": "unit + UI testing",
+          "pSkill": 0.85
+        },
+        {
+          "line": "App Store",
+          "pSkill": 0.36
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98
+        },
+        {
+          "line": "MVVM",
+          "pSkill": 0.95
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Swift + SwiftUI",
+          "pSkill": 0.98,
+          "evidence": 0.97,
+          "confidence": 0.85
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.97,
+          "evidence": 0.62,
+          "confidence": 0.6
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98,
+          "evidence": 0.11,
+          "confidence": 0.88
+        },
+        {
+          "line": "unit + UI testing",
+          "pSkill": 0.85,
+          "evidence": 2.97,
+          "confidence": 0.98
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98,
+          "evidence": 0.03,
+          "confidence": 0.97
+        },
+        {
+          "line": "MVVM",
+          "pSkill": 0.95,
+          "evidence": 0.04,
+          "confidence": 0.96
+        }
+      ],
+      "jevAtsMatching": 20.533333333333335,
+      "jevCoverage": 0.16666666666666666,
+      "jevDepth": 0.26333333333333336,
+      "control": [
+        {
+          "skill": "Swift",
+          "label": "present",
+          "pDemonstrated": 0.25
+        },
+        {
+          "skill": "SwiftUI",
+          "label": "present",
+          "pDemonstrated": 0.19
+        },
+        {
+          "skill": "iOS SDK",
+          "label": "present",
+          "pDemonstrated": 0.19
+        },
+        {
+          "skill": "unit testing",
+          "label": "present",
+          "pDemonstrated": 0.93
+        },
+        {
+          "skill": "Xcode",
+          "label": "absent",
+          "pDemonstrated": 0.13
+        },
+        {
+          "skill": "Core Data",
+          "label": "absent",
+          "pDemonstrated": 0.19
+        }
+      ]
+    },
+    {
+      "id": "L-007",
+      "tier": "limited",
+      "idealScore": 35,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years data engineering",
+          "pSkill": 0.08
+        },
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.99
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.99
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.99,
+          "evidence": 1.12,
+          "confidence": 0.66
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.99,
+          "evidence": 1.02,
+          "confidence": 0.6
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.99,
+          "evidence": 1.04,
+          "confidence": 0.66
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 2.53,
+          "confidence": 0.53
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 52.71111111111111,
+      "jevCoverage": 0.6666666666666666,
+      "jevDepth": 0.3177777777777778,
+      "control": [
+        {
+          "skill": "Spark",
+          "label": "present",
+          "pDemonstrated": 0.22
+        },
+        {
+          "skill": "Airflow",
+          "label": "present",
+          "pDemonstrated": 0.13
+        },
+        {
+          "skill": "dbt",
+          "label": "present",
+          "pDemonstrated": 0.13
+        },
+        {
+          "skill": "AWS",
+          "label": "present",
+          "pDemonstrated": 0.97
+        },
+        {
+          "skill": "Python",
+          "label": "absent",
+          "pDemonstrated": 0.11
+        },
+        {
+          "skill": "SQL",
+          "label": "absent",
+          "pDemonstrated": 0.09
+        }
+      ]
+    },
+    {
+      "id": "L-008",
+      "tier": "limited",
+      "idealScore": 44,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "5+ years frontend",
+          "pSkill": 0.08
+        },
+        {
+          "line": "React + TypeScript",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "CSS + responsive",
+          "pSkill": 0.97
+        },
+        {
+          "line": "accessibility WCAG 2.1 AA",
+          "pSkill": 0.78
+        },
+        {
+          "line": "leading frontend projects",
+          "pSkill": 0.12
+        },
+        {
+          "line": "React Server Components",
+          "pSkill": 0.98
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "React + TypeScript",
+          "pSkill": 0.98,
+          "evidence": 1.05,
+          "confidence": 0.95
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "CSS + responsive",
+          "pSkill": 0.97,
+          "evidence": 0.82,
+          "confidence": 0.61
+        },
+        {
+          "line": "accessibility WCAG 2.1 AA",
+          "pSkill": 0.78,
+          "evidence": 0.67,
+          "confidence": 0.51
+        },
+        {
+          "line": "React Server Components",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 15.688888888888888,
+      "jevCoverage": 0.16666666666666666,
+      "jevDepth": 0.1422222222222222,
+      "control": [
+        {
+          "skill": "React",
+          "label": "present",
+          "pDemonstrated": 0.54
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.96
+        },
+        {
+          "skill": "Next.js",
+          "label": "present",
+          "pDemonstrated": 0.08
+        },
+        {
+          "skill": "CSS",
+          "label": "present",
+          "pDemonstrated": 0.26
+        },
+        {
+          "skill": "accessibility",
+          "label": "present",
+          "pDemonstrated": 0.18
+        },
+        {
+          "skill": "responsive design",
+          "label": "absent",
+          "pDemonstrated": 0.11
+        }
+      ]
+    },
+    {
+      "id": "L-009",
+      "tier": "limited",
+      "idealScore": 41,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "7+ years engineering",
+          "pSkill": 0.06
+        },
+        {
+          "line": "3+ years EM experience",
+          "pSkill": 0.09
+        },
+        {
+          "line": "hiring + performance reviews + coaching",
+          "pSkill": 0.16
+        },
+        {
+          "line": "agile / sprint planning",
+          "pSkill": 0.77
+        },
+        {
+          "line": "technical background in backend",
+          "pSkill": 0.42
+        },
+        {
+          "line": "stakeholder management",
+          "pSkill": 0.22
+        },
+        {
+          "line": "OKRs",
+          "pSkill": 0.49
+        },
+        {
+          "line": "budget management",
+          "pSkill": 0.22
+        }
+      ],
+      "skillLineCount": 1,
+      "evidence": [
+        {
+          "line": "agile / sprint planning",
+          "pSkill": 0.77,
+          "evidence": 0.01,
+          "confidence": 0.99
+        }
+      ],
+      "jevAtsMatching": 0.13333333333333333,
+      "jevCoverage": 0,
+      "jevDepth": 0.0033333333333333335,
+      "control": [
+        {
+          "skill": "team management",
+          "label": "present",
+          "pDemonstrated": 0.27
+        },
+        {
+          "skill": "hiring",
+          "label": "present",
+          "pDemonstrated": 0.22
+        },
+        {
+          "skill": "performance reviews",
+          "label": "present",
+          "pDemonstrated": 0.2
+        },
+        {
+          "skill": "technical leadership",
+          "label": "present",
+          "pDemonstrated": 0.23
+        },
+        {
+          "skill": "stakeholder management",
+          "label": "present",
+          "pDemonstrated": 0.9
+        },
+        {
+          "skill": "agile",
+          "label": "absent",
+          "pDemonstrated": 0.19
+        }
+      ]
+    },
+    {
+      "id": "L-010",
+      "tier": "limited",
+      "idealScore": 22,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "4+ years frontend",
+          "pSkill": 0.08
+        },
+        {
+          "line": "React + TypeScript",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "CSS + responsive",
+          "pSkill": 0.97
+        },
+        {
+          "line": "accessibility WCAG 2.1 AA",
+          "pSkill": 0.79
+        },
+        {
+          "line": "leading frontend projects",
+          "pSkill": 0.12
+        },
+        {
+          "line": "React Server Components",
+          "pSkill": 0.97
+        }
+      ],
+      "skillLineCount": 5,
+      "evidence": [
+        {
+          "line": "React + TypeScript",
+          "pSkill": 0.98,
+          "evidence": 0.56,
+          "confidence": 0.46
+        },
+        {
+          "line": "Next.js",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "CSS + responsive",
+          "pSkill": 0.97,
+          "evidence": 2.22,
+          "confidence": 0.57
+        },
+        {
+          "line": "accessibility WCAG 2.1 AA",
+          "pSkill": 0.79,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "React Server Components",
+          "pSkill": 0.97,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 19.439999999999998,
+      "jevCoverage": 0.2,
+      "jevDepth": 0.186,
+      "control": [
+        {
+          "skill": "React",
+          "label": "present",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.1
+        },
+        {
+          "skill": "Next.js",
+          "label": "present",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "CSS",
+          "label": "present",
+          "pDemonstrated": 0.89
+        },
+        {
+          "skill": "responsive design",
+          "label": "present",
+          "pDemonstrated": 0.28
+        },
+        {
+          "skill": "accessibility",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        }
+      ]
+    },
+    {
+      "id": "N-001",
+      "tier": "needs-work",
+      "idealScore": 18,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years backend",
+          "pSkill": 0.1
+        },
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.96
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98,
+          "evidence": 0.18,
+          "confidence": 0.83
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "REST APIs",
+          "pSkill": 0.96,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 0.4,
+      "jevCoverage": 0,
+      "jevDepth": 0.01,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "present",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "Node.js",
+          "label": "present",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "REST APIs",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "microservices",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        }
+      ]
+    },
+    {
+      "id": "N-002",
+      "tier": "needs-work",
+      "idealScore": 15,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years data engineering",
+          "pSkill": 0.07
+        },
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.98
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.98
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "Python + SQL",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Spark",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Airflow",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "dbt",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 0.022222222222222223,
+      "jevCoverage": 0,
+      "jevDepth": 0.0005555555555555556,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "SQL",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "Spark",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "Airflow",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "dbt",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        }
+      ]
+    },
+    {
+      "id": "N-003",
+      "tier": "needs-work",
+      "idealScore": 12,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years backend",
+          "pSkill": 0.1
+        },
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "REST + GraphQL",
+          "pSkill": 0.98
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 6,
+      "evidence": [
+        {
+          "line": "TypeScript + Node.js",
+          "pSkill": 0.98,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "PostgreSQL",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "REST + GraphQL",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "microservices",
+          "pSkill": 0.93,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Kubernetes",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 0.022222222222222223,
+      "jevCoverage": 0,
+      "jevDepth": 0.0005555555555555556,
+      "control": [
+        {
+          "skill": "TypeScript",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "Node.js",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "PostgreSQL",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "GraphQL",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "REST APIs",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        }
+      ]
+    },
+    {
+      "id": "N-004",
+      "tier": "needs-work",
+      "idealScore": 20,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years iOS",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Swift + SwiftUI",
+          "pSkill": 0.98
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.97
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98
+        },
+        {
+          "line": "unit + UI testing",
+          "pSkill": 0.79
+        },
+        {
+          "line": "App Store",
+          "pSkill": 0.38
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 5,
+      "evidence": [
+        {
+          "line": "Swift + SwiftUI",
+          "pSkill": 0.98,
+          "evidence": 0.11,
+          "confidence": 0.9
+        },
+        {
+          "line": "iOS SDK + Xcode",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Core Data or GRDB",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "unit + UI testing",
+          "pSkill": 0.79,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Combine",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 0.3466666666666667,
+      "jevCoverage": 0,
+      "jevDepth": 0.008666666666666666,
+      "control": [
+        {
+          "skill": "Swift",
+          "label": "present",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "SwiftUI",
+          "label": "present",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "iOS SDK",
+          "label": "present",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "Xcode",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "Core Data",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "unit testing",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        }
+      ]
+    },
+    {
+      "id": "N-005",
+      "tier": "needs-work",
+      "idealScore": 17,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "5+ years ML",
+          "pSkill": 0.09
+        },
+        {
+          "line": "Python + PyTorch",
+          "pSkill": 0.98
+        },
+        {
+          "line": "transformer fine-tuning + deployment",
+          "pSkill": 0.96
+        },
+        {
+          "line": "MLOps",
+          "pSkill": 0.69
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97
+        },
+        {
+          "line": "production ML",
+          "pSkill": 0.29
+        },
+        {
+          "line": "RAG",
+          "pSkill": 0.97
+        }
+      ],
+      "skillLineCount": 5,
+      "evidence": [
+        {
+          "line": "Python + PyTorch",
+          "pSkill": 0.98,
+          "evidence": 0.02,
+          "confidence": 0.97
+        },
+        {
+          "line": "transformer fine-tuning + deployment",
+          "pSkill": 0.96,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "MLOps",
+          "pSkill": 0.69,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "AWS",
+          "pSkill": 0.97,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "RAG",
+          "pSkill": 0.97,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 0.08,
+      "jevCoverage": 0,
+      "jevDepth": 0.002,
+      "control": [
+        {
+          "skill": "Python",
+          "label": "present",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "PyTorch",
+          "label": "present",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "NLP",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "transformers",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "MLOps",
+          "label": "absent",
+          "pDemonstrated": 0.04
+        },
+        {
+          "skill": "AWS",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        }
+      ]
+    },
+    {
+      "id": "N-006",
+      "tier": "needs-work",
+      "idealScore": 25,
+      "lineCount": 7,
+      "classified": [
+        {
+          "line": "7+ years engineering",
+          "pSkill": 0.08
+        },
+        {
+          "line": "3+ years EM experience",
+          "pSkill": 0.1
+        },
+        {
+          "line": "hiring + performance reviews + coaching",
+          "pSkill": 0.16
+        },
+        {
+          "line": "agile",
+          "pSkill": 0.68
+        },
+        {
+          "line": "technical background in backend",
+          "pSkill": 0.39
+        },
+        {
+          "line": "stakeholder management",
+          "pSkill": 0.2
+        },
+        {
+          "line": "OKRs",
+          "pSkill": 0.61
+        }
+      ],
+      "skillLineCount": 2,
+      "evidence": [
+        {
+          "line": "agile",
+          "pSkill": 0.68,
+          "evidence": 0.01,
+          "confidence": 0.99
+        },
+        {
+          "line": "OKRs",
+          "pSkill": 0.61,
+          "evidence": 0.03,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 0.26666666666666666,
+      "jevCoverage": 0,
+      "jevDepth": 0.006666666666666667,
+      "control": [
+        {
+          "skill": "team management",
+          "label": "present",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "technical leadership",
+          "label": "present",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "stakeholder management",
+          "label": "present",
+          "pDemonstrated": 0.44
+        },
+        {
+          "skill": "hiring",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "performance reviews",
+          "label": "absent",
+          "pDemonstrated": 0.08
+        },
+        {
+          "skill": "agile",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        }
+      ]
+    },
+    {
+      "id": "N-007",
+      "tier": "needs-work",
+      "idealScore": 28,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "8+ years backend",
+          "pSkill": 0.12
+        },
+        {
+          "line": "Production distributed systems",
+          "pSkill": 0.52
+        },
+        {
+          "line": "Strong system design + architecture",
+          "pSkill": 0.65
+        },
+        {
+          "line": "mentorship + technical leadership",
+          "pSkill": 0.18
+        },
+        {
+          "line": "Go or Rust at scale",
+          "pSkill": 0.97
+        },
+        {
+          "line": "cross-team collaboration",
+          "pSkill": 0.16
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Raft",
+          "pSkill": 0.97
+        }
+      ],
+      "skillLineCount": 5,
+      "evidence": [
+        {
+          "line": "Production distributed systems",
+          "pSkill": 0.52,
+          "evidence": 0.13,
+          "confidence": 0.87
+        },
+        {
+          "line": "Strong system design + architecture",
+          "pSkill": 0.65,
+          "evidence": 0.09,
+          "confidence": 0.9
+        },
+        {
+          "line": "Go or Rust at scale",
+          "pSkill": 0.97,
+          "evidence": 0.16,
+          "confidence": 0.84
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Raft",
+          "pSkill": 0.97,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 1.0133333333333332,
+      "jevCoverage": 0,
+      "jevDepth": 0.025333333333333333,
+      "control": [
+        {
+          "skill": "distributed systems",
+          "label": "present",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "system design",
+          "label": "present",
+          "pDemonstrated": 0.05
+        },
+        {
+          "skill": "Go",
+          "label": "present",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "architecture",
+          "label": "absent",
+          "pDemonstrated": 0.1
+        },
+        {
+          "skill": "mentoring",
+          "label": "absent",
+          "pDemonstrated": 0.08
+        },
+        {
+          "skill": "Kafka",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        }
+      ]
+    },
+    {
+      "id": "N-008",
+      "tier": "needs-work",
+      "idealScore": 22,
+      "lineCount": 8,
+      "classified": [
+        {
+          "line": "8+ years backend",
+          "pSkill": 0.12
+        },
+        {
+          "line": "Production distributed systems",
+          "pSkill": 0.52
+        },
+        {
+          "line": "Strong system design + architecture",
+          "pSkill": 0.63
+        },
+        {
+          "line": "mentorship + technical leadership",
+          "pSkill": 0.18
+        },
+        {
+          "line": "Go or Rust at scale",
+          "pSkill": 0.97
+        },
+        {
+          "line": "cross-team collaboration",
+          "pSkill": 0.16
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98
+        },
+        {
+          "line": "Raft",
+          "pSkill": 0.98
+        }
+      ],
+      "skillLineCount": 5,
+      "evidence": [
+        {
+          "line": "Production distributed systems",
+          "pSkill": 0.52,
+          "evidence": 0.31,
+          "confidence": 0.67
+        },
+        {
+          "line": "Strong system design + architecture",
+          "pSkill": 0.63,
+          "evidence": 0.46,
+          "confidence": 0.54
+        },
+        {
+          "line": "Go or Rust at scale",
+          "pSkill": 0.97,
+          "evidence": 0.01,
+          "confidence": 1
+        },
+        {
+          "line": "Kafka",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        },
+        {
+          "line": "Raft",
+          "pSkill": 0.98,
+          "evidence": 0,
+          "confidence": 1
+        }
+      ],
+      "jevAtsMatching": 2.08,
+      "jevCoverage": 0,
+      "jevDepth": 0.052000000000000005,
+      "control": [
+        {
+          "skill": "distributed systems",
+          "label": "present",
+          "pDemonstrated": 0.15
+        },
+        {
+          "skill": "system design",
+          "label": "absent",
+          "pDemonstrated": 0.22
+        },
+        {
+          "skill": "Go",
+          "label": "absent",
+          "pDemonstrated": 0.06
+        },
+        {
+          "skill": "architecture",
+          "label": "absent",
+          "pDemonstrated": 0.22
+        },
+        {
+          "skill": "mentoring",
+          "label": "absent",
+          "pDemonstrated": 0.07
+        },
+        {
+          "skill": "Kafka",
+          "label": "absent",
+          "pDemonstrated": 0.05
+        }
+      ]
+    }
+  ]
+}
