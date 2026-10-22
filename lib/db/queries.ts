@@ -1520,6 +1520,16 @@ export async function recordScoreSnapshot(
     matchBreakdown: unknown;
     dynamicTips: unknown;
     computedInMs: number;
+    /**
+     * The full score breakdown, so the page render shows the SAME score
+     * the recompute produced.
+     *
+     * Without this the page recomputed the score with the sync engine on
+     * every render, so the enhanced score flashed on screen and was then
+     * replaced by the older one — the user watched the number change
+     * twice.
+     */
+    breakdown?: unknown;
   }
 ): Promise<{ id: string } | null> {
   // Ownership guard — silently no-op when the resume isn't
@@ -1549,6 +1559,7 @@ export async function recordScoreSnapshot(
     matchScore: Math.round(snapshot.matchScore),
     matchBreakdown: snapshot.matchBreakdown,
     dynamicTips: snapshot.dynamicTips,
+    breakdown: snapshot.breakdown ?? null,
     computedInMs: Math.round(snapshot.computedInMs)
   });
   return { id };

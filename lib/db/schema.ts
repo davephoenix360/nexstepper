@@ -496,6 +496,21 @@ export const scoreSnapshots = pgTable(
      */
     matchBreakdown: jsonb('match_breakdown').$type<unknown>(),
     /**
+     * The full ATS score breakdown — every dimension, every criterion,
+     * the eligibility notes, the measured requirement list.
+     *
+     * Stored so the page render shows the SAME score the recompute
+     * produced. It used to recompute the score with the sync engine on
+     * every render, which meant the enhanced (Jev) score flashed on
+     * screen for a split second and was then replaced by the older
+     * token-based one — the persisted headline and the rendered headline
+     * disagreed, and the user saw the number change twice.
+     *
+     * Nullable: snapshots written before this column have none, and the
+     * page falls back to computing the score itself.
+     */
+    breakdown: jsonb('breakdown').$type<unknown>(),
+    /**
      * Dynamic improvement tips computed in the same pass as
      * `matchScore`. Server-rendered map (Partial<Record<key,
      * ReactNode>) used by `<DynamicTipInline />`. Stored as

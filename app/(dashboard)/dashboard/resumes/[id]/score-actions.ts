@@ -120,12 +120,21 @@ export async function recomputeScoreAction(
     );
     // Persist a snapshot so the next page load has authoritative
     // per-leaf paths without re-running the scoring engine.
+    //
+    // The FULL breakdown is persisted too, not just the headline. The
+    // page used to recompute the score with the sync engine on every
+    // render, so the enhanced score flashed on screen and was then
+    // replaced by the older token-based one — the user watched the
+    // number change twice. Persisting the breakdown means the page
+    // renders exactly what this recompute produced.
+    //
     // Silently no-ops if the resume ownership re-check fails
     // (defensive — the action already validated above).
     await recordScoreSnapshot(parsed.data.resumeId, session.user.id, {
       matchScore: breakdown.overallScore,
       matchBreakdown,
       dynamicTips: tips,
+      breakdown,
       computedInMs: breakdown.computedInMs
     });
     trackServer(session.user.id, PostHogEvents.SCORE_COMPUTED, {

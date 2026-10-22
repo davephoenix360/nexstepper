@@ -24,7 +24,8 @@ import { ScorecardClient } from './_components/scorecard-client';
 import { RenameResumeControl } from './_components/rename-resume-button';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { AUTO_TAILOR_PROMPT } from '@/lib/chat/suggested-prompts';
-import { scoreResumeFromEnvelope } from '@/lib/scoring';
+import { scoreResumeFromEnvelope, type ScoreBreakdown } from '@/lib/scoring';
+import { resolveRenderedBreakdown } from '@/lib/scoring/snapshot-breakdown';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
 import { coercePrintSettings } from '@/lib/print-settings';
@@ -121,13 +122,34 @@ export default async function ResumeEditorPage({
     ? await countVariantsByMasterId(resume.id, user.id)
     : 0;
 
-  // First-render scoring: when a variant has a JD attached, compute
-  // the ATS score server-side and pass it to <AtsScorecard> so the
-  // user sees real numbers on first paint (no extra round-trip).
+  // The score the scorecard renders.
+  //
+  // It MUST be the score the last recompute produced. This used to
+  // recompute the score with the SYNC engine on every render, which
+  // meant the enhanced (Jev) score flashed on screen for a split second
+  // and was then replaced by the older token-based one — the persisted
+  // headline and the rendered headline disagreed, and the user watched
+  // the number change twice.
+  //
+  // So: read the breakdown the last recompute persisted. Only when there
+  // is no snapshot yet (a resume that has never been scored, or one
+  // scored before this column existed) do we compute it here — and that
+  // path is the sync engine, which is pure, instant and free.
+  //
   // Per plan §"Key design decisions" #6 and acceptance criterion #8.
-  const breakdown =
+  const scoreSnapshot = !resume.isMaster
+    ? await getLatestScoreSnapshot(resume.id)
+    : null;
+
+  const persistedBreakdown = scoreSnapshot?.breakdown ?? null;
+
+  const breakdown: ScoreBreakdown | null =
     !resume.isMaster && data.jobContext
-      ? scoreResumeFromEnvelope(data, data.jobContext, new Date())
+      ? resolveRenderedBreakdown({
+          persisted: persistedBreakdown,
+          compute: () =>
+            scoreResumeFromEnvelope(data, data.jobContext!, new Date())
+        })
       : null;
 
   // Compute dynamic improvement tips server-side (same pass as the
@@ -137,14 +159,11 @@ export default async function ResumeEditorPage({
     ? buildDynamicTips(breakdown, data, data.jobContext ?? null)
     : {};
 
-  // Read the latest persisted score snapshot so the inline-issue
-  // surface has authoritative per-leaf paths on FIRST render (no
-  // need to wait for the user to click Recompute). Empty array
-  // when no snapshot has been written yet — the controller
-  // falls back to the `defaultPathForCriterion` heuristic.
-  const scoreSnapshot = !resume.isMaster
-    ? await getLatestScoreSnapshot(resume.id)
-    : null;
+  // The persisted per-leaf breakdown, so the inline-issue surface has
+  // authoritative paths on FIRST render (no need to wait for the user to
+  // click Recompute). Empty array when no snapshot has been written yet
+  // — the controller falls back to the `defaultPathForCriterion`
+  // heuristic.
   const initialMatchBreakdown: MatchBreakdown =
     (scoreSnapshot?.matchBreakdown as MatchBreakdown | null) ?? [];
 

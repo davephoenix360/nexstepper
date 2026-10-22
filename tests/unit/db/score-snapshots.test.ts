@@ -135,6 +135,56 @@ describe('recordScoreSnapshot', () => {
     expect(valuesArg.matchBreakdown.length).toBe(1);
     expect(valuesArg.dynamicTips).toEqual({ 'ATS Coverage': 'fine' });
   });
+
+  it('persists the full breakdown, not just the headline', async () => {
+    // The bug this pins: the page used to recompute the score with the
+    // SYNC engine on every render, so the enhanced (Jev) score flashed
+    // on screen and was then replaced by the older token-based one —
+    // the persisted headline and the rendered headline disagreed, and
+    // the user watched the number change twice.
+    //
+    // Storing the breakdown means the page renders exactly what the
+    // recompute produced.
+    mocks.chain.limit.mockResolvedValueOnce([{ id: 'r1' }]);
+    mocks.chain.values.mockResolvedValueOnce(undefined);
+
+    const breakdown = {
+      overallScore: 57,
+      dimensionScores: { atsMatching: 58.4 },
+      criteriaScores: { 'ATS Keyword Match': 66 },
+      computedInMs: 4,
+      intentCoverageBreakdown: { value: 90, missed: {}, penalty: 0, fallback: false }
+    };
+
+    await recordScoreSnapshot('r1', 'user-1', {
+      matchScore: 57,
+      matchBreakdown: [],
+      dynamicTips: {},
+      breakdown,
+      computedInMs: 4
+    });
+
+    const valuesArg = mocks.chain.values.mock.calls[0]?.[0];
+    expect(valuesArg.breakdown).toEqual(breakdown);
+  });
+
+  it('writes a null breakdown when none is supplied', async () => {
+    // Snapshots written before the column existed, and any caller that
+    // has no breakdown, must not write `undefined` into a NOT NULL
+    // column by accident.
+    mocks.chain.limit.mockResolvedValueOnce([{ id: 'r1' }]);
+    mocks.chain.values.mockResolvedValueOnce(undefined);
+
+    await recordScoreSnapshot('r1', 'user-1', {
+      matchScore: 72,
+      matchBreakdown: [],
+      dynamicTips: {},
+      computedInMs: 4
+    });
+
+    const valuesArg = mocks.chain.values.mock.calls[0]?.[0];
+    expect(valuesArg.breakdown).toBeNull();
+  });
 });
 
 describe('getLatestScoreSnapshot', () => {
