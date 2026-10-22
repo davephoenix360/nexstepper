@@ -158,7 +158,7 @@ export function coercePrintSettings(value: unknown): PrintSettings {
  */
 export function printSettingsToCssVars(
   settings: PrintSettings
-): CSSProperties {
+): PrintSettingsCssVars {
   return {
     // CSS custom properties — React's CSSProperties type doesn't know
     // about them, so we cast the values to `string` to satisfy the
@@ -170,7 +170,37 @@ export function printSettingsToCssVars(
     '--resume-font-size': `${FONT_SIZE_VALUES[settings.fontSize]}pt`,
     '--resume-section-spacing':
       SECTION_SPACING_VALUES[settings.sectionSpacing]
-  } as CSSProperties;
+  } as PrintSettingsCssVars;
+}
+
+/**
+ * The four `--resume-*` custom properties.
+ *
+ * Typed so callers can read them back by name — plain `CSSProperties`
+ * does not allow indexing with a custom-property key.
+ */
+export type PrintSettingsCssVars = CSSProperties &
+  Record<
+    | '--resume-margin'
+    | '--resume-line-height'
+    | '--resume-font-size'
+    | '--resume-section-spacing',
+    string | number
+  >;
+
+/**
+ * One-line human summary of the current settings.
+ *
+ * Used in the chat system prompt so the assistant knows the layout
+ * without a tool round-trip, and by the page-count measurement tooling.
+ */
+export function printSettingsSummary(settings: PrintSettings): string {
+  return [
+    `margin=${settings.margin}`,
+    `line height=${settings.lineHeight}`,
+    `font size=${settings.fontSize}`,
+    `section spacing=${settings.sectionSpacing}`
+  ].join(', ');
 }
 
 /* ─── Server-action input schema ────────────────────────────────────── */

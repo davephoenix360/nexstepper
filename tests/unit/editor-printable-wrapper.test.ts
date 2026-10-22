@@ -87,7 +87,71 @@ describe('the regression is catchable', () => {
     // again. This is the "a test that encodes the bug" the repo
     // uses elsewhere (see tests/unit/favicon.test.ts).
     expect(EDITOR).toMatch(/className="printable"/);
-    expect(EDITOR).toMatch(/style=\{printSettingsToCssVars\(/);
+    // The wrapper's inline style must carry the four vars. It used to
+    // be an inline `printSettingsToCssVars(...)` call; it is now a
+    // `printCssVars` constant computed once, so that the root-element
+    // mirror (PrintSettingsVars) can never drift from the style prop.
+    // Assert both halves — the constant is built from the helper, and
+    // the wrapper actually uses it.
+    expect(EDITOR).toMatch(/printCssVars\s*=\s*printSettingsToCssVars\(/);
+    expect(EDITOR).toMatch(/style=\{printCssVars\}/);
+  });
+});
+
+describe('the print vars also reach the root element', () => {
+  // `@page { margin: var(--resume-margin) }` resolves custom properties
+  // against the ROOT element, not against a descendant. The vars were
+  // only set inline on `.printable`, so every resume printed with the
+  // 0.4in fallback no matter what the user picked — while the on-screen
+  // preview DID change, because `.printable { padding: var(...) }` does
+  // resolve a descendant value. Measured proof: the "compact margin"
+  // column was identical to "standard" across all 27 combinations.
+  //
+  // See components/editable/print-settings-vars.tsx and
+  // docs/plans/resume-length-guidelines.md.
+  const VARS_COMPONENT = readFileSync(
+    resolve(process.cwd(), 'components/editable/print-settings-vars.tsx'),
+    'utf8'
+  );
+  const PREVIEW = readFileSync(
+    resolve(
+      process.cwd(),
+      'app/(dashboard)/dashboard/resumes/[id]/preview/page.tsx'
+    ),
+    'utf8'
+  );
+
+  it('mirrors the vars onto document.documentElement', () => {
+    expect(VARS_COMPONENT).toMatch(/document\.documentElement/);
+    expect(VARS_COMPONENT).toMatch(/setProperty\(/);
+  });
+
+  it('mirrors all four vars', () => {
+    for (const v of [
+      '--resume-margin',
+      '--resume-line-height',
+      '--resume-font-size',
+      '--resume-section-spacing'
+    ]) {
+      expect(VARS_COMPONENT).toContain(v);
+    }
+  });
+
+  it('is used by the editor and the preview page', () => {
+    expect(EDITOR).toMatch(/PrintSettingsVars/);
+    expect(PREVIEW).toMatch(/PrintSettingsVars/);
+  });
+
+  it('globals.css no longer claims custom properties propagate into @page', () => {
+    // The false claim is what produced the bug. Pin its removal so
+    // nobody re-adds it and trusts it again.
+    const globals = readFileSync(
+      resolve(process.cwd(), 'app/globals.css'),
+      'utf8'
+    );
+    expect(globals).not.toMatch(
+      /custom properties DO propagate into `@page` via the standard cascade/
+    );
   });
 });
 

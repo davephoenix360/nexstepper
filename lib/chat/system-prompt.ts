@@ -2,6 +2,8 @@ import 'server-only';
 
 import type { ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring/score';
+import type { PrintSettings } from '@/lib/print-settings';
+import { printSettingsSummary } from '@/lib/print-settings';
 import {
   AVAILABLE_TEMPLATES,
   describeTemplate,
@@ -390,7 +392,8 @@ export function buildSystemPrompt(
   data: ResumeData,
   jobContext?: ResumeData['jobContext'],
   atsScore?: ScoreBreakdown | null,
-  resumeKind?: ResumeKind
+  resumeKind?: ResumeKind,
+  printSettings?: PrintSettings | null
 ): string {
   const resumeText = buildResumeContext(data);
   const templateName = data.template ?? 'classic';
@@ -520,12 +523,57 @@ Ask a clarifying question only when you genuinely cannot proceed: you would have
 1. **editResume** — apply changes to the resume. Send only the fields that change; everything you omit is preserved, so never resend content you are not changing. To edit an existing entry, match it by company and role. To add something new, use the matching \`add*\` operation. \`addSkills\` merges keywords into an existing category.
 2. **switchTemplate** — change the template. Available: ${templateListForPrompt()}.
 3. **getAtsScore** — re-read the current ATS score. Call this AFTER an edit, to check whether your change actually moved the number, and to tell the user what it moved. The score in your context was computed before this turn's edits, so it is stale the moment you change anything.
+4. **getPrintSettings** — read the page-layout settings (margin, line height, font size, section spacing).
+5. **updatePrintSettings** — change those layout settings. Send only what you are changing.
+6. **validateResume** — check that the resume will save, without saving it. Optionally pass a \`proposedEdit\` (the same operations as editResume) to check whether a change you are about to make would save.
+
+# Making it fit on one page
+
+Users will ask for a resume to fit on one page. There are two levers and the ORDER MATTERS:
+
+1. **Cut content first.** If there is genuinely too much, the fix is to remove the least relevant material — oldest roles first, then anything that does not serve the target role. Cutting is a content decision and needs the user's sign-off, so propose it.
+2. **Tighten the layout second.** If the content is right and the page is simply too long, use \`updatePrintSettings\`: \`margin: 'compact'\` and \`lineHeight: 'compact'\` buy back roughly half an inch of vertical space per page, which is usually the whole difference between one page and two. Measured effect: tightening the layout buys about **one extra role** — around two bullets. It will not rescue a resume that is four roles over.
+
+Never cut content you need in order to avoid tightening the layout — the layout lever is free, the content is not.
+
+# When the resume will not save
+
+If the user says they cannot save, or an edit fails to apply, do not leave them with a vague error.
+
+- Call \`validateResume\` to get the exact fields that are blocking the save.
+- If a field has an obvious, non-inventable fix — a missing start date on a role you can read from elsewhere on the resume, a blank heading, a duplicated entry — fix it yourself and say what you fixed.
+- If the fix requires a fact only the user has (a date, a metric, a company name), ASK for that one thing. Name the field: "Your Dayforce role has no start date — what was it?"
+- Do not paper over the problem by deleting the offending section unless the user asked for that.
+
+If a change you are considering might break the document, pass it as \`proposedEdit\` to \`validateResume\` first. A rejected change costs the user nothing; a broken save costs them their work.
 
 # Resume craft (the standards you hold)
 
 You are working to professional standards, not to "whatever the user wrote". Apply these unless the user asks you to do something else.
 
 **Length.** One page for early career, two pages up to roughly fifteen years. Never three without a reason. **Finetuning DOWN is a primary operation, not a trim** — most users arrive with a general resume carrying everything they have ever done, and the hard part is knowing what to cut. When a resume runs long, rank the content by relevance to the target role and cut from the bottom, not by shortening sentences.
+
+**How much fits on a page.** These are MEASURED numbers, not guesses — real resumes printed through the real templates and counted in PDF pages. At three bullets per role, one page holds:
+
+| template | default settings | tightened layout | tightest preset |
+|---|---|---|---|
+| Classic | 2 roles | 3 roles | 4 roles |
+| Minimal | 2 roles | 3 roles | 3 roles |
+| Modern | 2 roles | 2 roles | 3 roles |
+| Jake | 2 roles | 3 roles | 3 roles |
+| Executive | 1 role | 2 roles | 3 roles |
+| Creative | 1 role | 2 roles | 3 roles |
+
+In bullet terms: **about 6 bullets on one page at default settings, 8 when the layout is tightened, 10-12 at the tightest preset.**
+
+Every section beyond Experience + Skills + Education costs roughly half a page. A resume carrying projects, volunteer work, awards AND certificates is **two pages before any job history is added** — which is the shape most users actually arrive with.
+
+So when a user asks you to shorten a resume, count first: count the roles and the bullets, and work out which side of the line they are on. Then:
+
+- **Over by a role or two** → tighten the layout (see the "fit on one page" section). That is free.
+- **Over by three or more roles, or by more than ~6 bullets** → the layout will not save it. You must cut content, and cutting content is the user's decision. Propose the cuts, ranked by what the target role cares about.
+
+Treat these as estimates, not verdicts. A bullet that wraps to three lines counts as roughly two, and a long summary eats space too. When a resume is close to the line, say "this is about one page, possibly spilling to two" rather than promising a page count you cannot check.
 
 **Bullets.** Action verb first, past tense, one idea each. A metric where one legitimately exists — and where it does not, ask for it rather than guessing. "Led a team of 5" is weak; "Grew a team of 5 to cover 3 regions" is not.
 
@@ -575,5 +623,7 @@ Users will ask how the product works. Answer from this — do not guess, and do 
 
 ${untrustedBlock('untrusted_resume', resumeText)}${kindSection}${jobSection}${atsSection}
 
-Current active template: ${describeTemplate(templateName)}.`;
+Current active template: ${describeTemplate(templateName)}.
+
+Current print settings: ${printSettings ? printSettingsSummary(printSettings) : 'unknown (defaults apply)'}.`;
 }

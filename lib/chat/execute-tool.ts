@@ -3,12 +3,18 @@ import 'server-only';
 import {
   editResumeArgsSchema,
   getAtsScoreArgsSchema,
-  switchTemplateArgsSchema
+  getPrintSettingsArgsSchema,
+  switchTemplateArgsSchema,
+  updatePrintSettingsArgsSchema,
+  validateResumeArgsSchema
 } from './tools/types';
 import type {
   EditResumeArgs,
   GetAtsScoreArgs,
-  SwitchTemplateArgs
+  GetPrintSettingsArgs,
+  SwitchTemplateArgs,
+  UpdatePrintSettingsArgs,
+  ValidateResumeArgs
 } from './tools/types';
 
 /**
@@ -65,6 +71,48 @@ export async function executeTool(
       }
       const { executeGetAtsScore } = await import('./tools/get-ats-score');
       return await executeGetAtsScore(resumeId);
+    }
+
+    case 'getPrintSettings': {
+      const parsed = getPrintSettingsArgsSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: `Invalid getPrintSettings arguments: ${parsed.error.message}`
+        };
+      }
+      const { executeGetPrintSettings } = await import('./tools/print-settings');
+      return await executeGetPrintSettings(resumeId);
+    }
+
+    case 'updatePrintSettings': {
+      const parsed = updatePrintSettingsArgsSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: `Invalid updatePrintSettings arguments: ${parsed.error.message}`
+        };
+      }
+      const { executeUpdatePrintSettings } = await import('./tools/print-settings');
+      return await executeUpdatePrintSettings(
+        resumeId,
+        parsed.data as UpdatePrintSettingsArgs
+      );
+    }
+
+    case 'validateResume': {
+      const parsed = validateResumeArgsSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: `Invalid validateResume arguments: ${parsed.error.message}`
+        };
+      }
+      const { executeValidateResume } = await import('./tools/validate-resume');
+      return await executeValidateResume(
+        resumeId,
+        (parsed.data as ValidateResumeArgs).proposedEdit
+      );
     }
 
     default:

@@ -10,6 +10,7 @@ import {
   printSettingsToCssVars
 } from '@/lib/print-settings';
 import { getTemplate } from '@/components/resume-templates';
+import { PrintSettingsVars } from '@/components/editable/print-settings-vars';
 
 import { ShareButton } from '@/components/share/share-button';
 
@@ -148,6 +149,7 @@ export default async function ResumePreviewPage({
           className="printable bg-white shadow-sm"
           style={printSettingsToCssVars(printSettings)}
         >
+          <PrintSettingsVars vars={printSettingsToCssVars(printSettings)} />
           <Template data={result.data} />
         </div>
       </div>

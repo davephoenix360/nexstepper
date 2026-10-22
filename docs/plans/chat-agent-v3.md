@@ -190,12 +190,20 @@ compacts from, not prose pasted into the prompt every request.
   section (length, bullets, summary, skills, dates, contact rules,
   per-industry conventions).
 
-Phase B — capability
-- `recomputeAtsScore` (folded into `getAtsScore` — it recomputes anyway)
-- print-settings read/write tools
-- `validateResume` dry-run, so the agent can repair an unsaveable field
-  proactively instead of leaving the user with an error wall
-- proactive repair behaviour
+Phase B — capability. ✅ DONE (branch `feat/chat-agent-v3-phase-a`)
+
+- ✅ print-settings read/write tools — the agent can finally answer "make it
+  fit on one page"
+- ✅ `validateResume` dry-run — validates the stored resume, and optionally
+  a PROPOSED edit before committing it
+- ✅ `executeEditResume` now returns the real Zod field paths on a rejected
+  save, instead of a generic "Failed to save resume changes". The model
+  could tell the user its edit failed but not why, so it could only report
+  the failure; the user got the same error wall they already had. This is
+  the difference between a tool failure and a repair loop.
+- ✅ proactive repair behaviour in the system prompt
+- ✅ **measured** length guidelines, replacing guesswork — see
+  docs/plans/resume-length-guidelines.md and the section below
 
 Phase C — the expensive work
 - first-session analysis, cached per (resume, JD hash), behind a

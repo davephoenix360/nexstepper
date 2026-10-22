@@ -323,8 +323,59 @@ export const getAtsScoreArgsSchema = z.strictObject({});
 
 export type GetAtsScoreArgs = z.infer<typeof getAtsScoreArgsSchema>;
 
+/**
+ * Argument shape for the `getPrintSettings` tool. No arguments — it
+ * reads the attached resume's current settings.
+ */
+export const getPrintSettingsArgsSchema = z.strictObject({});
+
+export type GetPrintSettingsArgs = z.infer<typeof getPrintSettingsArgsSchema>;
+
+/**
+ * Argument shape for the `updatePrintSettings` tool.
+ *
+ * Every key is optional: an omitted key keeps its current value. The
+ * agent usually wants to change ONE knob ("make it fit on one page")
+ * without silently resetting the user's other choices, so a full-object
+ * schema would be a trap.
+ */
+export const updatePrintSettingsArgsSchema = z.strictObject({
+  margin: z.enum(['compact', 'standard', 'generous']).optional(),
+  lineHeight: z.enum(['compact', 'standard', 'relaxed']).optional(),
+  fontSize: z.enum(['small', 'standard', 'large']).optional(),
+  sectionSpacing: z.enum(['compact', 'standard', 'relaxed']).optional()
+});
+
+export type UpdatePrintSettingsArgs = z.infer<typeof updatePrintSettingsArgsSchema>;
+
+/**
+ * Argument shape for the `validateResume` tool.
+ *
+ * `proposedEdit` uses the SAME schema as `editResume`, so the agent can
+ * dry-run exactly the call it is about to make. Optional — with no
+ * arguments it validates the resume as stored, which is how the agent
+ * investigates "I can't save".
+ */
+export const validateResumeArgsSchema = z.strictObject({
+  proposedEdit: editResumeArgsSchema.optional()
+});
+
+export type ValidateResumeArgs = z.infer<typeof validateResumeArgsSchema>;
+
 /** Union of all tool argument shapes. */
-export type ChatToolArgs = EditResumeArgs | SwitchTemplateArgs | GetAtsScoreArgs;
+export type ChatToolArgs =
+  | EditResumeArgs
+  | SwitchTemplateArgs
+  | GetAtsScoreArgs
+  | GetPrintSettingsArgs
+  | UpdatePrintSettingsArgs
+  | ValidateResumeArgs;
 
 /** Tool identifiers surfaced to the AI. */
-export type ChatToolName = 'editResume' | 'switchTemplate' | 'getAtsScore';
+export type ChatToolName =
+  | 'editResume'
+  | 'switchTemplate'
+  | 'getAtsScore'
+  | 'getPrintSettings'
+  | 'updatePrintSettings'
+  | 'validateResume';

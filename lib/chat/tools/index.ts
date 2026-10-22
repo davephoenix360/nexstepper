@@ -4,7 +4,10 @@ import { templateListForPrompt } from '../templates';
 import {
   editResumeArgsSchema,
   getAtsScoreArgsSchema,
-  switchTemplateArgsSchema
+  getPrintSettingsArgsSchema,
+  switchTemplateArgsSchema,
+  updatePrintSettingsArgsSchema,
+  validateResumeArgsSchema
 } from './types';
 
 /**
@@ -92,6 +95,53 @@ export const CHAT_TOOLS = {
       'than polishing a strong one.'
     ].join('\n'),
     parameters: getAtsScoreArgsSchema
+  },
+
+  getPrintSettings: {
+    description: [
+      'Read the page-layout settings for this resume: margin, line height,',
+      'font size, and the spacing between sections.',
+      '',
+      'Call this when the user says the resume is the wrong length, looks',
+      'cramped, or looks too sparse — before changing anything. These four',
+      'knobs are how you fit a resume onto fewer pages WITHOUT cutting',
+      'content.'
+    ].join('\n'),
+    parameters: getPrintSettingsArgsSchema
+  },
+
+  updatePrintSettings: {
+    description: [
+      'Change the page-layout settings for this resume.',
+      '',
+      'Send only the settings you are changing; anything you omit keeps its',
+      'current value.',
+      '',
+      'Values: margin (compact = 0.5in, standard = 0.75in, generous = 1in),',
+      'lineHeight (compact / standard / relaxed), fontSize (small = 10pt,',
+      'standard = 11pt, large = 12pt), sectionSpacing (compact / standard /',
+      'relaxed).',
+      '',
+      'Order of operations for "make it fit on one page": cut content first,',
+      'then tighten margin and line height. Never cut content you need in',
+      'order to avoid tightening the layout.'
+    ].join('\n'),
+    parameters: updatePrintSettingsArgsSchema
+  },
+
+  validateResume: {
+    description: [
+      'Check that this resume will save, without saving it.',
+      '',
+      'Call this when the user says they cannot save, or when a change might',
+      'break the document. Returns the exact fields that are blocking the',
+      'save, so you can repair them or tell the user precisely what is wrong.',
+      '',
+      'You can optionally pass `proposedEdit` — the same operations as',
+      'editResume — to check whether a change you are about to make would',
+      'save. Nothing is written either way.'
+    ].join('\n'),
+    parameters: validateResumeArgsSchema
   }
 } as const;
 

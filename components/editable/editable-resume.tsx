@@ -59,6 +59,7 @@ import {
   printSettingsToCssVars
 } from '@/lib/print-settings';
 import { triggerPrint } from '@/lib/print/safe-print';
+import { PrintSettingsVars } from './print-settings-vars';
 import { saveResumeAction, autosaveResumeAction } from '@/app/(dashboard)/dashboard/resumes/actions';
 import {
   subscribeToInlineIssueApply,
@@ -114,6 +115,13 @@ export function EditableResume({
     defaultValues: initialData as never,
     mode: 'onSubmit'
   });
+
+  // The four print-setting CSS vars. Computed once so the `.printable`
+  // style prop and the root-element mirror (PrintSettingsVars) can
+  // never drift apart.
+  const printCssVars = printSettingsToCssVars(
+    coercePrintSettings(initialPrintSettings)
+  );
 
   // ── Re-sync the form when the server hands us newer data ────────────────
   //
@@ -407,14 +415,20 @@ export function EditableResume({
             new settings — `initialData.printSettings` updates, this
             style recomputes, and both screen and print reflect the
             change on the next render. We coerce defensively in case
-            the JSONB blob is missing or stale-migrated. */}
+            the JSONB blob is missing or stale-migrated.
+
+            `PrintSettingsVars` additionally mirrors the same four
+            properties onto the ROOT element, because `@page` resolves
+            custom properties against `:root` and not against a
+            descendant. Without that, the printed margin silently falls
+            back to 0.4in no matter what the user picked — see
+            components/editable/print-settings-vars.tsx. */}
         <div
           ref={editorScrollRef}
           className="printable"
-          style={printSettingsToCssVars(
-            coercePrintSettings(initialPrintSettings)
-          )}
+          style={printCssVars}
         >
+          <PrintSettingsVars vars={printCssVars} />
           <Template data={form.watch() as ResumeData} editable />
         </div>
 

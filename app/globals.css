@@ -421,9 +421,25 @@
   /*
     Per-resume page margin (Oct 2026). The four print-settings custom
     properties are set on the `.printable` wrapper by the page Server
-    Component, then `@page` reads `var(--resume-margin)` from the
-    cascade. CSS custom properties DO propagate into `@page` via the
-    standard cascade — see https://www.w3.org/TR/css-variables-1/
+    Component AND mirrored onto the root element by
+    `PrintSettingsVars` (components/editable/print-settings-vars.tsx).
+
+    The root-element mirror is REQUIRED, not belt-and-braces. `@page`
+    lives outside the normal element tree: it resolves custom properties
+    against the ROOT element (`:root` / `<html>`), NOT against a
+    descendant. An earlier version of this comment claimed custom
+    properties "propagate into `@page` via the standard cascade" —
+    they do not. With the vars only on `.printable`, the margin silently
+    fell back to 0.4in for every resume.
+
+    That was measured, not assumed: the page-count harness
+    (scripts/measure-page-counts.cjs) produced IDENTICAL page counts for
+    "standard" and "compact margin, everything else standard" across all
+    27 content combinations, while line-height and section-spacing
+    (consumed by descendant rules, which inherit normally) did change
+    the result. On screen the setting looked like it worked, because
+    `.printable { padding: var(--resume-margin) }` does resolve the
+    descendant value — so the preview changed while the PDF did not.
 
     Default 0.4in is preserved for templates that don't opt into
     print_settings (e.g. the public share route which doesn't pass
