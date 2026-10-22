@@ -7,6 +7,7 @@ import { MessageSquare } from 'lucide-react';
 import { ChatWindow } from './chat-window';
 import { useChatStream } from './use-chat-stream';
 import { type ChatMessageRow } from './use-chat-stream';
+import { suggestedPrompts } from '@/lib/chat/suggested-prompts';
 
 interface ChatSessionSummary {
   id: string;
@@ -18,9 +19,26 @@ interface ChatBubbleProps {
   resumeId: string;
   resumeName: string;
   isPro: boolean;
+  /**
+   * Whether the resume has a job description attached. Decides whether
+   * the suggestion chips are JD-specific or general craft prompts.
+   */
+  hasJobContext?: boolean;
+  /**
+   * A prompt to run automatically, once, when the chat opens — used
+   * right after a variant is created from a JD so the tailoring pass
+   * happens without the user having to ask for it.
+   */
+  autoPrompt?: string;
 }
 
-export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
+export function ChatBubble({
+  resumeId,
+  resumeName,
+  isPro,
+  hasJobContext = false,
+  autoPrompt
+}: ChatBubbleProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -48,6 +66,32 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  /**
+   * Auto-run the tailoring prompt.
+   *
+   * When a variant is created from a job description we already know
+   * what the user wants next — it is the prompt they would have typed
+   * first ("fine tune this for this JD, one to two pages, keep only the
+   * relevant stuff, improve the ATS score"). Running it for them is the
+   * whole point of the product: the alternative is that they copy the
+   * resume and the JD into a generic chatbot and get prose back.
+   *
+   * Two guards:
+   *   - the chat OPENS itself, because the session list is only
+   *     fetched when the panel is open and the auto-run needs to know
+   *     whether there is already a conversation;
+   *   - it only fires when this resume has NO chat history yet, so a
+   *     reload of the variant page does not re-run the tailoring and
+   *     create a second session.
+   */
+  const autoSendFiredRef = useRef(false);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!autoPrompt) return;
+    setIsOpen(true);
+  }, [autoPrompt]);
+
   // Hydrate: load sessions on open
   useEffect(() => {
     if (!isOpen) return;
@@ -58,8 +102,9 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
         setSessions(list);
         // Auto-select the most recent session on first open.
         setActiveSessionId((prev) => prev ?? list[0]?.id ?? null);
+        setSessionsLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => setSessionsLoaded(true));
   }, [isOpen, resumeId]);
 
   // Load messages when activeSessionId changes (session selected from sidebar
@@ -179,6 +224,16 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
     [activeSessionId, sendMessage, resumeId, messages]
   );
 
+  // Fire the auto-run once the session list has loaded and we know
+  // there is no existing conversation to append to.
+  useEffect(() => {
+    if (!autoPrompt || !isOpen || !sessionsLoaded) return;
+    if (autoSendFiredRef.current) return;
+    if (sessions.length > 0) return; // already has history — do not re-run
+    autoSendFiredRef.current = true;
+    void handleSend(autoPrompt);
+  }, [autoPrompt, isOpen, sessionsLoaded, sessions.length, handleSend]);
+
   const handleSelectSession = useCallback((id: string) => {
     // The messages-load useEffect will pick up the id change and fetch.
     setActiveSessionId(id);
@@ -216,6 +271,7 @@ export function ChatBubble({ resumeId, resumeName, isPro }: ChatBubbleProps) {
           isStreaming={isStreaming}
           rateLimit={rateLimit}
           notice={notice}
+          suggestedPrompts={suggestedPrompts(hasJobContext)}
           onClose={() => setIsOpen(false)}
           onNewChat={handleNewChat}
           onSend={handleSend}

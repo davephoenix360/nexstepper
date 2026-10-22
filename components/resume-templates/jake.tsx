@@ -112,6 +112,7 @@ import { isSectionHiddenFromPrint } from '@/lib/resume-schema/resume-data';
 import type { Profile, ResumeData } from '@/lib/resume-schema';
 import { cn } from '@/lib/utils';
 import { JAKE_TEMPLATE_META } from './meta';
+import { separatorBefore } from './optional-separator';
 
 const isSet = (s: string | undefined | null): boolean => Boolean(s && s.trim());
 const has = <T,>(arr: T[] | undefined | null): arr is T[] =>
@@ -209,6 +210,25 @@ function JakeHeader({ mode }: { mode: FieldMode }) {
     { key: 'postalCode', value: b.location.postalCode }
   ].filter((p) => mode.editable || isSet(p.value));
 
+  /**
+   * The values that correspond to the RENDERED parts, in order.
+   *
+   * In read-only mode the empty parts are filtered out, so the rendered
+   * list is the set-only list. In editable mode every slot renders (so
+   * the user can click into each one) and the list is the raw one.
+   *
+   * The separator logic has to look at THIS list, not the raw one, or
+   * the indices drift apart.
+   */
+  const addressValues = mode.editable
+    ? [
+        b.location.address,
+        b.location.city,
+        b.location.region,
+        b.location.postalCode
+      ]
+    : addressParts.map((p) => p.value);
+
   const hasAddress = addressParts.length > 0;
   const hasContact =
     mode.editable ||
@@ -254,7 +274,11 @@ function JakeHeader({ mode }: { mode: FieldMode }) {
           <MapPin className="size-3 shrink-0" aria-hidden={true} />
           {addressParts.map((part, i) => (
             <React.Fragment key={part.key}>
-              {i > 0 && <span aria-hidden={true}>,</span>}
+              {i > 0 && (
+                <span aria-hidden={true} className={separatorBefore(addressValues, i)}>
+                  ,
+                </span>
+              )}
               <Field
                 mode={mode}
                 path={`sections.basics.location.${part.key}`}
@@ -657,7 +681,7 @@ function JakeEducation({ mode }: { mode: FieldMode }) {
           {renderRow}
         </JakeEditableFieldArray>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-[var(--resume-item-gap-wide)]">
           {mode.data.sections.education.map((_, i) => (
             <div key={`e-${i}`}>{renderRow(i)}</div>
           ))}
@@ -829,7 +853,7 @@ function JakeExperience({ mode }: { mode: FieldMode }) {
           {renderRow}
         </JakeEditableFieldArray>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-[var(--resume-item-gap-wide)]">
           {mode.data.sections.work.map((_, i) => (
             <div key={`w-${i}`}>{renderRow(i)}</div>
           ))}
@@ -937,7 +961,7 @@ function JakeWorkPositions({
   }
 
   return (
-    <div className="mt-1.5 space-y-3">
+    <div className="mt-1 space-y-[var(--resume-item-gap)]">
       {positions.map((p, j) => (
         <div key={`w-${workIndex}-p-${j}`}>
           <JakePositionRow
@@ -1073,7 +1097,7 @@ function JakeProjects({ mode }: { mode: FieldMode }) {
           {renderRow}
         </JakeEditableFieldArray>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-[var(--resume-item-gap)]">
           {mode.data.sections.projects.map((_, i) => (
             <div key={`p-${i}`}>{renderRow(i)}</div>
           ))}
@@ -1168,7 +1192,7 @@ function JakeTechnicalSkills({ mode }: { mode: FieldMode }) {
           {renderRow}
         </JakeEditableFieldArray>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.skills.map((_, i) => (
             <div key={`s-${i}`}>{renderRow(i)}</div>
           ))}
@@ -1235,7 +1259,7 @@ function JakeVolunteer({ mode }: { mode: FieldMode }) {
           {renderRow}
         </JakeEditableFieldArray>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-[var(--resume-item-gap)]">
           {mode.data.sections.volunteer.map((_, i) => (
             <div key={`v-${i}`}>{renderRow(i)}</div>
           ))}
@@ -1502,7 +1526,7 @@ function JakeLanguages({ mode }: { mode: FieldMode }) {
           {renderRow}
         </JakeEditableFieldArray>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.languages.map((_, i) => (
             <div key={`l-${i}`}>{renderRow(i)}</div>
           ))}
@@ -1552,7 +1576,7 @@ function JakeInterests({ mode }: { mode: FieldMode }) {
           {renderRow}
         </JakeEditableFieldArray>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.interests.map((_, i) => (
             <div key={`i-${i}`}>{renderRow(i)}</div>
           ))}

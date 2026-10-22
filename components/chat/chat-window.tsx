@@ -6,6 +6,7 @@ import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
 import { ChatSidebar } from './chat-sidebar';
 import { type ChatMessageRow } from './use-chat-stream';
+import type { SuggestedPrompt } from '@/lib/chat/suggested-prompts';
 
 interface ChatSessionSummary {
   id: string;
@@ -23,6 +24,14 @@ interface ChatWindowProps {
   rateLimit: { limit: number; used: number } | null;
   /** See `ChatInput` — why the last send was rejected, if it was. */
   notice: string | null;
+  /**
+   * One-click starting points, shown while the conversation is empty.
+   *
+   * These are the prompts people type to a resume AI over and over —
+   * see `lib/chat/suggested-prompts.ts` for the reasoning and for the
+   * JD-aware variant.
+   */
+  suggestedPrompts?: SuggestedPrompt[];
   onClose: () => void;
   onNewChat: () => void;
   onSend: (content: string) => void;
@@ -39,6 +48,7 @@ export function ChatWindow({
   isStreaming,
   rateLimit,
   notice,
+  suggestedPrompts = [],
   onClose,
   onNewChat,
   onSend,
@@ -188,6 +198,26 @@ export function ChatWindow({
               <p className="max-w-[16rem] text-xs leading-relaxed text-gray-500">
                 I can edit bullets, answer questions, or switch templates.
               </p>
+
+              {suggestedPrompts.length > 0 && (
+                <div className="mt-5 flex max-w-[22rem] flex-col gap-1.5">
+                  {suggestedPrompts.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => onSend(s.prompt)}
+                      disabled={isStreaming}
+                      data-testid={`chat-suggestion-${s.label
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-|-$/g, '')}`}
+                      className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-left text-xs text-gray-700 transition hover:border-indigo-300 hover:bg-indigo-50/40 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="relative flex-1 min-h-0">

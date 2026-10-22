@@ -113,9 +113,14 @@ describe('CreateVariantFromJdButton', () => {
 
     // The auto-dismiss fires 1.5s after `done`. That only happens if
     // the component set the stage to 'done' — the bug this test pins.
+    //
+    // The `?autotailor=1` marker tells the variant page to run the
+    // tailoring pass automatically.
     await waitFor(
       () => {
-        expect(push).toHaveBeenCalledWith('/dashboard/resumes/variant-123');
+        expect(push).toHaveBeenCalledWith(
+          '/dashboard/resumes/variant-123?autotailor=1'
+        );
       },
       { timeout: 5000 }
     );

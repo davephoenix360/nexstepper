@@ -343,7 +343,8 @@ export const updatePrintSettingsArgsSchema = z.strictObject({
   margin: z.enum(['compact', 'standard', 'generous']).optional(),
   lineHeight: z.enum(['compact', 'standard', 'relaxed']).optional(),
   fontSize: z.enum(['small', 'standard', 'large']).optional(),
-  sectionSpacing: z.enum(['compact', 'standard', 'relaxed']).optional()
+  sectionSpacing: z.enum(['compact', 'standard', 'relaxed']).optional(),
+  itemSpacing: z.enum(['compact', 'standard', 'relaxed']).optional()
 });
 
 export type UpdatePrintSettingsArgs = z.infer<typeof updatePrintSettingsArgsSchema>;

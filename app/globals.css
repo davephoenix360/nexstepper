@@ -463,12 +463,32 @@
     --resume-line-height     (unitless, e.g. 1.4)    → .printable body
     --resume-font-size       (e.g. "11pt")          → .printable body
     --resume-section-spacing (e.g. "1.25rem")       → between <section>s
+    --resume-item-spacing    (e.g. "0.875rem")      → between entries in a section
 
-  All four are set by `printSettingsToCssVars()` in lib/print-settings.ts.
+  All five are set by `printSettingsToCssVars()` in lib/print-settings.ts.
 */
 :where(.printable) {
   font-size: var(--resume-font-size, 11pt);
   line-height: var(--resume-line-height, 1.4);
+
+  /*
+    Derived item gaps.
+
+    One knob, three scales. The templates stack entries at three
+    different rhythms — loose (one work role to the next), medium (one
+    position to the next), tight (one skill row to the next) — and the
+    knob has to move all three together without flattening the
+    hierarchy. These multipliers reproduce the templates' visual
+    baseline at the default `itemSpacing`, so turning the knob changes
+    the density without changing the design.
+
+    --resume-item-gap-tight  0.5x  → skill rows, language rows, …
+    --resume-item-gap        1.0x  → work entries, projects, sections' items
+    --resume-item-gap-wide   1.15x → the loosest stacks
+  */
+  --resume-item-gap-tight: calc(var(--resume-item-spacing, 0.875rem) * 0.5);
+  --resume-item-gap: var(--resume-item-spacing, 0.875rem);
+  --resume-item-gap-wide: calc(var(--resume-item-spacing, 0.875rem) * 1.15);
 }
 
 /*

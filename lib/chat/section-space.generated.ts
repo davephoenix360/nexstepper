@@ -23,66 +23,66 @@ One page of Letter at default settings holds 9.5 inches of content.
 | template | section | inches |
 |---|---|---|
 | Classic | _usable page_ | 9.5 |
-| Classic | Header (name, contact, summary) | 2.53 |
+| Classic | Header (name, contact, summary) | 2.51 |
 | Classic | Experience | 4.84 |
 | Classic | Projects | 2.81 |
 | Classic | Awards | 1.89 |
-| Classic | Skills | 1.75 |
+| Classic | Skills | 1.88 |
+| Classic | Languages | 1.31 |
 | Classic | Volunteer | 1.24 |
-| Classic | Languages | 1.24 |
 | Classic | Education | 1.18 |
-| Classic | Interests | 0.99 |
+| Classic | Interests | 1.03 |
 | Classic | Certificates | 0.95 |
-| Classic | _total for this sample_ | 19.42 |
+| Classic | _total for this sample_ | 19.64 |
 | Creative | _usable page_ | 9.5 |
-| Creative | Header (name, contact, summary) | 2.06 |
-| Creative | Experience | 5.24 |
-| Creative | Projects | 3.36 |
-| Creative | Skills | 2.17 |
-| Creative | Volunteer | 1.28 |
-| Creative | Education | 1.02 |
-| Creative | _total for this sample_ | 15.13 |
+| Creative | Header (name, contact, summary) | 2.10 |
+| Creative | Experience | 5.16 |
+| Creative | Projects | 3.35 |
+| Creative | Skills | 2.11 |
+| Creative | Volunteer | 1.27 |
+| Creative | Education | 1.01 |
+| Creative | _total for this sample_ | 15.00 |
 | Executive | _usable page_ | 9.5 |
-| Executive | Header (name, contact, summary) | 2.01 |
-| Executive | Experience | 5.22 |
+| Executive | Header (name, contact, summary) | 1.99 |
+| Executive | Experience | 5.14 |
 | Executive | Projects | 2.84 |
-| Executive | Skills | 1.86 |
+| Executive | Skills | 1.61 |
 | Executive | Volunteer | 1.26 |
-| Executive | Education | 1.00 |
-| Executive | Publications | 0.45 |
-| Executive | _total for this sample_ | 14.64 |
+| Executive | Education | 1.01 |
+| Executive | Publications | 0.46 |
+| Executive | _total for this sample_ | 14.31 |
 | Jake | _usable page_ | 9.5 |
-| Jake | Header (name, contact, summary) | 2.60 |
-| Jake | Experience | 4.80 |
-| Jake | Projects | 2.37 |
-| Jake | Awards | 1.85 |
-| Jake | Skills | 1.79 |
+| Jake | Header (name, contact, summary) | 2.61 |
+| Jake | Experience | 4.74 |
+| Jake | Projects | 2.38 |
+| Jake | Skills | 1.92 |
+| Jake | Awards | 1.84 |
 | Jake | Education | 1.75 |
-| Jake | Languages | 1.28 |
-| Jake | Volunteer | 1.26 |
-| Jake | Interests | 1.02 |
+| Jake | Languages | 1.35 |
+| Jake | Volunteer | 1.25 |
+| Jake | Interests | 1.06 |
 | Jake | Certificates | 0.98 |
-| Jake | _total for this sample_ | 19.70 |
+| Jake | _total for this sample_ | 19.88 |
 | Minimal | _usable page_ | 9.5 |
-| Minimal | Header (name, contact, summary) | 2.14 |
-| Minimal | Experience | 4.86 |
+| Minimal | Header (name, contact, summary) | 2.20 |
+| Minimal | Experience | 4.77 |
 | Minimal | Projects | 2.75 |
-| Minimal | Skills | 1.82 |
-| Minimal | Volunteer | 1.20 |
-| Minimal | Education | 1.16 |
-| Minimal | _total for this sample_ | 13.93 |
+| Minimal | Skills | 1.55 |
+| Minimal | Volunteer | 1.18 |
+| Minimal | Education | 1.14 |
+| Minimal | _total for this sample_ | 13.59 |
 | Modern | _usable page_ | 9.5 |
-| Modern | Header (name, contact, summary) | 2.81 |
-| Modern | Experience | 4.70 |
-| Modern | Projects | 2.74 |
-| Modern | Skills | 1.90 |
+| Modern | Header (name, contact, summary) | 2.76 |
+| Modern | Experience | 4.71 |
+| Modern | Projects | 2.76 |
+| Modern | Skills | 1.87 |
 | Modern | Awards | 1.39 |
 | Modern | Volunteer | 1.21 |
-| Modern | Education | 0.95 |
-| Modern | Certificates | 0.90 |
+| Modern | Education | 0.96 |
+| Modern | Certificates | 0.92 |
 | Modern | Languages | 0.72 |
 | Modern | Interests | 0.72 |
-| Modern | _total for this sample_ | 18.04 |
+| Modern | _total for this sample_ | 18.02 |
 
 The sample is a 3-role resume with 3 bullets each and every section populated, so the per-section figures are for a typical populated section — a bigger section takes more. Use these to estimate, and say "about" rather than promising an exact page count.
 

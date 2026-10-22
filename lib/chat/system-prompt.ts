@@ -653,9 +653,9 @@ You are working to professional standards, not to "whatever the user wrote". App
 | template | default settings | tightened layout | tightest preset |
 |---|---|---|---|
 | Classic | 2 roles | 3 roles | 4 roles |
-| Minimal | 2 roles | 3 roles | 3 roles |
-| Modern | 2 roles | 2 roles | 3 roles |
-| Jake | 2 roles | 3 roles | 3 roles |
+| Minimal | 2 roles | 2 roles | 3 roles |
+| Modern | 2 roles | 3 roles | 4 roles |
+| Jake | 1 role | 2 roles | 3 roles |
 | Executive | 1 role | 2 roles | 3 roles |
 | Creative | 1 role | 2 roles | 3 roles |
 

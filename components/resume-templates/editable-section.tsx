@@ -222,7 +222,7 @@ function EditableSectionInner<T>({
 
   if (!reorderable) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-[var(--resume-item-gap)]">
         {rows}
         {addButton}
       </div>
@@ -241,7 +241,7 @@ function EditableSectionInner<T>({
       onDragCancel={() => setActiveId(null)}
     >
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-3">
+        <div className="space-y-[var(--resume-item-gap)]">
           {rows}
           {addButton}
         </div>

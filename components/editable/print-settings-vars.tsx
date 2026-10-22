@@ -43,6 +43,7 @@ export function PrintSettingsVars({ vars }: { vars: PrintSettingsCssVars }) {
   const lineHeight = vars['--resume-line-height'];
   const fontSize = vars['--resume-font-size'];
   const sectionSpacing = vars['--resume-section-spacing'];
+  const itemSpacing = vars['--resume-item-spacing'];
 
   useEffect(() => {
     const root = document.documentElement;
@@ -50,7 +51,8 @@ export function PrintSettingsVars({ vars }: { vars: PrintSettingsCssVars }) {
       ['--resume-margin', margin],
       ['--resume-line-height', lineHeight],
       ['--resume-font-size', fontSize],
-      ['--resume-section-spacing', sectionSpacing]
+      ['--resume-section-spacing', sectionSpacing],
+      ['--resume-item-spacing', itemSpacing]
     ];
     for (const [name, value] of pairs) {
       if (value !== undefined && value !== null) root.style.setProperty(name, String(value));
@@ -60,7 +62,7 @@ export function PrintSettingsVars({ vars }: { vars: PrintSettingsCssVars }) {
       // change that swaps resumes re-renders with new values anyway,
       // and clearing would flash the fallback margin mid-navigation.
     };
-  }, [margin, lineHeight, fontSize, sectionSpacing]);
+  }, [margin, lineHeight, fontSize, sectionSpacing, itemSpacing]);
 
   return null;
 }

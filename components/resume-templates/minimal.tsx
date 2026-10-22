@@ -241,7 +241,7 @@ function MinimalExperience({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--resume-item-gap-wide)]">
       {mode.editable ? (
         <EditableSection
           path="sections.work"
@@ -330,7 +330,7 @@ function MinimalSkills({ mode }: { mode: FieldMode }) {
     </div>
   );
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-[var(--resume-item-gap-tight)].5">
       {mode.editable ? (
         <EditableSection
           path="sections.skills"
@@ -405,7 +405,7 @@ function MinimalEducation({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-[var(--resume-item-gap)]">
       {mode.editable ? (
         <EditableSection
           path="sections.education"
@@ -479,7 +479,7 @@ function MinimalProjects({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--resume-item-gap-wide)]">
       {mode.editable ? (
         <EditableSection
           path="sections.projects"
@@ -546,7 +546,7 @@ function MinimalVolunteer({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-[var(--resume-item-gap)]">
       {mode.editable ? (
         <EditableSection
           path="sections.volunteer"

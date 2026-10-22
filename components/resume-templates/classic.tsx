@@ -367,7 +367,7 @@ function ClassicWithForm({
                   </div>
                 ) : (
                   has(w.positions) && (
-                    <div className="mt-2 space-y-3">
+                    <div className="mt-2 space-y-[var(--resume-item-gap)]">
                       {w.positions.map((p, j) => (
                         <div key={`work-${i}-pos-${j}`}>
                           <div className="flex items-baseline justify-between gap-3">
@@ -886,7 +886,7 @@ function SkillsInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="skills-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="skills-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -983,7 +983,7 @@ function EducationInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="education-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="education-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1093,7 +1093,7 @@ function ProjectsInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="projects-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="projects-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1198,7 +1198,7 @@ function VolunteerInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="volunteer-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="volunteer-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1295,7 +1295,7 @@ function AwardsInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="awards-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="awards-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1385,7 +1385,7 @@ function CertificatesInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="certificates-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="certificates-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1472,7 +1472,7 @@ function PublicationsInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="publications-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="publications-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1555,7 +1555,7 @@ function LanguagesInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="languages-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="languages-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1631,7 +1631,7 @@ function InterestsInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="interests-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="interests-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1706,7 +1706,7 @@ function ReferencesInline() {
   }
 
   return (
-    <div className="space-y-3" data-testid="references-inline">
+    <div className="space-y-[var(--resume-item-gap)]" data-testid="references-inline">
       {fields.map((field, i) => (
         <div
           key={field.id}
@@ -1892,7 +1892,7 @@ function WorkPositionsNested({ workIndex }: { workIndex: number }) {
   }
 
   return (
-    <div className="space-y-3" data-testid={`work-${workIndex}-positions`}>
+    <div className="space-y-[var(--resume-item-gap)]" data-testid={`work-${workIndex}-positions`}>
       {fields.map((p, j) => (
         <div
           key={p.id}

@@ -339,7 +339,7 @@ function ModernExperience({ mode }: { mode: FieldMode }) {
           {(i) => <ModernWorkEntry mode={mode} index={i} />}
         </EditableSection>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-[var(--resume-item-gap-wide)]">
           {mode.data.sections.work.map((_, i) => (
             <ModernWorkEntry key={`w-${i}`} mode={mode} index={i} />
           ))}
@@ -400,7 +400,7 @@ function ModernWorkEntry({
           )}
         </EditableNestedSection>
       ) : has(w.positions) ? (
-        <div className="space-y-3 pl-3">
+        <div className="space-y-[var(--resume-item-gap)] pl-3">
           {w.positions.map((_, j) => (
             <ModernWorkPosition
               key={`p-${j}`}
@@ -521,7 +521,7 @@ function ModernProjects({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-[var(--resume-item-gap)]">
           {mode.data.sections.projects.map((_, i) => (
             <div key={`p-${i}`}>{renderRow(i)}</div>
           ))}
@@ -591,7 +591,7 @@ function ModernEducation({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-[var(--resume-item-gap)]">
           {mode.data.sections.education.map((_, i) => (
             <div key={`e-${i}`}>{renderRow(i)}</div>
           ))}
@@ -639,7 +639,7 @@ function ModernSkills({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.skills.map((_, i) => (
             <div key={`s-${i}`}>{renderRow(i)}</div>
           ))}
@@ -701,7 +701,7 @@ function ModernVolunteer({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-[var(--resume-item-gap)]">
           {mode.data.sections.volunteer.map((_, i) => (
             <div key={`v-${i}`}>{renderRow(i)}</div>
           ))}
@@ -756,7 +756,7 @@ function ModernAwards({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.awards.map((_, i) => (
             <div key={`a-${i}`}>{renderRow(i)}</div>
           ))}
@@ -811,7 +811,7 @@ function ModernCertificates({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.certificates.map((_, i) => (
             <div key={`c-${i}`}>{renderRow(i)}</div>
           ))}
@@ -855,7 +855,7 @@ function ModernPublications({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.publications.map((_, i) => (
             <div key={`p-${i}`}>{renderRow(i)}</div>
           ))}
@@ -997,7 +997,7 @@ function ModernReferences({ mode }: { mode: FieldMode }) {
           {renderRow}
         </EditableSection>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-[var(--resume-item-gap-tight)]">
           {mode.data.sections.references.map((_, i) => (
             <div key={`r-${i}`}>{renderRow(i)}</div>
           ))}

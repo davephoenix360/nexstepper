@@ -22,6 +22,8 @@ import {
   FONT_SIZE_PRESETS,
   FONT_SIZE_VALUES,
   LINE_HEIGHT_PRESETS,
+  ITEM_SPACING_PRESETS,
+  ITEM_SPACING_VALUES,
   LINE_HEIGHT_VALUES,
   MARGIN_PRESETS,
   MARGIN_PRESET_VALUES,
@@ -30,6 +32,7 @@ import {
   printSettingsToCssVars,
   type MarginPreset,
   type FontSizePreset,
+  type ItemSpacingPreset,
   type LineHeightPreset,
   type SectionSpacingPreset,
   type PrintSettings
@@ -194,6 +197,30 @@ export function PrintSettingsButton({
               </SelectTrigger>
               <SelectContent>
                 {SECTION_SPACING_PRESETS.map((preset) => (
+                  <SelectItem key={preset} value={preset}>
+                    {capitalize(preset)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field
+            label="Item spacing"
+            description={
+              ITEM_SPACING_VALUES[settings.itemSpacing] +
+              ' between entries in a section'
+            }
+          >
+            <Select
+              value={settings.itemSpacing}
+              onValueChange={(v) => update('itemSpacing', v as ItemSpacingPreset)}
+            >
+              <SelectTrigger data-testid="print-item-spacing-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ITEM_SPACING_PRESETS.map((preset) => (
                   <SelectItem key={preset} value={preset}>
                     {capitalize(preset)}
                   </SelectItem>

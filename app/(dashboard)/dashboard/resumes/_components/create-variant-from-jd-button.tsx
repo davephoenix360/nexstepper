@@ -300,7 +300,7 @@ export function CreateVariantFromJdButton({
                 setOpen(false);
                 setStage('idle');
                 setCreatedVariantId(null);
-                router.push(`/dashboard/resumes/${createdVariantId}`);
+                router.push(`/dashboard/resumes/${createdVariantId}?autotailor=1`);
                 router.refresh();
               }
             : undefined

@@ -230,6 +230,42 @@ Phase D — proactivity
 - agent-initiated recommendations after each edit ("this removed a
   keyword the JD asked for")
 
+Phase E — formatting fidelity + agent prompting UX. ✅ DONE
+
+From a manual pass over the real product:
+
+- ✅ **Empty location fields no longer print stray commas.** The Jake
+  header renders all four location slots in EDIT mode (so each is
+  clickable) and printed a comma before every one of them, while the
+  placeholder text itself is `print:hidden`. The printed line came out
+  as `123 Main St, , ,`. The shared `separatorBefore()` helper now
+  decides per separator: visible on screen, visible in print only when
+  the slot it precedes and something earlier both have values.
+- ✅ **Item spacing is a real setting.** `sectionSpacing` controlled the
+  gap between SECTIONS; there was no knob for the gap between ENTRIES
+  inside a section — one work role and the next, one project and the
+  next, one skill row and the next. Added `itemSpacing` with a
+  popover control, a new `--resume-item-spacing` var, and three derived
+  gaps so one knob moves all three rhythms without flattening the
+  hierarchy. All eight template files now read the vars.
+- ✅ **`coercePrintSettings` is field-tolerant.** It used to
+  `safeParse` the whole object and fall back to ALL defaults on any
+  failure — so adding one field to the schema would have silently
+  reverted every stored resume's chosen margin. Each field now falls
+  back to its own default.
+- ✅ **Suggested prompt chips** in an empty chat, JD-aware when a job
+  description is attached (`lib/chat/suggested-prompts.ts`).
+- ✅ **The tailoring pass runs itself.** When a variant is created from
+  a JD, the chat opens and runs the prompt the user was about to type
+  ("tailor this for this JD, one to two pages, keep only the relevant
+  stuff, improve the ATS score"). Pro only — Free users get the chip
+  instead, and spend their own daily allowance on it if they want it.
+  Guarded so a reload does not re-run it.
+
+Measured data for the agent's length advice is regenerated from real
+prints after every layout change — see
+`docs/plans/resume-length-guidelines.md`.
+
 ## 8. Decisions (2026-10-21)
 
 **Q1 — How much may the agent write without asking?**

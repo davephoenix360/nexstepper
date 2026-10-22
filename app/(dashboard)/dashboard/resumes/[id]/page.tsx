@@ -23,6 +23,7 @@ import { JdPanel } from './_components/jd-panel';
 import { ScorecardClient } from './_components/scorecard-client';
 import { RenameResumeControl } from './_components/rename-resume-button';
 import { ChatBubble } from '@/components/chat/chat-bubble';
+import { AUTO_TAILOR_PROMPT } from '@/lib/chat/suggested-prompts';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
@@ -54,11 +55,25 @@ import { coercePrintSettings } from '@/lib/print-settings';
  *    numbers from `lib/scoring/`.
  */
 export default async function ResumeEditorPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { id } = await params;
+  const query = searchParams ? await searchParams : {};
+
+  /**
+   * `?autotailor=1` is set by the "Tailor with a JD" flow when it
+   * navigates to the new variant. It asks the chat to run the tailoring
+   * pass automatically, because that is the prompt the user was about to
+   * type.
+   *
+   * The chat only fires it when this resume has NO chat history yet, so
+   * a reload does not re-run it.
+   */
+  const autoTailor = query.autotailor === '1';
 
   const user = await getUser();
   if (!user) {
@@ -214,6 +229,10 @@ export default async function ResumeEditorPage({
               resumeId={resume.id}
               resumeName={resume.name}
               isPro={planId === 'pro'}
+              hasJobContext={Boolean(data.jobContext)}
+              autoPrompt={
+                autoTailor && planId === 'pro' ? AUTO_TAILOR_PROMPT : undefined
+              }
             />
           </div>
         )}

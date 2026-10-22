@@ -47,7 +47,7 @@ const args = Object.fromEntries(
 
 const BASE = args.url ?? 'http://localhost:3000';
 const OUT_DIR = path.resolve(args.out ?? 'output/pagecounts');
-const TEMPLATE = args.template ?? 'modern';
+const TEMPLATES = (args.templates ?? args.template ?? 'modern').split(',');
 const CONTENT_BASE = args.content ?? 'full';
 
 // ─── locate playwright without touching package.json ────────────────────
@@ -176,7 +176,9 @@ for (const roles of Array.from({ length: MAX_ROLES + 1 }, (_, i) => i)) {
     : null;
   for (const setting of Object.keys(SETTINGS)) {
     if (wanted && !wanted.has(setting)) continue;
-    for (const row of ROWS) combos.push({ setting, ...row });
+    for (const template of TEMPLATES) {
+      for (const row of ROWS) combos.push({ setting, template, ...row });
+    }
   }
 
   let i = 0;
@@ -184,7 +186,7 @@ for (const roles of Array.from({ length: MAX_ROLES + 1 }, (_, i) => i)) {
     i++;
     const s = SETTINGS[combo.setting];
     const url =
-      `${BASE}/dev/design-lab/measure?template=${TEMPLATE}` +
+      `${BASE}/dev/design-lab/measure?template=${combo.template}` +
       `&roles=${combo.roles}&bullets=${combo.bullets}&base=${CONTENT_BASE}` +
       `&margin=${s.margin}&lineHeight=${s.lineHeight}` +
       `&fontSize=${s.fontSize}&sectionSpacing=${s.sectionSpacing}`;
@@ -201,7 +203,7 @@ for (const roles of Array.from({ length: MAX_ROLES + 1 }, (_, i) => i)) {
 
     const file = path.join(
       OUT_DIR,
-      `${TEMPLATE}-${combo.setting}-r${combo.roles}-b${combo.bullets}.pdf`
+      `${combo.template}-${combo.setting}-r${combo.roles}-b${combo.bullets}.pdf`
     );
     await page.pdf({
       path: file,

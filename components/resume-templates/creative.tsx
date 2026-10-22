@@ -336,7 +336,7 @@ function CreativeExperience({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--resume-item-gap-wide)]">
       {mode.editable ? (
         <EditableSection
           path="sections.work"
@@ -443,7 +443,7 @@ function CreativeSkills({
     </div>
   );
   return (
-    <div className="space-y-2">
+    <div className="space-y-[var(--resume-item-gap-tight)]">
       {mode.editable ? (
         <EditableSection
           path="sections.skills"
@@ -514,7 +514,7 @@ function CreativeEducation({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-[var(--resume-item-gap)]">
       {mode.editable ? (
         <EditableSection
           path="sections.education"
@@ -592,7 +592,7 @@ function CreativeProjects({
     );
   };
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--resume-item-gap-wide)]">
       {mode.editable ? (
         <EditableSection
           path="sections.projects"
@@ -673,7 +673,7 @@ function CreativeVolunteer({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-[var(--resume-item-gap)]">
       {mode.editable ? (
         <EditableSection
           path="sections.volunteer"

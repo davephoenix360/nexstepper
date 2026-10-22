@@ -46,9 +46,9 @@ One page holds this many work entries, at three bullets per entry
 | template | default settings | tightened layout | tightest preset |
 |---|---|---|---|
 | Classic | 2 roles | 3 roles | 4 roles |
-| Minimal | 2 roles | 3 roles | 3 roles |
-| Modern | 2 roles | 2 roles | 3 roles |
-| Jake | 2 roles | 3 roles | 3 roles |
+| Minimal | 2 roles | 2 roles | 3 roles |
+| Modern | 2 roles | 3 roles | 4 roles |
+| Jake | 1 role | 2 roles | 3 roles |
 | Executive | 1 role | 2 roles | 3 roles |
 | Creative | 1 role | 2 roles | 3 roles |
 
@@ -142,12 +142,12 @@ Vertical space in inches, default print settings, Letter. One page holds
 
 | template | header | experience | projects | skills | education | awards | certificates | volunteer | languages | interests | total | pages |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Classic | 2.53 | 4.84 | 2.81 | 1.75 | 1.18 | 1.89 | 0.95 | 1.24 | 1.24 | 0.99 | 19.42 | 2.04 |
-| Minimal | 2.14 | 4.86 | 2.75 | 1.82 | 1.16 | — | — | 1.20 | — | — | 13.93 | 1.47 |
-| Modern | 2.81 | 4.70 | 2.74 | 1.90 | 0.95 | 1.39 | 0.90 | 1.21 | 0.72 | 0.72 | 18.04 | 1.90 |
-| Jake | 2.60 | 4.80 | 2.37 | 1.79 | 1.75 | 1.85 | 0.98 | 1.26 | 1.28 | 1.02 | 19.70 | 2.07 |
-| Executive | 2.01 | 5.22 | 2.84 | 1.86 | 1.00 | — | — | 1.26 | — | — | 14.64 | 1.54 |
-| Creative | 2.06 | 5.24 | 3.36 | 2.17 | 1.02 | — | — | 1.28 | — | — | 15.13 | 1.59 |
+| Classic | 2.51 | 4.84 | 2.81 | 1.88 | 1.18 | 1.89 | 0.95 | 1.24 | 1.31 | 1.03 | 19.64 | 2.07 |
+| Minimal | 2.20 | 4.77 | 2.75 | 1.55 | 1.14 | — | — | 1.18 | — | — | 13.59 | 1.43 |
+| Modern | 2.76 | 4.71 | 2.76 | 1.87 | 0.96 | 1.39 | 0.92 | 1.21 | 0.72 | 0.72 | 18.02 | 1.90 |
+| Jake | 2.61 | 4.74 | 2.38 | 1.92 | 1.75 | 1.84 | 0.98 | 1.25 | 1.35 | 1.06 | 19.88 | 2.09 |
+| Executive | 1.99 | 5.14 | 2.84 | 1.61 | 1.01 | — | — | 1.26 | — | — | 14.31 | 1.51 |
+| Creative | 2.10 | 5.16 | 3.35 | 2.11 | 1.01 | — | — | 1.27 | — | — | 15.00 | 1.58 |
 
 ("header" is the name, contact line and summary — it renders outside any
 section, so it is the remainder between the total and the sections. A

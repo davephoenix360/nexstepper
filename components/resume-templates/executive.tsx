@@ -340,7 +340,7 @@ function ExecutiveExperience({ mode }: { mode: FieldMode }) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--resume-item-gap-wide)]">
       {mode.editable ? (
         <EditableSection
           path="sections.work"
@@ -453,7 +453,7 @@ function ExecutiveEducation({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-[var(--resume-item-gap)]">
       {mode.editable ? (
         <EditableSection
           path="sections.education"
@@ -500,7 +500,7 @@ function ExecutiveSkills({ mode }: { mode: FieldMode }) {
     </div>
   );
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-[var(--resume-item-gap-tight)].5">
       {mode.editable ? (
         <EditableSection
           path="sections.skills"
@@ -571,7 +571,7 @@ function ExecutiveProjects({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--resume-item-gap-wide)]">
       {mode.editable ? (
         <EditableSection
           path="sections.projects"
@@ -626,7 +626,7 @@ function ExecutivePublications({ mode }: { mode: FieldMode }) {
     </li>
   );
   return (
-    <ul className="space-y-1.5 font-serif leading-[1.5] text-zinc-800">
+    <ul className="space-y-[var(--resume-item-gap-tight)].5 font-serif leading-[1.5] text-zinc-800">
       {mode.editable ? (
         <EditableSection
           path="sections.publications"
@@ -693,7 +693,7 @@ function ExecutiveVolunteer({ mode }: { mode: FieldMode }) {
     );
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-[var(--resume-item-gap)]">
       {mode.editable ? (
         <EditableSection
           path="sections.volunteer"

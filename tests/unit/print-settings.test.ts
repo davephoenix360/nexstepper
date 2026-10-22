@@ -118,13 +118,39 @@ describe('coercePrintSettings', () => {
     expect(coercePrintSettings(true)).toEqual(DEFAULT_PRINT_SETTINGS);
   });
 
-  it('returns DEFAULT_PRINT_SETTINGS on a corrupt JSONB blob', () => {
+  it('falls back to defaults only for the fields that are actually bad', () => {
+    // This used to be all-or-nothing: any invalid field reset the WHOLE
+    // object to defaults. That is a silent data-loss pattern — adding one
+    // new field to the schema would have reverted every resume's
+    // carefully chosen "compact margin" back to standard.
+    //
+    // Now each field is validated on its own, so one bad value never
+    // disturbs the others.
     expect(coercePrintSettings({ margin: 'huge' })).toEqual(
       DEFAULT_PRINT_SETTINGS
     );
-    expect(coercePrintSettings({ margin: 'compact' })).toEqual(
-      DEFAULT_PRINT_SETTINGS
-    );
+    expect(coercePrintSettings({ margin: 'compact' })).toEqual({
+      ...DEFAULT_PRINT_SETTINGS,
+      margin: 'compact'
+    });
+  });
+
+  it('keeps the other fields when one is missing entirely', () => {
+    // A blob written before `itemSpacing` existed must not lose the
+    // user's margin / line-height choices.
+    const result = coercePrintSettings({
+      margin: 'compact',
+      lineHeight: 'compact',
+      fontSize: 'large',
+      sectionSpacing: 'relaxed'
+    });
+    expect(result).toEqual({
+      margin: 'compact',
+      lineHeight: 'compact',
+      fontSize: 'large',
+      sectionSpacing: 'relaxed',
+      itemSpacing: 'standard'
+    });
   });
 
   it('passes through a well-formed object', () => {
@@ -132,25 +158,28 @@ describe('coercePrintSettings', () => {
       margin: 'generous',
       lineHeight: 'relaxed',
       fontSize: 'small',
-      sectionSpacing: 'compact'
+      sectionSpacing: 'compact',
+      itemSpacing: 'compact'
     });
     expect(result).toEqual({
       margin: 'generous',
       lineHeight: 'relaxed',
       fontSize: 'small',
-      sectionSpacing: 'compact'
+      sectionSpacing: 'compact',
+      itemSpacing: 'compact'
     });
   });
 });
 
 describe('printSettingsToCssVars', () => {
-  it('emits the 4 documented CSS custom properties in the documented units', () => {
+  it('emits the documented CSS custom properties in the documented units', () => {
     const cssVars = printSettingsToCssVars(DEFAULT_PRINT_SETTINGS);
     expect(cssVars).toEqual({
       '--resume-margin': '0.75in',
       '--resume-line-height': 1.4,
       '--resume-font-size': '11pt',
-      '--resume-section-spacing': '1.25rem'
+      '--resume-section-spacing': '1.25rem',
+      '--resume-item-spacing': '0.875rem'
     });
   });
 
@@ -159,19 +188,22 @@ describe('printSettingsToCssVars', () => {
       margin: 'compact',
       lineHeight: 'compact',
       fontSize: 'large',
-      sectionSpacing: 'relaxed'
+      sectionSpacing: 'relaxed',
+      itemSpacing: 'compact'
     }) as Record<string, string | number>;
     expect(cssVars['--resume-margin']).toBe('0.5in');
     expect(cssVars['--resume-font-size']).toBe('12pt');
     expect(cssVars['--resume-line-height']).toBe(1.2);
     expect(cssVars['--resume-section-spacing']).toBe('2rem');
+    expect(cssVars['--resume-item-spacing']).toBe('0.5rem');
   });
 
-  it('keys are exactly the four documented vars — nothing more, nothing less', () => {
+  it('keys are exactly the documented vars — nothing more, nothing less', () => {
     const keys = Object.keys(printSettingsToCssVars(DEFAULT_PRINT_SETTINGS));
     expect(keys.sort()).toEqual(
       [
         '--resume-font-size',
+        '--resume-item-spacing',
         '--resume-line-height',
         '--resume-margin',
         '--resume-section-spacing'

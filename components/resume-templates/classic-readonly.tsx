@@ -210,7 +210,7 @@ export function ClassicReadOnly({ data }: Props) {
                   <p className="mt-0.5 text-[10pt] italic text-zinc-600">{w.description}</p>
                 )}
                 {has(w.positions) && (
-                  <div className="mt-2 space-y-3">
+                  <div className="mt-2 space-y-[var(--resume-item-gap)]">
                     {w.positions.map((p, j) => (
                       <div key={`work-${i}-pos-${j}`}>
                         <div className="flex items-baseline justify-between gap-3">
@@ -270,7 +270,7 @@ export function ClassicReadOnly({ data }: Props) {
 
         {showSkills && (
           <Section title="Skills" id="section-skills" sectionSlug="skills" data={data}>
-            <div className="space-y-1">
+            <div className="space-y-[var(--resume-item-gap-tight)]">
               {sections.skills.map((s, i) => (
                 <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
                   <span className="font-medium text-zinc-900">
@@ -413,7 +413,7 @@ export function ClassicReadOnly({ data }: Props) {
 
         {showLanguages && (
           <Section title="Languages" id="section-languages" sectionSlug="languages" data={data}>
-            <div className="space-y-1">
+            <div className="space-y-[var(--resume-item-gap-tight)]">
               {sections.languages.map((l, i) => (
                 <div
                   key={`lang-${i}`}
@@ -433,7 +433,7 @@ export function ClassicReadOnly({ data }: Props) {
 
         {showInterests && (
           <Section title="Interests" id="section-interests" sectionSlug="interests" data={data}>
-            <div className="space-y-1">
+            <div className="space-y-[var(--resume-item-gap-tight)]">
               {sections.interests.map((it, i) => (
                 <div
                   key={`interest-${i}`}

@@ -96,13 +96,41 @@ export const SECTION_SPACING_VALUES: Record<SectionSpacingPreset, string> = {
   relaxed: '2rem'
 };
 
+/**
+ * Vertical space between ENTRIES within a section — one work role and
+ * the next, one project and the next, one skill row and the next.
+ *
+ * `sectionSpacing` controls the gap between SECTIONS; this controls the
+ * gap between ITEMS inside one. They are different knobs and users
+ * reach for both independently: "make the sections breathe" is not the
+ * same request as "stop the roles being so far apart".
+ *
+ * The templates apply this as a BASE and scale it per context (roles
+ * sit further apart than skill rows), so one knob preserves the
+ * hierarchy instead of flattening every gap to the same size.
+ */
+export const ITEM_SPACING_PRESETS = ['compact', 'standard', 'relaxed'] as const;
+export type ItemSpacingPreset = (typeof ITEM_SPACING_PRESETS)[number];
+
+export const ITEM_SPACING_VALUES: Record<ItemSpacingPreset, string> = {
+  compact: '0.5rem',
+  standard: '0.875rem',
+  relaxed: '1.375rem'
+};
+
 /* ─── Zod schema ──────────────────────────────────────────────────────── */
 
 export const printSettingsSchema = z.object({
   margin: z.enum(MARGIN_PRESETS),
   lineHeight: z.enum(LINE_HEIGHT_PRESETS),
   fontSize: z.enum(FONT_SIZE_PRESETS),
-  sectionSpacing: z.enum(SECTION_SPACING_PRESETS)
+  sectionSpacing: z.enum(SECTION_SPACING_PRESETS),
+  /**
+   * Optional with a default so a JSONB blob written before this field
+   * existed still parses. The field-tolerant `coercePrintSettings` below
+   * is the real safety net — see its docstring.
+   */
+  itemSpacing: z.enum(ITEM_SPACING_PRESETS).default('standard')
 });
 
 export type PrintSettings = z.infer<typeof printSettingsSchema>;
@@ -115,7 +143,8 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   margin: 'standard',
   lineHeight: 'standard',
   fontSize: 'standard',
-  sectionSpacing: 'standard'
+  sectionSpacing: 'standard',
+  itemSpacing: 'standard'
 };
 
 /**
@@ -135,12 +164,35 @@ export const PRINT_SETTINGS_COLUMN = 'printSettings';
  * Why a separate helper instead of `.parse()` inline: future schema
  * versions can add fields. The fallback guarantees a stale or
  * hand-edited JSONB blob doesn't take down the popover.
+ *
+ * ## Why this is FIELD-TOLERANT rather than all-or-nothing
+ *
+ * It used to `safeParse` the whole object and fall back to ALL defaults
+ * on any failure. That is a silent data-loss pattern: adding one new
+ * field to the schema would have made every resume stored before that
+ * field existed fail the parse — and the user's carefully chosen
+ * "compact margin" would silently revert to standard.
+ *
+ * So each field is validated independently and falls back to ITS OWN
+ * default. One bad or missing field never disturbs the others.
  */
 export function coercePrintSettings(value: unknown): PrintSettings {
-  if (!value || typeof value !== 'object') return DEFAULT_PRINT_SETTINGS;
-  const parsed = printSettingsSchema.safeParse(value);
-  if (!parsed.success) return DEFAULT_PRINT_SETTINGS;
-  return parsed.data;
+  if (!value || typeof value !== 'object') return { ...DEFAULT_PRINT_SETTINGS };
+  const raw = value as Record<string, unknown>;
+  const out = { ...DEFAULT_PRINT_SETTINGS } as PrintSettings;
+
+  for (const key of Object.keys(DEFAULT_PRINT_SETTINGS) as Array<
+    keyof PrintSettings
+  >) {
+    const field = printSettingsSchema.shape[key];
+    const parsed = field.safeParse(raw[key]);
+    if (parsed.success) {
+      // The schema's `.default()` means a missing key parses as its
+      // default, so `raw[key] === undefined` is handled.
+      (out as Record<string, unknown>)[key] = parsed.data;
+    }
+  }
+  return out;
 }
 
 /* ─── CSS-var mapping ────────────────────────────────────────────────── */
@@ -169,7 +221,8 @@ export function printSettingsToCssVars(
     '--resume-line-height': LINE_HEIGHT_VALUES[settings.lineHeight],
     '--resume-font-size': `${FONT_SIZE_VALUES[settings.fontSize]}pt`,
     '--resume-section-spacing':
-      SECTION_SPACING_VALUES[settings.sectionSpacing]
+      SECTION_SPACING_VALUES[settings.sectionSpacing],
+    '--resume-item-spacing': ITEM_SPACING_VALUES[settings.itemSpacing]
   } as PrintSettingsCssVars;
 }
 
@@ -184,7 +237,8 @@ export type PrintSettingsCssVars = CSSProperties &
     | '--resume-margin'
     | '--resume-line-height'
     | '--resume-font-size'
-    | '--resume-section-spacing',
+    | '--resume-section-spacing'
+    | '--resume-item-spacing',
     string | number
   >;
 
