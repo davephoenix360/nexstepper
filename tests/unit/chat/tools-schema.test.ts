@@ -19,6 +19,7 @@ import { SECTION_TABLE } from '@/lib/inline-issue/map-path-to-section';
 import {
   CLEARABLE_SECTIONS,
   editResumeArgsSchema,
+  estimatePageCountArgsSchema,
   getAtsScoreArgsSchema,
   getPrintSettingsArgsSchema,
   PRINTABLE_SECTION_SLUGS,
@@ -193,12 +194,13 @@ describe('the printable section slugs cannot drift from SECTION_TABLE', () => {
 });
 
 describe('every tool the chat advertises is dispatchable', () => {
-  it('registers all six tools with a description and a schema', () => {
+  it('registers all eight tools with a description and a schema', () => {
     // The AI SDK validates arguments against these schemas before the
     // executor runs, so a tool that is described but not registered (or
     // registered but not described) is a silent dead end.
     expect(Object.keys(CHAT_TOOLS).sort()).toEqual([
       'editResume',
+      'estimatePageCount',
       'getAtsScore',
       'getPrintSettings',
       'switchTemplate',
@@ -234,6 +236,18 @@ describe('getPrintSettingsArgsSchema', () => {
 
   it('rejects arguments', () => {
     expect(getPrintSettingsArgsSchema.safeParse({ resumeId: 'r-1' }).success).toBe(false);
+  });
+});
+
+describe('estimatePageCountArgsSchema', () => {
+  it('accepts an empty call — it measures the attached resume', () => {
+    expect(estimatePageCountArgsSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('rejects arguments', () => {
+    expect(
+      estimatePageCountArgsSchema.safeParse({ resumeId: 'r-1' }).success
+    ).toBe(false);
   });
 });
 
@@ -275,6 +289,26 @@ describe('updatePrintSettingsArgsSchema', () => {
     for (const sectionSpacing of ['compact', 'standard', 'relaxed']) {
       expect(updatePrintSettingsArgsSchema.safeParse({ sectionSpacing }).success).toBe(true);
     }
+  });
+
+  it('accepts itemSpacing — the gap between entries inside a section', () => {
+    // The schema accepted `itemSpacing` but the EXECUTOR's TypeScript
+    // signature did not, so the knob was in the contract and invisible
+    // in the implementation. Both halves have to carry it.
+    for (const itemSpacing of ['compact', 'standard', 'relaxed']) {
+      expect(
+        updatePrintSettingsArgsSchema.safeParse({ itemSpacing }).success
+      ).toBe(true);
+    }
+
+    const executor = readFileSync(
+      resolve(process.cwd(), 'lib/chat/tools/print-settings.ts'),
+      'utf8'
+    );
+    expect(
+      executor,
+      'the print-settings executor must declare itemSpacing in its signature'
+    ).toContain('itemSpacing?:');
   });
 });
 
