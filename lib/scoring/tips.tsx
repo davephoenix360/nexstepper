@@ -230,38 +230,98 @@ export function buildDynamicTips(
   // Content Quality (2 sub-criteria).
   const highlights = collectHighlights(resume);
   if (highlights.length > 0) {
-    const withDigits = highlights.filter((h) => /\d/.test(h)).length;
-    const withoutDigits = highlights.length - withDigits;
-    if (withoutDigits > 0 && withDigits < highlights.length) {
-      out['Accomplishment Focus'] = (
-        <>
-          Only <strong>{withDigits} of {highlights.length}</strong> work
-          bullets include a number. Try quantifying your impact — %s, $s,
-          time saved, team size.
-        </>
-      );
-    }
+    // When Jev judged the bullets, the tip must describe what Jev
+    // measured. The lexical tip ("include a number") would contradict a
+    // semantic measurement — and it was unfair to candidates in roles
+    // where numbers are not the currency.
+    const jevBullets = breakdown.jevBullets;
 
-    const weakBullets = highlights.filter((h) => {
-      const first = h.trim().split(/\s+/)[0]?.toLowerCase();
-      return !!first && WEAK_VERBS.has(first);
-    });
-    if (weakBullets.length > 0) {
-      const weakVerbsUsed = Array.from(
-        new Set(
-          weakBullets
-            .map((h) => h.trim().split(/\s+/)[0]?.toLowerCase() ?? '')
-            .filter(Boolean)
-        )
-      ).slice(0, MAX_WEAK_VERBS_IN_TIP);
-      out['Action Verb Usage'] = (
-        <>
-          <strong>{weakBullets.length} of {highlights.length}</strong> bullets
-          start with weak verbs (
-          <strong>{weakVerbsUsed.join(', ')}</strong>). Lead with strong
-          verbs like Built, Led, Scaled.
-        </>
-      );
+    if (jevBullets && jevBullets.length === highlights.length) {
+      // Level 2 on the impact rubric is "states a clear accomplishment
+      // with a result or effect"; below that is a duty or an activity.
+      const weakImpact = jevBullets
+        .map((b, i) => ({ b, i }))
+        .filter(({ b }) => b.impact < 1.5);
+      if (weakImpact.length > 0) {
+        const examples = weakImpact
+          .slice(0, MAX_WEAK_VERBS_IN_TIP)
+          .map(({ i }) => highlights[i]!)
+          .filter(Boolean);
+        out['Accomplishment Focus'] = (
+          <>
+            <strong>{weakImpact.length} of {highlights.length}</strong> work
+            bullets describe a task rather than an outcome
+            {examples.length > 0 ? (
+              <>
+                {' '}
+                (<strong>{examples.join('; ')}</strong>)
+              </>
+            ) : null}
+            . Say what changed, not just what you did — the effect, the
+            result, the thing that got better.
+          </>
+        );
+      }
+
+      // Level 1 on the opening rubric is "a plain active verb with no
+      // particular scope"; below that is passive or a generic action.
+      const weakOpenings = jevBullets
+        .map((b, i) => ({ b, i }))
+        .filter(({ b }) => b.opening < 1.5);
+      if (weakOpenings.length > 0) {
+        const examples = weakOpenings
+          .slice(0, MAX_WEAK_VERBS_IN_TIP)
+          .map(({ i }) => highlights[i]!)
+          .filter(Boolean);
+        out['Action Verb Usage'] = (
+          <>
+            <strong>{weakOpenings.length} of {highlights.length}</strong> bullets
+            open weakly or passively
+            {examples.length > 0 ? (
+              <>
+                {' '}
+                (<strong>{examples.join('; ')}</strong>)
+              </>
+            ) : null}
+            . Lead with what you did — Built, Led, Scaled, Cut, Launched.
+          </>
+        );
+      }
+    } else {
+      // The lexical path, unchanged.
+      const withDigits = highlights.filter((h) => /\d/.test(h)).length;
+      const withoutDigits = highlights.length - withDigits;
+      if (withoutDigits > 0 && withDigits < highlights.length) {
+        out['Accomplishment Focus'] = (
+          <>
+            Only <strong>{withDigits} of {highlights.length}</strong> work
+            bullets include a number. Try quantifying your impact — %s, $s,
+            time saved, team size.
+          </>
+        );
+      }
+
+      const weakBullets = highlights.filter((h) => {
+        const first = h.trim().split(/\s+/)[0]?.toLowerCase();
+        return !!first && WEAK_VERBS.has(first);
+      });
+      if (weakBullets.length > 0) {
+        const weakVerbsUsed = Array.from(
+          new Set(
+            weakBullets
+              .map((h) => h.trim().split(/\s+/)[0]?.toLowerCase() ?? '')
+              .filter(Boolean)
+          )
+        ).slice(0, MAX_WEAK_VERBS_IN_TIP);
+        out['Action Verb Usage'] = (
+          <>
+            <strong>{weakBullets.length} of {highlights.length}</strong> bullets
+            start with weak verbs (
+            <strong>{weakVerbsUsed.join(', ')}</strong>). Lead with strong
+            verbs like Built, Led, Scaled.
+          </>
+        );
+      }
     }
   }
 

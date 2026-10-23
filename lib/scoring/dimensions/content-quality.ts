@@ -1,17 +1,38 @@
 import { ACTION_VERBS, WEAK_VERBS } from '../dictionaries';
+import {
+  scoreJevContentQuality,
+  type JevContentQualityEvaluation
+} from '../jev-content-quality';
 import type { ResumeTextSource } from '../similarity';
 
 /**
  * Content-quality dimension (21% of the overall v2 score).
  *
  * Two sub-criteria, in a 4:3 ratio, normalised back onto 0-100:
- *   1. `accomplishmentRatio` — 40% — fraction of work-highlights that
- *      contain at least one digit. Bullets with numbers ("increased
- *      revenue by 23%", "led a team of 8") are the strongest signal
- *      of impact.
- *   2. `actionVerbUsage`     — 30% — fraction of work-highlights that
- *      START with a strong action verb (from `ACTION_VERBS`) and not
- *      a weak verb (from `WEAK_VERBS`).
+ *   1. `accomplishmentRatio` — how much impact the work bullets claim.
+ *   2. `actionVerbUsage`     — how strongly the bullets open.
+ *
+ * ## Two implementations, one meaning
+ *
+ * **The lexical one** (used when Jev did not run — every first paint and
+ * every dashboard list) measures two string properties:
+ *   1. does the bullet contain a DIGIT?
+ *   2. does the bullet start with a verb from `ACTION_VERBS`?
+ *
+ * **The semantic one** (used after a recompute) asks Jev the same two
+ * questions as rubrics, because both lexical proxies leak:
+ *   - the digit test punishes candidates in roles where numbers are not
+ *     the currency — "Established a triage protocol that cut wait times"
+ *     is a stronger bullet than "Increased signups by 23%", and the
+ *     lexical test scores them the wrong way round;
+ *   - the action-verb list is a lexicon, so "Architected" counts as
+ *     neither strong nor weak and simply earns no point.
+ *
+ * The semantic version fixes both. It also discriminates far better: on
+ * the validation corpus the two implementations' per-tier scores were
+ * 67.5 / 65.4 / 62.5 / 58.7 / 55.7 (lexical) against 85.9 / 80.5 / 71.0
+ * / 68.5 / 57.8 (semantic) — the lexical one barely separated a strong
+ * resume from a needs-work one.
  *
  * Readability was the third sub-criterion in the legacy. We drop it
  * because the plan §"Non-goals" lists it explicitly as deferred:
@@ -19,12 +40,8 @@ import type { ResumeTextSource } from '../similarity';
  * into the two survivors (20% → accomplishment, 10% → action verbs),
  * which is why the raw weights total 0.7 — hence `WEIGHT_SUM` below.
  *
- * Known fairness concern, not yet addressed: quantifying impact is
- * genuinely unevenly available across fields, so this sub-criterion
- * scores honest candidates in less numerate roles lower. It is weighted
- * 0.21 — more than Intent Coverage (0.10), which is the dimension that
- * actually measures JD match. See
- * `docs/drift/2026-10-01-ats-scoring-review.md` §4.
+ * See `lib/scoring/jev-content-quality.ts` for the rubric scoring and
+ * `lib/scoring-async/jev-content-quality.ts` for the evaluation.
  */
 
 export type ContentQualityScore = {
@@ -57,8 +74,28 @@ const WEIGHTS = { accomplishment: 0.4, actionVerb: 0.3 } as const;
  */
 const WEIGHT_SUM = WEIGHTS.accomplishment + WEIGHTS.actionVerb;
 
-export function scoreContentQuality(resume: ResumeTextSource): ContentQualityScore {
+export function scoreContentQuality(
+  resume: ResumeTextSource,
+  options?: {
+    /**
+     * Jev's semantic judgement of the bullets, when it ran.
+     *
+     * It replaces BOTH sub-criteria, because both lexical proxies leak:
+     * the digit test punishes candidates in roles where numbers are not
+     * the currency, and the ACTION_VERBS list is a lexicon that does not
+     * know "Architected".
+     *
+     * When absent, the lexical score is used — the same behaviour as
+     * before, which is what keeps the sync path pure, instant and free.
+     */
+    jev?: JevContentQualityEvaluation | null;
+  }
+): ContentQualityScore {
   const highlights = collectHighlights(resume);
+
+  const semantic = scoreJevContentQuality(highlights, options?.jev);
+  if (semantic) return semantic;
+
   if (highlights.length === 0) {
     return { value: 0, breakdown: { accomplishmentRatio: 0, actionVerbUsage: 0 } };
   }

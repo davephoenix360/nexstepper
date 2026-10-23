@@ -6,6 +6,7 @@ import {
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 import { hybridSimilarity } from './hybrid-similarity';
 import { evaluateJevRequirements } from './jev-requirements';
+import { evaluateJevContentQuality } from './jev-content-quality';
 
 /**
  * Enhanced score wrapper.
@@ -66,12 +67,24 @@ export async function scoreResumeHybridFromEnvelope(
   resume: ResumeData,
   job: JobPosting
 ): Promise<ScoreBreakdown> {
-  // 0. Ask Jev which of the JD's requirement lines are genuine skills
-  //    and how strongly the resume evidences each one.
+  // 0. Ask Jev two things, in parallel:
+  //
+  //    a) which of the JD's requirement entries are genuine skills, and
+  //       how strongly the resume evidences each one;
+  //    b) whether each work bullet describes an accomplishment, and
+  //       whether it opens with a strong, active verb.
+  //
+  //    (b) does not depend on the JD, so it is a separate call with a
+  //    smaller state. Running them together keeps the latency at one
+  //    round trip rather than two.
   //
   //    A failed call is not an error: the evaluation comes back with
-  //    `ok: false` and the engine keeps the token-based score.
-  const evaluation = await evaluateJevRequirements(resume, job);
+  //    `ok: false` and the engine keeps the token-based / lexical
+  //    scores.
+  const [evaluation, contentEvaluation] = await Promise.all([
+    evaluateJevRequirements(resume, job),
+    evaluateJevContentQuality(resume)
+  ]);
 
   // 1. Run the sync engine first to get the unchanged baseline.
   // Pass `new Date()` as the engine's clock so the envelope-aware
@@ -82,7 +95,8 @@ export async function scoreResumeHybridFromEnvelope(
     job,
     new Date(),
     { roleFitSimilarity: null },
-    { evaluation }
+    { evaluation },
+    { evaluation: contentEvaluation }
   );
 
   // 2. Compute the hybrid similarity. Returns [0, 1] - convert to

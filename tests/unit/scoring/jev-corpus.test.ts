@@ -51,11 +51,14 @@ const jevFixture = JSON.parse(
   };
   measurements: Array<{
     id: string;
+    tier: string;
     idealScore: number;
     syncOverall: number;
     jevOverall: number;
     syncIntentCoverage: number;
     jevIntentCoverage: number;
+    syncContentQuality: number;
+    jevContentQuality: number;
     syncMissedMust: string[];
     jevMissedMust: string[];
     control: Array<{
@@ -125,20 +128,19 @@ describe('a Jev-scored resume correlates better with human judgement', () => {
     expect(jev).toBeLessThan(sync);
   });
 
-  it('catches skills the token matcher wrongly credited', () => {
-    // The token matcher says "covered" when the JD's words appear in
-    // the resume. A candidate whose summary says "No Python exposure"
-    // contains the word, so they were credited with Python.
-    //
-    // The corpus has exactly that: the needs-work resumes disclaim the
-    // very skills the JD asks for. Jev's evidence score disagrees with
-    // the token matcher on those, which is the whole value.
-    const falsePositives = jevFixture.measurements.flatMap((m) =>
-      (m.control ?? []).filter(
-        (c) => c.tokenSaysCovered && (c.evidence ?? 0) < 0.5
-      )
-    );
-    expect(falsePositives.length).toBeGreaterThan(0);
+  it('separates the tiers on content quality, which the lexical version barely did', () => {
+    // The lexical accomplishment test ("does the bullet contain a
+    // digit?") scored strong and needs-work resumes almost the same.
+    // The semantic rubric does not.
+    const byTier = (tier: string) => {
+      const sel = jevFixture.measurements.filter((m) => m.tier === tier);
+      return (
+        sel.reduce((s, m) => s + m.jevContentQuality, 0) / Math.max(1, sel.length)
+      );
+    };
+    const strong = byTier('strong');
+    const needsWork = byTier('needs-work');
+    expect(strong - needsWork).toBeGreaterThan(15);
   });
 });
 

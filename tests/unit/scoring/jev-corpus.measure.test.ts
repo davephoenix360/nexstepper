@@ -40,6 +40,7 @@ import { join } from 'node:path';
 
 import { jevDecide, readNoul } from '@/lib/ai/jev';
 import { evaluateJevRequirements } from '@/lib/scoring-async/jev-requirements';
+import { evaluateJevContentQuality } from '@/lib/scoring-async/jev-content-quality';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { resumeDataToScoreable } from '@/lib/scoring/score';
 import { buildSkillIndex, isSkillCovered } from '@/lib/scoring/skill-match';
@@ -88,7 +89,10 @@ describe.skipIf(!ENABLED)('Jev corpus measurement', () => {
       const resume = resumeDataSchema.parse(entry.resume);
 
       // 1. The production evaluation — exactly what the app calls.
-      const evaluation = await evaluateJevRequirements(resume, jd);
+      const [evaluation, contentEvaluation] = await Promise.all([
+        evaluateJevRequirements(resume, jd),
+        evaluateJevContentQuality(resume)
+      ]);
 
       // 2. The classification measurement, over the JD's requirement
       //    LINES, validated against the hand-authored skill lists.
@@ -156,7 +160,7 @@ describe.skipIf(!ENABLED)('Jev corpus measurement', () => {
         });
       }
 
-      // 4. The score, with and without the Jev evaluation.
+      // 4. The score, with and without the Jev evaluations.
       const sync = scoreResumeFromEnvelope(
         resume,
         jd,
@@ -168,7 +172,8 @@ describe.skipIf(!ENABLED)('Jev corpus measurement', () => {
         jd,
         new Date('2026-09-20'),
         { roleFitSimilarity: entry.precomputedRoleFitSimilarity },
-        { evaluation }
+        { evaluation },
+        { evaluation: contentEvaluation }
       );
 
       measurements.push({
@@ -181,8 +186,11 @@ describe.skipIf(!ENABLED)('Jev corpus measurement', () => {
         requirements: evaluation.requirements,
         gates: evaluation.gates,
         control,
+        bullets: contentEvaluation.bullets,
         syncOverall: sync.overallScore,
         jevOverall: withJev.overallScore,
+        syncContentQuality: sync.dimensionScores.contentQuality,
+        jevContentQuality: withJev.dimensionScores.contentQuality,
         syncIntentCoverage: sync.dimensionScores.intentCoverage,
         jevIntentCoverage: withJev.dimensionScores.intentCoverage,
         syncMissedMust: sync.intentCoverageBreakdown.missed.mustHave,
@@ -191,10 +199,10 @@ describe.skipIf(!ENABLED)('Jev corpus measurement', () => {
 
       console.log(
         `${entry.id}  sync ${sync.overallScore} → jev ${withJev.overallScore}  ` +
+          `content ${sync.dimensionScores.contentQuality.toFixed(1)} → ` +
+          `${withJev.dimensionScores.contentQuality.toFixed(1)}  ` +
           `intent ${sync.dimensionScores.intentCoverage.toFixed(1)} → ` +
-          `${withJev.dimensionScores.intentCoverage.toFixed(1)}  ` +
-          `missed ${sync.intentCoverageBreakdown.missed.mustHave.length} → ` +
-          `${withJev.intentCoverageBreakdown.missed.mustHave.length}`
+          `${withJev.dimensionScores.intentCoverage.toFixed(1)}`
       );
     }
 

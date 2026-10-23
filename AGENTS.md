@@ -171,6 +171,47 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Content Quality reads the bullets instead of string-testing them** —
+  branch `feat/chat-agent-v3-phase-a`. The dimension (0.21 of the total —
+  more than Intent Coverage) measured two string properties: does the
+  bullet contain a **DIGIT**, and does it start with a verb from our
+  `ACTION_VERBS` list. Both leaked, and the dimension's own docstring
+  already flagged the first: *"quantifying impact is genuinely unevenly
+  available across fields, so this sub-criterion scores honest candidates
+  in less numerate roles lower."* "Established a triage protocol that cut
+  wait times" is a stronger bullet than "Increased signups by 23%", and the
+  digit test scored them the wrong way round. And "Architected" is not in
+  our verb list, so a bullet starting with it earned no point at all. Now
+  **two RUBRIC questions per bullet** — how much impact does it claim, and
+  how strongly does it open. A binary question was tried first and did
+  NOT work: *"does this bullet describe an accomplishment?"* is true of
+  almost every bullet, so the dimension scored 91/100 for everybody and
+  stopped discriminating. The rubric puts a needs-work resume's bullets
+  where they belong — "Owned the manual QA pass for 6 product releases"
+  scores **0.57** on impact, "Authored the QA test plan" **0.22** —
+  against a strong resume's "Led the migration from a Ruby monolith to 14
+  microservices" at **3.00**. Measured on the 50-JD corpus: **Pearson r
+  0.9103 → 0.9472**, MAE 13.40 → 12.62, and the per-tier gradient is
+  the real result — the lexical dimension scored a strong resume 67.5 and
+  a needs-work one 55.7 (a 12-point spread across every tier); the
+  semantic one scores 85.9 and 57.8 (a 28-point spread that tracks the
+  tiers). **The tips had to change with it** — "Only 3 of 8 bullets
+  include a number" is a non-sequitur under a semantic measurement, and
+  it is the advice that punishes non-numerate candidates; it now says
+  *"3 of 8 work bullets describe a task rather than an outcome. Say what
+  changed, not just what you did."* The dimension does not depend on the
+  JD, so its state is the resume alone and the evaluation runs in
+  parallel with the requirement evaluation — one round trip, not two. The
+  lexical path still runs on every first paint (pure and free); the
+  enhanced numbers appear after a recompute. **Honest limit:** the engine
+  is still too generous — the corpus's ideal mean is 58.7, the current
+  engine 66.0, the Jev engine 69.9 — and the gap is concentrated in the
+  weaker tiers. That is a CALIBRATION problem across dimensions, not a
+  content-quality one, and rescaling the score would break
+  comparability with the numbers users have seen. It is the next piece of
+  work. Drift memo:
+  `docs/drift/2026-10-22-jev-content-quality.md`.
+
 - **Intent Coverage now asks a semantic question, not a literal one** —
   branch `feat/chat-agent-v3-phase-a`. The dimension decided "is this
   skill covered?" by testing whether the JD's **words** appear in the

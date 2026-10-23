@@ -25,6 +25,7 @@ import {
   scoreJevRequirementFit,
   type JevRequirementEvaluation
 } from './jev-requirements';
+import type { JevContentQualityEvaluation } from './jev-content-quality';
 import { flattenJobText, flattenResumeText } from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
@@ -238,6 +239,14 @@ export type ScoreBreakdown = {
     /** The ones the resume does not evidence at all. */
     missing: string[];
   };
+  /**
+   * Jev's per-bullet judgement, when it ran.
+   *
+   * Positionally aligned with the work bullets the Content Quality
+   * dimension collected, so the tip builder can name the specific weak
+   * bullets rather than just counting them.
+   */
+  jevBullets?: Array<{ impact: number; opening: number }>;
 };
 
 export type ScoreableResume = ResumeTextSource & {
@@ -312,6 +321,18 @@ export type PrecomputedSeniorityFit = {
 export type PrecomputedJevRequirements = {
   /** The evaluation, or null when Jev could not be reached. */
   evaluation: JevRequirementEvaluation | null;
+};
+
+/**
+ * v3 — the pre-computed Jev content-quality evaluation.
+ *
+ * The Content Quality dimension does not depend on the JD, so this
+ * evaluation is computed from the resume alone and can run in parallel
+ * with the requirement evaluation.
+ */
+export type PrecomputedJevContentQuality = {
+  /** The evaluation, or null when Jev could not be reached. */
+  evaluation: JevContentQualityEvaluation | null;
 };
 
 /**
@@ -475,7 +496,19 @@ export function scoreResume(
    * deterministic eligibility detector — the same behaviour as before,
    * which is what keeps the sync path pure, instant and free.
    */
-  jevRequirements: PrecomputedJevRequirements | null = null
+  jevRequirements: PrecomputedJevRequirements | null = null,
+  /**
+   * The pre-computed Jev content-quality evaluation.
+   *
+   * Replaces the two lexical proxies in the Content Quality dimension:
+   * "does the bullet contain a digit" (which punishes candidates in
+   * roles where numbers are not the currency) and "does the bullet start
+   * with a verb from our list" (which does not know "Architected").
+   *
+   * The content-quality dimension does not depend on the JD, so this
+   * evaluation is computed from the resume alone.
+   */
+  jevContentQuality: PrecomputedJevContentQuality | null = null
 ): ScoreBreakdown {
   const t0 = nowMs();
   const resumeText = flattenResumeText(resume);
@@ -490,7 +523,9 @@ export function scoreResume(
     jevFit ? { keywordScore: jevFit.keywordScore } : undefined
   );
   const structure = scoreStructure(resume);
-  const content = scoreContentQuality(resume);
+  const content = scoreContentQuality(resume, {
+    jev: jevContentQuality?.evaluation ?? null
+  });
   const alignment = scoreAlignment(resume, job, {
     hasProjects: (resume.projects?.length ?? 0) > 0,
     hasAwards: Array.isArray(resume.awards) && resume.awards.length > 0,
@@ -643,6 +678,17 @@ export function scoreResume(
             missing: jevFit.missing
           }
         }
+      : {}),
+    ...(jevContentQuality?.evaluation?.ok
+      ? {
+          // Positionally aligned with the work bullets the Content
+          // Quality dimension collected, so the tip builder can name
+          // the specific weak bullets rather than just counting them.
+          jevBullets: jevContentQuality.evaluation.bullets.map((b) => ({
+            impact: b.impact,
+            opening: b.opening
+          }))
+        }
       : {})
   };
 }
@@ -700,7 +746,14 @@ export function scoreResumeFromEnvelope(
    * Optional: when absent the engine uses the token-based ATS Keyword
    * Match score. The async path (`score-hybrid.ts`) computes it.
    */
-  jevRequirements: PrecomputedJevRequirements | null = null
+  jevRequirements: PrecomputedJevRequirements | null = null,
+  /**
+   * The pre-computed Jev content-quality evaluation.
+   *
+   * Optional: when absent the engine uses the lexical Content Quality
+   * score. The async path (`score-hybrid.ts`) computes it.
+   */
+  jevContentQuality: PrecomputedJevContentQuality | null = null
 ): ScoreBreakdown {
   // Compute Seniority Fit from the envelope BEFORE adapting to the
   // scoreable shape — the scoreable shape strips work-history
@@ -739,7 +792,8 @@ export function scoreResumeFromEnvelope(
     precomputed,
     { seniorityFit },
     now,
-    jevRequirements
+    jevRequirements,
+    jevContentQuality
   );
 }
 
