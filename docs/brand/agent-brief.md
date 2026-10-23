@@ -342,16 +342,52 @@ with "what would you like to work on?"
 
 ## 7. Handing the result back
 
-Once a mark is chosen, it is a small job to wire it in:
+### What is already built
 
-1. Export a **single-colour** SVG master + a PNG with transparency.
-2. Replace the lucide `MessageSquare` in `components/chat/chat-bubble.tsx`
-   and the header avatar in `components/chat/chat-window.tsx`.
-3. Put the files in `public/brand/` alongside the existing product marks
-   — they are served from `/brand/*` and the logo component already
-   handles the light/dark inversion.
-4. Replace "AI Assistant" in the chat header with the chosen name.
-5. Consider an animated state for the "agent is working" indicator — it
+The mark was generated from **Direction A, "The Bracket"** on 2026-10-22 and
+is now implemented, not just described:
+
+| | |
+|---|---|
+| Source SVGs | `public/brand/agent/nexstepper-agent-mark.svg` (two-colour) and `-stamp.svg` (monochrome) |
+| Component | `components/brand/agent-mark.tsx` — inline SVG, so each part can carry its own transform |
+| Motion layer | `app/agent-mark.css` — the states, the keyframes, the reduced-motion fallback |
+| State vocabulary | `lib/brand/agent-mark.ts` — what each state MEANS and what causes it |
+| Review surface | `/dev/design-lab/agent-brand` — every size, every state, every placement, and a filmstrip of the motion |
+
+The **motion language** is the part that was not in the brief and is worth
+knowing about: the mark has seven states, and the chat UI drives them. An
+agent that is doing something should look like it is doing something — a
+static avatar next to a "Thinking…" line cannot tell "reading your resume"
+from "about to ask you a question" from "couldn't apply the change".
+
+| State | What the mark does |
+|---|---|
+| `idle` | A halo behind the dot breathes, so it never looks frozen |
+| `reading` | The brackets scan apart and back, like a gaze moving across a line |
+| `verdict` | The brackets close in and the dot turns amber — a moment, not a mode |
+| `working` | A radar ring pulses out of the dot. The agent is measuring, so the mark measures |
+| `applied` | The dot becomes a check |
+| `needs-you` | The dot slides out toward the bracket that marks the question |
+| `blocked` | The brackets pull apart and the dot goes grey. It will not guess |
+
+**The name is still open** — the shortlist above is a recommendation, not a
+decision. `AGENT_DISPLAY_NAME` in `lib/brand/agent-mark.ts` is the one place
+it lives; the mark does not depend on it.
+
+### What is left to do
+
+1. Pick the name.
+2. Wire the mark into the product: the chat trigger button
+   (`components/chat/chat-bubble.tsx`), the chat header avatar
+   (`components/chat/chat-window.tsx`), and the message avatar
+   (`components/chat/chat-message.tsx`).
+3. Drive the states from the chat stream. The transition points are in
+   `lib/chat/use-chat-stream.ts` — a tool call starting is `working`, a
+   tool call succeeding is `applied`, a tool call asking for a missing
+   fact is `needs-you`, and a tool call that could not be applied is
+   `blocked`.
+4. Consider the animated state for the "agent is working" indicator — it
    is the one place a mark can have personality rather than a logo.
 
 ---

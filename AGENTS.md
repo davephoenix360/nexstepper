@@ -171,6 +171,48 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The AI agent has a mark, and a motion language to go with it** — The
+  owner generated the brand mark with their image generator and handed
+  it over: two opposing corner brackets closing in on one solid dot,
+  navy monoline strokes with one indigo dot in the centre. It is
+  Direction A ("The Bracket") from `docs/brand/agent-brief.md` —
+  *precisely here, and here is what I think* — and it reads exactly
+  as intended. **The mark is now a real component, not an asset:**
+  `components/brand/agent-mark.tsx` is inline SVG (an `<img>` cannot
+  change state, and a sprite sheet is not GPU-composited), the motion
+  layer is `app/agent-mark.css`, and the state vocabulary lives in
+  `lib/brand/agent-mark.ts`. **The part that was not in the brief is
+  the MOTION LANGUAGE: the mark has seven states and the chat UI
+  drives them** — `idle` (a halo breathes, so it never looks frozen),
+  `reading` (the brackets scan, like a gaze moving across a line),
+  `verdict` (brackets close in, dot turns amber), `working` (a radar
+  ring pulses out of the dot — the agent is measuring, so the mark
+  measures), `applied` (the dot becomes a check), `needs-you` (the dot
+  slides out toward the bracket that marks the question), and
+  `blocked` (the brackets pull apart, the dot goes grey — it will not
+  guess). The reason is not decoration: a static avatar next to a
+  "Thinking…" line cannot tell "reading your resume" from "about to
+  ask you a question" from "couldn't apply the change". **Two kinds of
+  movement, deliberately separated:** state changes are TRANSITIONS
+  (every transform is driven by a custom property, so an interrupted
+  change retargets instead of snapping) and activity is ANIMATION
+  (looping keyframes on dedicated elements, layered on top). Mixing
+  them on the same properties is what makes most UI animation feel
+  cheap. Only `transform` and `opacity` animate, with
+  `will-change: transform`; nothing triggers layout or paint, and
+  `prefers-reduced-motion` collapses everything to an instant change
+  that stays legible from colour and position. **The review surface is
+  `/dev/design-lab/agent-brand`** — every size it has to survive, all
+  seven states with what they mean and what causes them, the real
+  placements (floating trigger, chat header, message avatar, empty
+  state, working indicator), a scripted run of the agent working
+  through a task, and a **filmstrip**: six copies of the same mark at
+  six points in one cycle, so the motion is reviewable as a still
+  image. `scripts/shoot-agent-brand.cjs` captures it (Playwright, the
+  same resolution helper as the print harness). The name is still
+  open — `AGENT_DISPLAY_NAME` is the one place it lives, and the mark
+  does not depend on it.
+
 - **The AI assistant has a brand brief, and its floating button no
   longer covers the Feedback pill** — Two pieces, one commit for the
   bug and one for the brief. **The overlap:** three floating elements
