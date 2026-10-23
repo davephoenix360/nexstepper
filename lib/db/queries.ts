@@ -1684,6 +1684,20 @@ export async function getLatestScoreSnapshot(
 }
 
 /**
+ * The parts of a score snapshot the variant list needs.
+ *
+ * Narrower than `ScoreSnapshot` on purpose — the list only needs the
+ * headline and the persisted breakdown, and naming the columns
+ * explicitly means a row that came back without them is a bug rather
+ * than a silently-undefined field.
+ */
+export type LatestScoreSnapshot = {
+  resumeId: string;
+  matchScore: number;
+  breakdown: unknown;
+};
+
+/**
  * The latest score snapshot for EACH of several resumes, in ONE query.
  *
  * ## Why this exists
@@ -1707,13 +1721,22 @@ export async function getLatestScoreSnapshot(
  */
 export async function getLatestScoreSnapshots(
   resumeIds: string[]
-): Promise<Map<string, ScoreSnapshot>> {
-  const out = new Map<string, ScoreSnapshot>();
+): Promise<Map<string, LatestScoreSnapshot>> {
+  const out = new Map<string, LatestScoreSnapshot>();
   if (resumeIds.length === 0) return out;
 
   const { inArray } = await import('drizzle-orm');
+  // The fields are named EXPLICITLY rather than relying on
+  // select-all. If the column list were implicit, a row that came
+  // back without `resumeId` would be keyed under `undefined` and
+  // the map would come back empty — which would silently drop the
+  // badge back to the old number instead of failing loudly.
   const rows = await db
-    .selectDistinctOn([scoreSnapshots.resumeId])
+    .selectDistinctOn([scoreSnapshots.resumeId], {
+      resumeId: scoreSnapshots.resumeId,
+      matchScore: scoreSnapshots.matchScore,
+      breakdown: scoreSnapshots.breakdown
+    })
     .from(scoreSnapshots)
     .where(inArray(scoreSnapshots.resumeId, resumeIds))
     .orderBy(scoreSnapshots.resumeId, desc(scoreSnapshots.createdAt));
