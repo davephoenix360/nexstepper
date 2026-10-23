@@ -57,16 +57,31 @@ obvious choice. From `docs/brand/logo-brief.md`:
 So the assistant is **not** "Stepper". The user is the stepper. The
 assistant is the thing that shows them which step to take.
 
-| | Name | Why |
-|---|---|---|
-| **Recommended** | **Scout** | It goes ahead, checks the ground against the job posting, and comes back with a report. Short, warm, active, and the verb works in copy: *"Scout found three gaps worth closing."* It describes the agent's actual behaviour — it always arrives already informed. |
-| **Alternate A** | **Wren** | A small, sharp, fast bird. If you want a warmer, more characterful mark that could grow a little personality, this is the one. Distinctive as a wordmark; slightly less literal about the job. |
-| **Alternate B** | **Gauge** | Leans on the measurement character — real PDF page counts, a real rubric, a real score. *"Gauge says you're at 3.2 pages."* Distinctive, a little industrial, strongest if you want the mark to feel like instrumentation. |
+### Decided: **Scout**
 
-Whichever you pick, the product's name stays **Nexstepper** and the
-agent is a character inside it, not a co-product. The relationship reads
-like a tool and the person using it, or a studio and its lead — not a
-parent and a child brand.
+The shortlist was Scout / Wren / Gauge. The owner chose **Scout** on
+2026-10-22.
+
+| | Why Scout |
+|---|---|
+| **What it does** | It goes ahead, checks the ground against the job posting, and comes back with a report. |
+| **Why it fits** | The agent always arrives already informed — it has read the resume and the posting before the user opened the chat. "Scout" describes the behaviour, not a vibe. |
+| **In copy** | *"Scout found three gaps worth closing."* The name is a verb, so it works in the product's own voice. |
+| **Why not Wren** | Warmer and more characterful, but a bird says nothing about what the agent does. |
+| **Why not Gauge** | Leaned on the measurement character, which is one of Scout's traits rather than the whole of it. |
+
+The product's name stays **Nexstepper** and the agent is a character
+inside it, not a co-product. The relationship reads like a tool and
+the person using it, or a studio and its lead — not a parent and a
+child brand.
+
+**`AGENT_DISPLAY_NAME` in `lib/brand/agent-mark.ts` is the one place
+the name lives.** The chat header, the trigger's accessible name, the
+brand lab, and the agent's own system prompt all read it from there,
+so the product and the agent can never disagree about who the agent
+is. The name is not a label the UI puts on a generic assistant — it is
+fed into the system prompt, so the agent knows its own name and is
+told what kind of colleague it is.
 
 ---
 
@@ -371,18 +386,19 @@ from "about to ask you a question" from "couldn't apply the change".
 | `needs-you` | The dot slides out toward the bracket that marks the question |
 | `blocked` | The brackets pull apart and the dot goes grey. It will not guess |
 
-**The name is still open** — the shortlist above is a recommendation, not a
-decision. `AGENT_DISPLAY_NAME` in `lib/brand/agent-mark.ts` is the one place
-it lives; the mark does not depend on it.
+**The name is Scout**, and it is not only a label. It is fed into the
+agent's system prompt, so the agent knows its own name and is told what
+kind of colleague it is: it arrives informed, it has a point of view, and
+it is honest above being agreeable. The system prompt also carries the
+four sharpest voice rules from §6 — lead with the finding, have an
+opinion, show the number, warm but not cute.
 
 ### What is left to do
 
-1. **Pick the name.** The shortlist above is a recommendation, not a
-   decision. `AGENT_DISPLAY_NAME` in `lib/brand/agent-mark.ts` is the
-   one place it lives, and the mark does not depend on it.
-2. **Nothing else.** The mark is in the product: the floating trigger,
-   the chat header, the message avatar, and the empty state, all
-   driven by the agent's live state.
+Nothing, for the name and the mark. The mark is in the product: the
+floating trigger, the chat header, the message avatar, and the empty
+state, all driven by the agent's live state, and the agent's own system
+prompt knows who it is.
 
 ### The motion language, and how it is driven
 

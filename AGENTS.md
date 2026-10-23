@@ -171,6 +171,33 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The agent has a name, and it knows it** — **Scout.** The name is
+  ONE string in ONE place — `AGENT_DISPLAY_NAME` in
+  `lib/brand/agent-mark.ts` — and the chat header, the trigger's
+  accessible name, the brand lab and the agent's OWN SYSTEM PROMPT
+  all read it from there. That last one is the point: a name that is
+  only a UI label is a name the agent does not know, and a product
+  and an agent that disagree about who the agent is are two products
+  wearing one logo. **The system prompt now opens "You are Scout, the
+  Nexstepper assistant" and carries a "Who you are" block** with the
+  three traits that make the agent's behaviour predictable — it
+  ARRIVES INFORMED (it has already read the resume and the posting,
+  so it never asks for what it has and never opens with a question
+  when it has a finding), it HAS A POINT OF VIEW (it recommends one
+  thing and says why; it is not a menu), and it is HONEST ABOVE BEING
+  AGREEABLE (it will not invent a skill, inflate a bullet, or claim a
+  change landed when it did not). The Style section also picked up
+  the four sharpest voice rules from the brand brief: lead with the
+  finding, have an opinion, show the number, warm but not cute.
+  **Why "Scout" and not "Stepper":** the logo brief documents that a
+  stepper is the person who takes the next step — the customer, not
+  the tool — so the agent cannot be called Stepper. Scout describes
+  the BEHAVIOUR rather than a vibe: it goes ahead, checks the ground
+  against the posting, and comes back with a report. 6 new tests, and
+  one of them is the anti-drift guard: the name must appear in the
+  system prompt, the chat header and the accessible labels, with no
+  hard-coded "AI Assistant" left anywhere.
+
 - **The mark is wired in, and it now says what the agent is doing** —
   The seven states are no longer a design exercise — the chat drives
   them. The derivation is pure and lives in `lib/brand/agent-mark.ts`
