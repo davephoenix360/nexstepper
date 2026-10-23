@@ -149,11 +149,23 @@ export const AGENT_MARK_MOTION = {
 } as const;
 
 /**
- * The name the chat UI shows for the agent.
+ * The name the chat UI shows for the agent, and the name the agent
+ * knows itself by.
  *
- * A PLACEHOLDER. The brand brief's shortlist is Scout / Wren / Gauge
- * and the owner has not picked yet — see `docs/brand/agent-brief.md`.
- * Changing it here changes every surface at once.
+ * DECIDED: **Scout**. It goes ahead, checks the ground against the
+ * job posting, and comes back with a report — which is exactly what
+ * this agent does. It opens the conversation already informed, it
+ * recommends rather than offers a menu, and it will not guess.
+ *
+ * This is the ONE place the name lives. The chat header, the
+ * accessibility labels and the agent's own system prompt all read it
+ * from here, so the product and the agent can never disagree about
+ * who the agent is.
+ *
+ * (The shortlist was Scout / Wren / Gauge. Wren was the warmer
+ * option; Gauge leaned on the measurement character. Scout won
+ * because it describes the behaviour rather than the vibe, and the
+ * behaviour is the thing worth branding.)
  */
 export const AGENT_DISPLAY_NAME = 'Scout';
 

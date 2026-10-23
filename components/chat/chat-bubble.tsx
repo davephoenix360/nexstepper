@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { ChatWindow } from './chat-window';
 import { AgentMark } from '@/components/brand/agent-mark';
 import { useAgentMarkState } from '@/components/brand/use-agent-mark-state';
+import { AGENT_DISPLAY_NAME } from '@/lib/brand/agent-mark';
 import { useChatStream } from './use-chat-stream';
 import { type ChatMessageRow } from './use-chat-stream';
 import {
@@ -322,7 +323,11 @@ export function ChatBubble({
     <>
       <button
         onClick={() => setIsOpen((v) => !v)}
-        aria-label={isOpen ? 'Close AI assistant' : 'Open AI assistant'}
+        aria-label={
+          isOpen
+            ? `Close ${AGENT_DISPLAY_NAME}, the AI assistant`
+            : `Open ${AGENT_DISPLAY_NAME}, the AI assistant`
+        }
         className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-lg transition-all hover:border-gray-300 hover:shadow-xl hover:scale-105 active:scale-95 no-print"
         style={{ bottom: '1.5rem', right: '1.5rem' }}
       >

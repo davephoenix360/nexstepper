@@ -6,7 +6,11 @@ import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
 import { ChatSidebar } from './chat-sidebar';
 import { AgentMark } from '@/components/brand/agent-mark';
-import { agentStateLabel, type AgentMarkState } from '@/lib/brand/agent-mark';
+import {
+  AGENT_DISPLAY_NAME,
+  agentStateLabel,
+  type AgentMarkState
+} from '@/lib/brand/agent-mark';
 import { type ChatMessageRow } from './use-chat-stream';
 import type { SuggestedPrompt } from '@/lib/chat/suggested-prompts';
 import { CHAT_PANEL_BOTTOM_PX, FLOATING_RIGHT_PX } from '@/lib/ui/floating-actions';
@@ -159,7 +163,9 @@ export function ChatWindow({
             <AgentMark state={agentState} size={20} className="text-gray-900" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-900">AI Assistant</p>
+            <p className="truncate text-sm font-semibold text-gray-900">
+              {AGENT_DISPLAY_NAME}
+            </p>
             {/* While the agent is doing something, its STATUS replaces
                 the resume name. The name is context you can get from
                 the page; the status is the thing you cannot. */}

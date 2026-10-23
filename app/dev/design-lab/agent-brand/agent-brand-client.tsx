@@ -463,7 +463,7 @@ function Placements() {
               </div>
               <div>
                 <div className="text-sm font-semibold text-zinc-900">
-                  AI Assistant
+                  {AGENT_DISPLAY_NAME}
                 </div>
                 <div
                   className={`text-[11px] ${
