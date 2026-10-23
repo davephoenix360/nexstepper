@@ -39,6 +39,15 @@ export type UseChatStreamOptions = {
   onMessage: (messages: ChatMessageRow[]) => void;
   /** Called when a tool call event arrives (before result). */
   onToolCall?: (toolName: string, args: unknown) => void;
+  /**
+   * Called when a tool result event arrives.
+   *
+   * The result is the tool's own output — every tool returns
+   * `{ ok: true, result }` or `{ ok: false, error }`, so this is what
+   * the caller needs to know whether the change actually landed. The
+   * agent's mark uses it to show `applied` or `blocked`.
+   */
+  onToolResult?: (result: unknown) => void;
   /** Called when the stream finishes successfully. */
   onDone?: (finishReason: string | null) => void;
   /** Called on any error (network, rate-limit, 5xx, etc.). */
@@ -117,6 +126,7 @@ export function useChatStream({
   resumeName,
   onMessage,
   onToolCall,
+  onToolResult,
   onDone,
   onError,
   onUsage,
@@ -293,6 +303,7 @@ export function useChatStream({
               };
               messages = mapReplaceById(nextMessages, assistantId, updatedAssistant);
               onMessage([...messages]);
+              onToolResult?.(event.result as unknown);
               break;
             }
 

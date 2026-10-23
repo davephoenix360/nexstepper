@@ -426,8 +426,87 @@ function StateGallery() {
 /* ------------------------------------------------------------------ */
 
 function Placements() {
+  const [live, setLive] = useState<AgentMarkState>('working');
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {/* One state, three surfaces. */}
+      <Card className="lg:col-span-2">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="font-mono text-[11px] tracking-[0.15em] text-zinc-400 uppercase">
+            One state, three surfaces — live
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {AGENT_MARK_STATES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setLive(s)}
+                className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-colors ${
+                  live === s
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                    : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-[1fr_280px]">
+          {/* The chat header, with the status line. */}
+          <div className="overflow-hidden rounded-xl border border-zinc-200">
+            <div className="flex items-center gap-2.5 border-b border-zinc-100 bg-zinc-50 px-4 py-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white">
+                <AgentMark state={live} size={20} className="text-zinc-900" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-zinc-900">
+                  AI Assistant
+                </div>
+                <div
+                  className={`text-[11px] ${
+                    AGENT_MARK_STATE_SPECS[live].label === 'Idle'
+                      ? 'text-zinc-500'
+                      : 'font-medium text-indigo-600'
+                  }`}
+                >
+                  {AGENT_MARK_STATE_SPECS[live].label === 'Idle'
+                    ? 'SWE CleerDental'
+                    : AGENT_MARK_STATE_SPECS[live].meaning.split('.')[0]}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4 p-4">
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white">
+                  <AgentMark state={live} size={17} className="text-zinc-700" />
+                </div>
+                <div className="rounded-2xl rounded-tl-sm bg-zinc-100 px-4 py-2.5 text-[13px] leading-relaxed text-zinc-800">
+                  Moving Dayforce to the top, cutting the summary to two
+                  lines.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* The floating trigger. */}
+          <div className="relative flex h-full min-h-[200px] items-end justify-end rounded-xl bg-zinc-50 p-5">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-lg">
+              <AgentMark state={live} size={30} className="text-zinc-900" />
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-4 text-[13px] leading-relaxed text-zinc-600">
+          One state, three surfaces: the trigger, the chat header, and
+          the avatar beside the message. The header’s second line
+          swaps the resume name for the status while the agent is
+          doing something — the name is context you can get from the
+          page, the status is the thing you cannot.
+        </p>
+      </Card>
       {/* The floating trigger */}
       <Card>
         <div className="mb-5 font-mono text-[11px] tracking-[0.15em] text-zinc-400 uppercase">
@@ -438,17 +517,19 @@ function Placements() {
             <div className="rounded-full border border-zinc-200 bg-white/95 px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-lg backdrop-blur">
               Feedback
             </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg">
-              <AgentMark state="idle" size={30} tone="on-accent" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-lg">
+              <AgentMark state="idle" size={30} className="text-zinc-900" />
             </div>
           </div>
         </div>
         <p className="mt-4 text-[13px] leading-relaxed text-zinc-600">
-          The trigger is the one place the mark sits on colour, so it
-          takes the white <span className="font-mono">on-accent</span>{' '}
-          tone — brackets and dot both white, because an indigo dot on
-          an indigo button would simply vanish. The geometry is
-          identical; only the colour changes.
+          The trigger is in the mark’s{' '}
+          <span className="font-mono">native colouring</span> — navy
+          brackets, indigo dot — on a white button. It used to be a
+          solid indigo circle, but that forced the mark to be all
+          white, and an all-white 30px mark on indigo reads as a blob.
+          The mark is more legible in its own colours than the button
+          is.
         </p>
       </Card>
 

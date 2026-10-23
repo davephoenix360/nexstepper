@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import Markdown from 'react-markdown';
-import { CheckCircle, Loader2, Bot, User, AlertTriangle, Wand2 } from 'lucide-react';
+import { CheckCircle, User, Wand2 } from 'lucide-react';
+import { AgentMark } from '@/components/brand/agent-mark';
+import { agentStateForMessage } from '@/lib/brand/agent-mark';
 import type { ChatMessageRow } from './use-chat-stream';
 
 interface ChatMessageProps {
@@ -158,14 +160,23 @@ function ChatMessageComponent({ message, isLoading }: ChatMessageProps) {
       {/* Avatar */}
       <div
         className={`shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs
-          ${isUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+          ${isUser ? 'bg-primary text-primary-foreground' : 'border border-border bg-white'}`}
       >
-        {isLoading && !isUser ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : isUser ? (
+        {isUser ? (
           <User className="h-3.5 w-3.5" />
         ) : (
-          <Bot className="h-3.5 w-3.5" />
+          // The agent's mark, carrying what happened in THIS turn: a
+          // green check if a change landed, grey if a tool failed.
+          //
+          // It used to be a robot head, and a robot head is the one
+          // thing the mark is not. A spinner was the other thing it
+          // was not — the mark's `working` state is the loading
+          // affordance now, and it says what is being measured.
+          <AgentMark
+            state={isLoading ? 'working' : agentStateForMessage(message)}
+            size={17}
+            className="text-zinc-700"
+          />
         )}
       </div>
 
@@ -178,10 +189,10 @@ function ChatMessageComponent({ message, isLoading }: ChatMessageProps) {
           }`}
       >
         {isLoading && !isUser ? (
-          <span className="flex items-center gap-1.5 text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Thinking…
-          </span>
+          // No spinner here: the avatar beside this bubble is already
+          // animating the `working` state. Two spinners would be
+          // busy, and the mark's radar ring says more.
+          <span className="text-muted-foreground">Thinking…</span>
         ) : isUser ? (
           // User text stays plain — it is literal input, and rendering it as
           // markdown would mangle anything that looks like markup.

@@ -156,3 +156,162 @@ export const AGENT_MARK_MOTION = {
  * Changing it here changes every surface at once.
  */
 export const AGENT_DISPLAY_NAME = 'Scout';
+
+/* ------------------------------------------------------------------ */
+/* Deriving the state from what the agent is actually doing            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A persisted chat message, as far as the mark is concerned.
+ *
+ * Deliberately loose: the mark must work with a message row loaded
+ * from the database as well as with one being streamed right now.
+ */
+export interface AgentMessageLike {
+  role: 'user' | 'assistant';
+  content: string;
+  toolCalls?: unknown;
+  toolResult?: unknown;
+}
+
+/** What the agent is doing right now. */
+export interface AgentActivity {
+  /** A reply is streaming. */
+  isStreaming: boolean;
+  /** A tool has been announced and its result has not arrived yet. */
+  toolInFlight: boolean;
+  /** The most recent assistant message, if the conversation has one. */
+  lastAssistant?: AgentMessageLike | null;
+}
+
+/**
+ * How long a MOMENT state holds before it settles back to idle.
+ *
+ * `applied` is short — the check draws in 560ms and then the mark
+ * should not keep claiming something it already did. `blocked` and
+ * `verdict` are longer because they carry information the user has to
+ * read, and the mark is the only thing still on screen saying so.
+ *
+ * `needs-you` is deliberately NOT here: the agent is genuinely
+ * waiting for an answer, and it stays in that state until the user
+ * replies.
+ */
+export const AGENT_TRANSIENT_MS: Partial<Record<AgentMarkState, number>> = {
+  applied: 1900,
+  blocked: 2600,
+  verdict: 3200
+};
+
+/** `true` when the state is a moment that settles on its own. */
+export function isTransientAgentState(state: AgentMarkState): boolean {
+  return AGENT_TRANSIENT_MS[state] !== undefined;
+}
+
+/**
+ * The tool results on a message, normalised to `{ ok }`.
+ *
+ * Every tool in `lib/chat/tools/` returns `{ ok: true, result }` or
+ * `{ ok: false, error }`, and the stream wraps that in
+ * `{ id, result }`. So "did the tool succeed" is one field, and it is
+ * the same field the "Changes applied" badge already reads.
+ */
+export function toolResultsOf(
+  message: AgentMessageLike | null | undefined
+): Array<{ ok: boolean }> {
+  const raw = message?.toolResult;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    const inner = (entry as { result?: unknown } | null)?.result;
+    const ok = (inner as { ok?: unknown } | null)?.ok;
+    return { ok: ok === true };
+  });
+}
+
+/**
+ * The state the mark should show for a PERSISTED message.
+ *
+ * This is what the avatar next to a message in the transcript shows:
+ * what happened in that turn. A turn that applied changes carries a
+ * green check; a turn whose tool failed is grey; everything else is
+ * the plain mark.
+ */
+export function agentStateForMessage(
+  message: AgentMessageLike | null | undefined
+): AgentMarkState {
+  if (!message || message.role !== 'assistant') return 'idle';
+  const results = toolResultsOf(message);
+  if (results.length > 0) {
+    return results.some((r) => r.ok) ? 'applied' : 'blocked';
+  }
+  // A tool call that was announced but never produced a result did
+  // not land. That is a stall, not a neutral message.
+  if (Array.isArray(message.toolCalls) && message.toolCalls.length > 0) {
+    return 'blocked';
+  }
+  return 'idle';
+}
+
+/**
+ * The LIVE state of the agent.
+ *
+ * The rules, in order:
+ *
+ * 1. A tool is running → `working`. The agent is measuring or
+ *    editing, and that is the most important thing it could be doing.
+ * 2. A reply is streaming → `reading`. It is composing.
+ * 3. The last turn ended with a tool result → `applied` if any tool
+ *    succeeded, `blocked` if none did.
+ * 4. The last turn ended with a tool call but no result → `blocked`.
+ * 5. The last turn ended with a question → `needs-you`. The agent is
+ *    waiting on a fact only the user has. (A trailing question mark is
+ *    a crude signal, but the agent's own voice spec says it asks for
+ *    exactly ONE thing by name — "Your Dayforce role has no start
+ *    date. What was it?" — so it is a reliable one in practice.)
+ * 6. The last turn ended with a statement → `verdict`. The agent
+ *    found something, or made a decision, and said so.
+ * 7. Otherwise → `idle`.
+ */
+export function deriveAgentState(activity: AgentActivity): AgentMarkState {
+  if (activity.toolInFlight) return 'working';
+  if (activity.isStreaming) return 'reading';
+
+  const last = activity.lastAssistant;
+  if (!last) return 'idle';
+
+  const results = toolResultsOf(last);
+  if (results.length > 0) {
+    return results.some((r) => r.ok) ? 'applied' : 'blocked';
+  }
+  if (Array.isArray(last.toolCalls) && last.toolCalls.length > 0) {
+    return 'blocked';
+  }
+
+  const text = (last.content ?? '').trim();
+  if (text.length === 0) return 'idle';
+  return text.endsWith('?') ? 'needs-you' : 'verdict';
+}
+
+/**
+ * A one-line description of what the agent is doing, for the chat
+ * header. `null` means "nothing worth saying" — the header then shows
+ * the resume name, as it always did.
+ */
+export function agentStateLabel(state: AgentMarkState): string | null {
+  switch (state) {
+    case 'reading':
+      return 'Reading your resume';
+    case 'working':
+      return 'Working';
+    case 'verdict':
+      return 'Found something';
+    case 'applied':
+      return 'Change applied';
+    case 'needs-you':
+      return 'Waiting for you';
+    case 'blocked':
+      return 'Stopped — it needs your input';
+    case 'idle':
+    default:
+      return null;
+  }
+}

@@ -6,6 +6,7 @@ import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
 import { ChatSidebar } from './chat-sidebar';
 import { AgentMark } from '@/components/brand/agent-mark';
+import { agentStateLabel, type AgentMarkState } from '@/lib/brand/agent-mark';
 import { type ChatMessageRow } from './use-chat-stream';
 import type { SuggestedPrompt } from '@/lib/chat/suggested-prompts';
 import { CHAT_PANEL_BOTTOM_PX, FLOATING_RIGHT_PX } from '@/lib/ui/floating-actions';
@@ -17,6 +18,14 @@ interface ChatSessionSummary {
 }
 
 interface ChatWindowProps {
+  /**
+   * The agent's live state, for the mark in the header.
+   *
+   * Owned by the parent (it has the stream) and passed down, so the
+   * mark in the header and the mark on the floating trigger can never
+   * disagree about what the agent is doing.
+   */
+  agentState?: AgentMarkState;
   resumeName: string;
   isPro: boolean;
   sessions: ChatSessionSummary[];
@@ -55,7 +64,8 @@ export function ChatWindow({
   onNewChat,
   onSend,
   onCancel,
-  onSelectSession
+  onSelectSession,
+  agentState = 'idle',
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -117,6 +127,10 @@ export function ChatWindow({
     setIsPinnedToBottom(true);
   }, [activeSessionId]);
 
+  /** What the agent is doing, as a line of text — or null when
+   *  there is nothing worth saying and the resume name should show. */
+  const agentStatus = agentStateLabel(agentState);
+
   const hasSessions = sessions.length > 0;
   const showSidebar = hasSessions && !isHistoryCollapsed;
 
@@ -142,15 +156,20 @@ export function ChatWindow({
               brackets with the indigo dot — rather than a white
               silhouette. The dot is the only colour in the header. */}
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white">
-            <AgentMark
-              state={isStreaming ? 'working' : 'idle'}
-              size={20}
-              className="text-gray-900"
-            />
+            <AgentMark state={agentState} size={20} className="text-gray-900" />
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-900">AI Assistant</p>
-            <p className="truncate text-xs text-gray-500">{resumeName}</p>
+            {/* While the agent is doing something, its STATUS replaces
+                the resume name. The name is context you can get from
+                the page; the status is the thing you cannot. */}
+            <p
+              className={`truncate text-xs ${
+                agentStatus ? 'font-medium text-indigo-600' : 'text-gray-500'
+              }`}
+            >
+              {agentStatus ?? resumeName}
+            </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -208,7 +227,7 @@ export function ChatWindow({
               {/* The one place the mark is large enough to be a
                   character rather than an icon. */}
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50">
-                <AgentMark state="idle" size={44} className="text-gray-900" />
+                <AgentMark state={agentState} size={44} className="text-gray-900" />
               </div>
               <p className="mb-1 text-sm font-medium text-gray-900">Ask about your resume</p>
               <p className="max-w-[16rem] text-xs leading-relaxed text-gray-500">

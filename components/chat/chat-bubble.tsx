@@ -1,10 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChatWindow } from './chat-window';
 import { AgentMark } from '@/components/brand/agent-mark';
+import { useAgentMarkState } from '@/components/brand/use-agent-mark-state';
 import { useChatStream } from './use-chat-stream';
 import { type ChatMessageRow } from './use-chat-stream';
 import {
@@ -49,6 +50,17 @@ export function ChatBubble({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  /**
+   * Whether a tool has been announced and its result has not arrived
+   * yet.
+   *
+   * This is the one thing the message list cannot tell us: a tool
+   * call and its result are separate stream events, so there is a
+   * window — the agent is actually doing the thing — where the
+   * message list shows a tool call with no result yet. That window
+   * is exactly the `working` state.
+   */
+  const [toolInFlight, setToolInFlight] = useState(false);
   // Quota readout state. Seeded to `null` (unknown) rather than a
   // fabricated `{ limit: 20, used: 0 }` — the server is the only
   // authority on the real count, and it reports it via the
@@ -188,7 +200,12 @@ export function ChatBubble({
     resumeId,
     resumeName,
     onMessage: setMessages,
-    onDone: () => setIsStreaming(false),
+    onDone: () => {
+      setIsStreaming(false);
+      setToolInFlight(false);
+    },
+    onToolCall: () => setToolInFlight(true),
+    onToolResult: () => setToolInFlight(false),
     onUsage: (usage) => {
       // Hide the readout entirely for unlimited plans; otherwise track
       // the server's authoritative count.
@@ -234,6 +251,9 @@ export function ChatBubble({
   const handleSend = useCallback(
     async (content: string) => {
       setIsStreaming(true);
+      // A new turn starts from a clean slate: whatever the previous
+      // turn was doing is over.
+      setToolInFlight(false);
       // Clear the previous rejection notice optimistically — a fresh
       // attempt that succeeds must not leave a stale "you've used
       // today's allowance" banner sitting above the composer.
@@ -268,6 +288,27 @@ export function ChatBubble({
     void handleSend(autoPrompt);
   }, [autoPrompt, isOpen, sessionsLoaded, sessions.length, handleSend]);
 
+
+  /**
+   * The agent's live state, for the mark.
+   *
+   * The last assistant message is the anchor: it is what the agent
+   * last DID, and it survives a page reload — so the mark can greet
+   * you with "waiting for you" if the agent's last word was a
+   * question you never answered.
+   */
+  const lastAssistant = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') return messages[i];
+    }
+    return null;
+  }, [messages]);
+
+  const agentState = useAgentMarkState({
+    isStreaming,
+    toolInFlight,
+    lastAssistant
+  });
   const handleSelectSession = useCallback((id: string) => {
     // The messages-load useEffect will pick up the id change and fetch.
     setActiveSessionId(id);
@@ -282,7 +323,7 @@ export function ChatBubble({
       <button
         onClick={() => setIsOpen((v) => !v)}
         aria-label={isOpen ? 'Close AI assistant' : 'Open AI assistant'}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-all hover:bg-indigo-700 hover:scale-105 active:scale-95 no-print"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-lg transition-all hover:border-gray-300 hover:shadow-xl hover:scale-105 active:scale-95 no-print"
         style={{ bottom: '1.5rem', right: '1.5rem' }}
       >
         {isOpen ? (
@@ -293,18 +334,20 @@ export function ChatBubble({
         ) : (
           // The brand mark, not a chat bubble. The bubble said
           // "chat"; the mark says "an agent that has already read
-          // your resume". It takes the white `on-accent` tone
-          // because it sits on the indigo button.
-          <AgentMark
-            state={isStreaming ? 'working' : 'idle'}
-            size={30}
-            tone="on-accent"
-          />
+          // your resume".
+          //
+          // In its NATIVE colouring — navy brackets, indigo dot — on
+          // a white button. It used to be a solid indigo circle, but
+          // that forced the mark to be all white, and an all-white
+          // 30px mark on indigo reads as a blob. The mark is more
+          // legible in its own colours than the button is.
+          <AgentMark state={agentState} size={30} className="text-gray-900" />
         )}
       </button>
 
       {isOpen && (
         <ChatWindow
+          agentState={agentState}
           resumeName={resumeName}
           isPro={isPro}
           sessions={sessions}
