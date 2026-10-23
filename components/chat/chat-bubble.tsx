@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquare } from 'lucide-react';
 import { ChatWindow } from './chat-window';
+import { AgentMark } from '@/components/brand/agent-mark';
 import { useChatStream } from './use-chat-stream';
 import { type ChatMessageRow } from './use-chat-stream';
 import {
@@ -291,7 +291,15 @@ export function ChatBubble({
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         ) : (
-          <MessageSquare size={22} />
+          // The brand mark, not a chat bubble. The bubble said
+          // "chat"; the mark says "an agent that has already read
+          // your resume". It takes the white `on-accent` tone
+          // because it sits on the indigo button.
+          <AgentMark
+            state={isStreaming ? 'working' : 'idle'}
+            size={30}
+            tone="on-accent"
+          />
         )}
       </button>
 

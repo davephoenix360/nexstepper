@@ -5,6 +5,7 @@ import { ArrowDown, X, Plus, Crown, PanelLeftClose, PanelLeftOpen } from 'lucide
 import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
 import { ChatSidebar } from './chat-sidebar';
+import { AgentMark } from '@/components/brand/agent-mark';
 import { type ChatMessageRow } from './use-chat-stream';
 import type { SuggestedPrompt } from '@/lib/chat/suggested-prompts';
 import { CHAT_PANEL_BOTTOM_PX, FLOATING_RIGHT_PX } from '@/lib/ui/floating-actions';
@@ -136,11 +137,16 @@ export function ChatWindow({
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a10 10 0 1 0 10 10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
+          {/* The agent's mark. A white circle rather than a filled
+              indigo one, so the mark reads as the mark — navy
+              brackets with the indigo dot — rather than a white
+              silhouette. The dot is the only colour in the header. */}
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white">
+            <AgentMark
+              state={isStreaming ? 'working' : 'idle'}
+              size={20}
+              className="text-gray-900"
+            />
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-900">AI Assistant</p>
@@ -199,10 +205,10 @@ export function ChatWindow({
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {messages.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-50">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
+              {/* The one place the mark is large enough to be a
+                  character rather than an icon. */}
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50">
+                <AgentMark state="idle" size={44} className="text-gray-900" />
               </div>
               <p className="mb-1 text-sm font-medium text-gray-900">Ask about your resume</p>
               <p className="max-w-[16rem] text-xs leading-relaxed text-gray-500">
