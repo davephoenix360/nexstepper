@@ -158,6 +158,26 @@ HMAC. It is skipped unless `BACKFILL_SHARE_TOKENS` is set, dry-runs
 by default, refuses to run without the target environment's secret,
 and never prints a token.
 
+## Post-deploy verification
+
+The fix is deployed and **verified against the live site** (read-only
+probe of every shared resume in production, no database write):
+
+```
+  PASS  My Original General Resume   tokenLen=64 enabled=true -> HTTP 200 (renders=true noError=true)
+  PASS  Website — Variant            tokenLen=64 enabled=true -> HTTP 200 (renders=true noError=true)
+  PASS  Benefit Administrator        tokenLen=64 enabled=true -> HTTP 200 (renders=true noError=true)
+  PASS  SWE CleerDental              tokenLen=22 enabled=true -> HTTP 200 (renders=true noError=true)
+
+SHARE ROUTE: 4 live, 0 dead (of 4 shared resumes)
+```
+
+Before the deploy it was 1 live and 3 dead. All four now render the
+resume with no error boundary.
+
+**The backfill was still not run** — the code fix is what made these
+links work, and the data half remains the user's call.
+
 ## Tests
 
 - `tests/unit/share/token.test.ts` (+13) — the classification, the
