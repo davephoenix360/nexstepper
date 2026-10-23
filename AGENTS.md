@@ -171,6 +171,34 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The score badge in the resume list was showing a different number
+  than the scorecard** — The user reported the ATS score chip on
+  `/dashboard/resumes` "isn't updating". It wasn't stale — it was a
+  **different number**. The PAGE reads the breakdown the last Recompute
+  persisted (`resolveRenderedBreakdown`), but the LIST computed a fresh
+  score for every row with the **SYNC** engine, so the badge showed the
+  older token-based number while the scorecard showed the enhanced (Jev)
+  one. Measured in production: the badge on "SWE CleerDental" said **47**
+  while the scorecard on the same resume said **57** — a number the
+  user had never seen. This is the same bug the 2026-10-22
+  recompute-flicker fix corrected on the PAGE, left uncorrected on the
+  LIST: the rule was never stated as a SHARED rule, so each surface
+  kept its own copy of "the score for this variant". **The fix is one
+  helper called by both surfaces**, so they agree by construction
+  rather than by two implementations happening to match:
+  `listResumes` now resolves through `resolveRenderedBreakdown` and
+  reads the persisted snapshot, falling back to the sync engine only
+  for a variant that has never been scored. A new batched query,
+  `getLatestScoreSnapshots`, gets the latest snapshot per variant in
+  ONE round trip via `SELECT DISTINCT ON (resume_id)` (calling
+  `getLatestScoreSnapshot` per row would have been N+1). And BOTH
+  recompute actions now also `revalidatePath('/dashboard/resumes')` —
+  they only revalidated the editor path, so the list's RSC payload was
+  never invalidated either. 6 new tests, including the anti-drift
+  guard: the list and the page must go through the same resolver, and
+  the actions must revalidate the list. Drift memo:
+  `docs/drift/2026-10-23-list-score-badge-divergence.md`.
+
 - **The agent has a name, and it knows it** — **Scout.** The name is
   ONE string in ONE place — `AGENT_DISPLAY_NAME` in
   `lib/brand/agent-mark.ts` — and the chat header, the trigger's

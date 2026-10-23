@@ -205,10 +205,14 @@ export type ResumeFamily = {
   master: Resume;
   variants: Resume[];
   /**
-   * Per-variant ATS score (0-100), computed server-side from the
-   * variant's current `data` + `data.jobContext`. `null` when the
-   * variant has no JD attached (master never has one, so the
-   * variant-level null is the common case for fresh variants).
+   * Per-variant ATS score (0-100) — the SAME number the variant's own
+   * page shows on its scorecard.
+   *
+   * It is the breakdown the last Recompute persisted; only a variant
+   * that has never been scored falls back to computing a fresh one.
+   * `null` when the variant has no JD attached (a master never has
+   * one, so the variant-level null is the common case for fresh
+   * variants).
    *
    * Powers the badge on the variant row in `resume-list.tsx`.
    * Plan: docs/plans/ats-scoring.md §"User-visible behavior".
@@ -222,11 +226,18 @@ export type ResumeFamily = {
  * Masters come first (sorted by most recently updated). Variants are nested
  * under their parent. Variants without a master (orphaned) are filtered out.
  *
- * Per plan §"User-visible behavior" #11: each variant's current ATS
- * score is computed server-side and returned alongside the row, so
- * the variant card can render the score badge without a per-row
- * fetch. Variants without a JD (the common case for fresh variants)
- * return null in the `variantScores` map.
+ * Per plan §"User-visible behavior" #11: each variant's ATS score is
+ * resolved server-side and returned alongside the row, so the variant
+ * card can render the score badge without a per-row fetch. Variants
+ * without a JD (the common case for fresh variants) return null in
+ * the `variantScores` map.
+ *
+ * The score is the one the variant's own page shows: the breakdown
+ * the last Recompute persisted, and only a never-scored variant
+ * falls back to computing a fresh one. See
+ * `lib/scoring/snapshot-breakdown.ts` for why the two surfaces must
+ * use the same rule rather than two implementations that happen to
+ * agree.
  *
  * Implementation:
  *   1. One `SELECT * FROM resumes WHERE user_id = ?` to get the
@@ -234,8 +245,10 @@ export type ResumeFamily = {
  *   2. One `SELECT * FROM resume_revisions WHERE id IN (...)` to get
  *      every variant's current revision's data (batched — one query
  *      for all variants, not one-per-row).
- *   3. Compute the score per variant with a JD attached.
- *   4. Return the assembled families + scores.
+ *   3. One `SELECT DISTINCT ON (resume_id)` over `score_snapshots` to
+ *      get the latest snapshot per variant (batched, one row each).
+ *   4. Resolve the score per variant with a JD attached, and return
+ *      the assembled families + scores.
  */
 export async function listResumes(userId: string): Promise<ResumeFamily[]> {
   // One round trip: pull all the user's resumes, then group in memory.
@@ -287,9 +300,30 @@ export async function listResumes(userId: string): Promise<ResumeFamily[]> {
     dataByRevision.set(rev.id, rev.data);
   }
 
+  // The score the badge shows MUST be the same score the scorecard
+  // on the variant's own page shows. The page reads the breakdown the
+  // last Recompute persisted and only computes a fresh one when there
+  // is no snapshot yet — and this list used to compute a fresh score
+  // for EVERY row, with the SYNC engine.
+  //
+  // So the two surfaces disagreed: the page showed the enhanced (Jev)
+  // score, the badge showed the older token-based one, and a Recompute
+  // moved the scorecard's number while the badge sat still. The badge
+  // was showing a number the user had never seen.
+  //
+  // Same rule as the page, same helper — so they agree by
+  // construction rather than by two implementations happening to
+  // match.
+  const snapshots = await getLatestScoreSnapshots(
+    allVariants.map((v) => v.id)
+  );
+
   // Lazy-import the scoring engine so the queries module doesn't
   // pull it into every consumer (some test setups mock queries).
   const { scoreResumeFromEnvelope } = await import('@/lib/scoring');
+  const { resolveRenderedBreakdown } = await import(
+    '@/lib/scoring/snapshot-breakdown'
+  );
 
   for (const variant of allVariants) {
     const data =
@@ -302,11 +336,12 @@ export async function listResumes(userId: string): Promise<ResumeFamily[]> {
         f.variants.some((v) => v.id === variant.id)
       );
       if (family) {
-        family.variantScores[variant.id] = scoreResumeFromEnvelope(
-          data,
-          data.jobContext,
-          new Date()
-        ).overallScore;
+        const breakdown = resolveRenderedBreakdown({
+          persisted: snapshots.get(variant.id)?.breakdown ?? null,
+          compute: () =>
+            scoreResumeFromEnvelope(data, data.jobContext!, new Date())
+        });
+        family.variantScores[variant.id] = breakdown.overallScore;
       }
     } catch {
       // Never let a scoring failure break the list render — the
@@ -1646,6 +1681,47 @@ export async function getLatestScoreSnapshot(
     .orderBy(desc(scoreSnapshots.createdAt))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * The latest score snapshot for EACH of several resumes, in ONE query.
+ *
+ * ## Why this exists
+ *
+ * The variant list shows a score badge per row, and that badge has to
+ * agree with the scorecard on the variant's own page. The page reads
+ * the PERSISTED breakdown (the one the last Recompute produced) and
+ * only computes a fresh score when there is no snapshot yet — see
+ * `lib/scoring/snapshot-breakdown.ts`. The list used to
+ * compute a fresh score for every row instead, which meant the badge
+ * and the scorecard were two different numbers computed by two
+ * different engines.
+ *
+ * Calling `getLatestScoreSnapshot` per row would be N+1, so this
+ * uses `SELECT DISTINCT ON (resume_id)` — one row per resume, the most
+ * recent, in a single index scan on
+ * `score_snapshots_resume_created_idx`.
+ *
+ * Returns a map keyed by resume id. Resumes with no snapshot are
+ * simply absent from it.
+ */
+export async function getLatestScoreSnapshots(
+  resumeIds: string[]
+): Promise<Map<string, ScoreSnapshot>> {
+  const out = new Map<string, ScoreSnapshot>();
+  if (resumeIds.length === 0) return out;
+
+  const { inArray } = await import('drizzle-orm');
+  const rows = await db
+    .selectDistinctOn([scoreSnapshots.resumeId])
+    .from(scoreSnapshots)
+    .where(inArray(scoreSnapshots.resumeId, resumeIds))
+    .orderBy(scoreSnapshots.resumeId, desc(scoreSnapshots.createdAt));
+
+  for (const row of rows) {
+    out.set(row.resumeId, row);
+  }
+  return out;
 }
 
 // ─── Chat queries (Phase 4) ────────────────────────────────────────────────────

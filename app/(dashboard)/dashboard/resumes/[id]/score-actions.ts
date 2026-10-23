@@ -143,6 +143,11 @@ export async function recomputeScoreAction(
       computedInMs: breakdown.computedInMs
     });
     revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
+    // The variant LIST also renders a score badge, and it reads the
+    // snapshot this recompute just wrote. Without revalidating it,
+    // the badge keeps the number from before the recompute — which
+    // is exactly the "the score isn't updating" symptom.
+    revalidatePath('/dashboard/resumes');
     return { ok: true, data: { breakdown, tips, matchBreakdown } };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
