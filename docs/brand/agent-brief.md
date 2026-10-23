@@ -377,18 +377,42 @@ it lives; the mark does not depend on it.
 
 ### What is left to do
 
-1. Pick the name.
-2. Wire the mark into the product: the chat trigger button
-   (`components/chat/chat-bubble.tsx`), the chat header avatar
-   (`components/chat/chat-window.tsx`), and the message avatar
-   (`components/chat/chat-message.tsx`).
-3. Drive the states from the chat stream. The transition points are in
-   `lib/chat/use-chat-stream.ts` — a tool call starting is `working`, a
-   tool call succeeding is `applied`, a tool call asking for a missing
-   fact is `needs-you`, and a tool call that could not be applied is
-   `blocked`.
-4. Consider the animated state for the "agent is working" indicator — it
-   is the one place a mark can have personality rather than a logo.
+1. **Pick the name.** The shortlist above is a recommendation, not a
+   decision. `AGENT_DISPLAY_NAME` in `lib/brand/agent-mark.ts` is the
+   one place it lives, and the mark does not depend on it.
+2. **Nothing else.** The mark is in the product: the floating trigger,
+   the chat header, the message avatar, and the empty state, all
+   driven by the agent's live state.
+
+### The motion language, and how it is driven
+
+The states are not decoration — they are the agent telling you what it
+is doing before it says anything. The derivation is pure and lives in
+`lib/brand/agent-mark.ts` (`deriveAgentState`); the one part that
+cannot be pure — SETTLING, so a moment announces itself and then gets
+out of the way — is `useAgentMarkState`.
+
+| State | What the mark does | What triggers it |
+|---|---|---|
+| `idle` | A halo behind the dot breathes, so it never looks frozen | Nothing in flight |
+| `reading` | The brackets scan apart and back, like a gaze moving across a line | A reply is streaming |
+| `working` | A radar ring pulses out of the dot. The agent is measuring, so the mark measures | A tool call has been announced and its result has not arrived |
+| `verdict` | The brackets close in and the dot turns amber | The turn ended with a statement — a finding or a decision |
+| `applied` | The dot becomes a check | A tool reported `ok: true` |
+| `needs-you` | The dot slides out toward the bracket that marks the question | The turn ended with a question |
+| `blocked` | The brackets pull apart and the dot goes grey. It will not guess | A tool reported `ok: false`, or never answered |
+
+`applied`, `blocked` and `verdict` are **moments**: they settle back to
+idle on a timer. If they did not, one finding would leave the mark
+amber forever and the user would learn to ignore it. `needs-you` is
+deliberately not a moment — the agent is genuinely waiting for an
+answer, and it stays that way until the user replies. It also survives
+a page reload, because the last assistant message is the anchor, so
+the mark can greet you with "waiting for you" if you never answered.
+
+**Three surfaces, one state:** the floating trigger, the chat header,
+and the avatar beside each message. The header's second line swaps the
+resume name for a status while the agent is busy.
 
 ---
 

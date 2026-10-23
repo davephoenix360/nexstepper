@@ -171,6 +171,39 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The mark is wired in, and it now says what the agent is doing** —
+  The seven states are no longer a design exercise — the chat drives
+  them. The derivation is pure and lives in `lib/brand/agent-mark.ts`
+  (`deriveAgentState`), and the one thing that cannot be pure —
+  SETTLING, so a moment announces itself and then gets out of the
+  way — is `useAgentMarkState` in
+  `components/brand/use-agent-mark-state.ts`. **The rules:** a tool in
+  flight is `working`; a streaming reply is `reading`; a turn that
+  ended with a tool result is `applied` if any tool succeeded and
+  `blocked` if none did; a turn that ended with a QUESTION is
+  `needs-you` (the agent is waiting on a fact only the user has —
+  and it stays in that state until the user replies, because it
+  genuinely is waiting); a turn that ended with a statement is a
+  `verdict`. `applied` / `blocked` / `verdict` are MOMENTS that settle
+  back to idle on a timer — if they did not, the user would learn to
+  ignore them. `useChatStream` grew an `onToolResult` callback,
+  because a tool call and its result are separate stream events and
+  the window between them is exactly the `working` state. **Three
+  surfaces, one state:** the floating trigger, the chat header, and
+  the avatar beside each message. The header's second line swaps the
+  resume name for a status while the agent is busy — the name is
+  context you can get from the page, the status is the thing you
+  cannot. **The robot icon is gone** from the message avatar, and so
+  is the spinner in the thinking bubble: the mark's `working` state
+  IS the loading affordance now, and it says what is being measured
+  rather than just that something is. **The trigger is in the mark's
+  NATIVE colouring** — navy brackets, indigo dot, on a white button.
+  It was a solid indigo circle, which forced the mark to be all
+  white, and an all-white 30px mark on indigo reads as a blob; the
+  mark is more legible in its own colours than the button is.
+  21 new tests: the derivation rules, the transient/mode split, and
+  the hook's settle-and-cancel behaviour.
+
 - **The AI agent has a mark, and a motion language to go with it** — The
   owner generated the brand mark with their image generator and handed
   it over: two opposing corner brackets closing in on one solid dot,
