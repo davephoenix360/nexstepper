@@ -157,6 +157,19 @@ describe('the motion layer', () => {
     expect(css).toContain('prefers-reduced-motion: reduce');
   });
 
+  it('fades the check out instead of un-drawing it', () => {
+    // The base state of the check is "fully drawn but invisible", so
+    // the exit is a fade of a drawn check. If the base dash offset
+    // were 86, leaving the state would rewind the draw backwards
+    // while fading — a visible glitch.
+    const check = css.match(
+      /\.agent-mark \[data-part='check'\]\s*\{[^}]*\}/
+    )?.[0];
+    expect(check).toBeDefined();
+    expect(check).toMatch(/stroke-dashoffset:\s*0;/);
+    expect(check).toMatch(/transition:\s*opacity/);
+  });
+
   it('gives every looping animation a delay hook', () => {
     // The filmstrip relies on this; if a new animation is added
     // without it, that frame would not be samplable.

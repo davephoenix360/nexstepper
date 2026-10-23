@@ -114,8 +114,13 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 86;
-  stroke-dashoffset: 86;
+  /* The BASE state is "drawn but invisible". That way the draw
+     animation is the only thing that ever moves the dash, and when
+     the state ends the check FADES OUT fully drawn rather than
+     un-drawing itself backwards. */
+  stroke-dashoffset: 0;
   opacity: 0;
+  transition: opacity 240ms var(--agent-ease);
 }
 
 .agent-mark[data-tone='on-accent'] {
@@ -126,6 +131,12 @@
 .agent-mark[data-tone='monochrome'] {
   --agent-stroke: currentColor;
   --agent-dot: currentColor;
+}
+
+/* A single-colour stamp has no background to knock the check out
+   against, so it does not get one. The dot alone carries the state. */
+.agent-mark[data-tone='monochrome'] [data-part='check'] {
+  display: none;
 }
 
 /* ------------------------------------------------------------------ */
