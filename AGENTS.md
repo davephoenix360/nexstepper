@@ -171,6 +171,40 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Three share links in production were dead, and the owner couldn't
+  tell** — Found while smoke-testing the print fix against the public
+  share route. `resumes.share_token` has held two shapes: the current
+  22-char base64url HMAC, and the 64-char SHA-256 hex digest left
+  behind by the pre-Phase-2.5b design. **The lookup has always been
+  direct equality on the column**, so both shapes are working URLs.
+  Two bugs masked each other: (1) the route's input guard accepted
+  ONLY the 22-char shape, so a legacy digest never reached the
+  database; (2) `getShareUrlAction` returned
+  `buildShareUrl(deriveShareToken(id))` — and a derived token is
+  ALWAYS 22 chars, so it could never equal a 64-char column value.
+  The owner was handed a link that 404'd for everyone, including
+  themselves, and the dialog said nothing. Measured on the live route:
+  the 64-char token returns **404**, the 22-char one returns **200**;
+  the production census is 24 resumes, 4 with a token, 4 enabled —
+  **3 of the 4 are the legacy shape and all 3 are dead**. The helper
+  that would have caught it, `looksLikeDeterministicShareToken`,
+  existed precisely for this ("so we can hand the owner an honest 'this
+  row hasn't been refreshed yet' copy during the transition window")
+  and was **exported and never called**. Fix: `lib/share/token.ts` now
+  owns the shapes in one place — `classifyShareToken`,
+  `isAcceptedShareToken` (the route's guard, covering BOTH shapes),
+  and `selectShareToken` (the stored column value wins; the
+  derivation is the fallback) — and the route and the action both use
+  it, with anti-drift tests that fail if either goes back to a private
+  copy. **Not a security regression:** the column value was already a
+  working URL for every canonical row, so a DB leak already yielded
+  working links; the route still 404s identically for "unknown" and
+  "disabled". The data half is a separate opt-in tool,
+  `scripts/backfill-share-tokens.cjs` (dry run by default, needs the
+  target environment's secret, never prints a token) — **it was NOT
+  run against production**; the dry run reports exactly 3 rows. Drift
+  memo: `docs/drift/2026-10-22-dead-legacy-share-links.md`.
+
 - **The editor has undo and redo, and the history lives in local storage** —
   The user asked for both, with the history explicitly NOT in the database:
   the resume is JSON, the save is the only thing that needs to be durable, and
