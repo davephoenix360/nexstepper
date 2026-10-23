@@ -1,0 +1,330 @@
+/*
+  --- Nexstepper AI agent mark ---
+
+  The motion layer for the assistant's mark: two opposing corner
+  brackets closing in on one solid dot.
+
+  ## How it is built
+
+  Two kinds of movement, deliberately separated:
+
+  1. **STATE CHANGES are transitions.** Every transformable property
+     on the mark is driven by a CSS custom property, and the
+     custom property changes when `data-state` changes. The browser
+     then INTERPOLATES it. That is why a state change is smooth and
+     interruptible: you can go from `working` to `needs-you` mid
+     animation and it simply retargets, with no jump.
+
+  2. **ACTIVITY is animation.** The idle breath, the reading scan and
+     the working radar ring are looping keyframes on dedicated
+     elements, layered on top of the transitioned transforms. They
+     never fight the transition because they animate different
+     properties (scale/opacity on a separate node).
+
+  If the two were mixed on the same properties, every state change
+  would snap — which is exactly what makes most UI animation feel
+  cheap.
+
+  ## Performance
+
+  Only `transform` and `opacity` are animated, on elements with
+  `will-change: transform`. Nothing here triggers layout or paint.
+  The SVG uses `transform-box: view-box` so `transform-origin` can be
+  given in the artwork's own 1024-unit coordinate space.
+
+  ## Reduced motion
+
+  Everything collapses to an instant state change. The states are
+  still legible from colour and position; only the movement goes.
+*/
+
+.agent-mark {
+  /* Overridable by the parent (a white-on-indigo button, say). */
+  --agent-stroke: currentColor;
+  --agent-dot: #6366f1;
+
+  /* Per-state transform targets. */
+  --agent-shift-a: 0px 0px;
+  --agent-shift-b: 0px 0px;
+  --agent-rot-a: 0deg;
+  --agent-rot-b: 0deg;
+  --agent-scale: 1;
+  --agent-dot-shift: 0px 0px;
+
+  --agent-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --agent-dur: 420ms;
+
+  /* Animation delay. Negative values are how the filmstrip in the
+     brand lab samples one cycle at six different moments. */
+  --agent-delay: 0ms;
+
+  display: inline-block;
+  line-height: 0;
+  overflow: visible;
+}
+
+.agent-mark [data-part='bracket-a'],
+.agent-mark [data-part='bracket-b'],
+.agent-mark [data-part='dot'] {
+  transform-box: view-box;
+  transform-origin: 512px 512px;
+  transition:
+    transform var(--agent-dur) var(--agent-ease),
+    fill 260ms var(--agent-ease);
+  will-change: transform;
+}
+
+.agent-mark [data-part='bracket-a'] {
+  transform: translate(var(--agent-shift-a)) rotate(var(--agent-rot-a))
+    scale(var(--agent-scale));
+}
+
+.agent-mark [data-part='bracket-b'] {
+  transform: translate(var(--agent-shift-b)) rotate(var(--agent-rot-b))
+    scale(var(--agent-scale));
+}
+
+.agent-mark [data-part='dot'] {
+  transform: translate(var(--agent-dot-shift));
+}
+
+/* The halo and the radar ring live behind the dot. */
+.agent-mark [data-part='halo'],
+.agent-mark [data-part='radar'] {
+  transform-box: view-box;
+  transform-origin: 512px 512px;
+  opacity: 0;
+}
+
+.agent-mark [data-part='halo'] {
+  fill: var(--agent-dot);
+}
+
+.agent-mark [data-part='radar'] {
+  fill: none;
+  stroke: var(--agent-dot);
+  stroke-width: 14;
+}
+
+/* The check that replaces the dot when an edit lands. */
+.agent-mark [data-part='check'] {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 24;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 86;
+  stroke-dashoffset: 86;
+  opacity: 0;
+}
+
+.agent-mark[data-tone='on-accent'] {
+  --agent-stroke: #ffffff;
+  --agent-dot: #ffffff;
+}
+
+.agent-mark[data-tone='monochrome'] {
+  --agent-stroke: currentColor;
+  --agent-dot: currentColor;
+}
+
+/* ------------------------------------------------------------------ */
+/* States                                                              */
+/* ------------------------------------------------------------------ */
+
+/* READING — the brackets scan apart and back, like eyes moving
+   across a line of text. */
+.agent-mark[data-state='reading'] {
+  --agent-rot-a: 4deg;
+  --agent-rot-b: -4deg;
+  --agent-scale: 1.01;
+}
+
+/* VERDICT — it found something. The brackets close in on the dot and
+   the dot turns amber. */
+.agent-mark[data-state='verdict'] {
+  --agent-scale: 0.9;
+  --agent-dot: #f59e0b;
+}
+
+/* WORKING — an edit is in flight. The brackets turn slightly inward
+   (concentration) and a radar ring pulses out from the dot. */
+.agent-mark[data-state='working'] {
+  --agent-rot-a: -3deg;
+  --agent-rot-b: 3deg;
+  --agent-scale: 0.96;
+}
+
+/* APPLIED — the change landed. The dot becomes a check. */
+.agent-mark[data-state='applied'] {
+  --agent-dot: #10b981;
+}
+
+/* NEEDS YOU — it is asking. The dot slides out toward the top-left
+   bracket, the one that marks the question. */
+.agent-mark[data-state='needs-you'] {
+  --agent-dot-shift: -58px -58px;
+  --agent-scale: 0.97;
+}
+
+/* BLOCKED — stalled. The brackets pull apart and the dot goes grey. */
+.agent-mark[data-state='blocked'] {
+  --agent-shift-a: -14px -14px;
+  --agent-shift-b: 14px 14px;
+  --agent-scale: 1.04;
+  --agent-dot: #94a3b8;
+}
+
+/* ------------------------------------------------------------------ */
+/* Looping activity                                                    */
+/* ------------------------------------------------------------------ */
+
+/* IDLE — a slow breath on the halo. Barely perceptible, which is the
+   point: it is the difference between "alive" and "frozen". */
+.agent-mark[data-state='idle'] [data-part='halo'],
+.agent-mark[data-state='needs-you'] [data-part='halo'] {
+  animation: agent-halo-breathe 4200ms cubic-bezier(0.45, 0, 0.55, 1) var(--agent-delay, 0ms) infinite;
+}
+
+@keyframes agent-halo-breathe {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.26;
+    transform: scale(1.12);
+  }
+}
+
+/* READING — the brackets scan. Applied to the whole mark so both
+   brackets move together, which reads as one eye-line tracking
+   across a page rather than two independent wiggles. */
+.agent-mark[data-state='reading'] [data-part='scan'] {
+  animation: agent-scan 2600ms cubic-bezier(0.45, 0, 0.55, 1) var(--agent-delay, 0ms) infinite;
+}
+
+@keyframes agent-scan {
+  0%,
+  100% {
+    transform: translate(0px, 0px);
+  }
+  30% {
+    transform: translate(14px, -14px);
+  }
+  65% {
+    transform: translate(-10px, 10px);
+  }
+}
+
+/* WORKING — a radar ring pulses out of the dot. The agent is
+   measuring, so the mark measures too. */
+.agent-mark[data-state='working'] [data-part='radar'] {
+  animation: agent-radar 1700ms cubic-bezier(0.2, 0.6, 0.35, 1) var(--agent-delay, 0ms) infinite;
+}
+
+@keyframes agent-radar {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.72);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(2.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.3);
+  }
+}
+
+/* WORKING — the dot pulses in sympathy with the radar. */
+.agent-mark[data-state='working'] [data-part='dot'],
+.agent-mark[data-state='reading'] [data-part='dot'] {
+  animation: agent-dot-pulse 1700ms cubic-bezier(0.45, 0, 0.55, 1) var(--agent-delay, 0ms) infinite;
+}
+
+@keyframes agent-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* APPLIED — the check draws itself, and the dot behind it holds
+   emerald. */
+.agent-mark[data-state='applied'] [data-part='check'] {
+  animation: agent-check-draw 560ms cubic-bezier(0.32, 0.72, 0, 1) var(--agent-delay, 0ms) forwards;
+}
+
+@keyframes agent-check-draw {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 86;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* VERDICT — a single ping, so the finding is an event rather than a
+   state the user has to notice. */
+.agent-mark[data-state='verdict'] [data-part='radar'] {
+  animation: agent-verdict-ping 700ms cubic-bezier(0.2, 0.6, 0.35, 1) var(--agent-delay, 0ms) 1;
+}
+
+@keyframes agent-verdict-ping {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+/* NEEDS YOU — the dot gets a small attention halo, because the user
+   is being asked to do something. */
+.agent-mark[data-state='needs-you'] [data-part='halo'] {
+  animation: agent-halo-attention 2000ms cubic-bezier(0.45, 0, 0.55, 1)
+    var(--agent-delay, 0ms) infinite;
+}
+
+@keyframes agent-halo-attention {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.05;
+    transform: scale(1.25);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion                                                      */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-mark [data-part] {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  /* The one-shot flourishes still have to END in the right place,
+     or the check would never be drawn. */
+  .agent-mark[data-state='applied'] [data-part='check'] {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}

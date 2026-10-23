@@ -6,6 +6,14 @@
 
 @import "tw-animate-css";
 
+/*
+  The AI agent's mark and its motion layer live in their own file,
+  because they are a BRAND ASSET: a single import point, easy to
+  replace wholesale if the mark changes, and impossible to disturb by
+  editing an unrelated part of this file.
+*/
+@import "./agent-mark.css";
+
 @variant dark (&:is(.dark *));
 
 /*
