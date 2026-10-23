@@ -49,6 +49,45 @@ describe('print isolation (Phase 1g)', () => {
     });
   });
 
+  describe('the editor opts in', () => {
+    // The user reported that printing from the editor put a band of
+    // white around the resume, while the share link's print did not.
+    //
+    // The cause: the dashboard chrome's own padding (16px on `<main>`,
+    // 32px on the page's `<section>`) plus its vertical rhythm sat
+    // BETWEEN the page box and the resume, so it landed on top of the
+    // `@page` margin. Measured: the text started 1.25in from the paper
+    // edge instead of 0.75in — the 0.75in `@page` margin plus exactly
+    // 0.5in of layout padding.
+    //
+    // The fix is the mechanism this file already tests: opt the editor
+    // into print isolation, which repositions `.printable` to the page
+    // origin. The share link is clean because it has no chrome; the
+    // editor has to opt OUT of its own.
+    const editorPage = readFileSync(
+      resolve(
+        process.cwd(),
+        'app/(dashboard)/dashboard/resumes/[id]/page.tsx'
+      ),
+      'utf-8'
+    );
+
+    it('marks the editor page as a print-isolated root', () => {
+      expect(editorPage).toContain('printable-root');
+    });
+
+    it('still renders the resume inside a .printable wrapper', () => {
+      // The isolation flips everything to `visibility: hidden` except
+      // `.printable` — so if the editor ever stopped rendering the
+      // resume inside one, the printed page would be BLANK.
+      const editable = readFileSync(
+        resolve(process.cwd(), 'components/editable/editable-resume.tsx'),
+        'utf-8'
+      );
+      expect(editable).toContain('"printable"');
+    });
+  });
+
   describe('ProLaunchingSoonBanner', () => {
     it('has the no-print class on its outermost <div> (defense-in-depth against the original leak)', () => {
       // Phase 1g regression test: the original bug was that this

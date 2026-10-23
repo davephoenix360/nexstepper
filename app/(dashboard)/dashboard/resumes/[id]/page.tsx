@@ -176,7 +176,20 @@ export default async function ResumeEditorPage({
   const planId: PlanId = isProEffective(subscription) ? 'pro' : 'free';
 
   return (
-    <section className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
+    // `printable-root` opts this page into print isolation (see
+    // `docs/plans/print-default-opt-in.md`).
+    //
+    // Without it, the dashboard chrome's own padding and vertical
+    // rhythm sit BETWEEN the page box and the resume, so the printed
+    // PDF gets a wide band of white around the content on top of the
+    // `@page` margin. The share link's print does not have that band,
+    // because it has no chrome — the editor has to opt out of its own.
+    //
+    // With it, everything in this subtree is `visibility: hidden` except
+    // `.printable` (the resume itself), which is repositioned to the page
+    // origin. The `@page` margin becomes the only margin the printed
+    // page has, exactly like the share link.
+    <section className="printable-root flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
       <header className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <Button asChild variant="link" size="sm" className="px-0 h-auto text-muted-foreground">
