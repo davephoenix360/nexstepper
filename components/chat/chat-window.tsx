@@ -7,6 +7,7 @@ import { ChatInput } from './chat-input';
 import { ChatSidebar } from './chat-sidebar';
 import { type ChatMessageRow } from './use-chat-stream';
 import type { SuggestedPrompt } from '@/lib/chat/suggested-prompts';
+import { CHAT_PANEL_BOTTOM_PX, FLOATING_RIGHT_PX } from '@/lib/ui/floating-actions';
 
 interface ChatSessionSummary {
   id: string;
@@ -120,8 +121,17 @@ export function ChatWindow({
 
   return (
     <div
-      className="fixed bottom-20 right-6 z-50 flex h-[44rem] w-[34rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl no-print"
-      style={{ bottom: '5.5rem', right: '1.5rem' }}
+      className="fixed right-6 z-50 flex h-[42rem] max-h-[calc(100vh-10rem)] w-[34rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl no-print"
+      // The inline style wins over the Tailwind classes.
+      //
+      // `bottom` clears the floating Feedback pill, which steps up
+      // when this panel's trigger is on the page. Opening the
+      // assistant must never cover the feedback affordance.
+      //
+      // `max-h-[calc(100vh-10rem)]` is the safety net: the panel is
+      // tall by default, and a short viewport would otherwise push
+      // its header off the top of the screen.
+      style={{ bottom: `${CHAT_PANEL_BOTTOM_PX}px`, right: `${FLOATING_RIGHT_PX}px` }}
     >
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">

@@ -16,14 +16,42 @@
  * UX detail: when the user successfully submits, the dialog auto-
  * closes after a brief "thanks" beat. We don't want to trap them in
  * the modal after the action is done.
+ *
+ * ## Why the bottom edge is a CSS variable
+ *
+ * The AI assistant's trigger button is ALSO a fixed element in the
+ * bottom-right corner, and the two used to overlap: the trigger is a
+ * 56px circle at `bottom-6 right-6` and the pill was a text pill at
+ * `bottom-4 right-4`, so the trigger (z-50) sat on top of the pill
+ * (z-30) and hid most of the "Feedback" label.
+ *
+ * The two live in different components — the pill is mounted by the
+ * dashboard layout, the trigger by the editor page — so the pill
+ * cannot simply know whether the trigger is there. A custom property
+ * on the root element bridges them without coupling them in React:
+ * the trigger publishes the offset it needs, the pill reads it, and
+ * the browser repaints when it changes. The pill falls back to its
+ * own low position when no trigger is present (the Resumes list, for
+ * instance, where there is nothing to collide with).
  */
 import { useEffect, useState } from 'react';
 import { MessageSquare, X } from 'lucide-react';
 
 import { Dialog } from '@/components/ui/dialog';
+import {
+  FEEDBACK_PILL_FALLBACK_BOTTOM_PX,
+  FLOATING_FEEDBACK_BOTTOM_VAR
+} from '@/lib/ui/floating-actions';
 import { FeedbackForm } from './feedback-form';
 
 const CLOSE_AFTER_SUCCESS_MS = 1_800;
+
+/**
+ * The bottom offset the pill uses when the AI assistant's trigger is
+ * on the page. The trigger's top edge sits at 24px + 56px = 80px, so
+ * 96px leaves a 16px gap.
+ */
+const PILL_BOTTOM_WITH_TRIGGER = '6rem';
 
 export function FeedbackPill() {
   const [open, setOpen] = useState(false);
@@ -51,7 +79,17 @@ export function FeedbackPill() {
         // `no-print` is the same class the rest of the dashboard
         // chrome uses. The print CSS in globals.css hides it
         // alongside the sidebar / header so a PDF'd resume is clean.
-        className="no-print fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 rounded-full border bg-background/95 px-4 py-2.5 text-sm font-medium shadow-lg backdrop-blur transition-all hover:bg-accent hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
+        //
+        // `right-6` lines the pill up with the AI assistant's trigger
+        // and its open panel, which share the same right edge. The
+        // bottom edge comes from the custom property the trigger
+        // publishes, so the pill can step up out of the trigger's way
+        // (see the module comment). With no trigger on the page the
+        // fallback keeps it low, where nothing collides with it.
+        className="no-print fixed right-6 z-30 inline-flex items-center gap-2 rounded-full border bg-background/95 px-4 py-2.5 text-sm font-medium shadow-lg backdrop-blur transition-all hover:bg-accent hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
+        style={{
+          bottom: `var(${FLOATING_FEEDBACK_BOTTOM_VAR}, ${FEEDBACK_PILL_FALLBACK_BOTTOM_PX}px)`
+        }}
         aria-label="Send feedback"
         data-testid="feedback-pill"
       >

@@ -24,8 +24,19 @@ describe('FeedbackPill', () => {
     expect(html).toContain('data-testid="feedback-pill"');
     expect(html).toContain('aria-label="Send feedback"');
     expect(html).toContain('no-print');
-    // `fixed bottom-4 right-4` — visible-position class signature.
-    expect(html).toMatch(/fixed\s+bottom-4\s+right-4/);
+    // `fixed right-6` — visible-position class signature. The bottom
+    // edge is an inline style, not a class, because it has to react
+    // to the assistant's trigger button (see
+    // `tests/unit/ui/floating-actions.test.ts`).
+    expect(html).toMatch(/fixed\s+right-6/);
+  });
+
+  it('takes its bottom edge from the offset the assistant trigger publishes', () => {
+    const html = renderToStaticMarkup(<FeedbackPill />);
+    // The CSS custom property, plus the fallback used when no
+    // trigger is on the page.
+    expect(html).toContain('--floating-feedback-bottom');
+    expect(html).toContain('16px');
   });
 
   it('includes the visible "Feedback" label (sm+) and the MessageSquare icon (always)', () => {

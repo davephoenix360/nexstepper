@@ -7,6 +7,10 @@ import { MessageSquare } from 'lucide-react';
 import { ChatWindow } from './chat-window';
 import { useChatStream } from './use-chat-stream';
 import { type ChatMessageRow } from './use-chat-stream';
+import {
+  FEEDBACK_PILL_WITH_TRIGGER_BOTTOM_PX,
+  FLOATING_FEEDBACK_BOTTOM_VAR
+} from '@/lib/ui/floating-actions';
 import { suggestedPrompts } from '@/lib/chat/suggested-prompts';
 
 interface ChatSessionSummary {
@@ -65,6 +69,36 @@ export function ChatBubble({
   // doesn't crash on `document.body`.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  /**
+   * Tell the floating Feedback pill to step up out of our way.
+   *
+   * Both are fixed elements in the bottom-right corner: this trigger
+   * is a 56px circle at `bottom-6 right-6`, and the feedback pill
+   * wanted `bottom-4 right-4`. They overlapped, and this trigger
+   * (z-50) sat on top of the pill (z-30) — hiding most of the
+   * "Feedback" label.
+   *
+   * The two are mounted by different components (the pill by the
+   * dashboard layout, this trigger by the editor page), so the pill
+   * cannot know about us. A custom property on the root element
+   * bridges them without coupling them in React: the pill reads it,
+   * and the browser repaints when it changes. Removing it on unmount
+   * puts the pill back at its own low position.
+   *
+   * The offset itself lives in `lib/ui/floating-actions.ts` so the
+   * trigger, the pill and the panel all agree.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty(
+      FLOATING_FEEDBACK_BOTTOM_VAR,
+      `${FEEDBACK_PILL_WITH_TRIGGER_BOTTOM_PX}px`
+    );
+    return () => {
+      root.style.removeProperty(FLOATING_FEEDBACK_BOTTOM_VAR);
+    };
+  }, []);
 
   /**
    * Auto-run the tailoring prompt.
