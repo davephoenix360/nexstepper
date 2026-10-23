@@ -32,7 +32,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Printer } from 'lucide-react';
+import { AlertCircle, Printer, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -69,6 +69,10 @@ import {
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { PrintSettings } from '@/lib/print-settings';
 import { useDebouncedAutosave } from './use-debounced-autosave';
+import {
+  useUndoHistory,
+  useUndoRedoShortcuts
+} from './use-undo-history';
 
 interface EditableResumeProps {
   resumeId: string;
@@ -324,6 +328,24 @@ export function EditableResume({
     setSaveShortcutLabel(getSaveShortcutLabel());
   }, []);
 
+  // Undo / redo.
+  //
+  // The history lives in the browser (local storage), not the database:
+  // it is a transient editing aid over a JSON document, and the resume
+  // itself is still saved to Postgres exactly as before. Undo/redo never
+  // causes a write of its own — it changes the form, and the existing
+  // debounced autosave picks that up like any other edit.
+  const history = useUndoHistory({
+    resumeId,
+    control: form.control as never,
+    reset: (values) => form.reset(values as never)
+  });
+  useUndoRedoShortcuts({
+    onUndo: history.undo,
+    onRedo: history.redo,
+    disabled: pending
+  });
+
   return (
     <FormProvider {...form}>
       {/*
@@ -368,6 +390,38 @@ export function EditableResume({
               <Printer className="mr-2 size-4" />
               Print / Save as PDF
             </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={history.undo}
+                  disabled={!history.canUndo || pending}
+                  aria-label="Undo"
+                  data-testid="editable-undo"
+                >
+                  <Undo2 className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Undo (Ctrl + Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={history.redo}
+                  disabled={!history.canRedo || pending}
+                  aria-label="Redo"
+                  data-testid="editable-redo"
+                >
+                  <Redo2 className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Redo (Ctrl + Shift + Z)</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
