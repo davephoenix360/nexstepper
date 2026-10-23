@@ -171,6 +171,49 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The AI assistant has a brand brief, and its floating button no
+  longer covers the Feedback pill** — Two pieces, one commit for the
+  bug and one for the brief. **The overlap:** three floating elements
+  compete for the dashboard's bottom-right corner — the assistant's
+  56px trigger at `bottom-6 right-6`, the assistant's open panel
+  (z-50, 544px wide), and the Feedback pill at `bottom-4 right-4`
+  (z-30). The trigger and the pill sat in the same 24px band, so the
+  trigger sat ON TOP of the pill and hid half the "Feedback" label;
+  the open panel covered it outright. They are mounted by different
+  components (the pill by the dashboard layout, the trigger and panel
+  by the editor page), so neither can know about the other. The fix:
+  the TRIGGER publishes the offset the pill should use as a CSS
+  custom property on the root element and the pill reads it — that
+  answers "is the trigger on this page?" without coupling the two in
+  React, and it degrades to the pill's own low position where there
+  is no trigger. The PANEL is offset so it clears the pill's band, and
+  capped with `max-h` so a short viewport cannot push its header off
+  the screen. **The geometry lives in `lib/ui/floating-actions.ts`**, so
+  the relationship between the three elements is arithmetic the tests
+  assert on rather than a picture somebody has to squint at; the
+  anti-overlap invariants are pinned in
+  `tests/unit/ui/floating-actions.test.ts`. This is the share-token
+  lesson again: three sets of hard-coded offsets in three components is
+  how they drifted. **The brand brief:** new `docs/brand/agent-brief.md`,
+  built from the repo rather than invented — the agent's actual
+  behaviour from `lib/chat/system-prompt.ts` ("a professional resume
+  writer, resume reviewer, and hiring recruiter, all in one… you are
+  expected to DO things"), the palette from `app/globals.css`, and the
+  product's own brand rules from `docs/brand/logo-brief.md`. It gives
+  the owner a ready-to-paste image-generator prompt, THREE distinct
+  directions to run (a bracket-and-dot, a dial, a single step), a
+  negative prompt, the hard constraints (16px legible, single-colour
+  stamp, 32px circular crop, 2–4 strokes), a naming shortlist, and a
+  six-rule voice spec. Two things the brief is careful about: the
+  product's mark IS a staircase, so the agent's mark must be a
+  *sibling* of it and unmistakably a different symbol; and the
+  product's documented rule that "a stepper is the person who takes the
+  next step — the customer, not the tool" rules out naming the agent
+  "Stepper". The logo brief was also corrected — it still claimed the
+  mark was a placeholder and that the app was colourless slate, and
+  both had gone stale (the staircase landed 2026-10-09; the primary
+  token is now vivid indigo `hsl(238 84% 67%)`).
+
 - **Three share links in production were dead, and the owner couldn't
   tell** — Found while smoke-testing the print fix against the public
   share route. `resumes.share_token` has held two shapes: the current
@@ -291,9 +334,11 @@ plan. Drift memo:
   is still too generous — the corpus's ideal mean is 58.7, the current
   engine 66.0, the Jev engine 69.9 — and the gap is concentrated in the
   weaker tiers. That is a CALIBRATION problem across dimensions, not a
-  content-quality one, and rescaling the score would break
-  comparability with the numbers users have seen. It is the next piece of
-  work. Drift memo:
+  content-quality one, and rescaling the score would break comparability
+  with the numbers users have seen. **The owner reviewed this on 2026-10-22
+  and decided to LEAVE IT AS IS** — it is a product judgement about what a
+  "57" should mean, not a bug, and rescaling is not on the roadmap. Do not
+  re-open it without being asked. Drift memo:
   `docs/drift/2026-10-22-jev-content-quality.md`.
 
 - **Intent Coverage now asks a semantic question, not a literal one** —

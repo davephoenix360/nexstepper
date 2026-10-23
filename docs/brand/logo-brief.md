@@ -72,9 +72,35 @@ mid blue, an amber, an orange.
 > The logo is one of the only places color can live. A single restrained accent
 > will carry more weight here than in a typical colorful app.
 
-**Current "logo" is a placeholder** — a Lucide `Circle` icon next to the
-wordmark in `components/marketing/footer.tsx`. There is no established mark
-yet, so nothing is being displaced. This is a greenfield.
+> **Correction (2026-10-22).** Two things in this section had gone stale:
+>
+> 1. The **primary token is now a vivid indigo**, not slate — `--primary:
+>    hsl(238 84% 67%)` ≈ `#6366F1`, introduced after this brief was written
+>    ("Nextep brand: vivid indigo primary — trust + modern, like
+>    Linear/Vercel"). So the app is no longer strictly colourless: indigo is
+>    the interactive colour, and the `--chart-*` palette is the *data*
+>    colour. The line above is still true about the CHART colours, not
+>    about the whole app.
+> 2. The mark is **no longer a placeholder** — see below.
+
+**The mark exists now** (added 2026-10-09). It is a **staircase**: three
+ascending steps in a single thick rounded monoline stroke, near-black navy
+on transparency, with the wordmark "Nexstepper" and the tagline "Take the
+next step." alongside. Source files live in `public/brand/`
+(`nexstepper-icon-clean.png`, `-horizontal-clean.png`, `-stacked-clean.png`)
+and are rendered by `components/brand/logo.tsx`, which applies
+`dark:invert` — the artwork is monochrome, so inversion is exact.
+
+So the "greenfield" framing below is history. Two consequences still
+matter for any NEW mark in this family (the AI assistant's, for instance
+— see `docs/brand/agent-brief.md`):
+
+- The brand is **geometric, monoline, rounded-terminal, monochrome**, and
+  it leans on **a repeated shape** (the name contains two "step"s and a
+  double "p"; the mark answers with a staircase).
+- The staircase is **taken**. A new mark in this family must be a
+  *sibling* of it — same stroke language, same roundness, same single
+  colour — and unmistakably a different symbol.
 
 ---
 
@@ -121,6 +147,12 @@ subtle motif here — not a literal staircase.
 > coral accent (#E76E50). The surrounding app UI is monochrome slate, so the
 > logo can carry a single restrained accent.
 >
+> **Correction (2026-10-22):** the delivered mark is monochrome near-black
+> navy with no accent at all, and the app's interactive primary is now vivid
+> indigo #6366F1 rather than slate. If you re-run this prompt, use navy
+> #0F172A for the mark and treat indigo as the app's interactive colour
+> rather than as a second brand colour.
+>
 > **Feel:** calm competence — Linear or Notion, not a loud consumer app.
 > Confident and minimal.
 >
@@ -134,3 +166,8 @@ subtle motif here — not a literal staircase.
 
 *Brief written 2026-10-08. Re-verify palette against `app/globals.css` if
 tokens change.*
+
+*Corrected 2026-10-22: the mark now exists (a staircase, added
+2026-10-09) and the primary token is now vivid indigo. See §3 and §5 for
+what changed and what still holds. The AI assistant's own mark is briefed
+in `docs/brand/agent-brief.md`.*
