@@ -216,13 +216,16 @@ function HeroMark() {
                 {AGENT_DISPLAY_NAME}
               </div>
               <div className="font-mono text-[11px] text-zinc-500">
-                name is a placeholder
+                decided 2026-10-22
               </div>
             </div>
           </div>
           <p className="mt-4 text-[13px] leading-relaxed text-zinc-400">
-            The name is still the shortlist’s recommendation. The mark is
-            already final — it does not depend on the name.
+            The name is not a label on a generic assistant — it is fed
+            into the agent&rsquo;s own system prompt, so the agent knows
+            its name and is told what kind of colleague it is. One
+            string, in one place, read by the header, the accessible
+            labels and the prompt.
           </p>
         </Card>
       </div>
@@ -580,8 +583,7 @@ function Placements() {
           The message avatar is the smallest place the mark appears
           (16px). At that size the brackets carry the identity and the
           dot carries the state — which is exactly the right division
-          of labour. The header name is a placeholder; the shortlist
-          is in the brand brief.
+          of labour. The header shows the agent&rsquo;s name, Scout.
         </p>
       </Card>
 
@@ -992,7 +994,7 @@ export function AgentBrandClient() {
       <Section
         index="01 — The mark"
         title="One symbol, one idea"
-        blurb="The brackets say ‘precisely here’. The dot says ‘and here is what I think’. It has to survive a 16px favicon, a 32px circle, and a white-on-indigo button — with the same file."
+        blurb="The brackets say ‘precisely here’. The dot says ‘and here is what I think’. It has to survive a 16px favicon, a 32px circle, and a white floating button — with the same file."
       >
         <HeroMark />
       </Section>
