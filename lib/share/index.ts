@@ -36,5 +36,9 @@ export {
 } from './deterministic-token';
 export {
   buildShareUrl,
-  looksLikeDeterministicShareToken
+  looksLikeDeterministicShareToken,
+  classifyShareToken,
+  isAcceptedShareToken,
+  selectShareToken,
+  LEGACY_SHARE_TOKEN_LENGTH
 } from './token';

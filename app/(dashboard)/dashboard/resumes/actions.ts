@@ -35,7 +35,8 @@ import {
 } from '@/lib/db/queries';
 import {
   buildShareUrl,
-  deriveShareToken
+  deriveShareToken,
+  selectShareToken
 } from '@/lib/share';
 import { formatJdAsMarkdown } from '@/lib/jd-parser';
 import { extractJdIntent } from '@/lib/jd-parser/extract-jd-intent';
@@ -1020,6 +1021,18 @@ const enableShareSchema = z.object({
  * `shareEnabled = true` and surfaces only `not_signed_in`,
  * `not_found`, `not_enabled`, and `db_failure`. The old
  * `unavailable` code (legacy pre-encrypted link) is gone.
+ *
+ * ## Why the URL comes from the COLUMN, not from a fresh derivation
+ *
+ * The lookup key is `resumes.share_token`, so the URL that works is
+ * the one that matches the column. A derived token is ALWAYS 22
+ * chars; a row that still holds the pre-Phase-2.5b 64-char SHA-256
+ * digest can therefore never match it, and re-deriving handed the
+ * owner a URL that 404'd for everyone — including themselves.
+ *
+ * `selectShareToken` encodes that rule: the stored value wins when
+ * there is a usable one, the derivation is the fallback for a row
+ * that has sharing on but no token yet.
  */
 export async function getShareUrlAction(
   input: unknown
@@ -1052,7 +1065,12 @@ export async function getShareUrlAction(
     return { ok: false, code: 'not_enabled', error: 'Sharing is off' };
   }
 
-  return { ok: true, data: { url: buildShareUrl(deriveShareToken(parsed.data.id)) } };
+  const token = selectShareToken(
+    status.token,
+    deriveShareToken(parsed.data.id)
+  );
+
+  return { ok: true, data: { url: buildShareUrl(token) } };
 }
 
 /**

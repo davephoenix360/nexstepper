@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import { getResumeByShareToken, recordShareView } from '@/lib/db/queries';
 import { getTemplate } from '@/components/resume-templates';
+import { isAcceptedShareToken } from '@/lib/share/token';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
 
@@ -14,8 +15,11 @@ import { PostHogEvents } from '@/lib/posthog/events';
  * capability.
  *
  * The lookup:
- *   1. Validate token shape (deterministic tokens are exactly 22
- *      chars, base64url; reject anything else before hitting the DB).
+ *   1. Validate token shape — only the two shapes that can sit in
+ *      `resumes.share_token` are worth a round-trip: the 22-char
+ *      base64url deterministic token, and the 64-char hex digest
+ *      left behind by the pre-Phase-2.5b design. Reject anything
+ *      else before hitting the DB (`isAcceptedShareToken`).
  *   2. Query `resumes` by `share_token = ?` WHERE shareEnabled = true.
  *      The token IS the lookup key — no second hash step. This is
  *      safe because what we store is an HMAC, not a secret: an
@@ -65,12 +69,23 @@ export default async function SharedResumePage({
 }) {
   const { token } = await params;
 
-  // Cheap input guard: `deriveShareToken` produces exactly 22 chars
-  // (16 bytes base64url-encoded). A 1KB string is obviously wrong
-  // and would just waste a DB round-trip. The shape check is also a
-  // pre-migration safety net — old URLs that held 64-char SHA-256
-  // hex digests fail here before they hit a query plan.
-  if (!token || token.length !== 22 || !/^[A-Za-z0-9_-]+$/.test(token)) {
+  // Cheap input guard: only tokens that can legitimately sit in
+  // `resumes.share_token` are worth a database round-trip. That is
+  // BOTH shapes:
+  //
+  //   - 22 chars of base64url — what `deriveShareToken` produces
+  //     today, stored verbatim.
+  //   - 64 chars of hex — the pre-Phase-2.5b SHA-256 digest.
+  //
+  // The lookup has always been direct equality on the column, so a
+  // legacy digest IS a working URL; only the guard was rejecting it.
+  // A guard that accepted one shape silently 404'd every row still
+  // holding the other — including the link the owner was handed.
+  //
+  // `isAcceptedShareToken` is the single source of truth for the
+  // accepted shapes, shared with the action that hands the owner
+  // their URL, so the two can't drift apart again.
+  if (!isAcceptedShareToken(token)) {
     notFound();
   }
 
