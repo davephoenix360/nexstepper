@@ -171,6 +171,56 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The editor has undo and redo, and the history lives in local storage** —
+  The user asked for both, with the history explicitly NOT in the database:
+  the resume is JSON, the save is the only thing that needs to be durable, and
+  a history table would be a write per change plus a GDPR surface for data the
+  user already asked us to hold. New
+  `components/editable/use-undo-history.ts` keeps the snapshots as
+  **serialised JSON strings** in `localStorage["nexstepper:history:<resumeId>"]`
+  — a string compare is an exact "did anything change?" test, restoring is
+  `JSON.parse` + `form.reset`, and the stored shape is a plain array of strings
+  that is trivial to inspect. **One snapshot per COMMITTED change**, and it is
+  free: the editor commits a field on **blur** (`EditableText` keeps the draft
+  in local state), so a half-typed bullet never reaches the form and never
+  becomes a snapshot. Undo/redo changes the form and **writes nothing** — the
+  existing debounced autosave picks it up like any other edit, so an undone
+  edit is also un-saved. Two stacks (`past` / `future`), 50 entries each, a new
+  edit clears the redo stack the way every editor does. Toolbar buttons plus
+  **Ctrl/Cmd+Z** and **Ctrl/Cmd+Shift+Z** (also Ctrl+Y); the gesture is
+  **ignored inside text fields**, so the browser's own field-level undo keeps
+  working — Ctrl+Z while typing in a bullet undoes your typing, not the
+  document. Undoing an **AI rewrite** works too: the AI's write arrives as a
+  form reset, which is just another state change, so it is undoable like any
+  other edit. 14 interaction tests (`tests/interaction/undo-history.test.tsx`)
+  drive the real DOM. Drift memo:
+  `docs/drift/2026-10-22-print-inset-and-undo-history.md`.
+
+- **The editor's printout no longer has a white band around it** — The user
+  reported that printing a resume from the editor put extra space on top and on
+  every edge, while printing the SAME resume from its share link came out
+  clean. The share link is clean because it has **no chrome** — the editor has
+  to opt OUT of its own. The dashboard chrome's padding (16px on `<main>`, 32px
+  on the editor's `<section>`) plus its vertical rhythm sat BETWEEN the page box
+  and the resume, so in print it landed **on top of** the `@page` margin:
+  measured, the text started **1.25in** from the paper edge instead of **0.75in**
+  — the `@page` margin plus exactly 0.5in of layout padding. The fix is a
+  mechanism that already existed and was already tested (the `.printable-root`
+  opt-in from the print-default work, `docs/plans/print-default-opt-in.md`)
+  but whose **only consumer had been deleted** along with the preview route — so
+  it was still in the CSS, still tested, and had no user. Adding `printable-root`
+  to the editor's `<section>` opts the page into print isolation: everything in
+  the subtree becomes `visibility: hidden` except `.printable` (the resume
+  itself), which is repositioned to the page origin. Re-measured with the
+  **DB-free** `scripts/measure-print-isolation.cjs` harness (real Chromium, real
+  print CSS, no account, no database write): text left **1.25in → 0.75in** =
+  exactly the `@page` margin, top 1.365in → 1.24in, and **pagination is
+  unchanged** (3 pages either way — the inset was wasting space, not changing
+  it). The regression test asserts BOTH halves: the editor opts in, AND it still
+  renders the resume inside a `.printable` wrapper — because the isolation hides
+  everything else, so losing that wrapper would print a BLANK page. Drift memo:
+  `docs/drift/2026-10-22-print-inset-and-undo-history.md`.
+
 - **Content Quality reads the bullets instead of string-testing them** —
   branch `feat/chat-agent-v3-phase-a`. The dimension (0.21 of the total —
   more than Intent Coverage) measured two string properties: does the
