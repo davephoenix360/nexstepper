@@ -56,8 +56,10 @@ npx --yes vercel@latest ai-gateway models endpoints <model-id> --format json
 |---|---|---|---|---|
 | **parser** (JD, resume, formatter, intent) | `mistral/mistral-nemo` | $0.03 / $0.03 | 131K | cheapest model that emits *schema-exact* JSON reliably |
 | parser fallbacks | `reflection/beam-free` → `amazon/nova-micro` → `openai/gpt-4o-mini` | $0 → $0.04 → $0.15 | 1M / 128K / 128K | all verified schema-exact |
-| **chat** (agentic assistant) | `anthropic/claude-haiku-5.5` | $0.10 / $0.50 | 1M | frontier reasoning, 4 real endpoints, verified tools + schemas |
-| chat fallbacks | `reflection/beam-free` → `amazon/nova-micro` → `zai/glm-5.3-flash` → `nvidia/nemotron-3.5-lightning-free` | $0 → $0.04 → $0.06 → $0 | 1M each | degrades to $0 rather than failing |
+| **chat** (agentic assistant, Pro) | `anthropic/claude-haiku-5.5` | $0.10 / $0.50 | 1M | frontier reasoning, 4 real endpoints, verified tools + schemas |
+| chat fallbacks (Pro) | `amazon/nova-micro` → `zai/glm-5.3-flash` → `reflection/beam-free` → `nvidia/nemotron-3.5-lightning-free` | $0.04 → $0.06 → $0 → $0 | 1M each | ordered by **measured edit reliability**, not price (2026-11-01) |
+| **chat** (agentic assistant, Free) | `reflection/beam-free` | $0 / $0 | 1M | $0-only chain — a free user must cost us nothing |
+| chat fallbacks (Free) | `nvidia/nemotron-3.5-lightning-free` | $0 / $0 | 1M | the only other strictly-$0 model that can edit |
 
 Constants live in `lib/ai/providers.ts`. That file's header carries a
 standing re-verify rule — read it before trusting any comment in it.
@@ -88,6 +90,97 @@ Verified behaviour, all on 2026-10-21 against live requests:
 | `meta/llama-3.1-8b` | ❌ returned `{}` | ❌ `400 Bad Request` | **removed 2026-10-21** |
 | `minimax/minimax-m3.1-flash` | ❌ empty string | ❌ ignored `tool_choice` | unusable |
 | `inclusionai/ling-3.0-flash-fin` | ✅ | ✅ | ❌ **48.8s** — unusable latency |
+
+## The real-agent-loop measurement (2026-11-01)
+
+The table above verified models with a **forced** `tool_choice` against a
+**simple** tool. That proves a model *can* emit a tool call. The chat
+agent's actual job is different: it is never forced, it **chooses** whether
+a message warrants a call, and it faces the large nested `editResume`
+schema in a multi-step loop.
+
+So the chat chain was re-measured properly — an unforced call, every
+`CHAT_TOOLS` entry with its real `inputSchema`, the real 27KB system
+prompt, 5 attempts per model. Ground truth for "a tool call happened" is
+the SDK's `execute` callback, which only runs on a real tool call.
+Arguments are then validated against the real Zod schema and scanned for
+reasoning leaks — a model that puts its own thinking where the resume
+text goes would have the merge write it onto the user's resume.
+
+| model | edited | leak | narrate | badArgs | errors | median |
+|---|---|---|---|---|---|---|
+| `anthropic/claude-haiku-5.5` | 5/5 | 0 | 0 | 0 | 0 | 5.6s |
+| `amazon/nova-micro` | 5/5 | 0 | 0 | 0 | 0 | **2.7s** |
+| `zai/glm-5.3-flash` | 5/5 | 0 | 0 | 0 | 0 | 23.0s |
+| `inclusionai/ling-3.1-flash-1019` | 5/5 | 0 | 0 | 0 | 0 | **52.2s** |
+| `reflection/beam` | 3/5 | 0 | 0 | 0 | 0 | 8.5s |
+| `reflection/beam-free` | 3/5 | 0 | 0 | 0 | 0 | 8.2s |
+| `nvidia/nemotron-3.5-lightning-free` | 3/5 | 0 | 0 | 0 | 0 | 6.4s |
+| `stealth/glyph-cluster` | 403 | — | — | — | 5 | — |
+| `minimax/minimax-h3` | **not a language model** | — | — | — | 5 | — |
+
+### The probe that lied, and how it was caught
+
+The first version of the probe passed `parameters` to `tool()` instead of
+`inputSchema`. **AI SDK 6 renamed the field**, and leaving it as
+`parameters` makes the SDK treat the tool as *schemaless* — the model
+gets no schema to fill in. The route builds its tool set with
+`inputSchema`; the probe did not.
+
+That first probe produced confident, specific, **wrong** conclusions:
+
+| model | first probe said | truth (with `inputSchema`) |
+|---|---|---|
+| `amazon/nova-micro` | "hard-errors 40% of the time" | **5/5 clean, fastest at 2.7s** |
+| `nvidia/nemotron-3.5-lightning-free` | "never calls the tool (0/5)" | **3/5 — it edits** |
+
+Both were artefacts of a schemaless tool, not properties of the models.
+The tell was that the "invalid sequence as part of ToolUse" error is
+exactly what a model produces when it has no schema to fill in.
+
+This is the standing rule being demonstrated one level deeper: *a
+capability claim is only as good as the payload it was verified with.*
+The probe was wrong in precisely the way it was built to detect — it
+measured a different configuration than production. The fix was to
+**copy the route's tool construction verbatim** into the probe, and the
+probe's file header now says so.
+
+### What the measurement changed
+
+- **Zero narrations and zero payload leaks, across every model and every
+  attempt.** The feared "Done, I rewrote it" with nothing changed did not
+  happen. What the weaker models do instead is *ask* — "the bullet already
+  has a metric, what outcome do you want to lead with?" — which is honest,
+  and is the agent's designed `needs-you` behaviour.
+- **`amazon/nova-micro` moved to first.** It edits 5 of 5 and is the
+  fastest caller at 2.7s. It used to sit second, behind a $0 model that
+  edits 3 of 5.
+- **`reflection/beam-free` moved down** to third — same edit rate as
+  `nvidia/nemotron-3.5-lightning-free`, but it is the only $0 entry with
+  a verified schema-exact structured-output record, which the
+  first-session analysis depends on.
+- **`zai/glm-5.3-flash` is slow** — 23s median against 5.6s for the
+  primary. Reliable, but it feels dead.
+- **`minimax/minimax-h3` is a VIDEO model.** The catalogue lists it at $0
+  with a context window and it reads like an LLM id. Calling it returns
+  *"Model 'minimax/minimax-h3' is a video model, not a language model."*
+- **`stealth/glyph-cluster` 403s** — it requires purchased credits, so a
+  "$0" model that a free account cannot call is not free.
+
+### The free tier
+
+Free users get a **$0-only** chain — `reflection/beam-free` →
+`nvidia/nemotron-3.5-lightning-free` — because a free user must cost us
+nothing. `reflection/beam` would edit more reliably but is **not**
+strictly $0: only its `reflection` endpoint is free, and the gateway may
+route to baseten / nebius / togetherai at $0.25–$0.40 in / $1.00–$1.20
+out per 1M. At the free plan's ceiling (20 turns and 300K tokens a day)
+that is roughly **$1.70–$4 per active free user per month**, which is not
+free.
+
+The honest trade: free users get a real agent that edits in **3 of 5**
+attempts against the Pro chain's **5 of 5**, and asks a clarifying
+question the rest of the time.
 
 ## Cost model
 
@@ -129,11 +222,32 @@ backstop behind the per-user cap.
 | `anthropic/claude-sonnet-5` ($2/$10) | ~$34/mo for a heavy user. 10x over budget. |
 | `anthropic/claude-haiku-5.5-batch` ($0.05/$0.25) | batch endpoints aren't real-time; wrong tool for interactive chat |
 | `inclusionai/ling-3.1-flash` | repriced to $0.30/$0.90 and leaks reasoning into tool args |
+| `inclusionai/ling-3.1-flash-1019` | $0/$0 in the catalogue and it DOES emit clean tool calls — but a 49s median turn. Too slow to sit in front of a user. |
+| `minimax/minimax-h3` | the catalogue lists it at $0 with a 1M context and it reads like an LLM id — it is a **video model**. Calling it returns "Model 'minimax/minimax-h3' is a video model, not a language model." |
+| `stealth/glyph-cluster` | $0 in the catalogue, 403s on this account: it requires purchased credits. A "$0" model a free account cannot call is not free. |
 | `google/gemini-2.5-flash` | Vertex routing degradation caused 30–60s latency in Sep 2026 |
 | `openai/gpt-4o-mini` as primary | unmovable `max_output_tokens` cap under strict json_schema; kept only as a deep parser fallback |
 | anything `*_meta/mixedbread` etc. | no verified capability on this account |
 
 ## Changelog
+
+### 2026-11-01 — The chat chain re-measured on the real agent loop
+The "forced `tool_choice`" verification turned out to prove the wrong
+capability. Re-ran the chat candidates with an **unforced** call against
+the **real** `inputSchema` for every chat tool and the **real** system
+prompt: no model narrates a fake success and none leaks reasoning into
+the payload, but `amazon/nova-micro` edits 5 of 5 at 2.7s (it had been
+second), `reflection/beam-free` edits 3 of 5 (it had been first),
+`nvidia/nemotron-3.5-lightning-free` edits 3 of 5, `zai/glm-5.3-flash`
+takes 23s, `minimax/minimax-h3` turned out to be a video model, and
+`stealth/glyph-cluster` 403s without purchased credits. The chat
+fallback chain was reordered from price order to reliability order, and
+free users were put on a **$0-only** chain (`reflection/beam-free` →
+`nvidia/nemotron-3.5-lightning-free`) so a free user costs us nothing.
+`tests/unit/ai/chat-tool-call-probe.test.ts` was added so the next
+decision can be made on measurements instead of catalogue tags — and so
+the probe itself can be re-checked, which is how its own
+`parameters`-instead-of-`inputSchema` bug was caught.
 
 ### 2026-10-21 — Live re-verification and chat model swap
 Gateway credits added, then every candidate was called for real (basic,
@@ -175,3 +289,38 @@ Do not add a model to any chain until you have:
 
 And a pin in `tests/unit/ai/providers.test.ts` so the next person gets the
 same protection.
+
+### The `tool_choice` trap (added 2026-11-01)
+
+Step 2 is not strong enough for the **chat** chain, and it is the reason
+one model got in that should not have.
+
+A **forced** tool call (`tool_choice: { type: 'function', ... }`) proves
+the model *can* emit a tool call. It does **not** prove the model
+*chooses* to call one — which is the whole job for the chat agent. The
+agent is never forced: it decides whether this message warrants an
+`editResume` call, and the tool schema is large and nested.
+
+A model can pass a forced-tool-call probe with the best rewrite of the
+set and still, in the real agent loop, answer an edit request with prose
+and never call the tool. When it does that, the user reads a confident
+"Done. I rewrote your bullet to …" and **the resume does not change**.
+
+So for the chat chain the capability to verify is:
+
+> An **unforced** tool call, in the multi-step agent loop, against the
+> **real** tool schema and the **real** system prompt — with the SDK's
+> `execute` callback as the ground truth for "a tool call happened"
+> (the SDK only invokes it when a real tool call arrives).
+
+`tests/unit/ai/chat-tool-call-probe.test.ts` does exactly this. It is
+skipped by default so CI stays deterministic; run it deliberately:
+
+```bash
+RUN_AI_PROBE=1 npx vitest run tests/unit/ai/chat-tool-call-probe.test.ts
+```
+
+It asserts that no candidate narrates an edit instead of calling the
+tool, and it prints a per-model call rate. A model that narrates belongs
+in the same category as `mistral/mistral-nemo`: a silent no-op is worse
+than an error.

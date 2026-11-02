@@ -6,6 +6,7 @@ import { gateway } from '@ai-sdk/gateway';
 import type { LanguageModel } from 'ai';
 
 import { posthogServer } from '@/lib/posthog/server';
+import type { PlanId } from '@/lib/billing/types';
 
 /**
  * Centralized AI model registry.
@@ -334,10 +335,19 @@ export const JD_INTENT_EXTRACTOR_FALLBACKS: readonly string[] = PARSE_FALLBACKS;
  * |--------------------------|---------------|--------|----------|-------------------|--------------------------|
  * | `anthropic/claude-haiku-5.5` | $0.10/$0.50 | 1M     | yes      | yes               | **4 endpoints**, 0.78–1.18s TTFT, 99.99% uptime 1d |
  * | `zai/glm-5.3-flash`      | $0.06–0.45/$0.20–1.50 | 1M | yes   | yes               | 20 endpoints — best failover diversity we can buy |
- * | `amazon/nova-micro`      | $0.04/$0.14   | 128K   | yes      | yes               | 0.41–0.63s, clean args   |
- * | `reflection/beam-free`   | $0/$0         | 1M     | yes      | yes               | $0, verified, single endpoint |
- * | `nvidia/nemotron-3.5-lightning-free` | $0/$0 | 1M | yes   | weak              | $0, weak schema adherence, wasteful output |
+ * | `amazon/nova-micro`      | $0.04/$0.14   | 128K   | yes      | yes               | fast (2.0s) but hard-errors 2 of 5 on the real edit tool |
+ * | `reflection/beam-free`   | $0/$0         | 1M     | yes      | yes               | $0, single free endpoint — but it stalls (asks) 3 of 5 |
+ * | `nvidia/nemotron-3.5-lightning-free` | $0/$0 | 1M | yes   | weak              | $0, weak schema adherence, wasteful output, never edited in 5 tries |
  * | `mistral/mistral-nemo`   | $0.03/$0.03   | 131K   | **flaky**| yes               | ❌ parser-only — see above |
+ *
+ * ⚠️ **The `tool-use` column above is from a FORCED `tool_choice` call
+ * against a SIMPLE tool.** That proves a model *can* emit a tool call. It
+ * does not prove the model *chooses* to call one — which is the actual job
+ * for the chat agent, which is never forced and which faces the large
+ * nested `editResume` schema. Re-measured properly on 2026-11-01 (unforced,
+ * real schema, real system prompt, 5 attempts each): see the
+ * `CHAT_FALLBACKS` block below for the numbers and the resulting order.
+ * A forced call is not the capability the agent needs.
  *
  * The context window matters more than it looks: every chat turn re-sends the
  * full resume, so a small window makes the agent truncate and start
@@ -352,35 +362,86 @@ export const CHAT_MODEL = 'anthropic/claude-haiku-5.5';
  * Fallback chain for the chat assistant, tried in order.
  *
  * Every entry is from a DIFFERENT provider so one upstream incident can't take
- * chat down. Ordering rationale:
+ * chat down.
  *
- *  1. `reflection/beam-free`  — **$0**, verified structured output + clean tool
- *     calls, 1M context, 0.3–1.2s. First because it is free: if the primary
- *     403s because credits ran out, this keeps Pro working at no cost.
- *  2. `amazon/nova-micro`     — $0.04/$0.14, verified all three capabilities,
- *     fastest clean tool caller in the set (0.41–0.63s).
- *  3. `zai/glm-5.3-flash`      — $0.06/$0.20 on `wafer`, verified all three
- *     capabilities, and **20 healthy endpoints** — by far the best failover
- *     diversity of anything reachable here. Kept as the deep backstop.
- *  4. `nvidia/nemotron-3.5-lightning-free` — $0, 1M context, verified tool use.
- *     Last because its structured-output adherence is weak (it returned
- *     `{"output":"ok"}` for a `{score,label}` schema) and it burned 623 output
- *     tokens to extract three fields. Chat doesn't need strict schemas, so it
- *     is still a legitimate last resort.
+ * ## How this chain is ordered (re-measured 2026-11-01)
  *
- * `mistral/mistral-nemo` was removed from this chain on 2026-10-21 despite
- * being "proven on this account", because it is only proven for *parsing*.
- * Its empty-`tool_calls`-on-a-forced-tool-call behaviour turns a tool failure
- * into a silent no-op reply, which is worse than an error. Do not re-add it
- * here without re-running the tool-call probe.
+ * The previous order was sorted by COST: the $0 model first, then the cheap
+ * ones. That turned out to be the wrong axis. A 2026-11-01 probe of the real
+ * agent loop — an UNFORCED tool call, the real `inputSchema` for every chat
+ * tool, the real system prompt, 5 attempts per model — ranked them by
+ * RELIABILITY instead:
  *
- * Every entry above was verified by live call on 2026-10-21 — see the standing
- * rule in the file header for why a catalog `tags` array is not evidence.
+ * | model                        | edited | leak | narrate | badArgs | errors | median |
+ * |------------------------------|--------|------|---------|---------|--------|--------|
+ * | `anthropic/claude-haiku-5.5` | 5/5    | 0    | 0       | 0       | 0      | 5.6s   |
+ * | `amazon/nova-micro`          | 5/5    | 0    | 0       | 0       | 0      | 2.7s   |
+ * | `zai/glm-5.3-flash`          | 5/5    | 0    | 0       | 0       | 0      | 23.0s  |
+ * | `reflection/beam-free`       | 3/5    | 0    | 0       | 0       | 0      | 8.2s   |
+ * | `nvidia/nemotron-3.5-lightning-free` | 3/5 | 0 | 0      | 0       | 0      | 6.4s   |
+ *
+ * ("edited" = the SDK's `execute` callback ran for `editResume` AND the
+ * arguments parsed against the real schema. "leak" = the model put its own
+ * reasoning where the resume text goes — the merge would write it onto the
+ * resume. "narrate" = it replied "Done, I changed it" without calling any
+ * tool at all.)
+ *
+ * ### What the measurement changed
+ *
+ *  1. **Zero narrations and zero payload leaks, everywhere.** Across every
+ *     model and every attempt. The failure this file used to fear — a
+ *     confident "Done, I rewrote it" with nothing changed — does not
+ *     happen. The models that do not edit instead ASK a clarifying
+ *     question ("the bullet already has a metric — what outcome do you
+ *     want to lead with?"), which is honest and is the agent's designed
+ *     `needs-you` behaviour.
+ *  2. **`amazon/nova-micro` moved to first.** It edits 5 of 5 and is the
+ *     fastest caller in the set at 2.7s. It used to sit second, behind a
+ *     $0 model that edits 3 of 5.
+ *  3. **`reflection/beam-free` moved down.** Same edit rate as
+ *     `nvidia/nemotron-3.5-lightning-free`, but it is the only $0 entry
+ *     with a verified schema-exact structured-output record, which the
+ *     first-session analysis depends on. It stays in the chain as the
+ *     $0 guarantee.
+ *
+ * ### The $0 guarantee is preserved
+ *
+ * When Gateway credits ran out on 2026-10-21, every paid model 403'd. A
+ * $0 entry in the chain is what keeps the chat usable through that, so
+ * `reflection/beam-free` and `nvidia/nemotron-3.5-lightning-free` are
+ * both still here — they are the tail of the chain, and they are what
+ * answers when the paid ones are gone.
+ *
+ * ## Re-verifying
+ *
+ * `tests/unit/ai/chat-tool-call-probe.test.ts` runs this measurement.
+ * It is skipped by default so CI stays deterministic; run it deliberately:
+ *
+ *   RUN_AI_PROBE=1 npx vitest run tests/unit/ai/chat-tool-call-probe.test.ts
+ *
+ * A capability claim is not proof until the model is called with the
+ * ACTUAL payload — unforced, real schema, real prompt. See the standing
+ * rule in the file header and `docs/ai-models-reference.md`.
+ *
+ * Plan: docs/plans/chat-agent-v2.md
+ * Drift: docs/drift/2026-10-21-pro-testing-and-model-swap.md
+ * Drift: docs/drift/2026-11-01-chat-chain-tool-call-reliability.md
  */
 export const CHAT_FALLBACKS: readonly string[] = [
-  'reflection/beam-free',
+  // 5/5 clean and the fastest caller in the set (2.7s). First because a
+  // fallback chain is ordered by what happens when it engages.
   'amazon/nova-micro',
+  // 5/5 clean and 20 healthy endpoints — by far the best failover
+  // diversity of anything reachable here. Slow (23s median), so second:
+  // reliability first, latency second.
   'zai/glm-5.3-flash',
+  // $0, pinned to the single free endpoint — the entry that survives
+  // credits running out. Edits 3 of 5; when it does not, it asks a
+  // clarifying question rather than faking a success. It is also the
+  // only $0 entry with a schema-exact structured-output record, which
+  // the first-session analysis needs.
+  'reflection/beam-free',
+  // $0, 1M context. Edits 3 of 5. Last.
   'nvidia/nemotron-3.5-lightning-free'
 ] as const;
 
@@ -418,6 +479,89 @@ export const CHAT_GATEWAY_PROVIDER_OPTIONS = {
     order: [CHAT_MODEL, ...CHAT_FALLBACKS] as string[]
   }
 };
+
+/**
+ * The chat model for FREE users, and its fallback chain.
+ *
+ * ## Why a separate chain
+ *
+ * A free user must cost us **$0**. The Pro chain is priced per token, so
+ * pointing free users at it means paying for their conversations out of
+ * the Pro revenue. This chain contains **only** $0 models — every entry
+ * is priced at 0 on every endpoint this account can be routed to.
+ *
+ * `reflection/beam` would have been the better model (it edits more often
+ * and has 4 endpoints), but it is NOT strictly $0: only its `reflection`
+ * endpoint is free, and the gateway may route to baseten / nebius /
+ * togetherai at $0.25–$0.40 in / $1.00–$1.20 out per 1M. At the free
+ * plan's ceiling (20 turns and 300K tokens a day) that is roughly
+ * $1.70–$4 per active free user per MONTH. `reflection/beam-free` is the
+ * same model PINNED to the single free endpoint, which is exactly what
+ * "free" has to mean.
+ *
+ * ## What free users get, honestly
+ *
+ * Measured on the real agent loop (2026-11-01): the free chain's models
+ * edit in **3 of 5** attempts, against the Pro chain's **5 of 5**. When
+ * they do not edit, they ask a clarifying question rather than faking a
+ * success — the agent's `needs-you` behaviour. So the free tier gets a
+ * real agent that sometimes asks a question first, not a crippled one.
+ *
+ * `reflection/beam-free` leads because it is the only $0 model here with
+ * a verified schema-exact structured-output record, which the
+ * first-session analysis needs. `nvidia/nemotron-3.5-lightning-free` is
+ * the second $0 entry: it edits in 3 of 5 too, at 6.4s, and it is the
+ * one that answers when the pinned endpoint is down.
+ */
+export const FREE_CHAT_MODEL = 'reflection/beam-free';
+
+export const FREE_CHAT_FALLBACKS: readonly string[] = [
+  'nvidia/nemotron-3.5-lightning-free'
+] as const;
+
+export const FREE_CHAT_GATEWAY_PROVIDER_OPTIONS = {
+  gateway: {
+    order: [FREE_CHAT_MODEL, ...FREE_CHAT_FALLBACKS] as string[]
+  }
+};
+
+/**
+ * The model chain a plan gets.
+ *
+ * One function, so the plan → model decision has a single owner and can
+ * be asserted in a test rather than being re-derived at each call site.
+ */
+export type ChatModelPlan = {
+  /** The primary model for this plan. */
+  model: string;
+  /** The fallback chain, tried in order. */
+  fallbacks: readonly string[];
+  /** What gets passed to `streamText` as `providerOptions`. */
+  providerOptions: { gateway: { order: string[] } };
+};
+
+/**
+ * Resolve the model chain for a plan.
+ *
+ * Free gets a $0-only chain; Pro gets the full chain. The two never mix,
+ * because "free" has to mean $0 on every endpoint — a single paid
+ * backend reachable from the chain is money we spend on someone else's
+ * behalf.
+ */
+export function resolveChatModelPlan(plan: PlanId): ChatModelPlan {
+  if (plan === 'pro') {
+    return {
+      model: CHAT_MODEL,
+      fallbacks: CHAT_FALLBACKS,
+      providerOptions: CHAT_GATEWAY_PROVIDER_OPTIONS
+    };
+  }
+  return {
+    model: FREE_CHAT_MODEL,
+    fallbacks: FREE_CHAT_FALLBACKS,
+    providerOptions: FREE_CHAT_GATEWAY_PROVIDER_OPTIONS
+  };
+}
 
 /**
  * Resolve a model string into a gateway-backed `LanguageModelV1`

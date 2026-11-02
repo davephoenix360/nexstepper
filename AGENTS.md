@@ -204,6 +204,43 @@ plan. Drift memo:
   until a user hit them. Drift memo:
   `docs/drift/2026-11-01-chat-byte-string-header-crash.md`.
 
+- **The chat fallback chain was ordered by price, not by whether the
+  model can edit — and the probe that checked it was measuring the wrong
+  thing** — The chain's first fallback, `reflection/beam-free`, was
+  annotated *"verified … clean tool calls"*. That verification used a
+  **forced** `tool_choice` against a **simple** tool, which proves a
+  model *can* emit a tool call — not that it **chooses** to, which is the
+  agent's actual job (it is never forced; it decides, against the large
+  nested `editResume` schema, in a 6-step loop). Re-measured properly
+  (unforced call, every tool with its real `inputSchema`, real 27KB
+  system prompt, 5 attempts per model, ground truth = the SDK's
+  `execute` callback): `amazon/nova-micro` **5/5 at 2.7s**,
+  `claude-haiku-5.5` 5/5, `glm-5.3-flash` 5/5 but 23s,
+  `ling-3.1-flash-1019` 5/5 but **52s**, `reflection/beam` 3/5,
+  `reflection/beam-free` 3/5, `nvidia/nemotron-3.5-lightning-free` 3/5,
+  `stealth/glyph-cluster` **403s**, and `minimax/minimax-h3` is a
+  **video model** despite the catalogue listing it at $0. **Zero
+  narrations and zero payload leaks, across every model and attempt** —
+  the "Done, I changed it" with nothing changed does not happen; the
+  weaker models *ask* a clarifying question instead, which is the
+  agent's `needs-you` behaviour. **And the first probe lied:** it passed
+  `parameters` where the SDK 6 wants `inputSchema`, which makes the
+  tool SCHEMALESS — and it confidently reported that `nova-micro`
+  "hard-errors 40% of the time" and that `nemotron` "never calls the
+  tool", both of which were artefacts of the broken probe. A measurement
+  of the wrong thing is worse than no measurement, because it gets acted
+  on; the probe now mirrors the route's tool construction verbatim. Two
+  changes: the chain is reordered **by measured reliability** (nova-micro
+  → glm → beam-free → nemotron) instead of by price, and **free users
+  now get a $0-only chain** (`beam-free` → `nemotron`) via a single
+  `resolveChatModelPlan(plan)`, because a free user must cost us nothing
+  and `reflection/beam` is not strictly $0 (~$1.70–$4 per active free
+  user per month). The honest trade: free users get a real agent that
+  edits 3 of 5 attempts against Pro's 5 of 5. New probe:
+  `tests/unit/ai/chat-tool-call-probe.test.ts` (skipped by default; run
+  it with `RUN_AI_PROBE=1`). Drift memo:
+  `docs/drift/2026-11-01-chat-chain-tool-call-reliability.md`.
+
 - **The score badge in the resume list was showing a different number
   than the scorecard** — The user reported the ATS score chip on
   `/dashboard/resumes` "isn't updating". It wasn't stale — it was a

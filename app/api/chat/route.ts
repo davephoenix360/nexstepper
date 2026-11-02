@@ -42,7 +42,7 @@ import { coercePrintSettings } from '@/lib/print-settings';
 import { scoreResumeFromEnvelope } from '@/lib/scoring';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
-import { getModel, CHAT_MODEL, CHAT_GATEWAY_PROVIDER_OPTIONS, CHAT_MAX_OUTPUT_TOKENS, CHAT_MAX_STEPS } from '@/lib/ai/providers';
+import { getModel, resolveChatModelPlan, CHAT_MAX_OUTPUT_TOKENS, CHAT_MAX_STEPS } from '@/lib/ai/providers';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
 
@@ -488,11 +488,17 @@ export async function POST(req: NextRequest) {
 
   // ── Stream response ────────────────────────────────────────────────────────
   //
-  // CHAT_MODEL, not PARSER_MODEL. The parser needs strict-JSON structured
-  // output on a huge schema; the chat needs multi-turn instruction following
-  // and tool calling. The gateway `order` means a model that is unavailable on
-  // this account degrades to the next one instead of failing the turn.
-  const model = getModel(CHAT_MODEL, {
+  // The model chain depends on the PLAN. Free users get a $0-only chain
+  // (`resolveChatModelPlan`) so their conversations cost us nothing; Pro
+  // gets the full chain. The gateway `order` means a model that is
+  // unavailable on this account degrades to the next one instead of
+  // failing the turn.
+  //
+  // CHAT_MODEL's paid siblings, not PARSER_MODEL. The parser needs
+  // strict-JSON structured output on a huge schema; the chat needs
+  // multi-turn instruction following and tool calling.
+  const chatPlan = resolveChatModelPlan(plan);
+  const model = getModel(chatPlan.model, {
     distinctId: userId,
     sessionId,
     traceId: randomUUID()
@@ -503,7 +509,7 @@ export async function POST(req: NextRequest) {
     system,
     messages,
     tools,
-    providerOptions: CHAT_GATEWAY_PROVIDER_OPTIONS,
+    providerOptions: chatPlan.providerOptions,
     // Without this the SDK stops after ONE step, so a turn that spends its
     // step on a tool call can never read the result and confirm to the user.
     // That is what made a successful edit look like nothing happened.

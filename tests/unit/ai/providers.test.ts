@@ -12,11 +12,15 @@ import {
   CHAT_FALLBACKS,
   CHAT_GATEWAY_PROVIDER_OPTIONS,
   CHAT_MODEL,
+  FREE_CHAT_FALLBACKS,
+  FREE_CHAT_GATEWAY_PROVIDER_OPTIONS,
+  FREE_CHAT_MODEL,
   JD_PARSER_MODEL,
   PARSE_FALLBACKS,
   PARSER_MODEL,
   RESUME_PARSER_MODEL,
-  getModel
+  getModel,
+  resolveChatModelPlan
 } from '@/lib/ai/providers';
 
 const mockedGateway = vi.mocked(gateway);
@@ -124,6 +128,8 @@ describe('live-verified model properties (2026-10-21)', () => {
   });
 
   it('chat chain entries are all from different providers', () => {
+    // A chain of aliases on one backend is one outage. The 2026-11-01
+    // reorder kept every entry on its own provider.
     const providers = new Set([...CHAT_FALLBACKS].map((m) => m.split('/')[0]));
     expect(providers.size).toBe(CHAT_FALLBACKS.length);
   });
@@ -148,6 +154,126 @@ describe('live-verified model properties (2026-10-21)', () => {
     expect(order[0]).toBe(CHAT_MODEL);
     expect(order.slice(1)).toEqual([...CHAT_FALLBACKS]);
     expect(new Set(order).size).toBe(order.length);
+  });
+});
+
+/**
+ * Regressions pinned by the 2026-11-01 real-agent-loop probe.
+ *
+ * The 2026-10-21 verification used a FORCED `tool_choice` against a simple
+ * tool. That proves a model can emit a tool call; it does not prove the
+ * model CHOOSES to call one, which is the job for the chat agent — it is
+ * never forced, it faces the large nested `editResume` schema, and it runs
+ * in a multi-step loop.
+ *
+ * `tests/unit/ai/chat-tool-call-probe.test.ts` re-measured this properly
+ * (unforced call, real schema, real system prompt, 5 attempts per model).
+ * These pins lock in what it found.
+ */
+describe('live-verified chat tool-call behaviour (2026-11-01)', () => {
+  it('the chat chain is ordered by measured reliability, not by price', () => {
+    // Measured edit rate on the real agent loop (unforced call, real
+    // inputSchema, real system prompt, 5 attempts each, 2026-11-01):
+    //   nova-micro 5/5 @ 2.7s  ·  glm-5.3-flash 5/5 @ 23.0s
+    //   beam-free 3/5 @ 8.2s   ·  nemotron 3/5 @ 6.4s
+    // A fallback chain is ordered by what happens when it engages, which
+    // is the worst moment to discover the model cannot do the job. The
+    // previous order led with the $0 model (3/5) over the fastest 5/5.
+    expect([...CHAT_FALLBACKS]).toEqual([
+      'amazon/nova-micro',
+      'zai/glm-5.3-flash',
+      'reflection/beam-free',
+      'nvidia/nemotron-3.5-lightning-free'
+    ]);
+  });
+
+  it('does not lead the chain with a model that edits less often', () => {
+    // `reflection/beam-free` was FIRST on the strength of a "clean tool
+    // calls" claim that was verified with a forced tool_choice against a
+    // simple tool. Under the real agent loop it edits 3 of 5.
+    expect(CHAT_FALLBACKS[0]).not.toBe('reflection/beam-free');
+    expect(CHAT_FALLBACKS).toContain('reflection/beam-free');
+  });
+
+  it('no chat model is a known narrator, payload leaker, or non-LM', () => {
+    // A narrator replies "Done, I changed it" without calling the tool —
+    // a lie the user acts on. A leaker puts its reasoning where the
+    // resume text goes — the merge writes it onto the resume.
+    //
+    // The 2026-11-01 probe found ZERO of either across every chat
+    // candidate, which is the property worth protecting. These models
+    // fail differently (slow, unreachable, or a video model), and each
+    // one has bitten this chain before.
+    for (const bad of [
+      'mistral/mistral-nemo', // narrates the call as prose
+      'inclusionai/ling-3.1-flash', // leaks reasoning into tool args
+      'inclusionai/ling-3.1-flash-1019', // same family — 52-65s per turn
+      'meta/llama-3.1-8b', // empty {} for a schema, 400 on tool calls
+      'minimax/minimax-m3.1-flash', // empty string, ignores tool_choice
+      'minimax/minimax-h3', // NOT a language model — a VIDEO model
+      'stealth/glyph-cluster', // 403s without purchased credits
+      'reflection/beam' // same model as beam-free, not pinned to $0
+    ]) {
+      expect(CHAT_FALLBACKS).not.toContain(bad);
+      expect(CHAT_MODEL).not.toBe(bad);
+    }
+  });
+
+  it('the chain still contains a $0 model so credit exhaustion degrades instead of failing', () => {
+    // When Gateway credits ran out on 2026-10-21, every paid model 403'd.
+    // A $0 entry in the chain is what keeps the chat usable through that.
+    const zeroCost = ['reflection/beam-free', 'nvidia/nemotron-3.5-lightning-free'];
+    expect(CHAT_FALLBACKS.some((m) => zeroCost.includes(m))).toBe(true);
+  });
+});
+
+describe('the free-tier chat chain (2026-11-01)', () => {
+  it('resolves the full chain for Pro and the $0 chain for Free', () => {
+    const pro = resolveChatModelPlan('pro');
+    expect(pro.model).toBe(CHAT_MODEL);
+    expect([...pro.fallbacks]).toEqual([...CHAT_FALLBACKS]);
+    expect(pro.providerOptions.gateway.order).toEqual([CHAT_MODEL, ...CHAT_FALLBACKS]);
+
+    const free = resolveChatModelPlan('free');
+    expect(free.model).toBe(FREE_CHAT_MODEL);
+    expect([...free.fallbacks]).toEqual([...FREE_CHAT_FALLBACKS]);
+    expect(free.providerOptions.gateway.order).toEqual([
+      FREE_CHAT_MODEL,
+      ...FREE_CHAT_FALLBACKS
+    ]);
+  });
+
+  it('every model on the free chain is a $0 model', () => {
+    // "Free" has to mean $0 on EVERY endpoint the gateway can route to.
+    // `reflection/beam` is the same model but NOT pinned to the free
+    // endpoint — three of its four backends are priced at $0.25–$0.40 in
+    // / $1.00–$1.20 out per 1M, which at the free plan's ceiling is
+    // roughly $1.70–$4 per active free user per month.
+    expect([FREE_CHAT_MODEL, ...FREE_CHAT_FALLBACKS].sort()).toEqual([
+      'nvidia/nemotron-3.5-lightning-free',
+      'reflection/beam-free'
+    ]);
+  });
+
+  it('no priced model is reachable from the free chain', () => {
+    // These three edit in 5 of 5 attempts on the real agent loop. They
+    // are exactly what the free tier is NOT allowed to reach.
+    for (const priced of [
+      'anthropic/claude-haiku-5.5',
+      'amazon/nova-micro',
+      'zai/glm-5.3-flash'
+    ]) {
+      expect(FREE_CHAT_MODEL).not.toBe(priced);
+      expect(FREE_CHAT_FALLBACKS).not.toContain(priced);
+      expect(FREE_CHAT_GATEWAY_PROVIDER_OPTIONS.gateway.order).not.toContain(priced);
+    }
+  });
+
+  it('the free chain spans two providers so one outage cannot take it down', () => {
+    const providers = new Set(
+      [FREE_CHAT_MODEL, ...FREE_CHAT_FALLBACKS].map((m) => m.split('/')[0])
+    );
+    expect(providers.size).toBe(2);
   });
 });
 
