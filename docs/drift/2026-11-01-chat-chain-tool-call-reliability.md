@@ -192,3 +192,48 @@ tiebreaker, and only once reliability is established.
   it is the last paid call a free user can reach.
 - The 52s turn from `ling-3.1-flash-1019` was measured across 5
   attempts; it may be congestion rather than the model's real speed.
+
+## One more thing the measurement found: the free tier's daily allowance was a lie
+
+The same probe recorded tokens per turn, which turned a quiet accounting
+problem into a visible one.
+
+| chain | tokens per turn (median of 6) | prompt cached? | 20 turns |
+|---|---|---|---|
+| Pro (`anthropic/claude-haiku-5.5`) | ~20,833 | **no** (0 cached) | ~416K |
+| Free (`reflection/beam-free`) | ~12,980 | yes (11–13K cached) | ~260K |
+| Free fallback (`nvidia/nemotron-3.5-lightning-free`) | ~16,070 | yes (12–17K cached) | ~321K |
+
+The Free plan's daily token cap is 300K and its turn allowance is 20.
+So:
+
+- **On the Pro chain, the cap binds first.** 300K ÷ 20,833 ≈ **14
+  messages a day**. The badge said "Free · 20/day" and the composer said
+  "N / 20 messages remaining today", and the server was rejecting the
+  fifteenth. The copy when it did reject was *"You've used today's **Pro**
+  AI allowance"* — told to a user who had no Pro allowance.
+- **On the free chain, the turn limit binds first.** 300K ÷ 12,980 ≈ 23,
+  so 20 turns ≈ 260K fits inside the cap. The badge is now **true**.
+
+So routing free users to their own $0 chain did not just make them free
+— it made the advertised allowance real. That is the concrete reason
+the free tier needed its own chain rather than a discount on the Pro
+one.
+
+Three fixes came out of it:
+
+1. **The token-cap copy is plan-aware.** A finite turn limit *is* the
+   Free plan (only Free has a finite `chatMessagesPerDay`), so it
+   doubles as the plan signal: "You've used today's free AI allowance".
+2. **The badge reads the limit instead of hard-coding it.** It used to
+   be a literal `"Free · 20/day"` — a second copy of a number that
+   already had a source of truth (`PLANS`) and was already being sent
+   back on `X-Chat-Limit`. It now takes the limit as a prop from the
+   page, which reads `PLANS`.
+3. **The test that guarded the quota was guarding a guess.** It asserted
+   the Free cap cleared `20 turns × 10,000 tokens` — an assumption that
+   was never measured, and that was false for the Pro chain. It now
+   uses the measured 13K, and a companion test asserts that the Pro
+   chain's 20.8K would *not* clear it — so nobody quietly puts the Pro
+   chain back on the free tier without the failure showing up.
+

@@ -507,6 +507,16 @@ export const CHAT_GATEWAY_PROVIDER_OPTIONS = {
  * success — the agent's `needs-you` behaviour. So the free tier gets a
  * real agent that sometimes asks a question first, not a crippled one.
  *
+ * It also gets a **cheaper turn**, which is what makes the free tier's
+ * daily allowance honest. A chat turn costs ~13K tokens on the free
+ * chain (the `reflection` endpoint serves 11–13K of the prompt from
+ * cache) against ~20.8K on the Pro chain's primary, which served none.
+ * At 20 turns that is ~260K against the free plan's 300K daily token
+ * cap — so the TURN limit binds, and "Free · 20/day" is true. On the Pro
+ * chain it would have been ~416K, and the cap would have rejected a
+ * Free user at ~14 messages a day while the badge said 20. That is the
+ * concrete reason the free tier needs its own chain.
+ *
  * `reflection/beam-free` leads because it is the only $0 model here with
  * a verified schema-exact structured-output record, which the
  * first-session analysis needs. `nvidia/nemotron-3.5-lightning-free` is

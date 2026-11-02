@@ -32,6 +32,11 @@ interface ChatWindowProps {
   agentState?: AgentMarkState;
   resumeName: string;
   isPro: boolean;
+  /**
+   * The plan's daily turn allowance, or `null` on an unlimited plan.
+   * Rendered in the "Free · N/day" badge.
+   */
+  dailyLimit?: number | null;
   sessions: ChatSessionSummary[];
   activeSessionId: string | null;
   messages: ChatMessageRow[];
@@ -57,6 +62,7 @@ interface ChatWindowProps {
 export function ChatWindow({
   resumeName,
   isPro,
+  dailyLimit = null,
   sessions,
   activeSessionId,
   messages,
@@ -182,7 +188,8 @@ export function ChatWindow({
           {!isPro && (
             <span className="mr-2 flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
               <Crown size={10} />
-              Free · 20/day
+              Free
+              {dailyLimit !== null ? ` · ${dailyLimit}/day` : ''}
             </span>
           )}
           {/* Toggle history sidebar — only meaningful when there are sessions to show. */}

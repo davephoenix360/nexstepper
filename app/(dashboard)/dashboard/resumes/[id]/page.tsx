@@ -28,6 +28,7 @@ import { scoreResumeFromEnvelope, type ScoreBreakdown } from '@/lib/scoring';
 import { resolveRenderedBreakdown } from '@/lib/scoring/snapshot-breakdown';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
+import { PLANS } from '@/lib/db/schema';
 import { coercePrintSettings } from '@/lib/print-settings';
 
 /**
@@ -261,6 +262,15 @@ export default async function ResumeEditorPage({
               resumeId={resume.id}
               resumeName={resume.name}
               isPro={planId === 'pro'}
+              // The daily allowance comes from PLANS, not from a string
+              // baked into the chat UI. The badge used to hard-code
+              // "20/day", which meant the number on screen could drift
+              // from the number the server actually enforces.
+              dailyLimit={
+                Number.isFinite(PLANS[planId].chatMessagesPerDay)
+                  ? PLANS[planId].chatMessagesPerDay
+                  : null
+              }
               hasJobContext={Boolean(data.jobContext)}
               autoPrompt={
                 autoTailor && planId === 'pro' ? AUTO_TAILOR_PROMPT : undefined

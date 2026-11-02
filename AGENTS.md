@@ -238,7 +238,19 @@ plan. Drift memo:
   user per month). The honest trade: free users get a real agent that
   edits 3 of 5 attempts against Pro's 5 of 5. New probe:
   `tests/unit/ai/chat-tool-call-probe.test.ts` (skipped by default; run
-  it with `RUN_AI_PROBE=1`). Drift memo:
+  it with `RUN_AI_PROBE=1`). The same probe's token counts turned up one
+  more thing: **the free tier's advertised 20/day was a lie.** A chat
+  turn costs ~20.8K tokens on the Pro chain's primary and ~13.0K on the
+  free chain (the `reflection` endpoint serves 11–13K of the prompt from
+  cache; Anthropic served none). Against the Free plan's 300K daily
+  token cap, a Free user on the Pro chain was rejected at ~**14
+  messages a day** while the badge said "Free · 20/day" and the copy
+  said *"You've used today's **Pro** AI allowance"*. On the free chain
+  20 turns ≈ 260K, so the TURN limit binds and the badge is now true —
+  which is the concrete reason the free tier needed its own chain
+  rather than a discount on the Pro one. Fixed alongside it: the
+  token-cap copy is plan-aware, and the badge reads the limit from
+  `PLANS` instead of hard-coding "20/day". Drift memo:
   `docs/drift/2026-11-01-chat-chain-tool-call-reliability.md`.
 
 - **The score badge in the resume list was showing a different number

@@ -169,6 +169,11 @@ type Attempt = {
   narration: boolean;
   text: string;
   ms: number;
+  /** Tokens the SDK reports for the whole multi-step turn. */
+  inputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
   error?: string;
 };
 
@@ -231,7 +236,11 @@ async function attemptEdit(model: string, system: string): Promise<Attempt> {
       leak,
       narration: !calls.length && CHANGE_CLAIM.test(text),
       text: text.slice(0, 260),
-      ms: Date.now() - t0
+      ms: Date.now() - t0,
+      inputTokens: r.usage?.inputTokens,
+      outputTokens: r.usage?.outputTokens,
+      reasoningTokens: r.usage?.reasoningTokens,
+      cachedInputTokens: r.usage?.cachedInputTokens
     };
   } catch (e) {
     return {
@@ -284,6 +293,11 @@ describe.skipIf(!ENABLED)('chat tool-call probe (network)', () => {
                 : `tools=[${a.toolsCalled.join(',')}] argsValid=${a.argsValid} leak=${a.leak} narrate=${a.narration} ${a.ms}ms`
             }`
           );
+          if (!a.error) {
+            console.log(
+              `      tokens: in=${a.inputTokens ?? '?'} (cached ${a.cachedInputTokens ?? 0}) out=${a.outputTokens ?? '?'} (reasoning ${a.reasoningTokens ?? 0}) total=${(a.inputTokens ?? 0) + (a.outputTokens ?? 0)}`
+            );
+          }
           if (a.argProblem) console.log(`      argProblem: ${a.argProblem}`);
           if (a.leak) console.log(`      LEAKED PAYLOAD: ${JSON.stringify(a.text)}`);
           if (!a.toolCalled && !a.error) {

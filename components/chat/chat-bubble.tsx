@@ -26,6 +26,15 @@ interface ChatBubbleProps {
   resumeName: string;
   isPro: boolean;
   /**
+   * The plan's daily turn allowance, or `null` on an unlimited plan.
+   *
+   * This comes from `PLANS` on the server, not from a string in the
+   * chat UI. The badge used to hard-code "20/day", so the number on
+   * screen could drift from the number the server enforces — and the
+   * server's number is the one that decides when a turn is rejected.
+   */
+  dailyLimit?: number | null;
+  /**
    * Whether the resume has a job description attached. Decides whether
    * the suggestion chips are JD-specific or general craft prompts.
    */
@@ -42,6 +51,7 @@ export function ChatBubble({
   resumeId,
   resumeName,
   isPro,
+  dailyLimit = null,
   hasJobContext = false,
   autoPrompt
 }: ChatBubbleProps) {
@@ -355,6 +365,7 @@ export function ChatBubble({
           agentState={agentState}
           resumeName={resumeName}
           isPro={isPro}
+          dailyLimit={dailyLimit}
           sessions={sessions}
           activeSessionId={activeSessionId}
           messages={messages}

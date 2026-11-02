@@ -40,8 +40,31 @@ describe('decideChatQuotaRejection', () => {
     });
   });
 
-  it('reports the turn limit when turns are exhausted but tokens are not', () => {
-    const d = decideChatQuotaRejection({
+  it('does not tell a Free user they used their "Pro" allowance', () => {
+    // The copy used to say "You've used today's Pro AI allowance" to
+    // everyone. A Free user who hits the token cap was told they had
+    // used a Pro allowance they do not have — which reads as a bug in
+    // the product rather than as their own limit.
+    //
+    // A finite turn limit IS the Free plan (only Free has a finite
+    // `chatMessagesPerDay`), so it doubles as the plan signal.
+    const free = decideChatQuotaRejection({
+      usage: usage(PLANS.free.chatTokensPerDay),
+      tokenLimit: PLANS.free.chatTokensPerDay,
+      turnLimit: PLANS.free.chatMessagesPerDay
+    });
+    expect(free.body.error).toContain('free AI allowance');
+    expect(free.body.error).not.toContain('Pro AI allowance');
+
+    const pro = decideChatQuotaRejection({
+      usage: usage(PLANS.pro.chatTokensPerDay),
+      tokenLimit: PLANS.pro.chatTokensPerDay,
+      turnLimit: PLANS.pro.chatMessagesPerDay
+    });
+    expect(pro.body.error).toContain('Pro AI allowance');
+  });
+
+  it('reports the turn limit when turns are exhausted but tokens are not', () => {    const d = decideChatQuotaRejection({
       usage: usage(10), // far under the Pro token cap
       tokenLimit: PLANS.pro.chatTokensPerDay,
       turnLimit: PLANS.pro.chatMessagesPerDay
@@ -112,11 +135,36 @@ describe('PLANS quota shape', () => {
   });
 
   it('Free token cap does not bite before the turn limit for normal use', () => {
-    // 20 turns/day at ~10K input tokens/turn is ~200K, so the turn limit
-    // must bind first for an ordinary Free user. The token cap exists
-    // only to catch one pathological giant message.
+    // The assumption here used to be "~10K tokens per turn", which was
+    // never measured. It is now: a chat turn on the FREE chain costs
+    // ~13K tokens (median of 6 turns measured against the real agent
+    // loop on 2026-11-01 — `reflection/beam-free`, the free chain's
+    // primary, serves ~11–13K of the prompt from cache).
+    //
+    // 20 turns × 13K ≈ 260K, under the 300K cap, so the TURN limit is
+    // what an ordinary Free user hits — which is what the "20/day"
+    // badge says. The token cap stays a safety net for one
+    // pathological giant message.
+    const MEASURED_TOKENS_PER_TURN = 13_000;
     expect(PLANS.free.chatTokensPerDay).toBeGreaterThan(
-      PLANS.free.chatMessagesPerDay * 10_000
+      PLANS.free.chatMessagesPerDay * MEASURED_TOKENS_PER_TURN
+    );
+  });
+
+  it('the PRO chain would bite the Free token cap — which is why Free gets its own chain', () => {
+    // The same measurement on the Pro chain's primary
+    // (`anthropic/claude-haiku-5.5`) is ~20.8K tokens per turn, and
+    // that endpoint served 0 cached tokens in the same run.
+    //
+    // 20 turns × 20.8K ≈ 416K — OVER the Free 300K cap. A Free user
+    // on the Pro chain would therefore have been rejected at ~14
+    // messages a day, while the UI badge said "Free · 20/day" and the
+    // composer said "N / 20 messages remaining today". This is why the
+    // free tier is routed to its own $0 chain, and it is why the free
+    // chain's measured cost is the number the cap has to clear.
+    const PRO_CHAIN_TOKENS_PER_TURN = 20_833;
+    expect(PLANS.free.chatTokensPerDay).toBeLessThan(
+      PLANS.free.chatMessagesPerDay * PRO_CHAIN_TOKENS_PER_TURN
     );
   });
 

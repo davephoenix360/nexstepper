@@ -74,10 +74,15 @@ export function decideChatQuotaRejection(input: {
     usage !== null && Number.isFinite(tokenLimit) && usage.tokensUsed >= tokenLimit;
 
   if (overTokens && usage) {
+    // The copy must not tell a Free user they used their "Pro"
+    // allowance. A finite turn limit IS the Free plan (in `PLANS`,
+    // only Free has a finite `chatMessagesPerDay`), so it doubles as
+    // the plan signal here — no extra parameter needed.
+    const planLabel = Number.isFinite(turnLimit) ? 'free' : 'Pro';
     return {
       reason: 'token_limit',
       body: {
-        error: "You've used today's Pro AI allowance",
+        error: `You've used today's ${planLabel} AI allowance`,
         code: 'TOKEN_LIMIT_REACHED',
         tokensUsed: usage.tokensUsed,
         tokenLimit,
