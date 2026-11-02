@@ -30,6 +30,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
+  AGENT_INTRO_BUBBLE_BOTTOM_PX,
+  AGENT_INTRO_BUBBLE_WIDTH_PX,
   CHAT_PANEL_BOTTOM_PX,
   CHAT_TRIGGER_BOTTOM_PX,
   CHAT_TRIGGER_SIZE_PX,
@@ -39,7 +41,8 @@ import {
   FEEDBACK_PILL_WITH_TRIGGER_BOTTOM_PX,
   FEEDBACK_PILL_WITH_TRIGGER_TOP_PX,
   FLOATING_FEEDBACK_BOTTOM_VAR,
-  FLOATING_STACK_GAP_PX
+  FLOATING_STACK_GAP_PX,
+  feedbackPillBottomWithBubble
 } from '@/lib/ui/floating-actions';
 
 const read = (p: string) =>
@@ -86,6 +89,57 @@ describe('floating action geometry', () => {
       FEEDBACK_PILL_WITH_TRIGGER_BOTTOM_PX + FEEDBACK_PILL_HEIGHT_PX
     );
     expect(CHAT_PANEL_BOTTOM_PX).toBe(154);
+  });
+});
+
+/**
+ * The assistant's introduction bubble is a FOURTH element in the same
+ * corner, and it sits directly above the trigger — which is exactly
+ * where the feedback pill wanted to be. These are the invariants that
+ * stop the bubble from re-creating the overlap the module exists to
+ * prevent.
+ */
+describe('the introduction bubble geometry', () => {
+  it('sits above the trigger, with the standard gap', () => {
+    // The bubble's bottom edge must clear the trigger's top edge, or
+    // it covers the button it is talking about.
+    expect(AGENT_INTRO_BUBBLE_BOTTOM_PX).toBeGreaterThanOrEqual(
+      CHAT_TRIGGER_TOP_PX
+    );
+    expect(AGENT_INTRO_BUBBLE_BOTTOM_PX - CHAT_TRIGGER_TOP_PX).toBe(
+      FLOATING_STACK_GAP_PX
+    );
+  });
+
+  it('pushes the feedback pill above the bubble', () => {
+    // THE invariant. The bubble's height is measured at runtime, so
+    // this is arithmetic over a real number rather than a constant.
+    const bubbleHeight = 160;
+    const pillBottom = feedbackPillBottomWithBubble(bubbleHeight);
+    const bubbleTop = AGENT_INTRO_BUBBLE_BOTTOM_PX + bubbleHeight;
+    expect(pillBottom).toBeGreaterThanOrEqual(bubbleTop);
+  });
+
+  it('leaves the standard gap between the bubble and the pill', () => {
+    const bubbleHeight = 160;
+    expect(
+      feedbackPillBottomWithBubble(bubbleHeight) -
+        (AGENT_INTRO_BUBBLE_BOTTOM_PX + bubbleHeight)
+    ).toBe(FLOATING_STACK_GAP_PX);
+  });
+
+  it('keeps the pill below the open panel', () => {
+    // The panel is the tallest thing in the corner; the pill must not
+    // end up underneath it when the bubble is up.
+    const bubbleHeight = 160;
+    expect(feedbackPillBottomWithBubble(bubbleHeight)).toBeLessThan(
+      CHAT_PANEL_BOTTOM_PX + bubbleHeight
+    );
+  });
+
+  it('is narrow enough not to swallow the viewport', () => {
+    // A bubble wider than this starts covering the editor on a laptop.
+    expect(AGENT_INTRO_BUBBLE_WIDTH_PX).toBeLessThanOrEqual(320);
   });
 });
 

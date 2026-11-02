@@ -37,6 +37,11 @@ interface ChatWindowProps {
    * Rendered in the "Free · N/day" badge.
    */
   dailyLimit?: number | null;
+  /**
+   * The user-facing name of the model answering this chat, e.g.
+   * "Claude Haiku 5.5". Shown as one quiet line under the messages.
+   */
+  modelLabel?: string | null;
   sessions: ChatSessionSummary[];
   activeSessionId: string | null;
   messages: ChatMessageRow[];
@@ -63,6 +68,7 @@ export function ChatWindow({
   resumeName,
   isPro,
   dailyLimit = null,
+  modelLabel = null,
   sessions,
   activeSessionId,
   messages,
@@ -309,6 +315,21 @@ export function ChatWindow({
 
           {/* Input */}
           <div className="shrink-0 border-t border-gray-100 p-3">
+            {/* Which model is answering, and (on Free) what the
+                allowance is. One quiet line, below the conversation —
+                the answer to "what am I actually talking to", and the
+                place a free user learns what their plan gives them
+                without having to open a different screen. */}
+            {(modelLabel || dailyLimit !== null) && (
+              <p
+                className="mb-2 text-center text-[11px] text-gray-400"
+                data-testid="chat-model-label"
+              >
+                {modelLabel ? `${AGENT_DISPLAY_NAME} · ${modelLabel}` : null}
+                {modelLabel && dailyLimit !== null ? ' · ' : null}
+                {dailyLimit !== null ? `${dailyLimit} messages/day` : null}
+              </p>
+            )}
             <ChatInput
               onSend={onSend}
               isStreaming={isStreaming}

@@ -11,8 +11,11 @@ import { useChatStream } from './use-chat-stream';
 import { type ChatMessageRow } from './use-chat-stream';
 import {
   FEEDBACK_PILL_WITH_TRIGGER_BOTTOM_PX,
-  FLOATING_FEEDBACK_BOTTOM_VAR
+  FLOATING_FEEDBACK_BOTTOM_VAR,
+  feedbackPillBottomWithBubble
 } from '@/lib/ui/floating-actions';
+import { AgentIntroBubble } from './agent-intro-bubble';
+import { markAgentIntroSeen } from '@/lib/chat/agent-intro';
 import { suggestedPrompts } from '@/lib/chat/suggested-prompts';
 
 interface ChatSessionSummary {
@@ -35,6 +38,12 @@ interface ChatBubbleProps {
    */
   dailyLimit?: number | null;
   /**
+   * The user-facing name of the model that will answer this chat, e.g.
+   * "Claude Haiku 5.5". Resolved on the server from the same constants
+   * the chain is built from.
+   */
+  modelLabel?: string | null;
+  /**
    * Whether the resume has a job description attached. Decides whether
    * the suggestion chips are JD-specific or general craft prompts.
    */
@@ -52,6 +61,7 @@ export function ChatBubble({
   resumeName,
   isPro,
   dailyLimit = null,
+  modelLabel = null,
   hasJobContext = false,
   autoPrompt
 }: ChatBubbleProps) {
@@ -88,6 +98,21 @@ export function ChatBubble({
   // this the cap would reject a send with nothing on screen.
   const [notice, setNotice] = useState<string | null>(null);
 
+  /**
+   * The introduction bubble's measured height, or 0 when it is down.
+   *
+   * The bubble sits directly above the trigger, which is where the
+   * floating Feedback pill wants to be — so while the bubble is up, the
+   * pill's published offset is computed from this height and the pill
+   * steps above it. Measured rather than assumed, because the copy
+   * wraps differently at different widths.
+   */
+  const [introBubbleHeightPx, setIntroBubbleHeightPx] = useState(0);
+
+  const handleIntroHeightChange = useCallback((px: number) => {
+    setIntroBubbleHeightPx((current) => (current === px ? current : px));
+  }, []);
+
   // Portal target only exists on the client. Wait for mount so SSR
   // doesn't crash on `document.body`.
   const [mounted, setMounted] = useState(false);
@@ -111,17 +136,23 @@ export function ChatBubble({
    *
    * The offset itself lives in `lib/ui/floating-actions.ts` so the
    * trigger, the pill and the panel all agree.
+   *
+   * It also has to clear the agent's INTRODUCTION BUBBLE when that is
+   * up — the bubble sits directly above the trigger, which is exactly
+   * where the pill wanted to be. The bubble's measured height is what
+   * the pill's offset is computed from.
    */
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty(
-      FLOATING_FEEDBACK_BOTTOM_VAR,
-      `${FEEDBACK_PILL_WITH_TRIGGER_BOTTOM_PX}px`
-    );
+    const offset =
+      introBubbleHeightPx > 0
+        ? feedbackPillBottomWithBubble(introBubbleHeightPx)
+        : FEEDBACK_PILL_WITH_TRIGGER_BOTTOM_PX;
+    root.style.setProperty(FLOATING_FEEDBACK_BOTTOM_VAR, `${offset}px`);
     return () => {
       root.style.removeProperty(FLOATING_FEEDBACK_BOTTOM_VAR);
     };
-  }, []);
+  }, [introBubbleHeightPx]);
 
   /**
    * Auto-run the tailoring prompt.
@@ -329,10 +360,30 @@ export function ChatBubble({
   // so that any sticky / transformed ancestor (e.g. the dashboard right rail
   // with `lg:sticky lg:top-4`) can't trap the `position: fixed` descendants
   // inside its bounding box.
+  /**
+   * Open the agent.
+   *
+   * Opening it counts as having seen it, so the introduction bubble
+   * stops coming back for a day. The bubble's own invitation calls
+   * this too.
+   */
+  const openAgent = useCallback(() => {
+    markAgentIntroSeen();
+    setIsOpen(true);
+  }, []);
+
+  const toggleOpen = useCallback(() => {
+    if (isOpen) {
+      setIsOpen(false);
+    } else {
+      openAgent();
+    }
+  }, [isOpen, openAgent]);
+
   const floatingUi = (
     <>
       <button
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-label={
           isOpen
             ? `Close ${AGENT_DISPLAY_NAME}, the AI assistant`
@@ -366,6 +417,7 @@ export function ChatBubble({
           resumeName={resumeName}
           isPro={isPro}
           dailyLimit={dailyLimit}
+          modelLabel={modelLabel}
           sessions={sessions}
           activeSessionId={activeSessionId}
           messages={messages}
@@ -380,6 +432,18 @@ export function ChatBubble({
           onSelectSession={handleSelectSession}
         />
       )}
+
+      {/* The agent's introduction — a speech bubble above the trigger,
+          for a user who has been on the resume a while and never
+          noticed the assistant was there. It hides itself the moment
+          the agent opens, and it reports its height so the floating
+          Feedback pill can step above it. */}
+      <AgentIntroBubble
+        dailyLimit={dailyLimit}
+        agentOpen={isOpen}
+        onOpen={openAgent}
+        onHeightChange={handleIntroHeightChange}
+      />
     </>
   );
 

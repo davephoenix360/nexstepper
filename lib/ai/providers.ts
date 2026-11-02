@@ -574,6 +574,31 @@ export function resolveChatModelPlan(plan: PlanId): ChatModelPlan {
 }
 
 /**
+ * How each chat model is named to users.
+ *
+ * The chat panel says which model is answering — a trust signal, and
+ * the answer to "what am I actually talking to". It resolves from HERE,
+ * next to the constants, so a model swap changes the label in the same
+ * commit: the UI cannot keep claiming a model that is no longer in the
+ * chain.
+ */
+const CHAT_MODEL_LABELS: Record<string, string> = {
+  [CHAT_MODEL]: 'Claude Haiku 5.5',
+  [FREE_CHAT_MODEL]: 'Beam'
+};
+
+/**
+ * The user-facing name of the model that will answer this plan's chat.
+ *
+ * Falls back to the raw model id rather than to nothing, so a model
+ * added without a label still shows the user something true.
+ */
+export function chatModelLabel(plan: PlanId): string {
+  const { model } = resolveChatModelPlan(plan);
+  return CHAT_MODEL_LABELS[model] ?? model;
+}
+
+/**
  * Resolve a model string into a gateway-backed `LanguageModelV1`
  * instance. This is the only function that knows about the
  * gateway — callers just pass model constants in.

@@ -29,6 +29,7 @@ import { resolveRenderedBreakdown } from '@/lib/scoring/snapshot-breakdown';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
 import { PLANS } from '@/lib/db/schema';
+import { chatModelLabel } from '@/lib/ai/providers';
 import { coercePrintSettings } from '@/lib/print-settings';
 
 /**
@@ -271,6 +272,7 @@ export default async function ResumeEditorPage({
                   ? PLANS[planId].chatMessagesPerDay
                   : null
               }
+              modelLabel={chatModelLabel(planId)}
               hasJobContext={Boolean(data.jobContext)}
               autoPrompt={
                 autoTailor && planId === 'pro' ? AUTO_TAILOR_PROMPT : undefined

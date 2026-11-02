@@ -100,3 +100,54 @@ export const CHAT_PANEL_BOTTOM_PX =
  * pill to read.
  */
 export const FLOATING_FEEDBACK_BOTTOM_VAR = '--floating-feedback-bottom';
+
+/**
+ * The assistant's introduction bubble.
+ *
+ * ## Why a fourth element
+ *
+ * A user built a master resume, made a variant for a pasted job
+ * description, scored 49 on the ATS check — and never noticed the
+ * assistant existed. The trigger is a 56px mark in the corner; nothing
+ * says what it is. So the agent introduces itself with a speech bubble
+ * above the trigger.
+ *
+ * ## Why it uses the SAME mechanism as the pill
+ *
+ * The bubble is a fixed element in the bottom-right corner, and the
+ * space directly above the trigger is exactly where the feedback pill
+ * lives. Putting the bubble there without moving the pill would
+ * re-create the overlap this module was written to prevent.
+ *
+ * So the bubble rides the mechanism that already exists: the trigger
+ * publishes the offset the pill should use, and while the bubble is up
+ * that offset is large enough to put the pill ABOVE the bubble. No new
+ * coupling, no second offset variable, one source of truth.
+ *
+ * The bubble's height is MEASURED at runtime rather than assumed,
+ * because the copy wraps differently at different widths and a stale
+ * constant would drop the pill back on top of it.
+ */
+
+/** The bubble's width. `w-72`. */
+export const AGENT_INTRO_BUBBLE_WIDTH_PX = 288;
+
+/**
+ * Where the bubble's bottom edge sits: directly above the trigger,
+ * with the same gap the pill uses.
+ */
+export const AGENT_INTRO_BUBBLE_BOTTOM_PX =
+  CHAT_TRIGGER_TOP_PX + FLOATING_STACK_GAP_PX; // 96px
+
+/**
+ * Where the feedback pill goes while the bubble is up: above the
+ * bubble, with the standard gap.
+ *
+ * `bubbleHeightPx` is the bubble's MEASURED height, so this is
+ * `AGENT_INTRO_BUBBLE_BOTTOM_PX + height + gap`.
+ */
+export function feedbackPillBottomWithBubble(bubbleHeightPx: number): number {
+  return (
+    AGENT_INTRO_BUBBLE_BOTTOM_PX + bubbleHeightPx + FLOATING_STACK_GAP_PX
+  );
+}

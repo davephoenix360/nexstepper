@@ -171,6 +171,36 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **A user built a resume, scored 49 on the ATS check, and never knew
+  the AI agent existed** — The agent's trigger is a 56px mark in the
+  bottom-right corner of the editor, and nothing on the page says what
+  it is. So the agent now introduces itself: after **45 seconds** on a
+  variant — long enough not to interrupt someone still orienting — a
+  **speech bubble** appears directly above the trigger, with the
+  agent's own mark in it, a tail pointing down at the button, and
+  *"I'm Scout. Want to improve your ATS score? I can tell you exactly
+  which requirements this resume is missing — and help you fix
+  them."* A Free user also gets *"Your free plan includes 20 messages
+  a day"* — because the badge that says so only appears once the panel
+  is OPEN, which is exactly the person who never knew the agent was
+  there. **A bubble that nags is worse than no bubble**, so the
+  decision is a pure predicate (`shouldShowAgentIntro`) with named
+  windows: never seen → show; opened in the last 24h → don't;
+  dismissed in the last 7 days → don't. **And the geometry is the
+  interesting part:** the space directly above the trigger is where the
+  floating Feedback pill lives, so the bubble rides the mechanism that
+  already exists — the trigger publishes an offset the pill reads — and
+  publishes a LARGER one while the bubble is up, so the pill steps
+  above it. The bubble's height is **measured** (a ResizeObserver),
+  not assumed, because the copy wraps differently at different widths
+  and a stale constant would drop the pill back on top of it. The
+  chat panel also now names the model that is answering ("Scout ·
+  Claude Haiku 5.5" / "Scout · Beam"), resolved from the same constants
+  the chain is built from, so a swap cannot leave the UI claiming a
+  model that is no longer there. Plan:
+  `docs/plans/agent-intro-bubble.md`. Drift memo:
+  `docs/drift/2026-11-02-agent-intro-bubble.md`.
+
 - **The chat was 500ing on almost every conversation — a ByteString
   header** — The AI agent appeared to be simply "not working": the user
   sent a message and got nothing, with no error shown. Sentry had one
