@@ -94,19 +94,26 @@ Six beats. Each beat earns the next one.
 
 **Visual.** Black → the resume, scrolling slowly down. Clean, professional,
 believable — the kind of resume someone is proud of. Hold on the work
-history. Hard cut to the scorecard: **«SCORE_BEFORE»/100**, tier badge, and
-the miss list — *"Missing 4 must-have skills."*
+history. Hard cut to the scorecard: **75/100**, tier badge **Good**. Then the
+camera drifts to the weakest bar: **Role fit — 50**.
 
 **VO.**
-> This resume is good. It doesn't show four of the things the posting asks for.
+> Seventy-five out of a hundred. A good score. On one dimension, half marks.
 
 **Why.** The category's whole promise is a number, so the cold open has to be
-a number — then immediately undercut it. The tension is "this looks fine to
-me, and it's still wrong." That is precisely the complaint that produced the
-scorecard-tips drift memo: a candidate scored 49 and could see the numbers but
-no way to improve them.
+a number — then immediately undercut it. But the undercutting here is better
+than "your score is low": **75 is a good score and the resume is still wrong
+for this job.** A candidate who scores 74 and can see the numbers but no way
+to improve them is precisely the complaint that produced the scorecard-tips
+drift memo. Here the fix is visible: role fit is 50 because the resume calls
+Jordan a *Senior Software Engineer* and the posting wants a *Senior Backend
+Engineer*.
 
 **Do not** open on the logo. Open on the thing that's broken.
+
+**Do not** open on a low score. A "47" cold open would be a lie about this
+fixture — the engine says 75, and the video has to say 75.
+
 
 ### Beat 2 — Setup montage (0:15–0:24) · Context in 9 seconds
 
@@ -131,8 +138,9 @@ already does this properly, in text, for people who want to read it.
 
 **Visual.** The **"Highlight this job's skills"** button in the editor
 (`components/rich-text/job-skill-highlight-button.tsx`). Click it. Skills in
-the resume go **bold**; the must-haves go **bold + underline**. The result
-line reads *"Bolded 7 skills, underlined 3 must-haves."*
+the resume go **bold**; the must-haves go **bold + underline**. The button's
+result line reads *"Bolded N skills, underlined M must-haves."* — **read N and
+M off the screen during rehearsal and write the real ones here.**
 
 **VO.**
 > Nexstepper reads the posting before it reads you. It knows which lines are
@@ -144,9 +152,12 @@ distinguishes a must-have from a nice-to-have at a glance, which no keyword
 matcher in the category does. And it's visually satisfying in a way a score
 number is not — one click, and the resume visibly changes.
 
-**This beat is why the product has this feature.** It was built for the
-candidate who needs to know where the employer's eye should land. It is also,
-coincidentally, the single most shareable three seconds in the product.
+**Verified on the seeded fixture:** the Cartwheel posting classifies as **16
+genuine skills and 1 eligibility gate** (the bachelor's degree), so the
+button has real work to do and the eligibility list gets a green chip. The
+Northwind posting classifies as **0 genuine skills**, so the same button
+refuses — that's Beat 6.
+
 
 ### Beat 4 — Scout (0:42–1:25) · The agent works
 
@@ -162,14 +173,26 @@ reorders, a section is dropped. The mark goes `working` → `applied`.
 
 *beat — the edits land*
 
-> Three gaps worth closing. I moved the billing work up, rewrote the throughput
-> bullet, and dropped the section that wasn't earning its place.
+> Two of these I can fix. Your headline says Software Engineer; this posting
+> wants a Backend Engineer. And you never say "event-driven" — but the
+> transcription pipeline is event-driven. You just didn't call it that.
+
+> Kafka, I can't fix. You haven't done it. I'm not going to write it for you.
 
 **Why.** This is the beat that separates us from the category. Everyone else
 shows you a score; we show the agent reading a document and having an opinion.
 The second VO line is deliberately *first person* — that's Scout's register
 from the brand brief, and it's what makes the agent feel like a colleague
 rather than a feature.
+
+**The refusal is the point of the beat.** A demo where the agent fixes
+everything is a demo of a generator. A demo where the agent fixes two things
+and says "I can't fix the third, you haven't done it" is a demo of a
+*colleague*. The seeded analysis already says exactly this — *"Core
+requirements are well evidenced … but the resume shows no Kafka or
+event-driven work and no order, payments, or fulfilment domain experience,
+which are the core of this role."* Scout's refusal rules turn that into a
+sentence worth hearing.
 
 **Note for the shoot.** The chat header shows the model as *"Scout · Claude
 Haiku 5.5"* (`components/chat/chat-window.tsx`). Leave it. It's honest, it's
@@ -178,22 +201,27 @@ technical audience that reads SaaS demo videos.
 
 ### Beat 5 — The payoff (1:25–1:45) · The number moves
 
-**Visual.** Recompute. The score animates **«SCORE_BEFORE» → «SCORE_AFTER»**.
-The radar shape shifts. The dimension bars fill.
+**Visual.** Recompute. The score animates from **75** to whatever it really
+becomes. The radar shape shifts. The dimension bars fill — and **Role fit
+moves off 50**, which is the bar the cold open put on screen.
 
 **VO.**
-> «SCORE_BEFORE» to «SCORE_AFTER». Nothing invented. Every change is something
+> Seventy-five to «SCORE_AFTER». Nothing invented. Every change is something
 > your resume already proves.
 
 **Why.** This is the money shot and it must be the last thing the viewer sees
 before the close. The clause "nothing invented" is the honesty claim, and it
 is **true**: the agent's system prompt forbids inventing skills, inflating
-bullets, or claiming a change landed when it didn't.
+bullets, or claiming a change landed when it didn't. Scout's edits here are
+reframings — the headline becomes "Senior Backend Engineer", the Go service
+bullet moves up and says what it already meant.
 
-**The numbers in the VO must be the numbers on screen.** A demo video that
-says 71 and shows 68 is the same class of bug as the list-badge/scorecard
-divergence — two surfaces, one value, disagreeing. Fill both placeholders from
-the actual seeded footage, and check them against the render.
+**«SCORE_AFTER» comes from the rehearsal.** Run the chat once, click
+Recompute, read the number off the screen, then write it into the script.
+Do not predict it. And **do not let it reach 100** — Kafka and OpenTelemetry
+are genuinely absent from Jordan's history, and a video that ends at 100 would
+be the one lie in an otherwise honest product.
+
 
 ### Beat 6 — The refusal (1:45–1:55) · Proof it's honest
 
@@ -230,8 +258,8 @@ Full text, ready to record. `«»` marks a value that must be read off the
 actual seeded footage.
 
 ```
-[0:00]  This resume is good. It doesn't show four of the things the
-        posting asks for.
+[0:00]  Seventy-five out of a hundred. A good score. On one dimension,
+        half marks.
 
 [0:15]  (no VO — three fast cuts, one word each on screen)
 
@@ -243,11 +271,15 @@ actual seeded footage.
         matching. It asks whether the resume actually shows what the role
         needs.
 
-[0:58]  Three gaps worth closing. I moved the billing work up, rewrote
-        the throughput bullet, and dropped the section that wasn't earning
-        its place.
+[0:58]  Two of these I can fix. Your headline says Software Engineer;
+        this posting wants a Backend Engineer. And you never say
+        "event-driven" — but the transcription pipeline is event-driven.
+        You just didn't call it that.
 
-[1:25]  «SCORE_BEFORE» to «SCORE_AFTER». Nothing invented. Every change is
+[1:12]  Kafka, I can't fix. You haven't done it. I'm not going to write
+        it for you.
+
+[1:25]  Seventy-five to «SCORE_AFTER». Nothing invented. Every change is
         something your resume already proves.
 
 [1:45]  And when the posting doesn't name real skills, it says so. It
@@ -256,8 +288,17 @@ actual seeded footage.
 [1:55]  Export it. Send it. Apply.
 ```
 
-**Read it at ~150 words per minute.** The script above is ~150 words, which
-lands the VO at about 60 seconds of speech inside a 2:15 video — the rest is
+**The 0:58 and 1:12 lines are predicted, not confirmed.** They follow from
+what the seeded analysis actually found — *"Core requirements are well
+evidenced (Go services, gRPC over PostgreSQL on Kubernetes/Terraform/AWS,
+nine years, owned on-call), but the resume shows no Kafka or event-driven
+work and no order, payments, or fulfilment domain experience"* — and from the
+agent's refusal rules. Run the chat once during rehearsal and **rewrite these
+two lines in Scout's actual words.** The structure must survive: one fixable
+gap, one fixable gap, one gap Scout refuses to close.
+
+**Read it at ~150 words per minute.** The script above is ~160 words, which
+lands the VO at about 65 seconds of speech inside a 2:15 video — the rest is
 silence, UI, and cuts. That ratio is deliberate. A demo crammed with
 narration sounds like a slideshow with a voiceover.
 
@@ -268,41 +309,89 @@ while screen-recording.
 
 ## Recording prep
 
-**The blocker: there is no seed script.** `scripts/` currently holds
-`verify-share-schema.mjs`, `sync-pending-migrations.mjs`,
-`render-subprocessor-notice.ts` and `measure-page-breaks.mjs` — no fixture
-seeder. Without one, every take is different: the score differs, the miss
-list differs, Scout's edits differ, and nothing is repeatable.
+**The seeder is built.** `scripts/seed-demo.ts` + `scripts/demo-fixtures.ts`.
 
-**Build `scripts/seed-demo.ts`.** It should create a demo account with:
+```bash
+pnpm seed:demo          # seed if the demo account is missing
+pnpm seed:demo:reset    # wipe the demo account and re-seed
+```
 
-- A realistic **master resume** (use a synthetic candidate — see Risks).
-- A realistic **JD**, pasted from a real posting, with genuine skills and
-  must-haves.
-- The **variant**, created from the master against that JD.
-- A **chat session with Scout** — and here's the trick: **run the agent once,
-  for real, during seeding.** Let Scout actually read the resume and produce
-  its real edits, then persist the session, the revisions it wrote, and the
-  score snapshots. The footage then plays back a session that genuinely
-  happened, but it is 100% deterministic.
-- A **second JD** with no real skills, for Beat 6.
-- A **Pro subscription** row, so the Pro-gated surfaces (inline-issue AI
-  rewrite, Optimize) are visible.
+It creates a demo account — `demo@nexstepper.com` / `nexstepper-demo`, on the
+Pro plan — holding:
 
-This seeder is worth building even if the video never happens: it gives you a
-demo environment for sales calls that doesn't expose a customer's real resume
-and doesn't move every time you open it.
+- a **master resume** for a synthetic candidate (Jordan Ellis, Senior Software
+  Engineer — deliberately a generalist headline against a backend-platform
+  posting),
+- a **tailored variant** of that master against *Senior Backend Engineer,
+  Platform* @ Cartwheel,
+- a **real, computed ATS score** for that variant, persisted as a snapshot
+  through the same query helper the Recompute button uses,
+- a **first-session analysis**, so Scout opens the conversation already
+  informed instead of asking what it can work out itself,
+- a **second posting that names no genuine skills** (Customer Operations
+  Specialist @ Northwind Supply), for the refusal beat.
 
-**Determinism checklist.** Same account, same resume, same JD, same score, same
-Scout reply, same edit set, every time. If a take differs, the seeder missed a
-field — most likely the score snapshot (`resolveRenderedBreakdown` reads the
-latest persisted snapshot, so it must be written, not recomputed live).
+It refuses to run against the production database. The repo has two Neon
+projects, `.env.local` is the dev one, and the seeder compares the resolved
+host against `.env.production.local` and aborts if they match.
 
-**Account state.** Pro plan active. Free works for the chat (20 messages/day)
-but the inline-issue AI rewrite is Pro-gated, and you want that surface in the
-footage.
+**What the seeder produced on 2026-11-02** (these are the real numbers — the
+scorecard will render exactly this):
 
-**Environment.**
+| | |
+|---|---|
+| **Overall score** | **75** |
+| Keywords | 68.1 |
+| Format | 82.3 |
+| Impact | 74.1 |
+| Experience match | 69.2 |
+| Intent coverage | 89.5 |
+| **Role fit** | **50** |
+| Seniority fit | 100 |
+
+And the two highlight beats, verified by running the same Jev evaluation the
+button runs:
+
+| Posting | Genuine skills | Eligibility gates | What the video shows |
+|---|---|---|---|
+| Cartwheel (Backend Platform) | 16 | 1 (the degree) | Bold + underline, must-haves distinguished |
+| Northwind Supply (Customer Ops) | **0** | 1 | The honest refusal |
+
+**Read those numbers off the screen during rehearsal and put them in the
+script.** Do not write a number that isn't the one on screen — a video that
+says 71 while the card says 75 is the list-badge bug in a video.
+
+### What the fixture is designed to prove
+
+The candidate's evidence is **strong** — Jev scores Go 2.93, gRPC 2.49,
+distributed systems 2.47, Kubernetes 2.23, Terraform 2.03, AWS 2.12. The
+resume has the work.
+
+But the resume's headline says **Senior Software Engineer**, and the posting
+wants a **Senior Backend Engineer**. Role fit is 50, and the ATS keyword
+match is only 68, because the resume never says "distributed systems",
+"event-driven" or "microservices" — even though the migration bullet means
+exactly that.
+
+That is the demo's thesis in one candidate: **the resume shows it; the
+resume doesn't say it.** Scout's honest job is to reframe, not to invent.
+And Kafka (evidence 0.14) and OpenTelemetry (0.02) are genuinely absent, so
+the score after the fix still won't be 100 — and shouldn't be.
+
+### Determinism checklist
+
+Same account, same resume, same JD, same score, same Scout reply, same edit
+set, every time. The seeder is idempotent: the second run is a no-op, so the
+AI calls are never repeated and the demo state cannot drift between takes.
+
+### Account state
+
+Pro plan active (`plan=pro`, `status=active` — a local mirror row, not a real
+Stripe subscription). The inline-issue AI rewrite is Pro-gated, and you want
+that surface in the footage.
+
+### Environment
+
 
 - Browser zoom **125%**. A 1080p frame recording a 100%-zoom browser makes
   the scorecard text illegible on a phone, which is where a lot of these get
@@ -373,20 +462,27 @@ good choice *only* with consent.
 
 **2. The agent misbehaves on camera.** Scout is a 6-step agentic loop on a
 model that occasionally needs a clarifying question instead of an edit. A take
-where Scout asks "which Platform Engineer role?" is a bad demo. **Mitigation:**
-the seeder persists a real, good session; the shoot replays it. You are never
-waiting on a live model during filming.
+where Scout asks "which Backend Engineer role?" is a bad demo. **Mitigation:**
+the seeder persists the **first-session analysis**, so Scout opens the
+conversation already holding the verdict, the strengths and the gaps — the
+three-gap structure is seeded even though the reply is not. Then **rehearse
+the full chat once before the shoot** and learn what Scout actually does with
+this fixture. Film the take that matches the rehearsal. If Scout refuses to
+edit in rehearsal, the fixture is wrong, not the model — change the fixture
+until the live behaviour is the one the video needs.
 
 **3. The score doesn't move, or moves the wrong way.** It happens — the score
-can drop if an edit improves prose but removes a keyword. **Mitigation:** pick
-the JD and resume pair in the seeder by *running* them until the pair produces
-a clean, large, honest improvement. Then lock that pair.
+can drop if an edit improves prose but removes a keyword. **Mitigation:**
+rehearse the chat, click Recompute, and read the number off the screen. If it
+doesn't move, Scout's edits weren't the ones you expected; adjust the prompt
+you send it until it does, then film that.
 
 **4. The video overpromises.** A demo that shows a score jumping 47 → 71 when
-the real median improvement is 12 points is the kind of thing a reviewer
-screenshots. **Mitigation:** use the real numbers from the real seeded pair,
-and make the improvement believable. A believable 47 → 61 beats a fantasy
-47 → 71.
+the real improvement is 9 points is the kind of thing a reviewer screenshots.
+**Mitigation:** the seeded fixture scores **75**, and every number in the
+script comes off the screen during rehearsal. A believable 75 → 84 beats a
+fantasy 47 → 100 — and the score must **not** reach 100, because Kafka and
+OpenTelemetry are genuinely absent from Jordan's history.
 
 **5. Editing eats the schedule.** The edit is the long pole, not the shoot.
 **Mitigation:** write and approve this script *before* the shoot, and record
@@ -395,11 +491,31 @@ unblocks the edit; without it, the editor is guessing.
 
 ## Acceptance criteria
 
+**Seeding (done — 2026-11-02)**
+
+- [x] `scripts/seed-demo.ts` exists and is idempotent — running it twice
+      produces identical state, and the second run makes no AI calls.
+- [x] It refuses to write to the production database (host compared against
+      `.env.production.local`).
+- [x] The seeded credential verifies against Better Auth's own hashing, so
+      `demo@nexstepper.com` / `nexstepper-demo` genuinely signs in.
+- [x] The variant carries a real score snapshot written through the same
+      query helper the Recompute button uses, so the scorecard renders
+      exactly what the seeder printed.
+- [x] The Cartwheel posting classifies as 16 genuine skills + 1 eligibility
+      gate, so Beat 3 has real work to show.
+- [x] The Northwind posting classifies as 0 genuine skills, so Beat 6's
+      refusal fires as written.
+- [x] A first-session analysis is persisted, so Scout opens informed.
+
+**The cut**
+
 - [ ] Master cut is 2:00–2:30, 1920×1080, 60fps, Manrope throughout.
 - [ ] The first 8 seconds establish "resume tool + this posting + a problem"
       without narration carrying the meaning alone.
 - [ ] The score visibly moves, and the VO number matches the on-screen number
       exactly.
+- [ ] The score does **not** reach 100.
 - [ ] Every claim in the VO is true of the shipped product. "Nothing invented"
       is enforced by the system prompt and shown by the Beat 6 refusal.
 - [ ] No real candidate's data appears without written consent.
@@ -407,8 +523,6 @@ unblocks the edit; without it, the editor is guessing.
 - [ ] The vertical cut is recomposed, not a centre-crop of the 16:9.
 - [ ] End card uses `public/brand/nexstepper-horizontal-clean.png` and the
       "Take the next step." tagline.
-- [ ] `scripts/seed-demo.ts` exists and is idempotent — running it twice
-      produces identical state.
 
 ## Open questions
 
