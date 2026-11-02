@@ -49,6 +49,14 @@ const SOURCE = {
   cookiesPage: readFileSync(
     resolve(process.cwd(), 'app/(legal)/cookies/page.tsx'),
     'utf8'
+  ),
+  privacyPage: readFileSync(
+    resolve(process.cwd(), 'app/(legal)/privacy/page.tsx'),
+    'utf8'
+  ),
+  vercelAnalyticsGate: readFileSync(
+    resolve(process.cwd(), 'components/consent/vercel-analytics-gate.tsx'),
+    'utf8'
   )
 };
 
@@ -296,8 +304,40 @@ describe('cookie policy matches the code', () => {
   });
 });
 
-describe('category set', () => {
-  it('covers every category with a label and description', () => {
+/**
+ * Vercel Web Analytics is a SECOND analytics provider, and it has no
+ * consent awareness of its own — mounting `<Analytics />` directly
+ * would start collecting page views and loading Vercel's script before
+ * the visitor has decided. These are the guards against that.
+ */
+describe('Vercel Web Analytics is gated like PostHog', () => {
+  it('the layout mounts the GATE, never the component directly', () => {
+    expect(SOURCE.layout).toContain('<VercelAnalyticsGate />');
+    // `<Analytics />` imported straight into the layout would bypass
+    // the consent decision completely.
+    expect(SOURCE.layout).not.toMatch(/<Analytics\s*\/?>/);
+  });
+
+  it('the gate requires a decision AND an analytics grant', () => {
+    expect(SOURCE.vercelAnalyticsGate).toContain('hasDecidedConsent');
+    expect(SOURCE.vercelAnalyticsGate).toContain('consent.analytics === true');
+  });
+
+  it('the legal pages name the second analytics provider', () => {
+    // The cookies page used to say "One analytics tool runs only if you
+    // say yes" — with Vercel Analytics added, that promise is only
+    // true if the page says so.
+    expect(SOURCE.cookiesPage).toContain('Vercel Web Analytics');
+    expect(SOURCE.privacyPage).toContain('Vercel Web Analytics');
+  });
+
+  it('the cookies page still promises analytics is opt-in', () => {
+    expect(SOURCE.cookiesPage).toMatch(/analytics tools run only if you say yes/);
+    expect(SOURCE.cookiesPage).toMatch(/Neither analytics tool runs until you consent/);
+  });
+});
+
+describe('category set', () => {  it('covers every category with a label and description', () => {
     expect(CONSENT_CATEGORIES.length).toBeGreaterThanOrEqual(4);
     expect(new Set(CONSENT_CATEGORIES).size).toBe(CONSENT_CATEGORIES.length);
   });

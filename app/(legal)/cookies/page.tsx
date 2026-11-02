@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true }
 };
 
-const LAST_UPDATED = '2026-10-08';
+const LAST_UPDATED = '2026-11-02';
 
 const toc = [
   { id: 'what-are-cookies', label: '1. What are cookies' },
@@ -35,7 +35,7 @@ const summaryItems = [
     icon: BarChart3,
     question: 'What is analytics?',
     answer:
-      'PostHog, so we can see which features are used. Off until you allow it, and anonymous by default.',
+      'PostHog, so we can see which features are used, and Vercel Web Analytics, so we can count page views and visitors. Both off until you allow them, and neither can identify you.',
     href: 'third-party'
   },
   {
@@ -58,7 +58,7 @@ export default function CookiesPage() {
   return (
     <PolicyShell
       title="Cookie Policy"
-      summary="One cookie keeps you signed in. One analytics tool runs only if you say yes. That is the whole list."
+      summary="One cookie keeps you signed in. Two analytics tools run only if you say yes. That is the whole list."
       lastUpdated={LAST_UPDATED}
       toc={toc}
       intro={<PolicySummary items={summaryItems} />}
@@ -135,6 +135,19 @@ export default function CookiesPage() {
               <td className="py-2 pr-4">PostHog</td>
               <td className="py-2">Up to 1 year (PostHog defaults)</td>
             </tr>
+            <tr>
+              <td className="py-2 pr-4 font-mono text-xs">
+                <em>none</em>
+              </td>
+              <td className="py-2 pr-4">
+                Vercel Web Analytics — page views and visitors. It sets no
+                cookie: the visitor is identified by a hash derived from
+                the incoming request, valid for one day and discarded
+                after 24 hours.
+              </td>
+              <td className="py-2 pr-4">Vercel</td>
+              <td className="py-2">Nothing stored on your device</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -146,11 +159,11 @@ export default function CookiesPage() {
         privacy policy.
       </p>
       <p>
-        <strong>PostHog is not initialised at all until you consent.</strong>{' '}
-        That is enforced in code, not just in the banner: the analytics
-        SDK loads only after your decision is recorded, so declining
-        means nothing is sent. If you decline and reload, the request
-        never happens.
+        <strong>Neither analytics tool runs until you consent.</strong>{' '}
+        That is enforced in code, not just in the banner: PostHog is not
+        initialised at all until your decision is recorded, and the
+        Vercel Web Analytics script is not loaded until the same moment.
+        If you decline and reload, neither request ever happens.
       </p>
 
       <h3>Where your choice is stored</h3>
@@ -208,6 +221,7 @@ export default function CookiesPage() {
         email and require renewed consent in the cookie banner.
       </p>
       <ul>
+        <li><strong>2026-11-02</strong> — added Vercel Web Analytics (page views and visitors) to the analytics section. It sets no cookie and stores nothing on your device, so the cookie table is unchanged, but it is a second analytics provider and now named here and in the privacy policy. It loads only after you allow analytics, the same as PostHog.</li>
         <li><strong>2026-10-08</strong> — Consent banner introduced and analytics gated behind it: PostHog is no longer initialised until you allow analytics. GPC is now honoured in code (it was previously described here but not implemented). Removed two cookies this page listed that the application never set (<code>nexstepper.csrf_token</code>, <code>nexstepper.share_token</code>). Domain references corrected to <code>nexstepper.com</code>.</li>
         <li><strong>2026-09-25</strong> — Rebrand: cookie prefix updated from <code>nextep.*</code> to <code>nexstepper.*</code>; site name updated. Existing sessions were invalidated at the rename boundary.</li>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>

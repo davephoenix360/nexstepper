@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true }
 };
 
-const LAST_UPDATED = '2026-09-25';
+const LAST_UPDATED = '2026-11-02';
 
 const toc = [
   { id: 'summary', label: 'Summary' },
@@ -116,7 +116,8 @@ export default function PrivacyPage() {
           address, browser type, pages visited, and timestamps. We use
           this for security (rate limiting, abuse detection) and product
           analytics (which features get used). Analytics data is sent to
-          PostHog; see §4.
+          PostHog and, for page views, to Vercel Web Analytics; see §4.
+          Both run only if you allow analytics.
         </li>
       </ul>
 
@@ -160,7 +161,26 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li><strong>Neon</strong> — managed Postgres database (US or EU region).</li>
-        <li><strong>Vercel</strong> — hosting + edge network.</li>
+        <li>
+          <strong>Vercel</strong> — hosting, edge network, and Web
+          Analytics.
+          <ul>
+            <li>
+              <strong>Web Analytics (page views).</strong> Counts the
+              pages visited and the number of visitors, so we can see
+              which parts of the product get used. Vercel Web Analytics
+              stores <strong>no cookie and no identifier on your
+              device</strong>: a visitor is identified by a hash derived
+              from the incoming request, valid for a single day and
+              automatically discarded after 24 hours, and the data is
+              aggregated so it cannot be traced to a person or
+              reconstructed across sites. It does not receive your
+              resume content, your email address, or anything you type.
+              Like our PostHog analytics, it loads only after you allow
+              analytics.
+            </li>
+          </ul>
+        </li>
         <li><strong>Stripe</strong> — payment processing. Receives your email and billing details; never receives your resume content.</li>
         <li><strong>Resend</strong> — transactional email (password reset, receipts).</li>
         <li>
@@ -394,6 +414,7 @@ export default function PrivacyPage() {
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
         <li><strong>2026-09-24</strong> — added §11 &ldquo;Open-source + self-hosting&rdquo; scope clarification (the Nexstepper hosted service and your self-hosted instance have separate data-controller relationships).</li>
         <li><strong>2026-09-25</strong> — expanded §4 PostHog entry into three sub-capabilities (product analytics, AI observability, session replay) and clarified that AI observability runs in privacy mode so prompts and responses are never sent to PostHog.</li>
+        <li><strong>2026-11-02</strong> — added Vercel Web Analytics (page views and visitors) to §1 and §4. It sets no cookie and stores no identifier on your device — the visitor hash is derived from the request and discarded after 24 hours — and it loads only if you allow analytics, the same as PostHog. §1 now names both analytics providers.</li>
       </ul>
 
       <h2 id="contact">13. Contact</h2>

@@ -8,6 +8,7 @@ import { PostHogIdentify } from '@/components/posthog-identify';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ConsentProvider } from '@/components/consent/consent-provider';
 import { AnalyticsGate } from '@/components/consent/analytics-gate';
+import { VercelAnalyticsGate } from '@/components/consent/vercel-analytics-gate';
 import { CookieConsentBanner } from '@/components/consent/cookie-consent-banner';
 import { getSiteOrigin, googleSiteVerification } from '@/lib/site';
 
@@ -75,6 +76,12 @@ export default async function RootLayout({
                 runs sibling effects in tree order, so init() has to
                 happen before identify() or the call no-ops. */}
             <AnalyticsGate />
+            {/* Vercel Web Analytics — page views + visitors, which the
+                PostHog setup does not send (capture_pageview: false).
+                Gated on the same consent decision, so it does not load
+                and does not set its cookie until the visitor allows
+                analytics. */}
+            <VercelAnalyticsGate />
             <PostHogProvider>
               <PostHogIdentify />
               {children}

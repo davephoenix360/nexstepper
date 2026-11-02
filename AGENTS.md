@@ -52,7 +52,7 @@ Adding any of these needs a discussion, not a drive-by edit:
 | Billing | Stripe (Free + Pro ≈ the price of a coffee; see `docs/setup/stripe.md` for the actual amount + brand-voice rationale) |
 | AI | Vercel AI SDK 6 → Vercel AI Gateway (`@ai-sdk/gateway@3`); model constants in `lib/ai/providers.ts`. **Two tiers:** `PARSER_MODEL = mistral/mistral-nemo` for structured extraction ($0.03/$0.03, 131K ctx, 12B) and `CHAT_MODEL = anthropic/claude-haiku-5.5` for the agentic chat ($0.10/$0.50, 1M ctx, 4 endpoints), each with its own fallback chain. **The Gateway requires paid credits** — without a top-up most paid models return `403 Free tier users do not have access`, so every chat fallback chain starts with $0 models. Model comments are dated snapshots and rot; re-verify with `npx --yes vercel@latest ai-gateway models endpoints <id> --format json` before planning against any of them — see `docs/ai-models-reference.md` and `docs/plans/chat-agent-v2.md` |
 | Email | Resend |
-| Observability | Sentry (errors) + PostHog (analytics) |
+| Observability | Sentry (errors) + PostHog (analytics) + Vercel Web Analytics (page views) |
 | Background jobs | Inngest |
 | Realtime | Liveblocks (Phase 5) |
 | Validation | Zod 4 (single source of truth for types + runtime validation) |
@@ -170,6 +170,33 @@ plan. Drift memo:
 > so to the user; it was wrong.
 
 **Recently shipped (for context, last 7 days)**
+
+- **The app was sending no page views at all** — PostHog runs with
+  `capture_pageview: false`, because the app has no SPA-route-change
+  listener wired today, so the product analytics only ever saw button
+  clicks and form submits. Vercel Web Analytics now covers the gap:
+  page views and visitors, including SPA route changes, served from
+  Vercel's own infrastructure (the company that already hosts every
+  byte of our traffic). **And it is cookie-less** — Vercel's docs are
+  explicit that Web Analytics "only stores anonymized data and does not
+  use cookies": a visitor is identified by a hash derived from the
+  incoming request, valid for a single day and discarded after 24
+  hours, and the data is aggregated so it cannot be traced to a person.
+  **But `<Analytics />` has no consent awareness of its own**, so
+  mounting it unconditionally would have started collecting — and
+  loading Vercel's script — before the visitor had said anything, which
+  would make the cookies and privacy pages' promises false. It goes
+  through the SAME gate as PostHog (`VercelAnalyticsGate`): not
+  loaded, nothing sent, until there is a decision AND that decision
+  granted analytics. The legal pages were updated to match — the
+  cookies page now names two analytics providers (Vercel's sets no
+  cookie, so the cookie table is unchanged), the privacy page's Vercel
+  entry explains what Web Analytics collects, and both pages carry a
+  changelog entry. The honest caveat: **as shipped, page views are
+  counted only for visitors who accept analytics**, which biases the
+  traffic number. If you want a true traffic count regardless of
+  consent, that is a one-line change in the gate plus an edit to those
+  two pages — and a legal-posture decision, so it is yours to make.
 
 - **A bot could sign up and spend our AI credits** — Every account is a
   wallet: the JD parser, the resume parser, the Jev evaluation and the
