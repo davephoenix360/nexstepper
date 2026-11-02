@@ -542,6 +542,8 @@ test-mode Stripe, Preview should use Neon dev branch + test-mode Stripe).
 | `STRIPE_PRICE_ID_PRO` | live price ID | test price ID |
 | `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` | per §4 | dev key OK |
 | `RESEND_API_KEY` | per §3 | dev key (sandbox domain) |
+| `TURNSTILE_SITE_KEY` | `0x4AAAAAAFw4ohsxlVQ359Nc` | **leave unset in Preview** |
+| `TURNSTILE_SECRET` | from the Cloudflare dashboard | **leave unset in Preview** |
 | `SENTRY_DSN` | prod | dev (or empty) |
 | `NEXT_PUBLIC_POSTHOG_KEY` | prod | dev |
 | `NEXT_PUBLIC_POSTHOG_HOST` | prod host | dev host |
@@ -563,6 +565,44 @@ test-mode Stripe, Preview should use Neon dev branch + test-mode Stripe).
 - [ ] Preview deploy succeeds, basic smoke (landing + sign-up) passes
 - [ ] Production deploy succeeds after promote
 - [ ] All env vars visible in Vercel dashboard (sanity: do `console.log(process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_'))` from any route — should be `true`)
+
+### 7.5 Turnstile (the bot check on the auth forms)
+
+Sign-up, sign-in and "forgot password" are gated by a Cloudflare
+Turnstile check. The widget already exists — site key
+`0x4AAAAAAFw4ohsxlVQ359Nc`.
+
+Two env vars turn it on. **Set both, or set neither** — a
+half-configured deployment logs a warning and runs with the check
+**off** (failing open, so nobody is locked out of signing up):
+
+```
+TURNSTILE_SITE_KEY=0x4AAAAAAFw4ohsxlVQ359Nc   # public value
+TURNSTILE_SECRET=<the secret key from the dashboard>
+```
+
+Get the secret from Cloudflare → **Turnstile** → your widget →
+**Settings** → "Secret key". Do not paste it into chat, a commit, or a
+screenshot — it belongs in Vercel and in `.env.local` only.
+
+**Set them in PRODUCTION only.** Leave Preview unset. Two reasons:
+
+1. The widget only renders on the domains registered with it, and a
+   preview deployment is served from `nexstepper-<hash>.vercel.app`,
+   which is not one of them — so the widget would never appear on a
+   preview, and the server would reject every sign-up there.
+2. The production hostname allowlist must never contain `localhost`
+   (see `TURNSTILE_HOSTNAMES` below) — a token minted on a developer's
+   machine must not be accepted in production.
+
+`TURNSTILE_HOSTNAMES` is optional. Unset, it defaults to
+`www.nexstepper.com` + `nexstepper.com` in production and `localhost`
+in development. Set it to a comma-separated list only if you serve
+from other hosts.
+
+**Local development.** Put both vars in `.env.local` and register
+`localhost` on the widget in the Cloudflare dashboard (Widgets →
+Manage → Domains → add `localhost`).
 
 ---
 

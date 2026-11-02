@@ -39,12 +39,26 @@ export async function forgotPasswordAction(
   }
 
   try {
+    // The browser submits this form as a normal form post, so it cannot
+    // carry custom headers. The Turnstile token rides in a hidden field
+    // instead, and is forwarded here as the `x-captcha-response` header
+    // that Better Auth's captcha plugin reads. Without it, the request
+    // is rejected with a 400 and the user gets no reset mail.
+    const turnstileToken = String(
+      formData.get('cf-turnstile-response') ?? ''
+    ).trim();
+
+    const requestHeaders = new Headers(await headers());
+    if (turnstileToken) {
+      requestHeaders.set('x-captcha-response', turnstileToken);
+    }
+
     await auth.api.requestPasswordReset({
       body: {
         email,
         redirectTo: '/reset-password'
       },
-      headers: await headers()
+      headers: requestHeaders
     });
 
     // Same success state regardless of whether the email is

@@ -171,6 +171,33 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **A bot could sign up and spend our AI credits** — Every account is a
+  wallet: the JD parser, the resume parser, the Jev evaluation and the
+  Pro chat all cost real money, so an unbounded number of accounts is an
+  unbounded bill. The auth surfaces are now gated by **Cloudflare
+  Turnstile** (sign-up, sign-in, forgot-password), using Better Auth's
+  native `cloudflare-turnstile` provider — so there is no siteverify
+  code to write and the browser never talks to Cloudflare. **One plugin
+  instance per surface, each with its OWN `action`**: Better Auth runs
+  every plugin's `onRequest` hook and each one decides for itself
+  whether it applies by matching the request path against its own
+  `endpoints`, so disjoint endpoint lists mean exactly one check per
+  request — and a token minted on the sign-up widget cannot be
+  replayed at the sign-in endpoint. **The site key is a SERVER env var,
+  deliberately not `NEXT_PUBLIC_`**: those are baked into the client
+  bundle at BUILD time, so on Vercel a preview build and its runtime
+  can disagree about whether the widget exists — and a server that
+  demands a token the client cannot produce **locks everyone out of
+  signing up on the preview**. Reading it from the server and passing
+  it down keeps the widget and the gate decided by the same read in
+  the same request. The check is **enabled only when both the site key
+  and the secret are present**, so a half-configured deployment runs
+  with the check OFF (failing open, never locking a user out) and
+  says so loudly in the boot log. The widget is rendered
+  **explicitly** so it can be reset, because a Turnstile token is
+  redeemed exactly once and a retry needs a fresh one. Plan:
+  `docs/plans/turnstile.md`.
+
 - **The scorecard's tips were answering a different question than its
   score** — A candidate scored **49** and said he could see the numbers
   but no way to improve them. His own resume, JD and three persisted

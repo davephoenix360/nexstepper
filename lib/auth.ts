@@ -5,6 +5,7 @@ import { db } from '@/lib/db/drizzle';
 import * as schema from '@/lib/db/schema';
 import { sendPasswordResetEmail } from '@/lib/email/reset-password';
 import { readGoogleCredentials } from '@/lib/auth-google';
+import { getTurnstileConfig, turnstileAuthPlugins } from '@/lib/turnstile';
 
 /**
  * Social providers (Google), registered conditionally.
@@ -190,7 +191,24 @@ export const auth = betterAuth({
     // will be signed out once; behaviour expected.
     cookiePrefix: 'nexstepper'
   },
-  plugins: [nextCookies()]
+  /**
+   * Cloudflare Turnstile on the auth surfaces.
+   *
+   * The bot check is a gate, not a replacement: the auth handler below
+   * still does exactly what it did. Better Auth's captcha plugin reads
+   * the token from the `x-captcha-response` request header and
+   * exchanges it for a verdict at Cloudflare's siteverify endpoint
+   * before the endpoint runs.
+   *
+   * One plugin instance per surface, each with its OWN `expectedAction`
+   * — Better Auth runs every plugin's `onRequest` hook and each one
+   * decides for itself whether it applies, so disjoint endpoint lists
+   * mean exactly one check per request.
+   *
+   * Empty when Turnstile is not configured, so a deployment without
+   * the env vars keeps working (and logs the misconfiguration).
+   */
+  plugins: [nextCookies(), ...turnstileAuthPlugins(getTurnstileConfig())]
 });
 
 export type Auth = typeof auth;

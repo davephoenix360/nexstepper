@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/card';
 import { authClient } from '@/lib/auth-client';
 import { describeSocialSignInError } from '@/lib/auth-google';
+import { TurnstileWidget } from '@/components/auth/turnstile-widget';
+import { TURNSTILE_ACTIONS } from '@/lib/turnstile-actions';
 
 /** Google's 4-colour "G". Decorative — the button carries the label. */
 function GoogleMark({ className }: { className?: string }) {
@@ -44,7 +46,8 @@ function GoogleMark({ className }: { className?: string }) {
 
 export function Login({
   mode = 'signin',
-  googleEnabled = false
+  googleEnabled = false,
+  turnstileSiteKey = null
 }: {
   mode?: 'signin' | 'signup';
   /**
@@ -53,6 +56,13 @@ export function Login({
    * can never go missing when it is).
    */
   googleEnabled?: boolean;
+  /**
+   * The Turnstile site key, or null when the bot check is not
+   * configured. Resolved on the SERVER and passed down, so the widget
+   * and the server-side gate are decided by the same read in the same
+   * request — see `lib/turnstile.ts` for why that matters on Vercel.
+   */
+  turnstileSiteKey?: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,6 +74,14 @@ export function Login({
   const [pending, startTransition] = useTransition();
   const [googlePending, startGoogleTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // The Turnstile token for the pending attempt. `null` means "not
+  // verified yet" (or the bot check is off entirely).
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // Bumped after every attempt to reset the widget: a Turnstile token
+  // is single-use, so a retry needs a fresh one.
+  const [turnstileReset, setTurnstileReset] = useState(0);
+
+  const turnstileEnabled = Boolean(turnstileSiteKey);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -73,15 +91,33 @@ export function Login({
     const password = String(formData.get('password') ?? '');
     const redirect = String(formData.get('redirect') ?? '');
 
+    // Don't spend a round-trip on a request the server is going to
+    // reject anyway. Better Auth answers a missing token with a 400
+    // and a `MISSING_RESPONSE` code, which reads as a bug.
+    if (turnstileEnabled && !turnstileToken) {
+      setError('Please complete the verification to continue.');
+      return;
+    }
+
+    const headers = turnstileToken
+      ? { 'x-captcha-response': turnstileToken }
+      : {};
+
     startTransition(async () => {
       const result =
         mode === 'signin'
-          ? await authClient.signIn.email({ email, password })
-          : await authClient.signUp.email({
-              email,
-              password,
-              name: email.split('@')[0]
-            });
+          ? await authClient.signIn.email({ email, password }, { headers })
+          : await authClient.signUp.email(
+              {
+                email,
+                password,
+                name: email.split('@')[0]
+              },
+              { headers }
+            );
+
+      // The token was spent by this attempt either way.
+      setTurnstileReset((n) => n + 1);
 
       if (result.error) {
         setError(result.error.message ?? 'Something went wrong. Please try again.');
@@ -214,6 +250,19 @@ export function Login({
                   placeholder="At least 8 characters"
                 />
               </div>
+
+              {turnstileSiteKey && (
+                <TurnstileWidget
+                  siteKey={turnstileSiteKey}
+                  action={
+                    mode === 'signin'
+                      ? TURNSTILE_ACTIONS.login
+                      : TURNSTILE_ACTIONS.signup
+                  }
+                  onToken={setTurnstileToken}
+                  resetSignal={turnstileReset}
+                />
+              )}
 
               {error && (
                 <p className="text-sm text-destructive" role="alert">
