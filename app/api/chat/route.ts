@@ -35,6 +35,7 @@ import { PLANS } from '@/lib/db/schema';
 import { asPlanId } from '@/lib/billing';
 import { decideChatQuotaRejection } from '@/lib/billing/chat-quota';
 import { buildSystemPrompt, type ResumeKind } from '@/lib/chat/system-prompt';
+import { chatResponseHeaders } from '@/lib/chat/response-headers';
 import { hashJobDescription } from '@/lib/chat/first-session-analysis';
 import type { FirstSessionAnalysis } from '@/lib/chat/first-session-analysis';
 import { coercePrintSettings } from '@/lib/print-settings';
@@ -276,16 +277,14 @@ export async function POST(req: NextRequest) {
 
   // ── Resolve or create session ─────────────────────────────────────────────
   let sessionId = existingSessionId;
-  let title = 'New conversation';
   let isNewSession = false;
   if (sessionId) {
     const existing = await getChatSession(sessionId, userId);
     if (!existing || existing.userId !== userId || existing.resumeId !== resumeId) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
-    title = existing.title;
   } else {
-    const created = await createChatSession(userId, resumeId, title);
+    const created = await createChatSession(userId, resumeId);
     sessionId = created.id;
     isNewSession = true;
   }
@@ -443,10 +442,13 @@ export async function POST(req: NextRequest) {
       .slice(0, 50)
       .trimEnd();
     const newTitle = preview.length < message.trim().length ? preview + '…' : preview;
-    const updated = await updateChatSessionTitle(sessionId, userId, newTitle);
-    if (updated) {
-      title = updated.title;
-    }
+    // The title is persisted here and read back by the history sidebar
+    // through `GET /api/chat`. It is deliberately NOT sent as a response
+    // header: header values are ByteStrings (0–255) and this is
+    // arbitrary user text, so a `•` or the `…` appended above would make
+    // `new Response()` throw and 500 the whole turn. See
+    // lib/chat/response-headers.ts.
+    await updateChatSessionTitle(sessionId, userId, newTitle);
   }
 
   // Include the just-sent user message in the in-memory messages array
@@ -617,18 +619,10 @@ export async function POST(req: NextRequest) {
   });
 
   return new Response(resultStream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      'X-Session-Id': sessionId,
-      'X-Title': title,
-      // Post-consume usage so the client can render an honest
-      // "N messages remaining today" readout. Previously the
-      // bubble hardcoded `{ limit: 20, used: 0 }` and never
-      // decremented, so the number the user saw was always the
-      // full allowance regardless of how much they'd used.
-      'X-Chat-Usage': `${usage.turnsUsed}`,
-      'X-Chat-Limit': Number.isFinite(freeLimit) ? String(freeLimit) : 'unlimited'
-    }
+    headers: chatResponseHeaders({
+      sessionId,
+      turnsUsed: usage.turnsUsed,
+      turnLimit: unlimited ? 'unlimited' : freeLimit
+    })
   });
 }
