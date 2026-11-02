@@ -171,6 +171,39 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The chat was 500ing on almost every conversation — a ByteString
+  header** — The AI agent appeared to be simply "not working": the user
+  sent a message and got nothing, with no error shown. Sentry had one
+  event, repeating on every attempt:
+  `TypeError: Cannot convert argument to a ByteString because the
+  character at index 50 has a value of 8230 which is greater than 255`,
+  thrown from `new Response(...)` at `app/api/chat/route.ts`. **The rule
+  the route broke: HTTP header values are ByteStrings (0–255), and the
+  chat's title is arbitrary user text.** The title is derived from the
+  user's first message, and the auto-title truncates to 50 characters
+  and appends `…` (U+2026 = 8230) — so the ellipsis always landed at
+  index 50, which is exactly the index and value in the report. **Any
+  first message longer than 50 characters killed the turn**, and so did
+  a `•` (U+2022 = 8226) anywhere in the message. It was worse than a
+  failed turn: the throw happens while building the `Response`, i.e.
+  AFTER the model call has been billed and AFTER the title has been
+  written to the database, so the session kept the poisoned title and
+  **every later turn in it threw again** — the chat was bricked, not
+  flaky. And `X-Title` was read by **nobody**: the client reads
+  `X-Session-Id` / `X-Chat-Usage` / `X-Chat-Limit`, and the sidebar
+  renders titles from the session list. The fix removes `X-Title` (the
+  title still reaches the client through `GET /api/chat`) and builds
+  every response header in one place — `chatResponseHeaders()` in
+  `lib/chat/response-headers.ts` — with each value passed through
+  `safeHeaderValue()`, so "a header value must be ASCII-safe" is
+  structural rather than a convention someone has to remember at each
+  call site. 13 tests, one of which reproduces the original crash.
+  **The generalisable lesson: when a value crosses a boundary, check the
+  boundary's contract** — a header value must be ASCII-safe; a token
+  must be a number. Neither was checked, and both failures were silent
+  until a user hit them. Drift memo:
+  `docs/drift/2026-11-01-chat-byte-string-header-crash.md`.
+
 - **The score badge in the resume list was showing a different number
   than the scorecard** — The user reported the ATS score chip on
   `/dashboard/resumes` "isn't updating". It wasn't stale — it was a
