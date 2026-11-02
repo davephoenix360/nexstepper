@@ -201,7 +201,28 @@ plan. Drift memo:
   (verified by diffing against the pre-feature implementation), and the
   editor's click-to-edit no longer fires on a drag-selection — the
   gesture collision that would have made every selection open an
-  editor. Plan: `docs/plans/rich-text-formatting.md`. ADR:
+  editor. **Slice 2 shipped too: a "Highlight this job's skills" button**
+  works out which of the candidate's skills the posting actually asks for
+  and marks them — **bold** for each, **bold + underline** for the
+  must-haves, so a must-have and a nice-to-have are distinguishable at
+  a glance. The decision comes from **Jev**, which already answers the
+  hard questions about each requirement line (is this a genuine skill,
+  is it an eligibility gate, how strongly does the resume evidence it),
+  so the engine is a pure function over that classification. **The
+  refusals matter more than the marking:** a resume full of emphasis
+  that means nothing is worse than one with no emphasis, so it never
+  marks an eligibility gate (a degree is satisfied with a certificate,
+  not with wording), never marks a line that does not name a genuine
+  skill, and never marks a skill the resume does not evidence. A real
+  posting proved it — its five requirements were a degree, English
+  proficiency, communication, "ability to analyze complex problems" and
+  "passion for hands-on work", i.e. **no genuine skills at all**, and a
+  keyword matcher would have bolded "Engineering" because "Bachelor's
+  degree in engineering" contains it. The honest answer is *"this
+  posting doesn't name skills your resume lists."* The whole plan is
+  applied with ONE write, so Ctrl+Z undoes it in one step, and it
+  writes the overlay — never the text — so the ATS score does not move.
+  Plan: `docs/plans/rich-text-formatting.md`. ADR:
   `docs/decisions/0008-rich-text-overlay.md`. Drift memo:
   `docs/drift/2026-11-02-rich-text-formatting.md`.
 

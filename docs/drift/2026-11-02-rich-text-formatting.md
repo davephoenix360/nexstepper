@@ -124,12 +124,61 @@ scorecard: **one helper called by both surfaces, so they agree by
 construction.** It is not a style preference. It is the difference
 between a feature and a bug.
 
+## Slice 2 — "Highlight this job's skills"
+
+The button the whole overlay exists for. It works out which of the
+candidate's skills this posting actually asks for, and marks them:
+**bold** for each one, **bold + underline** for the must-haves, so a
+must-have and a nice-to-have are distinguishable at a glance.
+
+### The refusals matter more than the marking
+
+A resume full of emphasis that means nothing is worse than a resume with
+no emphasis. So the decision engine refuses three things:
+
+- **An eligibility gate is never marked.** A degree, a certification, a
+  work-authorisation requirement and a years-of-experience threshold
+  are satisfied with a certificate, not with wording. There is no text
+  to bold for them.
+- **A line that does not name a genuine skill is not marked.**
+- **A skill the resume does not evidence is not marked.** Bolding
+  something the candidate only name-drops is overclaiming, and this
+  product's whole promise is honesty about what the resume shows.
+
+The judgement comes from **Jev**, which already answers the hard
+questions about each of the posting's requirement lines — is this a
+genuine skill (`pSkill`), is it an eligibility gate (`pGate`), how
+strongly does the resume demonstrate it (`evidence`, 0–3). The engine
+is a pure function over that classification; the evaluation is computed
+server-side because it is a network call against a decision model.
+
+**The real case proves the refusals matter.** A posting whose five
+requirements are a degree, English proficiency, communication, "ability
+to analyze complex problems" and "passion for hands-on work" has **no
+genuine skills in it**. A keyword matcher would have bolded
+"Engineering" — because the phrase "Bachelor's degree in engineering"
+contains it — and produced a resume that looked targeted at a job it
+wasn't. The honest answer is *"this posting doesn't name skills your
+resume lists — nothing to highlight."*
+
+### One undo step
+
+The whole plan is applied with **one** `setValue('formatting', …)`, so
+Ctrl+Z undoes the entire highlight in one go. The undo history
+snapshots the form, not the individual writes.
+
+### It never touches the stored text
+
+It writes the formatting overlay — the same map the toolbar writes — so
+the ATS score does not move, and the scorecard's numbers are unaffected.
+
 ## Follow-ups (not in this change)
 
 - **Auto-bold the posting's skills** (slice 2) — bold every requirement
   skill the resume demonstrates, underline the must-haves. The inputs
   already exist (the requirement evaluation knows which skills the
-  resume shows).
+  resume shows), so it is a mapping rather than new modelling. ✅
+  **Shipped** — see § Slice 2 above.
 - **Scout can format too** (slice 3) — one AI tool; the path vocabulary
   already exists.
 - **The dropped-mark count is not surfaced in the UI yet.** The

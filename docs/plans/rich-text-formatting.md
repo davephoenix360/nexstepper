@@ -95,6 +95,15 @@ Feedback and recovery:
 12. The action is a single undoable step, and it reports exactly what
     it changed ("Bolded 7 skills, underlined 3 must-haves").
 
+> **Shipped 2026-11-02.** The decision engine is
+> `lib/rich-text/auto-highlight.ts` — a pure function over Jev's
+> per-requirement classification (`pSkill` / `pGate` / `evidence`),
+> with the evaluation computed server-side by
+> `highlightJobSkillsAction`. The whole plan is applied with ONE
+> `setValue`, so it is one undo step. See
+> `docs/drift/2026-11-02-rich-text-formatting.md` § Slice 2 for the
+> refusals — which matter more than the marking.
+
 ### Slice 3 — Scout formats too (planned here, built later)
 
 13. The chat agent can be asked to "bold my React experience". The

@@ -36,6 +36,7 @@ import { AlertCircle, Eraser, Printer, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { RichTextToolbar } from '@/components/rich-text/rich-text-toolbar';
+import { JobSkillHighlightButton } from '@/components/rich-text/job-skill-highlight-button';
 import type { RichTextMap } from '@/lib/resume-schema';
 import {
   Tooltip,
@@ -370,6 +371,13 @@ export function EditableResume({
   );
   const clearAllFormatting = () =>
     looseFormattingForm.setValue('formatting', {}, { shouldDirty: true });
+
+  // The current form values, for the job-skill highlight action. The
+  // editor already re-renders on every change (the undo history
+  // watches the whole form), so this costs nothing extra.
+  const formValues = form.watch() as unknown as ResumeData;
+  const hasJobContext = Boolean(formValues?.jobContext);
+  const hasSkills = Boolean(formValues?.sections?.skills?.length);
   useUndoRedoShortcuts({
     onUndo: history.undo,
     onRedo: history.redo,
@@ -452,6 +460,27 @@ export function EditableResume({
               </TooltipTrigger>
               <TooltipContent side="bottom">Redo (Ctrl + Shift + Z)</TooltipContent>
             </Tooltip>
+            {/*
+              "Highlight this job's skills" — mark the skills this
+              posting asks for: bold for each one, bold + underline
+              for the must-haves. It writes the formatting overlay in
+              ONE setValue, so Ctrl+Z undoes the whole thing in one
+              step, and it never touches the stored text.
+            */}
+            {hasJobContext && hasSkills && (
+              <JobSkillHighlightButton
+                resume={formValues}
+                onApply={(marks) => {
+                  const current = (looseFormattingForm.watch('formatting') ??
+                    {}) as RichTextMap;
+                  looseFormattingForm.setValue(
+                    'formatting',
+                    { ...current, ...marks },
+                    { shouldDirty: true }
+                  );
+                }}
+              />
+            )}
             {/*
               The escape hatch. Formatting is one undoable step, so
               Ctrl+Z works, but a candidate who has bolded half a
