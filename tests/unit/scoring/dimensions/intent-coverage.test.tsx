@@ -354,7 +354,7 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
     const resume = makeResume();
     const job = makeJob({ mustHaveSkills: ['Kubernetes'] });
     const tips = buildDynamicTips(
-      makeBreakdownStub(),
+      makeBreakdownStub({ mustHave: ['Kubernetes'] }),
       resume,
       job
     );
@@ -392,7 +392,11 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
       mustHaveSkills: ['TypeScript'], // present
       niceToHaveSkills: ['Docker', 'Kubernetes']
     });
-    const tips = buildDynamicTips(makeBreakdownStub(), resume, job);
+    const tips = buildDynamicTips(
+      makeBreakdownStub({ niceToHave: ['Docker', 'Kubernetes'] }),
+      resume,
+      job
+    );
     const html = renderTip(tips['Intent Coverage']!);
     expect(html).toContain('Missing 2 nice-to-haves');
     expect(html).toContain('Docker');
@@ -408,7 +412,13 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
       // any English resume.
       mustHaveSkills: ['Kubernetes', 'Terraform', 'Helm', 'Ansible', 'Pulumi']
     });
-    const tips = buildDynamicTips(makeBreakdownStub(), resume, job);
+    const tips = buildDynamicTips(
+      makeBreakdownStub({
+        mustHave: ['Kubernetes', 'Terraform', 'Helm', 'Ansible', 'Pulumi']
+      }),
+      resume,
+      job
+    );
     const html = renderTip(tips['Intent Coverage']!);
     expect(html).toContain('Missing 5 must-have skills');
     expect(html).toContain('Kubernetes, Terraform, Helm'); // first 3
@@ -423,8 +433,21 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
  * `Intent Coverage` dynamic-tip branch doesn't read most of the
  * fields — it only needs to be a valid `ScoreBreakdown` shape so
  * TypeScript's discriminated-union checks pass.
+ *
+ * `missed` is what the SCORE says is missing. The tip renders it
+ * verbatim: the tip and the score are two readings of one value, and
+ * the tip used to recompute its own answer with a literal
+ * whole-phrase substring test. That is how a resume scoring 100 with
+ * nothing missed ended up under a tip saying "Missing 4 must-have
+ * skills" — including two the candidate demonstrably had.
  */
-function makeBreakdownStub() {
+function makeBreakdownStub(
+  missed: {
+    mustHave?: string[];
+    niceToHave?: string[];
+    implicit?: string[];
+  } = {}
+) {
   return {
     overallScore: 80,
     dimensionScores: {
@@ -456,7 +479,11 @@ function makeBreakdownStub() {
     computedInMs: 5,
     intentCoverageBreakdown: {
       value: 50,
-      missed: { mustHave: [], niceToHave: [], implicit: [] },
+      missed: {
+        mustHave: missed.mustHave ?? [],
+        niceToHave: missed.niceToHave ?? [],
+        implicit: missed.implicit ?? []
+      },
       penalty: 0,
       fallback: true,
       eligibility: []

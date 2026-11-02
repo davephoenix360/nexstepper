@@ -42,7 +42,6 @@ import type { JobPosting, ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from './score';
 import { SOFT_SKILLS, STOP_WORDS, WEAK_VERBS } from './dictionaries';
 import { jobTokensWithoutStopWords as sharedJobTokensWithoutStopWords } from './jd-tokens';
-import { partitionRequirements } from './qualifications';
 
 // ---------------------------------------------------------------------------
 // Static fallback tips — always present, plain strings.
@@ -151,17 +150,33 @@ export function buildDynamicTips(
       );
     }
 
-    // v2 Intent Coverage — surface the per-priority miss list when
-    // the engine has v2 intent data (mustHave/niceToHave/implicit
-    // skill arrays populated). Skips the v1 token-level fallback
-    // when the extractor produced no structured intent (legacy
-    // rows + failed extractions). The v1 'ATS Keyword Match' tip
-    // above still fires in that case, so the user always sees
-    // something actionable.
-    if (hasV2Intent(job)) {
-      const intentTip = buildIntentCoverageMissListTip(job, resumeText);
-      if (intentTip) out['Intent Coverage'] = intentTip;
-    }
+    // v2 Intent Coverage — surface the per-priority miss list.
+    //
+    // It reads the SCORE's own miss list rather than recomputing one.
+    // That matters, because the two used to ask different questions:
+    // the score asks a SEMANTIC one ("does the resume demonstrate
+    // this?") and the old tip asked a LITERAL one ("does the resume
+    // contain this exact phrase?").
+    //
+    // A real resume said "Fluent in English Language, with a high
+    // CELPIP score" and "Proven record of critical thinking". The JD
+    // asked for "English language proficiency (written and spoken)"
+    // and "Ability to analyze complex problems". The score said
+    // COVERED (100, nothing missed) and the tip said MISSING — the
+    // same value, two answers, on screen together. The tip also told
+    // the candidate to add skills they demonstrably had, which is the
+    // advice you least want to act on.
+    //
+    // So: one source of truth. The tip renders the score's answer.
+    //
+    // The breakdown's `intentCoverageBreakdown` is guarded, not assumed:
+    // the field is typed as required, but a breakdown that reaches a
+    // tip builder can come from a partial/mock/stale source, and a tip
+    // renderer that throws takes the whole recompute with it.
+    const intentTip = breakdown.intentCoverageBreakdown
+      ? buildIntentCoverageMissListTip(breakdown.intentCoverageBreakdown)
+      : null;
+    if (intentTip) out['Intent Coverage'] = intentTip;
 
     const similarityScore = breakdown.criteriaScores['ATS Similarity'];
     if (similarityScore < 70) {
@@ -380,11 +395,23 @@ export function flattenResumeTextForTips(resume: ResumeData): string {
   const parts: string[] = [];
   parts.push(resume.sections.basics.summary ?? '');
   parts.push(resume.sections.basics.label ?? '');
+  // The LOCATION. The tip claims a keyword is "missing from your
+  // resume", so the presence test has to look at the resume — but the
+  // engine's scored text deliberately excludes locations (a city is
+  // not a skill), so the two disagreed. A resume in Edmonton applying
+  // to an Edmonton job was told to add "edmonton" and "ab" to its
+  // resume. Both were already on it.
+  const basicsLocation = resume.sections.basics.location;
+  if (typeof basicsLocation === 'string') {
+    parts.push(basicsLocation);
+  } else if (basicsLocation) {
+    parts.push(basicsLocation.city ?? '', basicsLocation.region ?? '');
+  }
   for (const s of resume.sections.skills) {
     parts.push(s.name, ...(s.keywords ?? []));
   }
   for (const w of resume.sections.work) {
-    parts.push(w.description ?? '');
+    parts.push(w.description ?? '', w.location ?? '');
     for (const p of w.positions) {
       parts.push(p.title ?? '');
       if (p.highlights) parts.push(...p.highlights);
@@ -501,58 +528,43 @@ export function tokenizeLight(text: string): string[] {
 }
 
 /**
- * True when the JD has at least one v2-extracted priority skill
- * populated. Drives the v2 Intent Coverage dynamic tip branch
- * (mirrors the same gate the score-actions flag uses to decide
- * which weight set to apply).
- */
-function hasV2Intent(job: JobPosting): boolean {
-  return (
-    (job.mustHaveSkills?.length ?? 0) +
-      (job.niceToHaveSkills?.length ?? 0) +
-      (job.implicitSkills?.length ?? 0) >
-    0
-  );
-}
-
-/**
  * v2 Intent Coverage dynamic tip — surfaces the per-priority miss
  * list with priority-bolded skill names. Reads like:
  *
  *   Missing 2 must-have infra skills: **Terraform, Helm**, plus
  *   1 nice-to-have: **Kustomize**.
  *
+ * It takes the score's OWN miss list — `IntentCoverageBreakdown.missed`
+ * — rather than recomputing one. The score answers a SEMANTIC question
+ * ("does the resume demonstrate this?"); the old tip answered a
+ * LITERAL one ("does the resume contain this exact phrase?"), and the
+ * two disagreed on screen.
+ *
+ * A real resume said "Fluent in English Language, with a high CELPIP
+ * score" and "Proven record of critical thinking". The JD asked for
+ * "English language proficiency (written and spoken)" and "Ability to
+ * analyze complex problems". The score said COVERED — 100, nothing
+ * missed — and the tip said MISSING. The same value, two answers, on
+ * screen together, and advice to add skills the candidate already had.
+ *
  * Returns `null` when every priority skill is present (no tip
- * needed). The cap mirrors `scoreIntentCoverageParams` in
+ * needed) or when the engine had no v2 intent data (the static
+ * fallback covers it). The cap mirrors `scoreIntentCoverageParams` in
  * `lib/scoring/dimensions/intent-coverage.ts` — three per priority
  * keeps the tooltip readable; counts beyond three get a "+N more"
  * tail.
  */
 function buildIntentCoverageMissListTip(
-  job: JobPosting,
-  resumeText: string
+  breakdown: ScoreBreakdown['intentCoverageBreakdown']
 ): ReactNode {
-  const resumeTextLower = resumeText.toLowerCase();
-  const missedMustHave = findMissingForTip(
-    job.mustHaveSkills ?? [],
-    resumeTextLower,
-    3
-  );
-  const missedNiceToHave = findMissingForTip(
-    job.niceToHaveSkills ?? [],
-    resumeTextLower,
-    3
-  );
-  const missedImplicit = findMissingForTip(
-    job.implicitSkills ?? [],
-    resumeTextLower,
-    3
-  );
+  const missedMustHave = breakdown.missed.mustHave;
+  const missedNiceToHave = breakdown.missed.niceToHave;
+  const missedImplicit = breakdown.missed.implicit;
 
   if (
-    missedMustHave.items.length === 0 &&
-    missedNiceToHave.items.length === 0 &&
-    missedImplicit.items.length === 0
+    missedMustHave.length === 0 &&
+    missedNiceToHave.length === 0 &&
+    missedImplicit.length === 0
   ) {
     return null;
   }
@@ -560,81 +572,52 @@ function buildIntentCoverageMissListTip(
   // Use the ORIGINAL missed counts (not the truncated items.length)
   // for the pluralize wording — "Missing 5 must-have skills" even
   // when we only show the top 3 in the tooltip.
-  const mustHaveTotal = missedMustHave.items.length + countTail(missedMustHave.tail);
-  const niceToHaveTotal = missedNiceToHave.items.length + countTail(missedNiceToHave.tail);
-  const implicitTotal = missedImplicit.items.length + countTail(missedImplicit.tail);
+  const mustHaveTotal = missedMustHave.length;
+  const niceToHaveTotal = missedNiceToHave.length;
+  const implicitTotal = missedImplicit.length;
+
+  const cap = (items: string[]) => ({
+    items: items.slice(0, MAX_REQUIREMENTS_IN_TIP),
+    tail:
+      items.length > MAX_REQUIREMENTS_IN_TIP
+        ? ` (+${items.length - MAX_REQUIREMENTS_IN_TIP} more)`
+        : ''
+  });
+  const mustHave = cap(missedMustHave);
+  const niceToHave = cap(missedNiceToHave);
+  const implicit = cap(missedImplicit);
 
   return (
     <>
-      {missedMustHave.items.length > 0 && (
+      {mustHave.items.length > 0 && (
         <>
           {pluralize(mustHaveTotal, 'must-have skill', 'must-have skills')}:{' '}
-          <strong>{missedMustHave.items.join(', ')}</strong>
-          {missedMustHave.tail}
-          {missedNiceToHave.items.length > 0 || missedImplicit.items.length > 0
+          <strong>{mustHave.items.join(', ')}</strong>
+          {mustHave.tail}
+          {niceToHave.items.length > 0 || implicit.items.length > 0
             ? ', plus '
             : '.'}
         </>
       )}
-      {missedNiceToHave.items.length > 0 && (
+      {niceToHave.items.length > 0 && (
         <>
           {pluralize(niceToHaveTotal, 'nice-to-have', 'nice-to-haves')}:{' '}
-          <strong>{missedNiceToHave.items.join(', ')}</strong>
-          {missedNiceToHave.tail}
-          {missedImplicit.items.length > 0 ? ', plus ' : '.'}
+          <strong>{niceToHave.items.join(', ')}</strong>
+          {niceToHave.tail}
+          {implicit.items.length > 0 ? ', plus ' : '.'}
         </>
       )}
-      {missedImplicit.items.length > 0 && (
+      {implicit.items.length > 0 && (
         <>
           {pluralize(implicitTotal, 'implicit skill', 'implicit skills')}:{' '}
-          <strong>{missedImplicit.items.join(', ')}</strong>
-          {missedImplicit.tail}.
+          <strong>{implicit.items.join(', ')}</strong>
+          {implicit.tail}.
         </>
       )}
     </>
   );
 }
 
-/**
- * Extract the "+N more" count from the tail string, or 0 if no tail.
- * Used to recover the original missed count for accurate pluralize
- * wording even after the items array is truncated for display.
- */
-function countTail(tail: string): number {
-  const match = /\(\+(\d+) more\)/.exec(tail);
-  return match ? Number(match[1]) : 0;
-}
-
-/**
- * Find missing skills for the dynamic tip. Returns the items list
- * (capped at `maxItems`) plus a "+N more" tail when the original
- * list was longer.
- */
-function findMissingForTip(
-  skills: string[],
-  resumeTextLower: string,
-  maxItems: number
-): { items: string[]; tail: string } {
-  // Eligibility requirements (a degree, a certification, work
-  // authorisation) are NOT skill gaps. Listing them here produced the
-  // advice "Missing 1 must-have skill: Bachelor's degree in Computer
-  // Science" — which is not something anyone can act on. They are
-  // reported separately as eligibility notes.
-  const { skills: skillOnly } = partitionRequirements(skills);
-  const missed: string[] = [];
-  for (const skill of skillOnly) {
-    if (typeof skill !== 'string' || skill.length === 0) continue;
-    if (!resumeTextLower.includes(skill.toLowerCase())) {
-      missed.push(skill);
-    }
-  }
-  const items = missed.slice(0, maxItems);
-  const tail =
-    missed.length > maxItems
-      ? ` (+${missed.length - maxItems} more)`
-      : '';
-  return { items, tail };
-}
 
 /** Pluralize a noun. Singular / plural form passed explicitly so the
  * caller controls the exact wording (the tip is shown to candidates

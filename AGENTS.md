@@ -171,6 +171,40 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The scorecard's tips were answering a different question than its
+  score** — A candidate scored **49** and said he could see the numbers
+  but no way to improve them. His own resume, JD and three persisted
+  score snapshots say why: **four of the five problems were the same
+  bug — the tip and the score are two readings of one value, computed
+  by different rules.** The score asks a SEMANTIC question ("does the
+  resume demonstrate this?"); the Intent Coverage tip asked a LITERAL
+  one (`resumeText.includes(skill)` — a whole-phrase substring test).
+  So the score said **100, nothing missed** while the tip under that
+  same number said *"Missing 4 must-have skills: English language
+  proficiency (written and spoken)…"* — two of which his resume
+  demonstrably covers (*"Fluent in English Language, with a high CELPIP
+  score"*). **The user was told to add skills he already had**, which
+  is the worst kind of advice. And the keyword tip said *"Add these
+  missing keywords from the JD: field, entry, **edmonton**, **ab**"* —
+  two words already on his resume, because the tip tested the engine's
+  SCORED text, which deliberately excludes locations (a city is not a
+  skill), while the tip claims a word is "missing from your resume".
+  Both fixed and verified by re-rendering the tips from his actual
+  persisted snapshot: the Intent Coverage tip is gone (the score says
+  nothing is missing) and the keyword tip no longer names his own city.
+  **The fix is the one this repo already knows** — one helper called by
+  both surfaces so they agree by construction, and a test that asserts
+  they agree. The three existing tip tests had pinned the OLD
+  behaviour; they were asserting a behaviour rather than a contract,
+  and would have kept the contradiction alive. Still queued: "ATS
+  Coverage: 0" is structurally zero for every pasted JD (the posting is
+  stored as raw text, so `requirements` is empty) and must not be shown
+  as a failure; job-posting metadata should not be a resume keyword; and
+  the real ask — a ranked list of MOVES with what to change and what it
+  would be worth — needs his resume and JD to design against. Drift
+  memo:
+  `docs/drift/2026-11-02-scorecard-tips-contradict-the-score.md`.
+
 - **A user built a resume, scored 49 on the ATS check, and never knew
   the AI agent existed** — The agent's trigger is a 56px mark in the
   bottom-right corner of the editor, and nothing on the page says what

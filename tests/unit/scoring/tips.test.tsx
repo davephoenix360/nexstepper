@@ -944,3 +944,163 @@ describe('buildDynamicTips — no JD', () => {
     expect(tips['ATS Coverage']).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// The tip must agree with the score it explains.
+// ---------------------------------------------------------------------------
+
+/**
+ * A real production case (2026-11-01).
+ *
+ * A resume whose summary said *"Fluent in English Language, with a high
+ * CELPIP score"* and *"Proven record of critical thinking"* was scored
+ * **100** on Intent Coverage with **nothing missed** — and the tip
+ * under that same number said:
+ *
+ *   "Missing 4 must-have skills: English language proficiency (written
+ *    and spoken), Strong communication and interpersonal skills, Ability
+ *    to analyze complex problems (+1 more)."
+ *
+ * The score asks a SEMANTIC question ("does the resume demonstrate
+ * this?"). The tip asked a LITERAL one ("does the resume contain this
+ * exact phrase?"). Same value, two answers, on screen together — and
+ * advice to add skills the candidate demonstrably had.
+ *
+ * The fix is structural: the tip renders the SCORE's own miss list, so
+ * the two cannot disagree.
+ */
+describe('buildDynamicTips — the Intent Coverage tip agrees with the score', () => {
+  const PRODUCTION_MUST_HAVES = [
+    "Bachelor's degree in engineering",
+    'English language proficiency (written and spoken)',
+    'Strong communication and interpersonal skills',
+    'Ability to analyze complex problems',
+    'Passion for hands-on work and learning in dynamic environments'
+  ];
+
+  it('claims nothing missing when the score missed nothing', () => {
+    const breakdown = makeBreakdown({
+      intentCoverageBreakdown: {
+        value: 100,
+        missed: { mustHave: [], niceToHave: [], implicit: [] },
+        penalty: 0,
+        fallback: false,
+        eligibility: []
+      }
+    });
+    const job = makeJob({ mustHaveSkills: PRODUCTION_MUST_HAVES });
+    const tips = buildDynamicTips(breakdown, makeResume(), job);
+    // No tip at all — the static fallback is the honest thing to show.
+    expect(tips['Intent Coverage']).toBeUndefined();
+  });
+
+  it('renders the score\'s own miss list, not a recomputed one', () => {
+    const breakdown = makeBreakdown({
+      intentCoverageBreakdown: {
+        value: 85,
+        missed: {
+          mustHave: ['Kubernetes'],
+          niceToHave: ['Terraform'],
+          implicit: []
+        },
+        penalty: 15,
+        fallback: false,
+        eligibility: []
+      }
+    });
+    const tips = buildDynamicTips(breakdown, makeResume(), makeJob());
+    const html = renderTip(tips['Intent Coverage']);
+    expect(html).toContain('Kubernetes');
+    expect(html).toContain('Terraform');
+    expect(html).toContain('1 must-have skill');
+  });
+
+  it('does not say a skill is missing when the score covered it', () => {
+    // The production shape: the JD's wording is NOT in the resume, but
+    // the resume demonstrates it. The score says covered; the tip must
+    // not contradict it.
+    const breakdown = makeBreakdown({
+      intentCoverageBreakdown: {
+        value: 100,
+        missed: { mustHave: [], niceToHave: [], implicit: [] },
+        penalty: 0,
+        fallback: false,
+        eligibility: []
+      }
+    });
+    const resume = makeResume({
+      sections: {
+        basics: {
+          summary:
+            'Fluent in English Language, with a high CELPIP score. Proven record of critical thinking.'
+        }
+      }
+    });
+    const job = makeJob({ mustHaveSkills: PRODUCTION_MUST_HAVES });
+    const tips = buildDynamicTips(breakdown, resume, job);
+    expect(renderTip(tips['Intent Coverage'])).not.toContain('English language');
+  });
+});
+
+/**
+ * The tip says a keyword is "missing from your resume". So the test for
+ * "missing" has to look at the resume — including its location.
+ *
+ * The engine's SCORED text deliberately excludes locations (a city is
+ * not a skill), so the tip and the engine used to disagree about which
+ * words the resume contains. A resume in Edmonton applying to an
+ * Edmonton job was told to add "edmonton" and "ab" to its resume. Both
+ * were already on it.
+ */
+describe('buildDynamicTips — the keyword tip only names words the resume lacks', () => {
+  it('treats the resume location as present', () => {
+    const resume = makeResume({
+      sections: {
+        basics: {
+          location: {
+            city: 'Edmonton',
+            region: 'AB',
+            address: '',
+            postalCode: '',
+            countryCode: 'CA'
+          }
+        },
+        work: [
+          {
+            company: 'Acme',
+            location: 'Edmonton, AB',
+            positions: []
+          }
+        ]
+      }
+    });
+    const job = makeJob({
+      title: 'Field Engineer I',
+      description:
+        'Field Engineer I based in Edmonton, AB. Entry Level Only. We build things.'
+    });
+    const tips = buildDynamicTips(makeBreakdown(), resume, job);
+    const html = renderTip(tips['ATS Keyword Match']);
+    expect(html).not.toContain('edmonton');
+    expect(html).not.toContain('ab');
+  });
+
+  it('includes the location in the flattened tip text', () => {
+    const resume = makeResume({
+      sections: {
+        basics: {
+          location: {
+            city: 'Edmonton',
+            region: 'AB',
+            address: '',
+            postalCode: '',
+            countryCode: 'CA'
+          }
+        }
+      }
+    });
+    const flat = flattenResumeTextForTips(resume);
+    expect(flat).toContain('Edmonton');
+    expect(flat).toContain('AB');
+  });
+});
