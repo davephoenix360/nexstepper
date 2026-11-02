@@ -39,6 +39,21 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import type { ResumeData } from '@/lib/resume-schema';
 import { isSectionHiddenFromPrint } from '@/lib/resume-schema/resume-data';
+import { RichText } from '@/components/rich-text/rich-text';
+import {
+  basicsPath,
+  entryItemPath,
+  entryPath,
+  positionPath,
+  profilePath,
+  projectDescriptionPath,
+  projectHighlightPath,
+  projectKeywordPath,
+  skillKeywordPath,
+  skillNamePath,
+  workCompanyPath,
+  workHighlightPath
+} from '@/lib/rich-text/paths';
 
 import { DateRange } from './date-range';
 import { read } from './field';
@@ -54,6 +69,45 @@ function str(data: unknown, path: string): string {
 function arr(data: unknown, path: string): string[] {
   const v = read(data, path);
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+}
+
+/**
+ * One text leaf, rendered through the shared `<RichText>`.
+ *
+ * ## Why
+ *
+ * The editor renders a marked field through `<RichText>`; this
+ * template renders the SAME resume for the preview page, the public
+ * share link and the printed PDF. If the two surfaces had their own
+ * implementations they would drift — and the user would bold a skill
+ * in the editor and see plain text in the PDF. One component, both
+ * surfaces, no drift.
+ *
+ * ## The path
+ *
+ * `path` is the dotted react-hook-form path of the leaf — the SAME
+ * path the overlay is keyed by, and the SAME path the editor's
+ * `EditableText` / `BulletList` / `KeywordChips` write marks under.
+ *
+ * ## The chrome stays outside
+ *
+ * Punctuation a template adds around a value (`"GPA: "`, `", "`,
+ * `"Minor: "`, the quotes around a reference) is NOT part of the
+ * stored value, so it is rendered as plain text around the `<Leaf>`.
+ * A span's offsets are relative to the leaf it was stored against —
+ * folding the chrome into the same `<RichText>` would shift every
+ * offset and bold the wrong words.
+ */
+function Leaf({
+  data,
+  path,
+  value
+}: {
+  data: ResumeData;
+  path: string;
+  value: string;
+}) {
+  return <RichText value={value} spans={data.formatting?.[path]} />;
 }
 
 function Section({
@@ -114,7 +168,14 @@ export function ClassicReadOnly({ data }: Props) {
   const { sections } = data;
   const b = sections.basics;
 
-  const contactBits = [b.email, b.phone, b.url].filter(isSet);
+  const contactBits = [
+    // The contact line is three SEPARATE stored leaves, so each bit
+    // carries its own path — a mark on the email must not bleed onto
+    // the phone number.
+    { value: b.email, path: basicsPath('email') },
+    { value: b.phone, path: basicsPath('phone') },
+    { value: b.url, path: basicsPath('url') }
+  ].filter((bit) => isSet(bit.value));
   const locBits = [b.location.city, b.location.region, b.location.countryCode].filter(isSet);
 
   const showHeader =
@@ -145,24 +206,29 @@ export function ClassicReadOnly({ data }: Props) {
           <header className="mb-6 border-b border-zinc-300 pb-4">
             {isSet(b.name) && (
               <h1 className="text-[26pt] font-semibold leading-none tracking-tight text-zinc-900">
-                {b.name}
+                <Leaf data={data} path={basicsPath('name')} value={b.name} />
               </h1>
             )}
             {isSet(b.label) && (
-              <p className="mt-1 text-[12pt] font-medium text-zinc-600">{b.label}</p>
+              <p className="mt-1 text-[12pt] font-medium text-zinc-600">
+                <Leaf data={data} path={basicsPath('label')} value={b.label} />
+              </p>
             )}
 
             {contactBits.length > 0 && (
               <div className="mt-2 text-[10pt] text-zinc-600">
                 {contactBits.map((bit, i) => (
-                  <span key={`${bit}-${i}`}>
+                  <span key={`${bit.value}-${i}`}>
                     {i > 0 && <span className="mx-2 text-zinc-400">·</span>}
-                    {bit}
+                    <Leaf data={data} path={bit.path} value={bit.value} />
                   </span>
                 ))}
               </div>
             )}
 
+            {/* The location line is a JOIN of three leaves of the
+                `basics.location` object (city / region / countryCode),
+                not one field — so it stays plain text. */}
             {locBits.length > 0 && (
               <div className="mt-1 text-[10pt] text-zinc-500">
                 {locBits.join(', ')}
@@ -172,12 +238,28 @@ export function ClassicReadOnly({ data }: Props) {
             {has(b.profiles) && (
               <p className="mt-1 text-[10pt] text-zinc-500">
                 {b.profiles
-                  .filter((p) => isSet(p.network))
-                  .map((p, i, arr) => (
-                    <span key={`${p.network}-${i}`}>
+                  // The ORIGINAL index is kept: the overlay is keyed
+                  // by the index in the profiles array, not in the
+                  // filtered one, so a profile with no network must
+                  // not shift the marks onto the next profile.
+                  .map((p, index) => ({ profile: p, index }))
+                  .filter(({ profile }) => isSet(profile.network))
+                  .map(({ profile: p, index }, i) => (
+                    <span key={`${p.network}-${index}`}>
                       {i > 0 && <span className="mx-2 text-zinc-400">·</span>}
-                      {p.network}
-                      {isSet(p.username) ? `: ${p.username}` : ''}
+                      <Leaf
+                        data={data}
+                        path={profilePath(index, 'network')}
+                        value={p.network}
+                      />
+                      {isSet(p.username) && ': '}
+                      {isSet(p.username) && (
+                        <Leaf
+                          data={data}
+                          path={profilePath(index, 'username')}
+                          value={p.username}
+                        />
+                      )}
                     </span>
                   ))}
               </p>
@@ -187,7 +269,9 @@ export function ClassicReadOnly({ data }: Props) {
 
         {showSummary && (
           <Section title="Summary" id="section-summary" sectionSlug="summary" data={data}>
-            <p className="text-[11pt]">{b.summary}</p>
+            <p className="text-[11pt]">
+              <Leaf data={data} path={basicsPath('summary')} value={b.summary} />
+            </p>
           </Section>
         )}
 
@@ -200,14 +284,30 @@ export function ClassicReadOnly({ data }: Props) {
               >
                 <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
                   <h3 className="text-[12pt] font-semibold text-zinc-900">
-                    {isSet(w.company) ? w.company : 'Company'}
+                    {isSet(w.company) ? (
+                      <Leaf data={data} path={workCompanyPath(i)} value={w.company} />
+                    ) : (
+                      'Company'
+                    )}
                   </h3>
                   {isSet(w.location) && (
-                    <span className="text-[10pt] text-zinc-500">{w.location}</span>
+                    <span className="text-[10pt] text-zinc-500">
+                      <Leaf
+                        data={data}
+                        path={entryPath('work', i, 'location')}
+                        value={w.location}
+                      />
+                    </span>
                   )}
                 </div>
                 {isSet(w.description) && (
-                  <p className="mt-0.5 text-[10pt] italic text-zinc-600">{w.description}</p>
+                  <p className="mt-0.5 text-[10pt] italic text-zinc-600">
+                    <Leaf
+                      data={data}
+                      path={entryPath('work', i, 'description')}
+                      value={w.description}
+                    />
+                  </p>
                 )}
                 {has(w.positions) && (
                   <div className="mt-2 space-y-[var(--resume-item-gap)]">
@@ -215,14 +315,28 @@ export function ClassicReadOnly({ data }: Props) {
                       <div key={`work-${i}-pos-${j}`}>
                         <div className="flex items-baseline justify-between gap-3">
                           <p className="text-[11pt] font-medium text-zinc-800">
-                            {isSet(p.title) ? p.title : 'Position'}
+                            {isSet(p.title) ? (
+                              <Leaf
+                                data={data}
+                                path={positionPath(i, j, 'title')}
+                                value={p.title}
+                              />
+                            ) : (
+                              'Position'
+                            )}
                           </p>
                           <DateRange start={p.startDate} end={p.endDate} />
                         </div>
                         {has(p.highlights) && (
                           <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
                             {p.highlights.map((h, k) => (
-                              <li key={`work-${i}-pos-${j}-h-${k}`}>{h}</li>
+                              <li key={`work-${i}-pos-${j}-h-${k}`}>
+                                <Leaf
+                                  data={data}
+                                  path={workHighlightPath(i, j, k)}
+                                  value={h}
+                                />
+                              </li>
                             ))}
                           </ul>
                         )}
@@ -244,23 +358,44 @@ export function ClassicReadOnly({ data }: Props) {
               >
                 <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
                   <h3 className="text-[12pt] font-semibold text-zinc-900">
-                    {isSet(p.name) ? p.name : 'Project'}
+                    {isSet(p.name) ? (
+                      <Leaf data={data} path={entryPath('projects', i, 'name')} value={p.name} />
+                    ) : (
+                      'Project'
+                    )}
                   </h3>
                   <DateRange start={p.startDate} end={p.endDate} />
                 </div>
                 {isSet(p.description) && (
-                  <p className="mt-0.5 text-[11pt] text-zinc-700">{p.description}</p>
+                  <p className="mt-0.5 text-[11pt] text-zinc-700">
+                    <Leaf
+                      data={data}
+                      path={projectDescriptionPath(i)}
+                      value={p.description}
+                    />
+                  </p>
                 )}
                 {has(p.highlights) && (
                   <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
                     {p.highlights.map((h, k) => (
-                      <li key={`proj-${i}-h-${k}`}>{h}</li>
+                      <li key={`proj-${i}-h-${k}`}>
+                        <Leaf data={data} path={projectHighlightPath(i, k)} value={h} />
+                      </li>
                     ))}
                   </ul>
                 )}
                 {has(p.keywords) && (
                   <p className="mt-1 text-[10pt] text-zinc-500">
-                    {p.keywords.join(' · ')}
+                    {p.keywords.map((keyword, j) => (
+                      <React.Fragment key={`proj-${i}-kw-${j}`}>
+                        {j > 0 && ' · '}
+                        <Leaf
+                          data={data}
+                          path={projectKeywordPath(i, j)}
+                          value={keyword}
+                        />
+                      </React.Fragment>
+                    ))}
                   </p>
                 )}
               </div>
@@ -274,10 +409,26 @@ export function ClassicReadOnly({ data }: Props) {
               {sections.skills.map((s, i) => (
                 <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
                   <span className="font-medium text-zinc-900">
-                    {isSet(s.name) ? s.name : 'Category'}
+                    {isSet(s.name) ? (
+                      <Leaf data={data} path={skillNamePath(i)} value={s.name} />
+                    ) : (
+                      'Category'
+                    )}
                   </span>
                   {has(s.keywords) && (
-                    <span className="text-zinc-700">— {s.keywords.join(', ')}</span>
+                    <span className="text-zinc-700">
+                      {'— '}
+                      {s.keywords.map((keyword, j) => (
+                        <React.Fragment key={`skill-${i}-kw-${j}`}>
+                          {j > 0 && ', '}
+                          <Leaf
+                            data={data}
+                            path={skillKeywordPath(i, j)}
+                            value={keyword}
+                          />
+                        </React.Fragment>
+                      ))}
+                    </span>
                   )}
                 </div>
               ))}
@@ -287,34 +438,91 @@ export function ClassicReadOnly({ data }: Props) {
 
         {showEducation && (
           <Section title="Education" id="section-education" sectionSlug="education" data={data}>
-            {sections.education.map((e, i) => (
-              <div
-                key={`edu-${i}`}
-                className="mb-3 last:mb-0"
-              >
-                <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
-                  <h3 className="text-[12pt] font-semibold text-zinc-900">
-                    {isSet(e.institution) ? e.institution : 'Institution'}
-                  </h3>
-                  <DateRange start={e.startDate} end={e.endDate} />
-                </div>
-                <p className="mt-0.5 text-[11pt] text-zinc-700">
-                  {[
-                    e.degree.degreeLevel,
-                    ...e.degree.majors,
-                    ...e.degree.minors.map((m) => `Minor: ${m}`)
-                  ]
-                    .filter(isSet)
-                    .join(', ')}
-                  {isSet(e.location) && (
-                    <span className="ml-2 text-zinc-500">— {e.location}</span>
+            {sections.education.map((e, i) => {
+              // The degree line is a JOIN of several stored leaves —
+              // the degree level, each major, each minor — so every
+              // part is rendered through its own <Leaf> with its own
+              // path. The ", " separators and the "Minor: " prefix are
+              // template chrome, not part of a leaf's value, so they
+              // stay plain text around the leaf.
+              const degreeParts: Array<{
+                path: string;
+                value: string;
+                prefix?: string;
+              }> = [];
+
+              if (isSet(e.degree.degreeLevel)) {
+                degreeParts.push({
+                  path: entryPath('education', i, 'degree.degreeLevel'),
+                  value: e.degree.degreeLevel
+                });
+              }
+              e.degree.majors.forEach((major, j) => {
+                if (!isSet(major)) return;
+                degreeParts.push({
+                  path: entryItemPath('education', i, 'degree.majors', j),
+                  value: major
+                });
+              });
+              e.degree.minors.forEach((minor, j) => {
+                degreeParts.push({
+                  path: entryItemPath('education', i, 'degree.minors', j),
+                  value: minor,
+                  prefix: 'Minor: '
+                });
+              });
+
+              return (
+                <div
+                  key={`edu-${i}`}
+                  className="mb-3 last:mb-0"
+                >
+                  <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
+                    <h3 className="text-[12pt] font-semibold text-zinc-900">
+                      {isSet(e.institution) ? (
+                        <Leaf
+                          data={data}
+                          path={entryPath('education', i, 'institution')}
+                          value={e.institution}
+                        />
+                      ) : (
+                        'Institution'
+                      )}
+                    </h3>
+                    <DateRange start={e.startDate} end={e.endDate} />
+                  </div>
+                  <p className="mt-0.5 text-[11pt] text-zinc-700">
+                    {degreeParts.map((part, index) => (
+                      <React.Fragment key={`edu-${i}-degree-${index}`}>
+                        {index > 0 && ', '}
+                        {part.prefix}
+                        <Leaf data={data} path={part.path} value={part.value} />
+                      </React.Fragment>
+                    ))}
+                    {isSet(e.location) && (
+                      <span className="ml-2 text-zinc-500">
+                        {'— '}
+                        <Leaf
+                          data={data}
+                          path={entryPath('education', i, 'location')}
+                          value={e.location}
+                        />
+                      </span>
+                    )}
+                  </p>
+                  {isSet(e.gpa) && (
+                    <p className="text-[10pt] text-zinc-500">
+                      {'GPA: '}
+                      <Leaf
+                        data={data}
+                        path={entryPath('education', i, 'gpa')}
+                        value={e.gpa}
+                      />
+                    </p>
                   )}
-                </p>
-                {isSet(e.gpa) && (
-                  <p className="text-[10pt] text-zinc-500">GPA: {e.gpa}</p>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </Section>
         )}
 
@@ -327,17 +535,37 @@ export function ClassicReadOnly({ data }: Props) {
               >
                 <div className="flex items-baseline justify-between gap-3 print:break-inside-avoid">
                   <h3 className="text-[12pt] font-semibold text-zinc-900">
-                    {isSet(v.organization) ? v.organization : 'Organization'}
+                    {isSet(v.organization) ? (
+                      <Leaf
+                        data={data}
+                        path={entryPath('volunteer', i, 'organization')}
+                        value={v.organization}
+                      />
+                    ) : (
+                      'Organization'
+                    )}
                   </h3>
                   <DateRange start={v.startDate} end={v.endDate} />
                 </div>
                 {isSet(v.position) && (
-                  <p className="mt-0.5 text-[11pt] text-zinc-700">{v.position}</p>
+                  <p className="mt-0.5 text-[11pt] text-zinc-700">
+                    <Leaf
+                      data={data}
+                      path={entryPath('volunteer', i, 'position')}
+                      value={v.position}
+                    />
+                  </p>
                 )}
                 {has(v.highlights) && (
                   <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[11pt] marker:text-zinc-400">
                     {v.highlights.map((h, k) => (
-                      <li key={`vol-${i}-h-${k}`}>{h}</li>
+                      <li key={`vol-${i}-h-${k}`}>
+                        <Leaf
+                          data={data}
+                          path={entryItemPath('volunteer', i, 'highlights', k)}
+                          value={h}
+                        />
+                      </li>
                     ))}
                   </ul>
                 )}
@@ -355,14 +583,36 @@ export function ClassicReadOnly({ data }: Props) {
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold text-zinc-900">
-                    {isSet(a.title) ? a.title : 'Award'}
+                    {isSet(a.title) ? (
+                      <Leaf data={data} path={entryPath('awards', i, 'title')} value={a.title} />
+                    ) : (
+                      'Award'
+                    )}
                   </span>
                   {isSet(a.date) && (
-                    <span className="text-[10pt] text-zinc-500">{a.date}</span>
+                    <span className="text-[10pt] text-zinc-500">
+                      <Leaf data={data} path={entryPath('awards', i, 'date')} value={a.date} />
+                    </span>
                   )}
                 </div>
-                {isSet(a.awarder) && <p className="text-zinc-700">{a.awarder}</p>}
-                {isSet(a.summary) && <p className="text-zinc-600">{a.summary}</p>}
+                {isSet(a.awarder) && (
+                  <p className="text-zinc-700">
+                    <Leaf
+                      data={data}
+                      path={entryPath('awards', i, 'awarder')}
+                      value={a.awarder}
+                    />
+                  </p>
+                )}
+                {isSet(a.summary) && (
+                  <p className="text-zinc-600">
+                    <Leaf
+                      data={data}
+                      path={entryPath('awards', i, 'summary')}
+                      value={a.summary}
+                    />
+                  </p>
+                )}
               </div>
             ))}
           </Section>
@@ -377,13 +627,31 @@ export function ClassicReadOnly({ data }: Props) {
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold text-zinc-900">
-                    {isSet(c.name) ? c.name : 'Certificate'}
+                    {isSet(c.name) ? (
+                      <Leaf data={data} path={entryPath('certificates', i, 'name')} value={c.name} />
+                    ) : (
+                      'Certificate'
+                    )}
                   </span>
                   {isSet(c.date) && (
-                    <span className="text-[10pt] text-zinc-500">{c.date}</span>
+                    <span className="text-[10pt] text-zinc-500">
+                      <Leaf
+                        data={data}
+                        path={entryPath('certificates', i, 'date')}
+                        value={c.date}
+                      />
+                    </span>
                   )}
                 </div>
-                {isSet(c.issuer) && <p className="text-zinc-700">{c.issuer}</p>}
+                {isSet(c.issuer) && (
+                  <p className="text-zinc-700">
+                    <Leaf
+                      data={data}
+                      path={entryPath('certificates', i, 'issuer')}
+                      value={c.issuer}
+                    />
+                  </p>
+                )}
               </div>
             ))}
           </Section>
@@ -398,14 +666,44 @@ export function ClassicReadOnly({ data }: Props) {
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold text-zinc-900">
-                    {isSet(p.name) ? p.name : 'Publication'}
+                    {isSet(p.name) ? (
+                      <Leaf
+                        data={data}
+                        path={entryPath('publications', i, 'name')}
+                        value={p.name}
+                      />
+                    ) : (
+                      'Publication'
+                    )}
                   </span>
                   {isSet(p.releaseDate) && (
-                    <span className="text-[10pt] text-zinc-500">{p.releaseDate}</span>
+                    <span className="text-[10pt] text-zinc-500">
+                      <Leaf
+                        data={data}
+                        path={entryPath('publications', i, 'releaseDate')}
+                        value={p.releaseDate}
+                      />
+                    </span>
                   )}
                 </div>
-                {isSet(p.publisher) && <p className="italic text-zinc-700">{p.publisher}</p>}
-                {isSet(p.summary) && <p className="text-zinc-600">{p.summary}</p>}
+                {isSet(p.publisher) && (
+                  <p className="italic text-zinc-700">
+                    <Leaf
+                      data={data}
+                      path={entryPath('publications', i, 'publisher')}
+                      value={p.publisher}
+                    />
+                  </p>
+                )}
+                {isSet(p.summary) && (
+                  <p className="text-zinc-600">
+                    <Leaf
+                      data={data}
+                      path={entryPath('publications', i, 'summary')}
+                      value={p.summary}
+                    />
+                  </p>
+                )}
               </div>
             ))}
           </Section>
@@ -420,10 +718,25 @@ export function ClassicReadOnly({ data }: Props) {
                   className="flex gap-2 text-[11pt] print:break-inside-avoid"
                 >
                   <span className="font-medium text-zinc-900">
-                    {isSet(l.language) ? l.language : 'Language'}
+                    {isSet(l.language) ? (
+                      <Leaf
+                        data={data}
+                        path={entryPath('languages', i, 'language')}
+                        value={l.language}
+                      />
+                    ) : (
+                      'Language'
+                    )}
                   </span>
                   {isSet(l.fluency) && (
-                    <span className="text-zinc-700">— {l.fluency}</span>
+                    <span className="text-zinc-700">
+                      {'— '}
+                      <Leaf
+                        data={data}
+                        path={entryPath('languages', i, 'fluency')}
+                        value={l.fluency}
+                      />
+                    </span>
                   )}
                 </div>
               ))}
@@ -440,10 +753,30 @@ export function ClassicReadOnly({ data }: Props) {
                   className="flex gap-2 text-[11pt] print:break-inside-avoid"
                 >
                   <span className="font-medium text-zinc-900">
-                    {isSet(it.name) ? it.name : 'Category'}
+                    {isSet(it.name) ? (
+                      <Leaf
+                        data={data}
+                        path={entryPath('interests', i, 'name')}
+                        value={it.name}
+                      />
+                    ) : (
+                      'Category'
+                    )}
                   </span>
                   {has(it.keywords) && (
-                    <span className="text-zinc-700">— {it.keywords.join(', ')}</span>
+                    <span className="text-zinc-700">
+                      {'— '}
+                      {it.keywords.map((keyword, j) => (
+                        <React.Fragment key={`interest-${i}-kw-${j}`}>
+                          {j > 0 && ', '}
+                          <Leaf
+                            data={data}
+                            path={entryItemPath('interests', i, 'keywords', j)}
+                            value={keyword}
+                          />
+                        </React.Fragment>
+                      ))}
+                    </span>
                   )}
                 </div>
               ))}
@@ -459,10 +792,24 @@ export function ClassicReadOnly({ data }: Props) {
                 className="mb-2 last:mb-0 text-[11pt] print:break-inside-avoid"
               >
                 {isSet(r.name) && (
-                  <p className="font-semibold text-zinc-900">{r.name}</p>
+                  <p className="font-semibold text-zinc-900">
+                    <Leaf
+                      data={data}
+                      path={entryPath('references', i, 'name')}
+                      value={r.name}
+                    />
+                  </p>
                 )}
                 {isSet(r.reference) && (
-                  <p className="italic text-zinc-700">"{r.reference}"</p>
+                  <p className="italic text-zinc-700">
+                    {'"'}
+                    <Leaf
+                      data={data}
+                      path={entryPath('references', i, 'reference')}
+                      value={r.reference}
+                    />
+                    {'"'}
+                  </p>
                 )}
               </div>
             ))}

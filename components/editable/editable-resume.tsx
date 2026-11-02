@@ -32,9 +32,11 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Printer, Redo2, Undo2 } from 'lucide-react';
+import { AlertCircle, Eraser, Printer, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { RichTextToolbar } from '@/components/rich-text/rich-text-toolbar';
+import { useFormatting } from '@/components/rich-text/use-formatting';
 import {
   Tooltip,
   TooltipContent,
@@ -340,6 +342,14 @@ export function EditableResume({
     control: form.control as never,
     reset: (values) => form.reset(values as never)
   });
+  // Formatting. The map lives inside the form values, so undo/redo and
+  // the debounced autosave carry it for free — this hook only owns the
+  // read and the write.
+  const { formatting, clearAll } = useFormatting();
+  const hasFormatting = Boolean(
+    formatting && Object.values(formatting).some((spans) => spans.length > 0)
+  );
+  const clearAllFormatting = () => clearAll();
   useUndoRedoShortcuts({
     onUndo: history.undo,
     onRedo: history.redo,
@@ -422,6 +432,32 @@ export function EditableResume({
               </TooltipTrigger>
               <TooltipContent side="bottom">Redo (Ctrl + Shift + Z)</TooltipContent>
             </Tooltip>
+            {/*
+              The escape hatch. Formatting is one undoable step, so
+              Ctrl+Z works, but a candidate who has bolded half a
+              resume deserves one button that removes all of it.
+              It only appears when there IS formatting to remove, so the
+              row stays quiet for everyone else.
+            */}
+            {hasFormatting && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearAllFormatting}
+                    aria-label="Clear all formatting"
+                    data-testid="editable-clear-formatting"
+                  >
+                    <Eraser className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Remove all bold / italic / underline
+                </TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -534,6 +570,19 @@ export function EditableResume({
           subscription source per editor mount.
         */}
         <InlineIssueTip dynamicTips={initialDynamicTips} />
+
+        {/*
+          The formatting toolbar. Mounted ONCE here, not per field: it is
+          a floating element positioned above the mouse selection, so it
+          listens for document selections and works out which field the
+          selection landed in from that field's `data-rich-path`.
+
+          Inside the FormProvider so it can read the field's value and
+          write the formatting overlay back into the form — which is what
+          gets the change into the autosave and the undo history for
+          free.
+        */}
+        <RichTextToolbar />
       </div>
     </FormProvider>
   );

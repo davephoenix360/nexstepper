@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { resumeSectionsSchema, type ResumeSections } from './sections';
 import { jobPostingSchema, type JobPosting } from './job-posting';
+import { richTextSchema } from './rich-text';
 
 /**
  * Print / export preferences. Lives on the resume envelope so a
@@ -62,7 +63,22 @@ export const resumeDataSchema = z.object({
    * no content (the existing behavior); the new field is purely
    * additive.
    */
-  print: printPrefsSchema.optional()
+  print: printPrefsSchema.optional(),
+  /**
+   * The formatting overlay — bold / italic / underline, keyed by the
+   * dotted path of the field it applies to.
+   *
+   * OPTIONAL and additive: every resume that predates the feature
+   * parses cleanly with this undefined, and a resume with no
+   * formatting behaves exactly as it did before.
+   *
+   * The `sections` above stay PLAIN STRINGS. Nothing here may alter a
+   * stored character — the scoring engine, the parsers and the ATS
+   * extraction all keep reading the text the candidate wrote.
+   *
+   * See `docs/decisions/0008-rich-text-overlay.md`.
+   */
+  formatting: richTextSchema.optional()
 });
 
 export type ResumeData = z.infer<typeof resumeDataSchema>;

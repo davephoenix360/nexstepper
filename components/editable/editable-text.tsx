@@ -35,6 +35,9 @@ import * as React from 'react';
 import { useController, useFormContext, type FieldValues } from 'react-hook-form';
 
 import { cn } from '@/lib/utils';
+import { RichText } from '@/components/rich-text/rich-text';
+import { useFormatting } from '@/components/rich-text/use-formatting';
+import { spansForWholeValue } from '@/lib/rich-text/spans';
 
 /** A mapping of HTML tag name -> React component type for the idle render. */
 type Tag = 'span' | 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'div';
@@ -48,6 +51,22 @@ interface BaseProps {
   editingClassName?: string;
   /** Show this muted text when the value is empty. */
   placeholder?: string;
+  /**
+   * Whether this field can carry formatting marks. Default `true`.
+   *
+   * `false` means the field renders as plain text AND carries no
+   * `data-rich-path`, so the formatting toolbar ignores it entirely —
+   * a mark can neither be applied nor stored.
+   *
+   * This is for fields whose read-only render is a COMPOSITE of several
+   * leaves rather than one, so there is no single span to hand the mark
+   * to. `DateRange` is the case in point: it renders a start date, an
+   * en-dash and an end date as three pieces. Without this, a user could
+   * bold a date in the editor and the share link would silently drop it
+   * — the exact "two surfaces, two answers" drift this feature exists
+   * to prevent.
+   */
+  formatting?: boolean;
 }
 
 interface EditableTextProps extends BaseProps {
@@ -78,6 +97,25 @@ function useBoundValue(path: string) {
 }
 
 /**
+ * True when the user has just made a text selection inside this field.
+ *
+ * A drag-selection ends with a `click` event, so the naive
+ * implementation would open the editor and destroy the very selection
+ * the formatting toolbar is about to act on. A plain click leaves the
+ * selection collapsed, so the editor opens exactly as it did before.
+ */
+function hasSelectionInside(path: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed) return false;
+  const node = selection.anchorNode;
+  const element =
+    node instanceof HTMLElement ? node : (node?.parentElement ?? null);
+  const field = element?.closest('[data-rich-path]');
+  return field?.getAttribute('data-rich-path') === path;
+}
+
+/**
  * Inline edit-as-single-line. Click to focus, blur or Enter to commit,
  * Esc to roll back. See file header for the render-state contract.
  */
@@ -86,9 +124,11 @@ export function EditableText({
   className,
   editingClassName,
   placeholder = 'Click to add',
-  as: Tag = 'span'
+  as: Tag = 'span',
+  formatting = true
 }: EditableTextProps) {
   const { field, error, value, hasValue } = useBoundValue(path);
+  const { spansFor, setSpans } = useFormatting();
   const [editing, setEditing] = React.useState(false);
   // Local draft so the input can render the user's typing without
   // re-rendering on every keystroke (RHF's onChange does run, but the
@@ -103,9 +143,21 @@ export function EditableText({
   }, [value, editing]);
 
   function startEdit() {
+    // The click that ended a drag-selection is not an edit gesture.
+    if (hasSelectionInside(path)) return;
     original.current = value;
     setDraft(value);
     setEditing(true);
+  }
+
+  /**
+   * Ctrl/Cmd+B on a focused field: bold the WHOLE value.
+   *
+   * The fast path for the thing people actually want — a skill chip, a
+   * company name, a whole bullet — without having to drag-select it.
+   */
+  function toggleWholeFieldBold() {
+    setSpans(path, spansForWholeValue(value, spansFor(path), 'bold'));
   }
 
   function commit() {
@@ -158,12 +210,23 @@ export function EditableText({
       tabIndex={0}
       onClick={startEdit}
       onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+          e.preventDefault();
+          toggleWholeFieldBold();
+          return;
+        }
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           startEdit();
         }
       }}
       data-testid={`editable-${path}`}
+      // Which field a mouse selection landed in. The formatting
+      // toolbar walks up to the nearest ancestor carrying this.
+      // Omitted for fields that cannot carry marks, so the toolbar
+      // never offers to format something the read-only render
+      // would drop.
+      data-rich-path={formatting ? path : undefined}
       data-empty={isEmpty || undefined}
       className={cn(
         className,
@@ -189,7 +252,11 @@ export function EditableText({
           {placeholder}
         </span>
       ) : (
-        value
+        formatting ? (
+          <RichText value={value} spans={spansFor(path)} />
+        ) : (
+          value
+        )
       )}
     </Tag>
   );
@@ -206,9 +273,11 @@ export function EditableTextarea({
   className,
   editingClassName,
   placeholder = 'Click to add',
-  rows = 4
+  rows = 4,
+  formatting = true
 }: EditableTextareaProps) {
   const { field, error, value, hasValue } = useBoundValue(path);
+  const { spansFor, setSpans } = useFormatting();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(value);
   const original = React.useRef(value);
@@ -218,9 +287,14 @@ export function EditableTextarea({
   }, [value, editing]);
 
   function startEdit() {
+    if (hasSelectionInside(path)) return;
     original.current = value;
     setDraft(value);
     setEditing(true);
+  }
+
+  function toggleWholeFieldBold() {
+    setSpans(path, spansForWholeValue(value, spansFor(path), 'bold'));
   }
 
   function commit() {
@@ -271,12 +345,18 @@ export function EditableTextarea({
       tabIndex={0}
       onClick={startEdit}
       onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+          e.preventDefault();
+          toggleWholeFieldBold();
+          return;
+        }
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           startEdit();
         }
       }}
       data-testid={`editable-${path}`}
+      data-rich-path={formatting ? path : undefined}
       data-empty={isEmpty || undefined}
       className={cn(
         className,
@@ -297,7 +377,11 @@ export function EditableTextarea({
           {placeholder}
         </span>
       ) : (
-        value
+        formatting ? (
+          <RichText value={value} spans={spansFor(path)} />
+        ) : (
+          value
+        )
       )}
     </div>
   );

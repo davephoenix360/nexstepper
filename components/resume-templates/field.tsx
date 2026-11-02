@@ -48,6 +48,21 @@
  *   the shape at the call site and renders accordingly. The Field
  *   components narrow to `string` / `string[]` for their specific
  *   use cases.
+ *
+ * Formatting
+ *   The read-only branch renders through `<RichText>` so a marked
+ *   field shows its bold / italic / underline in the preview page, the
+ *   public share link and the printed PDF — the same marks the editor
+ *   shows, because the editor's idle render is the SAME component.
+ *
+ *   The spans come from `data.formatting[path]`, keyed by the SAME
+ *   dotted path react-hook-form uses. A list item's path is the list
+ *   path plus its index (`sections.projects.0.highlights.2`), which is
+ *   exactly what the editor's `BulletList` / `KeywordChips` address.
+ *
+ *   `<RichText>` renders a FRAGMENT and adds no characters of its own,
+ *   so a field with no marks renders as a bare text node — the DOM of
+ *   an unmarked resume is unchanged by this feature.
  */
 
 import * as React from 'react';
@@ -55,6 +70,7 @@ import type { ElementType } from 'react';
 import { EditableText, EditableTextarea } from '@/components/editable/editable-text';
 import { KeywordChips } from '@/components/editable/keyword-chips';
 import { BulletList } from '@/components/editable/bullet-list';
+import { RichText } from '@/components/rich-text/rich-text';
 import { cn } from '@/lib/utils';
 
 import type { ResumeData } from '@/lib/resume-schema';
@@ -145,7 +161,14 @@ export function Field({
     );
   }
   const Tag: ElementType = as ?? 'span';
-  return <Tag className={className}>{value}</Tag>;
+  // `data-rich-path` is how the editor's selection handler knows which
+  // field a mouse selection landed in — it walks up to the nearest
+  // ancestor carrying the attribute.
+  return (
+    <Tag className={className} data-rich-path={path}>
+      <RichText value={value} spans={mode.data.formatting?.[path]} />
+    </Tag>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -187,7 +210,11 @@ export function FieldArea({
       className: cn(className, 'text-zinc-400')
     }, placeholder ?? '');
   }
-  return React.createElement(readOnlyAs, { className }, value);
+  return React.createElement(
+    readOnlyAs,
+    { className, 'data-rich-path': path },
+    <RichText value={value} spans={mode.data.formatting?.[path]} />
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -261,7 +288,7 @@ export function FieldChips({
             )}
             style={chipStyle}
           >
-            {v}
+            <RichText value={v} spans={mode.data.formatting?.[`${path}.${i}`]} />
           </span>
         ))}
       </span>
@@ -271,7 +298,29 @@ export function FieldChips({
   // Comma-separated, so it wraps like prose and reads as the resume it
   // is. Joined rather than mapped to spans so there is no per-item box
   // for a screen reader to walk and nothing to strip in print.
-  return <span className={className}>{values.join(', ')}</span>;
+  //
+  // The one exception: a MARKED chip has to be rendered on its own,
+  // because the mark wraps the chip's text and the separator between
+  // chips is not part of any chip's value. When no chip is marked the
+  // joined string is kept verbatim — an unmarked list of keywords is
+  // still one text node, exactly as it was before this feature.
+  const formatting = mode.data.formatting;
+  const anyMarked = values.some((_, i) => (formatting?.[`${path}.${i}`]?.length ?? 0) > 0);
+
+  if (!anyMarked) {
+    return <span className={className}>{values.join(', ')}</span>;
+  }
+
+  return (
+    <span className={className}>
+      {values.map((v, i) => (
+        <React.Fragment key={`${v}-${i}`}>
+          {i > 0 && ', '}
+          <RichText value={v} spans={formatting?.[`${path}.${i}`]} />
+        </React.Fragment>
+      ))}
+    </span>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -307,11 +356,18 @@ export function FieldBullets({
       />
     );
   }
-  const values = arr(read(mode.data, path)).filter((s) => s.trim().length > 0);
-  if (values.length === 0) return null;
+  // The ORIGINAL index is kept, not the index in the filtered list:
+  // the editor addresses a bullet as `<listPath>.<index>` against the
+  // UNFILTERED array, so a filtered-out empty bullet must not shift
+  // every later bullet's path by one.
+  const values = arr(read(mode.data, path));
+  const items = values
+    .map((v, i) => ({ value: v, index: i }))
+    .filter((item) => item.value.trim().length > 0);
+  if (items.length === 0) return null;
   return (
     <ul className={cn('list-outside list-disc space-y-1 pl-5', className)}>
-      {values.map((v, i) => (
+      {items.map((item) => (
         // Per-bullet break avoidance (Oct 2026).
         //
         // The bug this fixes: when the whole WORK ENTRY carried
@@ -337,8 +393,11 @@ export function FieldBullets({
         // all six templates behave identically: never orphan a
         // header, never split a bullet, always allow a break between
         // two bullets.
-        <li key={i} className={cn('print:break-inside-avoid', itemClassName)}>
-          {v}
+        <li key={item.index} className={cn('print:break-inside-avoid', itemClassName)}>
+          <RichText
+            value={item.value}
+            spans={mode.data.formatting?.[`${path}.${item.index}`]}
+          />
         </li>
       ))}
     </ul>

@@ -171,6 +171,40 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **A candidate can now bold, italicise or underline their resume — and
+  the ATS score did not move** — The thing resumes do by hand to signal
+  "this is aimed at *this* posting". Drag-select text in the rendered
+  resume and a floating **B / I / U** toolbar appears above the
+  selection; **Ctrl/Cmd+B** on a focused field bolds the whole value
+  (the fast path for a skill chip, a company name, a whole bullet). The
+  toolbar says plainly that **formatting doesn't change your ATS
+  score**, because it doesn't — and a user who believes decoration buys
+  points is going to be disappointed later. **The stored text stays
+  plain.** The formatting lives in a separate optional path-addressed
+  overlay on the envelope (`sections.skills.0.keywords.2` →
+  `[{text, start, marks}]`), so the scoring engine, the BM25 tokenizer,
+  the Jev evaluators, page-fit estimation and the AI's edit-matching all
+  keep reading exactly the text the candidate wrote — and a test asserts
+  the score breakdown is DEEPLY EQUAL with and without marks. **The hard
+  part is drift:** a mark is stored as a character offset, and any edit
+  to the field invalidates it — including edits the user did not make.
+  So each span stores the literal text it covers too, and resolution
+  re-anchors it to the closest occurrence, or **drops** it. **The failure
+  mode is a missing mark, never a wrong one** — losing a bold is
+  cosmetic, bolding the wrong words is a lie on the resume. And **one
+  component renders the marks for every surface** — the editor's idle
+  render, the read-only `Field*` helpers, and `classic-readonly` — so
+  the editor and the share link cannot disagree, which is the same
+  "one helper called by both surfaces" rule that fixed the list-vs-page
+  score badge divergence. It renders a FRAGMENT rather than a wrapper,
+  so an unmarked field's markup is **byte-identical** to before
+  (verified by diffing against the pre-feature implementation), and the
+  editor's click-to-edit no longer fires on a drag-selection — the
+  gesture collision that would have made every selection open an
+  editor. Plan: `docs/plans/rich-text-formatting.md`. ADR:
+  `docs/decisions/0008-rich-text-overlay.md`. Drift memo:
+  `docs/drift/2026-11-02-rich-text-formatting.md`.
+
 - **The app was sending no page views at all** — PostHog runs with
   `capture_pageview: false`, because the app has no SPA-route-change
   listener wired today, so the product analytics only ever saw button

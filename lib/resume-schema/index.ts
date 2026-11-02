@@ -69,6 +69,9 @@ export type { ResumeData } from './resume-data';
 export { jobPostingSchema } from './job-posting';
 export type { JobPosting } from './job-posting';
 
+export { richMarkSchema, richSpanSchema, richTextSchema, RICH_MARKS } from './rich-text';
+export type { RichMark, RichSpan, RichTextMap } from './rich-text';
+
 // Samples
 export { blankResumeData, sampleResumeData } from './sample';
 

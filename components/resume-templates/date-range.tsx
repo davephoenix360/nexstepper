@@ -177,10 +177,19 @@ function DateRangeEditable({
 
   return (
     <span className="text-[10pt] whitespace-nowrap text-zinc-500">
+      {/*
+        `formatting={false}`: a date range is a COMPOSITE of two leaves
+        (start, end) plus the separator between them, so there is no
+        single span to hand a mark to. Without this, a candidate could
+        bold a date in the editor and the share link would silently drop
+        it — the exact "two surfaces, two answers" drift this feature
+        exists to prevent.
+      */}
       <EditableText
         path={startPath}
         placeholder="YYYY"
         className="inline"
+        formatting={false}
       />
       {showDash && (
         <span
@@ -195,6 +204,7 @@ function DateRangeEditable({
         path={endPath}
         placeholder="Present"
         className="inline"
+        formatting={false}
       />
     </span>
   );

@@ -436,6 +436,55 @@ Two rules make this honest rather than decorative:
 | 3 | Scout can apply formatting (`formatResume` tool) | Phase 1's path vocabulary |
 | 4 | Double-click-a-word, whole-field formatting from a context menu, "clear all" polish | Phase 1 |
 
+## Deviations from the original plan (found while building)
+
+Two things did not survive contact with the code. Both are recorded here
+because the plan is the thing a future reader will check.
+
+### 1. `<RichText>` renders a FRAGMENT, not a wrapper element
+
+The plan sketched `<RichText value spans as className path />` rendering
+its own tag.
+
+It cannot, and the reason is the DOM-identity requirement. The plan
+also says an unmarked field's output must be **byte-identical** to what
+it was before the feature — otherwise every existing print and
+page-break test breaks, and every resume in the wild gets an extra
+`<span>` around every field.
+
+A wrapper element makes that impossible. So `RichText` renders the
+marked CONTENT only, and **the caller owns the surrounding tag** and
+puts `data-rich-path` on it. The consequence is one rule for every call
+site: the element that carries `data-rich-path` is the element the
+selection handler walks up to.
+
+### 2. Dates are NOT formattable
+
+`DateRange` renders a **composite** — a start date, an en-dash, an end
+date — from two separate leaves. There is no single span to hand a
+mark to, so a date bolded in the editor would silently vanish on the
+share link. That is exactly the "two surfaces, two answers" drift this
+feature exists to prevent, so the two surfaces have to agree.
+
+The plan's non-goals already said dates and the contact line should not
+be formattable — *"the toolbar should not invite a candidate to bold
+their own phone number."* So the fix follows the plan rather than
+inventing a new rule: `EditableText` grew a `formatting={false}` opt-out
+which renders the value plain AND omits `data-rich-path`, so the toolbar
+never offers to format something the read-only render would drop.
+
+The same reasoning is why `basics.location` is left alone: it is an
+object (`city` / `region` / `countryCode`), not a leaf of text.
+
+### 3. More leaves are formattable than the plan listed
+
+The plan's scope list named bullets, the summary and skill keywords. The
+built version also formats the email, phone, URL, locations, GPA and
+degree lines — because the editor renders all of them through
+`EditableText`, so the toolbar *can* mark them, and leaving them out
+would mean the editor shows a bold the share link drops. Same drift,
+opposite resolution.
+
 ## Files
 
 ### New
