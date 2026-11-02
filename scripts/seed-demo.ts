@@ -63,6 +63,8 @@ import {
 } from '@/lib/db/queries';
 import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
 import { evaluateJevRequirements } from '@/lib/scoring-async/jev-requirements';
+import { resolveRenderedBreakdown } from '@/lib/scoring/snapshot-breakdown';
+import type { ScoreBreakdown } from '@/lib/scoring/score';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import {
   buildMatchBreakdown,
@@ -486,6 +488,33 @@ async function printSummary(userId: string): Promise<void> {
       if (typeof value === 'number') {
         log(`  ${label.padEnd(18)} ${value}`);
       }
+    }
+  }
+
+  // Prove the scorecard will render the number the seeder printed.
+  //
+  // `resolveRenderedBreakdown` returns the persisted breakdown when it is
+  // usable and only recomputes otherwise — and the fallback is the SYNC
+  // engine, which produces a DIFFERENT number. That is the exact bug class
+  // this repo already fixed once (the list badge said 47 while the scorecard
+  // said 57). A sentinel `compute` turns "it fell back" into a visible
+  // failure instead of a number that quietly disagrees with the script.
+  for (const row of rows) {
+    if (row.isMaster) continue;
+    const snapshot = await getLatestScoreSnapshot(row.id);
+    if (!snapshot) continue;
+    const rendered = resolveRenderedBreakdown({
+      persisted: snapshot.breakdown,
+      compute: () => ({ overallScore: -1 }) as unknown as ScoreBreakdown
+    });
+    if (rendered.overallScore === snapshot.matchScore) {
+      ok(
+        `"${row.name}" renders ${rendered.overallScore} from the persisted snapshot`
+      );
+    } else {
+      fail(
+        `"${row.name}" would render ${rendered.overallScore}, but the snapshot says ${snapshot.matchScore}`
+      );
     }
   }
 
