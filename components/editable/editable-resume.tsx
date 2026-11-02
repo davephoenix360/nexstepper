@@ -36,7 +36,7 @@ import { AlertCircle, Eraser, Printer, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { RichTextToolbar } from '@/components/rich-text/rich-text-toolbar';
-import { useFormatting } from '@/components/rich-text/use-formatting';
+import type { RichTextMap } from '@/lib/resume-schema';
 import {
   Tooltip,
   TooltipContent,
@@ -342,14 +342,34 @@ export function EditableResume({
     control: form.control as never,
     reset: (values) => form.reset(values as never)
   });
-  // Formatting. The map lives inside the form values, so undo/redo and
-  // the debounced autosave carry it for free — this hook only owns the
-  // read and the write.
-  const { formatting, clearAll } = useFormatting();
-  const hasFormatting = Boolean(
-    formatting && Object.values(formatting).some((spans) => spans.length > 0)
+  // Formatting.
+  //
+  // The map lives inside the form values, so undo/redo and the
+  // debounced autosave carry it for free.
+  //
+  // NOT `useFormatting()`: this component RENDERS the <FormProvider>,
+  // so it is not inside one — `useFormContext()` returns null here and
+  // reading `form.control` off it crashes the whole editor page. The
+  // form instance is right here, so read and write through it directly.
+  //
+  // The loose cast is the same one the inline-issue handler above
+  // uses: the editor's form is typed `never` (the resolver is cast),
+  // so `watch`/`setValue` need a hand to accept a field name.
+  const looseFormattingForm = form as unknown as {
+    watch: (name: string) => unknown;
+    setValue: (
+      name: string,
+      value: unknown,
+      opts?: { shouldDirty?: boolean; shouldTouch?: boolean }
+    ) => void;
+  };
+  const formatting = (looseFormattingForm.watch('formatting') ??
+    {}) as RichTextMap;
+  const hasFormatting = Object.values(formatting).some(
+    (spans) => spans.length > 0
   );
-  const clearAllFormatting = () => clearAll();
+  const clearAllFormatting = () =>
+    looseFormattingForm.setValue('formatting', {}, { shouldDirty: true });
   useUndoRedoShortcuts({
     onUndo: history.undo,
     onRedo: history.redo,

@@ -45,6 +45,22 @@ export interface FormattingApi {
 export function useFormatting(): FormattingApi {
   const form = useFormContext();
 
+  // Crash LOUDLY, and say why. This hook reads the form context, so it
+  // only works inside a <FormProvider>. `EditableResume` RENDERS the
+  // provider rather than being inside one, and calling this hook there
+  // is a mistake — it took the whole editor page down on 2026-11-02
+  // with a bare "Cannot read properties of null (reading 'control')".
+  //
+  // Read the map through the form instance instead when you are the
+  // component that renders the provider.
+  if (!form) {
+    throw new Error(
+      'useFormatting() must be called inside a <FormProvider>. ' +
+        'If you are the component that RENDERS the provider, read the ' +
+        'map through your own form instance instead of the context.'
+    );
+  }
+
   const formatting = useWatch({
     control: form.control,
     name: 'formatting'
