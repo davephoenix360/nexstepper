@@ -415,6 +415,144 @@ that surface in the footage.
 - Prepare the resume PDF and the JD text in a text file, ready to paste, so
   no take is spent typing.
 
+## Before the session — the manual test
+
+Run this once in your own browser, **before** you open Guidde. It takes about
+ten minutes and it tells you three things the plan cannot: the real number
+after Scout's edits, the real behaviour of the highlight button, and how long
+the chat pause actually feels.
+
+`pnpm preflight:demo-video` automates the machine-checkable half of this
+(server up, credential authenticates, scorecard renders 75, chat route
+answers, probe session cleaned up). **The steps below are the half only you
+can do** — the ones that involve reading Scout's actual words and watching
+the screen.
+
+### 0. Preconditions
+
+`pnpm dev` running. Browser at `http://localhost:3000`. Sign in with
+`demo@nexstepper.com` / `nexstepper-demo`.
+
+### 1. The resume list
+
+Expect **two** resumes: "Jordan Ellis — Master Resume" and "Jordan Ellis —
+Cartwheel (Backend Platform)". The variant's badge must read **75**.
+
+**If the badge says anything else, stop and tell me.** That would be the
+list-badge-vs-scorecard divergence this repo already fixed once, coming back.
+
+### 2. Open the variant
+
+Expect: **75**, tier badge **Good**, and the seven dimensions —
+Keywords 68, Format 82, Impact 74, Experience match 69, Intent coverage 90,
+**Role fit 50**, Seniority fit 100. The radar chart renders. The resume
+reads *Jordan Ellis · Senior Software Engineer · Halcyon Systems · Rotosignal*.
+
+### 3. The highlight button
+
+Click **"Highlight this job's skills"**. Expect a pause of a second or two,
+then skills in the resume going **bold**, must-haves going **bold +
+underline**, and a result line: *"Bolded N skills, underlined M must-haves."*
+
+**Write down N and M.** The script needs the real numbers. Expect N ≈ 16.
+
+**If it says "nothing to highlight", stop** — the fixture is wrong.
+
+### 4. Scout
+
+Click the floating trigger, bottom-right. The chat panel opens; the header
+should read **"Scout · Claude Haiku 5.5"**.
+
+The intro bubble only appears after **45 seconds of idle** — don't wait for
+it. If you want it on camera, leave the editor open while you record another
+beat and grab it in that take.
+
+### 5. The chat turn — the one that matters
+
+Send the prompt. **Time the dead pause before the first token.** Measured
+twice today it came in at **4.3s and 11.7s** — so it varies. Anything over
+about 8 seconds must be jump-cut in post.
+
+Then read Scout's reply. The script's two lines at 0:58 and 1:12 are
+**predictions** — copy Scout's actual words and rewrite them. The structure
+must survive: one fixable gap, one fixable gap, one gap Scout refuses to
+close.
+
+### 6. The edits
+
+Expect the headline and bullets to change in place. The agent mark goes
+`working` → `applied`.
+
+### 7. Recompute — the money shot
+
+Click **Recompute**. The score recomputes.
+
+**Write down the new number. That is «SCORE_AFTER».** Do not predict it.
+
+Check that **Role fit moved off 50** — that is the bar the cold open put on
+screen.
+
+**If it reaches 100, something is wrong.** Kafka and OpenTelemetry are
+genuinely absent from Jordan's history, so the score must not reach 100. A
+video that ends at 100 is the one lie in an otherwise honest product.
+
+### 8. The refusal
+
+Open the **Northwind Supply — Customer Operations Specialist** application.
+Click "Highlight this job's skills" again.
+
+Expect: **"This posting doesn't name skills your resume lists — nothing to
+highlight."**
+
+**If it marks anything, stop and tell me** — Beat 6 cannot be filmed.
+
+### 9. Export and share
+
+Export → PDF (check the print preview renders the resume). Share → copy link.
+
+### 10. Re-seed before the shoot
+
+**This matters: the manual test dirties the data.** Scout's edits in step 6
+changed the resume, so the "before" state is no longer 75.
+
+```bash
+pnpm seed:demo:reset
+```
+
+The shoot must start from a clean seed, or Beat 1 opens on the wrong number.
+
+## Guidde: what the trial gives you, and what it doesn't
+
+You are on the **free Business trial**, so you already have the good parts:
+the **desktop app**, **Magic Mic**, the **Brand Kit**, unlimited text-to-voice,
+analytics, and no video cap.
+
+**What the trial does not have: MP4 download.** Guidde's export help is
+explicit — *"Export via Download is available on: Pro, Business and Enterprise
+plans"* and *"Export is Not Available: During the free (Business) trial."*
+The pricing FAQ says the same: *"Some features (like MP4 export) require an
+active paid subscription."*
+
+So you can capture, edit, preview and share during the trial, but you cannot
+download the file — and a file you cannot download is a file you cannot cut.
+
+**The plan:**
+
+| When | What |
+|---|---|
+| **Now** | Use the trial for the manual test and the rehearsal. Set up the **Brand Kit** (upload `public/brand/nexstepper-horizontal-clean.png`, set Manrope) — it is included. |
+| **Before the shoot** | Upgrade to **Pro** ($19/creator/month on annual billing). It gives MP4 export, no watermark, the Brand Kit and blur-sensitive-info. |
+
+Nothing is lost if you upgrade later — content created during the trial stays
+in the account, and the FAQ is explicit that videos survive the downgrade to
+Free (where you just can't export more than the last 25).
+
+**Also worth knowing while you are in there.** Magic Mic turns your spoken
+narration into a cleaned AI voiceover and your original voice is not recorded
+or stored. It is excellent for the **product guides**. For the **hero video**,
+keep your own voice — a founder's real voice on a landing page outperforms a
+synthetic one, and the narration is only 160 words.
+
 ## Production spec — Guidde
 
 **Guidde is the capture engine.** Not the editor. It is very good at one thing
@@ -707,6 +845,9 @@ separate take while the editor idles, or drop it.
 - [x] The Northwind posting classifies as 0 genuine skills, so Beat 6's
       refusal fires as written.
 - [x] A first-session analysis is persisted, so Scout opens informed.
+- [x] `pnpm preflight:demo-video` exists and reports **READY TO SHOOT** —
+      server up, credential authenticates, scorecard renders 75, chat route
+      answers, probe session cleaned up. It exits non-zero on any failure.
 
 **Capture**
 
