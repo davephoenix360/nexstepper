@@ -45,7 +45,7 @@ do next.
 - A full **voiceover script** with timings (below), ready to record.
 - A **seed script** that builds a deterministic demo account so the shoot is
   repeatable.
-- **Six Guidde recordings**, one per beat, captured in Product Demo mode.
+- **Eight Guidde recordings**, one per beat, captured in Product Demo mode.
 - **A second, larger deliverable:** the five product guides described in
   "Second deliverable — the product guides". These are captured in Guidde's
   step-by-step mode and are worth more than the marketing video.
@@ -96,28 +96,85 @@ the runtime doesn't matter.
 it. Shooting only 60 seconds means re-shooting when the hero needs to become
 a full tour.
 
+## Which features the video shows
+
+The canonical list is the **landing page's own feature grid**
+(`components/marketing/features-section.tsx`), because that is what you have
+already told the market you sell. Verified against the code, those six ship.
+
+| # | Feature | Ships? | In the video? | Where |
+|---|---|---|---|---|
+| 1 | **One master, many variants** | ✅ | ✅ **new** | Beat 1 — the resume list |
+| 2 | **Job context attached** | ✅ | ✅ | Beat 2 — the montage |
+| 3 | **ATS scoring** | ✅ | ✅ | Beats 1 + 6 |
+| 4 | **AI chat assistant** (Scout) | ✅ | ✅ | Beat 4 |
+| 5 | **Private sharing links** | ✅ | ✅ | Beat 7 — the close |
+| 6 | **Inline AI rewrites** | ✅ | ✅ **new** | Beat 5 |
+| 7 | *Highlight this job's skills* | ✅ (not on the landing page) | ✅ | Beat 3 |
+| 8 | *Rich text formatting (B/I/U)* | ✅ (not on the landing page) | ❌ omitted | — |
+
+**Seven of the eight shipped features.** The omission is deliberate: rich-text
+formatting has an honesty line attached to it — *"formatting doesn't change
+your ATS score"* — and showing the formatting **without** that line would
+imply formatting helps the score. Showing it **with** the line gives you two
+honesty beats (this and the Northwind refusal), and one is enough. So it is
+omitted entirely, and it becomes the first product guide instead.
+
+### The two features that must never appear
+
+**Peer reviews** and **real-time collaboration** do not exist. They were
+advertised while Pro was soft-launched and the purchase page was unreachable,
+so nobody could check — and both the features grid and the pricing page
+carry a `REPLACED 2026-10-21` note saying so.
+
+There is no reviews table and no invite flow. And `lib/liveblocks/server.ts`
+is **imported by nothing** — the Liveblocks dependency is dead code. Worth
+deleting rather than leaving a locked-stack component that no one can reach.
+
+Do not let either of them back into a demo video, a landing page, a pitch
+deck, or a sales call.
+
+### Why all seven, and not a feature tour
+
+A tour lists features. A story shows them **at the moment they are needed**,
+and every one of these seven is a step in the same argument:
+
+> you keep one master → you tailor it per posting → the posting is read →
+> the score tells you where you actually stand → the posting's real skills
+> get marked → the agent finds the gap you would have missed → you fix it →
+> the score moves → and it refuses to fake the part it cannot fix → send it
+
+Seven features, one argument, 2:25. If a beat does not advance that argument,
+it does not go in the video — which is why the pricing page, the print
+settings, the template gallery, the GDPR export and the billing screen are all
+absent.
+
 ## The storyboard
 
 Six beats. Each beat earns the next one.
 
-### Beat 1 — Cold open (0:00–0:15) · The gap
+### Beat 1 — Cold open (0:00–0:15) · One master, many variants
 
-**Visual.** Black → the resume, scrolling slowly down. Clean, professional,
-believable — the kind of resume someone is proud of. Hold on the work
-history. Hard cut to the scorecard: **75/100**, tier badge **Good**. Then the
-camera drifts to the weakest bar: **Role fit — 50**.
+**Visual.** The resume list — `/dashboard/resumes`. Two rows: **"Jordan Ellis
+— Master Resume"** and **"Jordan Ellis — Cartwheel (Backend Platform)"** with
+a **75** badge on the variant. Hold three seconds. Click into the variant.
+The scorecard opens: **75/100**, tier badge **Good**. The camera drifts to the
+weakest bar: **Role fit — 50**.
 
 **VO.**
 > Seventy-five out of a hundred. A good score. On one dimension, half marks.
 
-**Why.** The category's whole promise is a number, so the cold open has to be
-a number — then immediately undercut it. But the undercutting here is better
-than "your score is low": **75 is a good score and the resume is still wrong
-for this job.** A candidate who scores 74 and can see the numbers but no way
-to improve them is precisely the complaint that produced the scorecard-tips
-drift memo. Here the fix is visible: role fit is 50 because the resume calls
-Jordan a *Senior Software Engineer* and the posting wants a *Senior Backend
-Engineer*.
+**Why.** The list shot is the whole product in one frame — one master, a
+tailored variant, and the score on it — and it proves the **first card on
+your own landing page** without a word of narration. It is also the cheapest
+possible way to establish what the product is before the scorecard appears.
+
+The number then lands as a **revelation** rather than a complaint: 75 is good,
+and it is still wrong for this job. A candidate who scored 74 and could see
+the numbers but no way to improve them is precisely the complaint that
+produced the scorecard-tips drift memo. Here the fix is visible: role fit is
+50 because the resume calls Jordan a *Senior Software Engineer* and the
+posting wants a *Senior Backend Engineer*.
 
 **Do not** open on the logo. Open on the thing that's broken.
 
@@ -169,7 +226,7 @@ Northwind posting classifies as **0 genuine skills**, so the same button
 refuses — that's Beat 6.
 
 
-### Beat 4 — Scout (0:42–1:25) · The agent works
+### Beat 4 — Scout (0:42–1:15) · The agent works
 
 **Visual.** The agent intro bubble rises above the floating trigger (the
 45-second idle moment — in the video it just appears). Click. The chat panel
@@ -209,7 +266,35 @@ Haiku 5.5"* (`components/chat/chat-window.tsx`). Leave it. It's honest, it's
 modern, and name-dropping the model builds credibility with exactly the
 technical audience that reads SaaS demo videos.
 
-### Beat 5 — The payoff (1:25–1:45) · The number moves
+### Beat 5 — The inline rewrite (1:15–1:32) · You fix it yourself
+
+**Visual.** Back on the scorecard. Click the **Role fit** dimension bar. The
+resume jumps to the relevant field and it pulses. The Pro popover opens with
+**three alternatives**. Click one. It replaces the field in place.
+
+**VO.**
+> Or fix it yourself. Click what's wrong. It gives you three ways to say it
+> better.
+
+**Why.** This is the sixth card on your landing page and the video was missing
+it. It is the fastest, most reliable "it fixes it" moment in the whole
+product — one click, one short AI call, no dead pause, no model variance — and
+it communicates the value of Pro by **showing the thing, not the upsell**.
+
+**Two fixes, two mechanisms, on purpose.** Scout found the gap on its own
+(surprise); the inline rewrite lets you act on any flagged thing yourself
+(control). Scout's contribution is that it finds what you would have missed;
+the popover's is that it hands you the pen. Neither subsumes the other, and
+showing both is what makes the product feel like a tool rather than one
+clever trick.
+
+**One thing to confirm during the manual test:** which field the **Role fit**
+bar anchors to. It should land on the headline — the thing Scout is about to
+call "Senior Software Engineer" — but confirm it. If it lands somewhere
+unhelpful, use **Impact** (Accomplishment Focus) instead, which anchors to a
+bullet, and let Scout's headline fix carry the narrative.
+
+### Beat 6 — The payoff (1:32–1:52) · The number moves
 
 **Visual.** Recompute. The score animates from **75** to whatever it really
 becomes. The radar shape shifts. The dimension bars fill — and **Role fit
@@ -233,7 +318,7 @@ are genuinely absent from Jordan's history, and a video that ends at 100 would
 be the one lie in an otherwise honest product.
 
 
-### Beat 6 — The refusal (1:45–1:55) · Proof it's honest
+### Beat 7 — The refusal (1:52–2:02) · Proof it's honest
 
 **Visual.** A second posting that names no real skills. The honest message:
 *"This posting doesn't name skills your resume lists — nothing to highlight."*
@@ -250,7 +335,7 @@ objection ("is this just keyword matching dressed up?") into evidence.
 
 **Cut it from the hero cut** if the hero needs to be under 55 seconds.
 
-### Beat 7 — Close (1:55–2:15) · Ship it
+### Beat 8 — Close (2:02–2:25) · Ship it
 
 **Visual.** Export → the PDF opens. The share link copies. Back to the
 scorecard. End card: the Nexstepper mark, the tagline, the URL.
@@ -286,19 +371,22 @@ actual seeded footage.
         "event-driven" — but the transcription pipeline is event-driven.
         You just didn't call it that.
 
-[1:12]  Kafka, I can't fix. You haven't done it. I'm not going to write
+[1:08]  Kafka, I can't fix. You haven't done it. I'm not going to write
         it for you.
 
-[1:25]  Seventy-five to «SCORE_AFTER». Nothing invented. Every change is
+[1:15]  Or fix it yourself. Click what's wrong. It gives you three ways
+        to say it better.
+
+[1:32]  Seventy-five to «SCORE_AFTER». Nothing invented. Every change is
         something your resume already proves.
 
-[1:45]  And when the posting doesn't name real skills, it says so. It
+[1:52]  And when the posting doesn't name real skills, it says so. It
         won't bold something you don't have.
 
-[1:55]  Export it. Send it. Apply.
+[2:02]  Export it. Send it. Apply.
 ```
 
-**The 0:58 and 1:12 lines are predicted, not confirmed.** They follow from
+**The 0:58 and 1:08 lines are predicted, not confirmed.** They follow from
 what the seeded analysis actually found — *"Core requirements are well
 evidenced (Go services, gRPC over PostgreSQL on Kubernetes/Terraform/AWS,
 nine years, owned on-call), but the resume shows no Kafka or event-driven
@@ -307,8 +395,8 @@ agent's refusal rules. Run the chat once during rehearsal and **rewrite these
 two lines in Scout's actual words.** The structure must survive: one fixable
 gap, one fixable gap, one gap Scout refuses to close.
 
-**Read it at ~150 words per minute.** The script above is ~160 words, which
-lands the VO at about 65 seconds of speech inside a 2:15 video — the rest is
+**Read it at ~150 words per minute.** The script above is ~175 words, which
+lands the VO at about 70 seconds of speech inside a 2:25 video — the rest is
 silence, UI, and cuts. That ratio is deliberate. A demo crammed with
 narration sounds like a slideshow with a voiceover.
 
@@ -487,7 +575,20 @@ close.
 Expect the headline and bullets to change in place. The agent mark goes
 `working` → `applied`.
 
-### 7. Recompute — the money shot
+### 7. The inline rewrite — the second fix
+
+Back on the scorecard, click the **Role fit** dimension bar.
+
+Expect: the resume jumps to the relevant field, the field pulses, and a Pro
+popover opens with **three alternatives**. Click one and it replaces the
+field in place. The popover takes a couple of seconds to produce the
+alternatives — short enough to leave in.
+
+**Confirm which field "Role fit" anchors to.** It should land on the headline
+(the thing Scout calls "Senior Software Engineer"). If it lands somewhere
+unhelpful, use **Impact** instead, which anchors to a bullet.
+
+### 8. Recompute — the money shot
 
 Click **Recompute**. The score recomputes.
 
@@ -500,7 +601,7 @@ screen.
 genuinely absent from Jordan's history, so the score must not reach 100. A
 video that ends at 100 is the one lie in an otherwise honest product.
 
-### 8. The refusal
+### 9. The refusal
 
 Open the **Northwind Supply — Customer Operations Specialist** application.
 Click "Highlight this job's skills" again.
@@ -510,11 +611,11 @@ highlight."**
 
 **If it marks anything, stop and tell me** — Beat 6 cannot be filmed.
 
-### 9. Export and share
+### 10. Export and share
 
 Export → PDF (check the print preview renders the resume). Share → copy link.
 
-### 10. Re-seed before the shoot
+### 11. Re-seed before the shoot
 
 **This matters: the manual test dirties the data.** Scout's edits in step 6
 changed the resume, so the "before" state is no longer 75.
@@ -629,13 +730,14 @@ long take. Six recordings also means a botched take costs you one beat.
 
 | Beat | Guidde | Mode | Notes |
 |---|---|---|---|
-| 1 — Cold open | `01-cold-open` | Product Demo | Scroll the resume, cut to the scorecard, let it sit on Role fit 50 |
+| 1 — Cold open | `01-cold-open` | Product Demo | The resume list (master + variant + 75 badge), then click into the variant, let it sit on Role fit 50 |
 | 2 — Setup montage | `02-setup` | Step-by-step + Screen Walkthrough | Import, paste JD, create variant |
 | 3 — The reading | `03-highlight` | Product Demo | Click "Highlight this job's skills", skills go bold, must-haves underline |
 | 4 — Scout | `04-scout` | Product Demo | Open chat, send the prompt, watch the edits land |
-| 5 — The payoff | `05-score` | Product Demo | Click Recompute, hold on the score moving |
-| 6 — The refusal | `06-refusal` | Product Demo | Switch to the Northwind posting, click highlight, it refuses |
-| 7 — Close | `07-close` | Product Demo | Export → PDF → share link |
+| 5 — The inline rewrite | `05-inline` | Product Demo | Click the Role fit bar, three alternatives, pick one |
+| 6 — The payoff | `06-score` | Product Demo | Click Recompute, hold on the score moving |
+| 7 — The refusal | `07-refusal` | Product Demo | Switch to the Northwind posting, click highlight, it refuses |
+| 8 — Close | `08-close` | Product Demo | Export → PDF → share link |
 
 **Beat 4 will have a dead pause.** The chat waits for the model — five to
 fifteen seconds of a still screen while the reply streams. The seeded
@@ -864,9 +966,20 @@ separate take while the editor idles, or drop it.
 - [ ] The Brand Kit carries Manrope and the wordmark.
 - [ ] The recorded footage contains no real candidate data.
 
+**Coverage**
+
+- [ ] All **seven** of the features the video claims to show are actually on
+      screen: one master / many variants, job context attached, ATS scoring,
+      highlight the posting's skills, the AI chat assistant, inline AI
+      rewrites, private sharing links.
+- [ ] **Peer reviews and real-time collaboration appear nowhere** — they do
+      not exist.
+- [ ] Rich-text formatting appears nowhere, so nothing implies that
+      formatting changes the score.
+
 **The cut**
 
-- [ ] Master cut is 2:00–2:30, 1920×1080, 60fps, Manrope throughout.
+- [ ] Master cut is 2:15–2:30, 1920×1080, 60fps, Manrope throughout.
 - [ ] The first 8 seconds establish "resume tool + this posting + a problem"
       without narration carrying the meaning alone.
 - [ ] The score visibly moves, and the VO number matches the on-screen number
