@@ -45,9 +45,19 @@ do next.
 - A full **voiceover script** with timings (below), ready to record.
 - A **seed script** that builds a deterministic demo account so the shoot is
   repeatable.
+- **Six Guidde recordings**, one per beat, captured in Product Demo mode.
+- **A second, larger deliverable:** the five product guides described in
+  "Second deliverable — the product guides". These are captured in Guidde's
+  step-by-step mode and are worth more than the marketing video.
 
 ## Non-goals (out of this plan)
 
+- **Guidde's auto-generated script.** Guidde writes a script for you from what
+  it captured. For a *how-to guide* that is exactly right. For the hero video
+  it is wrong: the script is the argument, and ours says things a generic
+  summariser would not — "Kafka, I can't fix. You haven't done it." Replace
+  Guidde's generated copy with the written script, and record your own voice
+  rather than Magic Mic's AI one.
 - **A feature tour.** No "here's our seven-axis radar chart, and here's our
   three-step flow, and here's the pricing page." The radar appears for 2
   seconds inside the payoff beat and is never named.
@@ -405,34 +415,205 @@ that surface in the footage.
 - Prepare the resume PDF and the JD text in a text file, ready to paste, so
   no take is spent typing.
 
-## Production spec
+## Production spec — Guidde
 
-**Capture.** 1920×1080, 60fps. Tool on Windows: **ScreenPal** (free; built-in
-zoom, callouts, cursor smoothing, click sounds) or **OBS**. ScreenPal is the
-right pick for a solo founder — its zoom-and-punch effect is the standard
-SaaS-demo look and it takes about ten minutes to learn.
+**Guidde is the capture engine.** Not the editor. It is very good at one thing
+(turning a screen recording into a narrated, captioned, on-brand video in
+minutes) and it has no timeline editor at all, so the cut has to happen
+somewhere else. Splitting it that way is the whole trick.
 
-**Edit.** **Descript** — edit the video by editing the transcript. It removes
-filler words, generates captions, and lets you re-order beats by moving text.
-For a founder making one video with no editor, it is the difference between
-"two days" and "two weeks." Fall back to DaVinci Resolve (free) if you
-already know it.
+### What you need
 
-**Type.** **Manrope** — the product's own face (`app/layout.tsx`, via
-`next/font/google`; `docs/brand/logo-brief.md` §3). Captions and lower-thirds
-use it. No other typeface appears in the video.
+| | Free | Pro ($19/creator/mo annual) | Business ($39/mo annual) |
+|---|---|---|---|
+| Web-app capture (Chrome/Edge extension) | ✅ | ✅ | ✅ |
+| How-to videos | 25 | Unlimited | Unlimited |
+| **MP4 / GIF / PDF export** | ❌ | ✅ | ✅ |
+| **Watermark removed** | ❌ | ✅ | ✅ |
+| **Brand Kit** (fonts, colours, logo) | ❌ | ✅ | ✅ |
+| **Blur sensitive info** | ❌ | ✅ | ✅ |
+| **Magic Mic** (spoken → clean AI voice) | ❌ | ❌ | ✅ |
+| Desktop app (native windows) | ❌ | ❌ | ✅ |
 
-**Color.** Whatever `app/globals.css` resolves to. Grade the footage to match
-the product rather than the other way round — a demo that looks nicer than
-the product is a lie.
+**Take Pro.** It is $19/month and it is the plan that removes the two blockers
+for a *public marketing* video: the watermark and the lack of MP4 export. Free
+gives you share links only — you cannot download the file, so you cannot cut
+it, so it cannot become the master.
+
+**Skip Business unless you want Magic Mic.** Magic Mic (speak while you work →
+Guidde cleans your narration into a polished AI voiceover, pauses removed) is
+excellent, but it is Business-only and it replaces your voice with an AI one.
+For the *hero* cut, keep your own voice — a founder's real voice on a landing
+page outperforms a synthetic one, and the narration is 160 words, so you will
+record it five times and that is fine.
+
+**Magic Mic is the right tool for the product guides** (below), where the
+voiceover is narration rather than a founder speaking.
+
+**Nothing is installed on this machine yet.** The Chrome extension is
+`oacmmmjedhheaijfjidilonpngccnhdl`, the Edge one is
+`pldeojbhedianlcaejpfbnckfhkacphe`. The desktop app is Business-only, and you
+do not need it — the entire demo happens in the browser.
+
+### The setting that decides everything
+
+Guidde has two recording modes and picking the wrong one kills the payoff:
+
+- **Screen Capture / Product Demo** → "always produce continuous video steps by
+  design." Continuous screen motion.
+- **Step-by-step Guidde** → every click becomes either a video step or a
+  **static step** (a still image with an auto-generated callout), depending on
+  whether you were speaking at the time.
+
+**Record every beat of the hero video in Product Demo / Screen Capture mode.**
+The step-by-step mode turns the score animating from 75 to 84 and Scout's
+bullet rewriting in place into two still screenshots with arrows on them — which
+is a how-to guide, not a demo, and it destroys the two beats that make the
+video worth watching.
+
+For **Beat 2** (the 9-second setup montage: import → paste JD → tailor) the
+step-by-step mode is actually *better* — it is literally three steps — and
+Guidde's **Screen Walkthrough** (animates the cursor between interaction points
+with a click effect, no arrows or text) is the standard SaaS-demo look. But
+test it: if the continuous capture already looks clean, keep one mode for the
+whole video. A video that changes visual grammar mid-way reads as two videos.
+
+### The capture plan
+
+Record **one Guidde per beat** — six short clips, not one long one. Each
+recording is under the 10-minute limit, each is easy to re-take, and the
+editor can then assemble six clean sources instead of digging through a single
+long take. Six recordings also means a botched take costs you one beat.
+
+| Beat | Guidde | Mode | Notes |
+|---|---|---|---|
+| 1 — Cold open | `01-cold-open` | Product Demo | Scroll the resume, cut to the scorecard, let it sit on Role fit 50 |
+| 2 — Setup montage | `02-setup` | Step-by-step + Screen Walkthrough | Import, paste JD, create variant |
+| 3 — The reading | `03-highlight` | Product Demo | Click "Highlight this job's skills", skills go bold, must-haves underline |
+| 4 — Scout | `04-scout` | Product Demo | Open chat, send the prompt, watch the edits land |
+| 5 — The payoff | `05-score` | Product Demo | Click Recompute, hold on the score moving |
+| 6 — The refusal | `06-refusal` | Product Demo | Switch to the Northwind posting, click highlight, it refuses |
+| 7 — Close | `07-close` | Product Demo | Export → PDF → share link |
+
+**Beat 4 will have a dead pause.** The chat waits for the model — five to
+fifteen seconds of a still screen while the reply streams. The seeded
+first-session analysis means Scout already knows the verdict, which makes the
+reply faster, but it still is not instant. **Cut the wait in the edit.** A
+jump-cut is invisible and it is the only way this beat works.
+
+**Beat 1's agent intro bubble** appears after 45 seconds of idle. You cannot
+wait for it on camera. Either let the editor sit idle while you record another
+beat and grab the bubble in that take, or cut the bubble entirely — the
+narrative does not need it.
+
+**Guidde does not capture system audio** (no browser tab sounds, no app
+notifications). Your VO is a separate recording anyway.
+
+### Export, then cut
+
+Export each Guidde as **MP4 with captions burned in** (Guidde's export modal
+has an "Include captions" toggle — you want this on, because the hero cut
+plays muted for most people).
+
+Then assemble in **CapCut Desktop** (free, Windows, has 9:16 presets and
+auto-captions) or **DaVinci Resolve** (free, pro-grade). CapCut is the right
+call for a solo founder: the text-based timeline is close to Descript for
+trimming-by-script, the vertical preset is one click, and it costs nothing.
+
+**Do the final cut outside Guidde.** Guidde's editor can reorder and trim
+*steps* — that is a coarse timeline, not a cinematic one. It cannot recut the
+same footage to 60 seconds, it cannot recompose to 9:16 (a three-column editor
+cropped to vertical is unusable), and it cannot give you a 3-second static end
+card. Those are three of the four deliverables in the distribution table.
+
+### The end card
+
+Build it in the editor, not in Guidde: `public/brand/nexstepper-horizontal-clean.png`,
+wordmark in Manrope, tagline **"Take the next step."**, `nexstepper.com`. Three
+seconds, static, silent. Guidde's Brand Kit can put the logo on every frame,
+which handles consistency — but the end card wants to be a still.
+
+### Brand Kit
+
+Upload the wordmark and set Manrope as the caption font. Guidde applies them
+to every guidde, so the documentation guides and the marketing video look like
+the same product. The app's own colours come from `app/globals.css` — do not
+re-grade the footage to look nicer than the product; a demo that looks better
+than the thing it demos is a lie.
+
+### Type, colour, sound
+
+**Type.** Manrope only — the product's own face (`app/layout.tsx`, via
+`next/font/google`; `docs/brand/logo-brief.md` §3). No other typeface appears
+in the video.
 
 **Sound.** A very quiet ambient bed ducked to roughly **-18dB** under the VO,
 license-clear (YouTube Audio Library, Artlist, Epidemic). One soft click
 sound. **No mechanical mouse click, no risers, no "swoosh."** The brand is
 calm competence; a trailer sound bed contradicts the product.
 
-**Captions.** Burned-in on the hero cut (most visitors watch muted) and
-shipped as a separate `.srt` on the master.
+**Captions.** Guidde can burn them into the exported MP4. Ship the master with
+a separate `.srt` as well, and burn them in on the hero cut.
+
+### The GIF micro-asset
+
+Guidde exports GIF, but only of a whole guidde — and the landing page wants a
+3-second loop of the score ticking up. Two ways to get it:
+
+1. Record that one moment separately with any recorder, then **upload the MP4
+   to Guidde with "Keep the video as is"** and export it as a GIF. Guidde's
+   upload flow takes an existing MP4 and can leave it as a single step.
+2. Or skip Guidde for it and make the GIF in CapCut.
+
+## Second deliverable — the product guides
+
+**This is where Guidde actually earns its keep for Nexstepper**, and it is
+worth more than the marketing video.
+
+Guidde's native output is a narrated step-by-step video *and* a matching
+article, from one capture. That is exactly the shape of the content a solo
+founder cannot otherwise produce: the feature guides, the onboarding material,
+the help-centre content. Nexstepper has features that need explaining —
+creating a variant from a posting, highlighting a posting's skills, inviting a
+reviewer, sharing a link, exporting a PDF — and each one is a two-minute
+capture.
+
+What makes it compounding rather than a one-off:
+
+- **One capture, two outputs.** Video for the landing page and the docs; an
+  article for the knowledge base. The founder writes neither.
+- **The seeded demo account makes it repeatable.** `pnpm seed:demo` gives you
+  the same resume, the same posting and the same score every time, so a guide
+  never has to be re-shot because the data moved.
+- **Translation into 40+ languages with synced subtitles.** For a resume
+  product with international candidates, that is a distribution advantage
+  nobody else in the category has.
+- **Blur sensitive information.** The seeded resume has a synthetic email and
+  phone number, but this also means you can film a guide without ever
+  thinking about what is on screen.
+- **Brand Kit.** Every guide is on-brand by default.
+- **It is also a sales asset.** A "here's how we tailor a resume to your
+  posting" walkthrough, recorded against the seeded demo account, is
+  something you can put in a sales email.
+
+Suggested first five guides, in the order they block a new user:
+
+1. **Create a variant from a job posting** — the core loop.
+2. **Read your ATS score** — what the seven dimensions mean and what the tips
+   are claiming. (Also the guide that keeps the scorecard-tips drift from
+   happening again.)
+3. **Ask Scout to fix a gap** — the agent, and the refusal.
+4. **Invite a reviewer / share a link.**
+5. **Export to PDF.**
+
+Capture each in **step-by-step mode** with **Screen Walkthrough on** — these
+are how-to guides, which is exactly what that mode is for. Turn on **Magic
+Mic** (Business) so the narration is cleaned up automatically and
+translatable; for guides the AI voice is an advantage, not a compromise.
+
+**Guidde's Knowledge Base** can publish them into a docs site; the integrations
+(Zendesk, Slack, Confluence, Salesforce) can drop them where users already
+are.
 
 ## Distribution
 
@@ -487,7 +668,26 @@ OpenTelemetry are genuinely absent from Jordan's history.
 **5. Editing eats the schedule.** The edit is the long pole, not the shoot.
 **Mitigation:** write and approve this script *before* the shoot, and record
 the VO before touching the timeline. The script is the deliverable that
-unblocks the edit; without it, the editor is guessing.
+unblocks the edit; without it, the editor is guessing. Six separate Guidde
+recordings make the assembly mechanical rather than creative.
+
+**6. Guidde's step-by-step mode flattens the payoff.** This is the one that
+ruins the video if you miss it. In step-by-step mode a silent click becomes a
+**still image with an auto-generated callout**, so Scout's bullet rewriting in
+place and the score animating both arrive as two static frames with arrows.
+**Mitigation:** record every hero beat in **Product Demo / Screen Capture**
+mode, and check the exported MP4 before moving on — if the score animates in
+the export, the mode is right; if it is a still, it is not.
+
+**7. The free plan's watermark and export limits.** A Free-plan guidde cannot
+be downloaded at all, and it carries a watermark. **Mitigation:** Pro, $19 per
+creator per month on annual billing. If you are on Free today, that is the
+first thing to change — nothing else in this pipeline works without it.
+
+**8. The chat beat has a dead pause and the bubble has a 45-second timer.**
+Both are timing problems the capture tool cannot solve. **Mitigation:**
+jump-cut the pause in the editor; capture the agent intro bubble in a
+separate take while the editor idles, or drop it.
 
 ## Acceptance criteria
 
@@ -508,6 +708,17 @@ unblocks the edit; without it, the editor is guessing.
       refusal fires as written.
 - [x] A first-session analysis is persisted, so Scout opens informed.
 
+**Capture**
+
+- [ ] Guidde is on **Pro** — no watermark, MP4 export works.
+- [ ] Every hero beat is recorded in **Product Demo / Screen Capture** mode,
+      and the exported MP4 shows the score *animating* rather than as two
+      stills. If it is a still, the mode is wrong.
+- [ ] Six separate recordings, one per beat, each re-takeable on its own.
+- [ ] Captions are burned into the exported MP4s.
+- [ ] The Brand Kit carries Manrope and the wordmark.
+- [ ] The recorded footage contains no real candidate data.
+
 **The cut**
 
 - [ ] Master cut is 2:00–2:30, 1920×1080, 60fps, Manrope throughout.
@@ -524,6 +735,17 @@ unblocks the edit; without it, the editor is guessing.
 - [ ] End card uses `public/brand/nexstepper-horizontal-clean.png` and the
       "Take the next step." tagline.
 
+**Product guides**
+
+- [ ] Five guides captured: variant-from-posting, read-your-score, ask-Scout,
+      reviewer-and-share, export-to-PDF.
+- [ ] Each produces both a video and a matching article.
+- [ ] Each is captured against the seeded demo account, so a re-shoot never
+      needs new data.
+- [ ] Sensitive-information blur is on for every capture.
+- [ ] At least one guide is published in a second language with synced
+      subtitles.
+
 ## Open questions
 
 1. **Who is the video for?** Job seekers, or also the employers we might one
@@ -537,7 +759,10 @@ unblocks the edit; without it, the editor is guessing.
 4. **Is the Beat 6 refusal worth 8 seconds of the hero cut?** It is the best
    trust beat in the piece. The hero cut should probably keep it and cut the
    setup montage to 5 seconds instead.
-5. **Who edits?** Descript, founder, one day. Or hand the master to an
-   editor with this script and let them build the cuts — at which point the
-   script needs to be handed over *as a document*, which is why this file
-   exists.
+5. **Who edits?** CapCut, founder, one day. Or hand the master to an editor
+   with this script and let them build the cuts — at which point the script
+   needs to be handed over *as a document*, which is why this file exists.
+6. **Do the guides get their own voice?** Magic Mic on Business gives you a
+   cleaned, translatable AI voice; Pro keeps your own. Recommendation: AI
+   voice for the guides (narration, not a founder speaking), your own voice
+   for the hero cut.
