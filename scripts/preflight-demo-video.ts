@@ -121,9 +121,17 @@ async function main(): Promise<void> {
     .select({ id: resumes.id, name: resumes.name, isMaster: resumes.isMaster })
     .from(resumes)
     .where(eq(resumes.userId, userId));
-  const variant = owned.find((r) => !r.isMaster);
+
+  // Pick the Cartwheel variant BY NAME, not "the first variant". The
+  // seeder creates two (the second exists so the refusal beat is
+  // filmable), and only the Cartwheel one scores 75 with Role fit 50.
+  const variant = owned.find((r) => !r.isMaster && r.name.includes('Cartwheel'));
   if (!variant) {
-    fail('no variant — run `pnpm seed:demo` first');
+    fail(
+      'no Cartwheel variant — run `pnpm seed:demo` first (found: ' +
+        owned.map((r) => r.name).join(' | ') +
+        ')'
+    );
     return;
   }
   ok(`variant "${variant.name}"`);

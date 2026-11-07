@@ -153,7 +153,7 @@ absent.
 
 Six beats. Each beat earns the next one.
 
-### Beat 1 — Cold open (0:00–0:15) · One master, many variants
+### Beat 1 — Cold open (0:00–0:08) · One master, many variants
 
 **Visual.** The resume list — `/dashboard/resumes`. Two rows: **"Jordan Ellis
 — Master Resume"** and **"Jordan Ellis — Cartwheel (Backend Platform)"** with
@@ -182,26 +182,31 @@ posting wants a *Senior Backend Engineer*.
 fixture — the engine says 75, and the video has to say 75.
 
 
-### Beat 2 — Setup montage (0:15–0:24) · Context in 9 seconds
+### Beat 2 — The posting and the scorecard (0:08–0:15) · Job context attached
 
-**Visual.** Three fast cuts, no VO:
-1. A PDF dropped into the import zone → parsed sections fill the outline.
-2. A JD pasted → the panel resolves into structured requirements, must-haves,
-   seniority.
-3. A variant created from the master.
+**Visual.** Still on the variant page. Frame the **right rail**: the **JD
+panel** at the top — "Senior Backend Engineer, Platform", Cartwheel,
+Seattle — with the parsed posting underneath — then tilt down to the **ATS
+scorecard**: **75/100**, tier badge **Good**, the radar, and the seven
+dimension bars.
 
-**On-screen text**, one word each, lower third: `Import.` → `Paste.` →
-`Tailor.`
+**VO.**
+> One master, tailored to this posting. Seventy-five out of a hundred — a
+> good score. On one dimension, half marks.
 
-**Why.** A stranger opening mid-product has no idea what they're looking at.
-This beat answers "what is this?" in nine seconds so the rest of the video
-can assume the answer. It is fast enough to not be boring because there is no
-narration over it.
+**Why.** This replaces the original 9-second import/paste/tailor montage,
+and it is strictly better. The montage needed the founder to paste a JD into
+the master and create a variant — which would have produced a **duplicate
+variant** in the demo account and made the Beat 1 shot wrong. This shot uses
+state that already exists, needs no destructive action, and proves the same
+feature: the posting is attached and parsed, and the score is measured against
+it.
 
-**Do not** narrate the three steps. The landing page's HowItWorks section
-already does this properly, in text, for people who want to read it.
+It also establishes the layout a stranger has to follow for the next four
+beats: **the resume is on the left, the posting and the score are on the
+right.** One establishing frame, and every later click has a home.
 
-### Beat 3 — The reading (0:24–0:42) · What the posting actually wants
+### Beat 3 — The reading (0:15–0:33) · What the posting actually wants
 
 **Visual.** The **"Highlight this job's skills"** button in the editor
 (`components/rich-text/job-skill-highlight-button.tsx`). Click it. Skills in
@@ -226,7 +231,7 @@ Northwind posting classifies as **0 genuine skills**, so the same button
 refuses — that's Beat 6.
 
 
-### Beat 4 — Scout (0:42–1:15) · The agent works
+### Beat 4 — Scout (0:33–1:06) · The agent works
 
 **Visual.** The agent intro bubble rises above the floating trigger (the
 45-second idle moment — in the video it just appears). Click. The chat panel
@@ -266,7 +271,7 @@ Haiku 5.5"* (`components/chat/chat-window.tsx`). Leave it. It's honest, it's
 modern, and name-dropping the model builds credibility with exactly the
 technical audience that reads SaaS demo videos.
 
-### Beat 5 — The inline rewrite (1:15–1:32) · You fix it yourself
+### Beat 5 — The inline rewrite (1:06–1:23) · You fix it yourself
 
 **Visual.** Back on the scorecard. Click the **Role fit** dimension bar. The
 resume jumps to the relevant field and it pulses. The Pro popover opens with
@@ -294,7 +299,7 @@ call "Senior Software Engineer" — but confirm it. If it lands somewhere
 unhelpful, use **Impact** (Accomplishment Focus) instead, which anchors to a
 bullet, and let Scout's headline fix carry the narrative.
 
-### Beat 6 — The payoff (1:32–1:52) · The number moves
+### Beat 6 — The payoff (1:23–1:43) · The number moves
 
 **Visual.** Recompute. The score animates from **75** to whatever it really
 becomes. The radar shape shifts. The dimension bars fill — and **Role fit
@@ -318,7 +323,7 @@ are genuinely absent from Jordan's history, and a video that ends at 100 would
 be the one lie in an otherwise honest product.
 
 
-### Beat 7 — The refusal (1:52–2:02) · Proof it's honest
+### Beat 7 — The refusal (1:43–1:53) · Proof it's honest
 
 **Visual.** A second posting that names no real skills. The honest message:
 *"This posting doesn't name skills your resume lists — nothing to highlight."*
@@ -335,7 +340,7 @@ objection ("is this just keyword matching dressed up?") into evidence.
 
 **Cut it from the hero cut** if the hero needs to be under 55 seconds.
 
-### Beat 8 — Close (2:02–2:25) · Ship it
+### Beat 8 — Close (1:53–2:16) · Ship it
 
 **Visual.** Export → the PDF opens. The share link copies. Back to the
 scorecard. End card: the Nexstepper mark, the tagline, the URL.
@@ -353,50 +358,50 @@ Full text, ready to record. `«»` marks a value that must be read off the
 actual seeded footage.
 
 ```
-[0:00]  Seventy-five out of a hundred. A good score. On one dimension,
+[0:00]  One master. A tailored variant for every job.
+
+[0:08]  Seventy-five out of a hundred. A good score. On one dimension,
         half marks.
 
-[0:15]  (no VO — three fast cuts, one word each on screen)
-
-[0:24]  Nexstepper reads the posting before it reads you. It knows which
+[0:15]  Nexstepper reads the posting before it reads you. It knows which
         lines are real skills and which are just noise. Must-haves get
         underlined.
 
-[0:42]  Then Scout reads the resume against the posting. Not keyword
+[0:33]  Then Scout reads the resume against the posting. Not keyword
         matching. It asks whether the resume actually shows what the role
         needs.
 
-[0:58]  Two of these I can fix. Your headline says Software Engineer;
+[0:49]  Two of these I can fix. Your headline says Software Engineer;
         this posting wants a Backend Engineer. And you never say
         "event-driven" — but the transcription pipeline is event-driven.
         You just didn't call it that.
 
-[1:08]  Kafka, I can't fix. You haven't done it. I'm not going to write
+[0:59]  Kafka, I can't fix. You haven't done it. I'm not going to write
         it for you.
 
-[1:15]  Or fix it yourself. Click what's wrong. It gives you three ways
+[1:06]  Or fix it yourself. Click what's wrong. It gives you three ways
         to say it better.
 
-[1:32]  Seventy-five to «SCORE_AFTER». Nothing invented. Every change is
+[1:23]  Seventy-five to «SCORE_AFTER». Nothing invented. Every change is
         something your resume already proves.
 
-[1:52]  And when the posting doesn't name real skills, it says so. It
+[1:43]  And when the posting doesn't name real skills, it says so. It
         won't bold something you don't have.
 
-[2:02]  Export it. Send it. Apply.
+[1:53]  Export it. Send it. Apply.
 ```
 
-**The 0:58 and 1:08 lines are predicted, not confirmed.** They follow from
-what the seeded analysis actually found — *"Core requirements are well
-evidenced (Go services, gRPC over PostgreSQL on Kubernetes/Terraform/AWS,
-nine years, owned on-call), but the resume shows no Kafka or event-driven
-work and no order, payments, or fulfilment domain experience"* — and from the
-agent's refusal rules. Run the chat once during rehearsal and **rewrite these
-two lines in Scout's actual words.** The structure must survive: one fixable
-gap, one fixable gap, one gap Scout refuses to close.
+**The 0:49 and 0:59 lines are predicted, not confirmed.** They follow from
+what the seeded analysis actually found — *"Strong match on the core
+infrastructure and on-call profile, but the resume shows no event-driven
+architecture, no Kafka, and no schema or query-performance depth in
+PostgreSQL, which the JD requires"* — and from the agent's refusal rules. Run
+the chat once during rehearsal and **rewrite these two lines in Scout's actual
+words.** The structure must survive: one fixable gap, one fixable gap, one
+gap Scout refuses to close.
 
-**Read it at ~150 words per minute.** The script above is ~175 words, which
-lands the VO at about 70 seconds of speech inside a 2:25 video — the rest is
+**Read it at ~150 words per minute.** The script above is ~185 words, which
+lands the VO at about 75 seconds of speech inside a 2:16 video — the rest is
 silence, UI, and cuts. That ratio is deliberate. A demo crammed with
 narration sounds like a slideshow with a voiceover.
 
@@ -404,6 +409,221 @@ narration sounds like a slideshow with a voiceover.
 five times and re-record the screen twice. Keeping them separate makes the
 first five cheap and lets the edit re-sync instantly. Do not narrate live
 while screen-recording.
+
+## The shot list — click by click
+
+Follow this in order. It is the whole video as a list of clicks.
+
+**Sign in:** http://localhost:3000/sign-in → `demo@nexstepper.com` /
+`nexstepper-demo`
+
+### Before you start
+
+- **Make the window wide — at least 1280px.** The editor is two columns on
+  `lg` and up: the resume on the LEFT, the posting and the scorecard on the
+  RIGHT (a 320px rail). Below that width the rail stacks under the resume
+  and the shot is ruined.
+- **Browser zoom 125%.** At 100% the scorecard text is illegible on a phone,
+  which is where a lot of these get watched.
+- The chat trigger is a **56px circle in the bottom-right corner** of the
+  viewport (`fixed bottom-6 right-6`), aria-label *"Open Scout, the AI
+  assistant"*. It only exists on variants.
+- The resume's own toolbar sits above the resume on the left — Undo, Redo,
+  **"Highlight this job's skills"**, then the B/I/U formatting buttons.
+- The editor header carries, top-right: **Print settings | Share | Print |
+  Delete**. Top-left: **"← All resumes"**.
+
+---
+
+### Shot 1 — The resume list (0:00–0:08)
+
+**Go to:** http://localhost:3000/dashboard/resumes
+
+**Do:** nothing. Let it sit.
+
+**You should see:**
+- "Resumes" heading, and the line *"Your masters are the source of truth.
+  Variants branch off each one for specific roles."*
+- One master card: **Jordan Ellis — Master Resume**
+- Two variant rows nested under it:
+  - **Jordan Ellis — Cartwheel (Backend Platform)** — badge **75**
+  - **Jordan Ellis — Northwind Supply (Customer Ops)** — badge **55**
+- A "+ Create" button top-right
+
+**Say:** "One master. A tailored variant for every job."
+
+**Hold** about 3 seconds on the list, then click into the Cartwheel variant.
+
+---
+
+### Shot 2 — The posting and the scorecard (0:08–0:15)
+
+**Do:** click **"Jordan Ellis — Cartwheel (Backend Platform)"**.
+
+**You should see:**
+- Header: "← All resumes", title **Jordan Ellis — Cartwheel (Backend
+  Platform)** with a small branch icon, subtitle *"Variant tailored from a
+  master resume."*
+- **LEFT:** the resume — Jordan Ellis, *Senior Software Engineer*, the
+  summary, **Halcyon Systems** (3 bullets), Rotosignal, University of
+  Washington, Docsmith, and the skills block
+- **RIGHT, top:** the **JD panel** — "Senior Backend Engineer, Platform",
+  Cartwheel, Seattle, and the posting text below
+- **RIGHT, bottom:** the **ATS scorecard** — big **75**, badge **Good**, the
+  radar chart, and the seven bars: Keywords 68, Format 82, Impact 74,
+  Experience match 69, Intent coverage 90, **Role fit 50**, Seniority fit 100
+- Below the bars, the eligibility list — the bachelor's degree, ticked green
+
+**Say:** "Seventy-five out of a hundred. A good score. On one dimension, half
+marks."
+
+**Hold** so the frame ends on **Role fit — 50**.
+
+---
+
+### Shot 3 — The reading (0:15–0:33)
+
+**Do:** click **"Highlight this job's skills"** in the toolbar above the
+resume (left side, next to Undo/Redo).
+
+**You should see:**
+- A pause of a second or two while it works
+- Skills in the resume going **bold** — Go, Python, PostgreSQL, Kubernetes,
+  Terraform, AWS, gRPC, Docker, microservices…
+- The **must-haves bold AND underlined** — so they are distinguishable from
+  the nice-to-haves at a glance
+- A result line on the button: *"Bolded N skills, underlined M must-haves."*
+
+**Write down N and M.** Expect **N ≈ 16**.
+
+**Say:** "Nexstepper reads the posting before it reads you. It knows which
+lines are real skills and which are just noise. Must-haves get underlined."
+
+**If it says "nothing to highlight", stop — the fixture is wrong.**
+
+---
+
+### Shot 4 — Scout (0:33–1:06)
+
+**Do:** click the **56px Scout circle, bottom-right**.
+
+**You should see:**
+- The chat panel opens. Header shows **"Scout · Claude Haiku 5.5"** and the
+  candidate's name.
+- The **agent intro bubble** may float above the trigger — only if the
+  editor has been idle 45 seconds. Don't wait for it; grab it in a later
+  take if you want it.
+
+**Do:** type your prompt and send it. **Then time the pause.**
+
+**You should see:**
+- **4–12 seconds of nothing** before the first token. That is the dead
+  pause — jump-cut it in post.
+- Then Scout's reply streams in. It should name the gaps it found, using the
+  first-session analysis it already holds.
+- Then the **edits land in the resume** — the headline and bullets change in
+  place. The agent mark goes `working` → `applied`.
+
+**Say:**
+> "Then Scout reads the resume against the posting. Not keyword matching. It
+> asks whether the resume actually shows what the role needs."
+
+*then, as it answers:*
+> "Two of these I can fix. Your headline says Software Engineer; this posting
+> wants a Backend Engineer. And you never say 'event-driven' — but the
+> transcription pipeline is event-driven. You just didn't call it that."
+
+*then:*
+> "Kafka, I can't fix. You haven't done it. I'm not going to write it for you."
+
+**Copy Scout's actual words** and rewrite those last two lines in the script.
+The structure must survive: one fixable gap, one fixable gap, one gap Scout
+refuses to close.
+
+---
+
+### Shot 5 — The inline rewrite (1:06–1:23)
+
+**Do:** click the **Role fit** bar in the scorecard (right rail).
+
+**You should see:**
+- The resume jumps to the relevant field and it **pulses**
+- A **Pro popover** opens with **three alternatives**
+- Click one → it replaces the field in place
+
+**Say:** "Or fix it yourself. Click what's wrong. It gives you three ways to
+say it better."
+
+**Confirm which field "Role fit" anchors to.** It should be the headline. If
+it lands somewhere unhelpful, use **Impact** instead (that one anchors to a
+bullet).
+
+---
+
+### Shot 6 — The payoff (1:23–1:43)
+
+**Do:** click **Recompute** in the scorecard.
+
+**You should see:** the score recompute and animate. The bars refill. The
+radar shifts.
+
+**Write down the new number. That is «SCORE_AFTER».**
+
+**Say:** "Seventy-five to «SCORE_AFTER». Nothing invented. Every change is
+something your resume already proves."
+
+**Check:** Role fit moved off 50. **If it hits 100, stop** — Kafka and
+OpenTelemetry are genuinely absent, so it must not reach 100.
+
+---
+
+### Shot 7 — The refusal (1:43–1:53)
+
+**Do:** click **"← All resumes"**, then open **"Jordan Ellis — Northwind
+Supply (Customer Ops)"**.
+
+**You should see:**
+- The JD panel now shows **Customer Operations Specialist**, Northwind Supply
+- The scorecard shows **55**
+- The resume is the same Jordan Ellis resume
+
+**Do:** click **"Highlight this job's skills"** again.
+
+**You should see:** the honest refusal — *"This posting doesn't name skills
+your resume lists — nothing to highlight."*
+
+**Say:** "And when the posting doesn't name real skills, it says so. It won't
+bold something you don't have."
+
+**If it marks anything, stop** — Beat 7 can't be filmed.
+
+---
+
+### Shot 8 — Close (1:53–2:16)
+
+**Do:** back to the Cartwheel variant. Then:
+1. Click **Share** (top-right) → **enable the link** → copy it
+2. Click **Print** (top-right) → the print preview opens with the resume
+
+**You should see:** the share dialog with the URL and a view counter, then
+the print preview rendering the resume as a page.
+
+**Say:** "Export it. Send it. Apply."
+
+**End card:** `public/brand/nexstepper-horizontal-clean.png`, wordmark in
+Manrope, tagline **"Take the next step."**, `nexstepper.com`. Three seconds,
+static, silent — build it in the editor, not in Guidde.
+
+---
+
+### Then reset before the real shoot
+
+The manual run dirties the data — Scout's edits changed the resume and the
+score. The shoot must start from the seeded state:
+
+```bash
+pnpm seed:demo:reset
+```
 
 ## Recording prep
 
@@ -505,126 +725,32 @@ that surface in the footage.
 
 ## Before the session — the manual test
 
-Run this once in your own browser, **before** you open Guidde. It takes about
-ten minutes and it tells you three things the plan cannot: the real number
-after Scout's edits, the real behaviour of the highlight button, and how long
-the chat pause actually feels.
+**The shot list above IS the manual test.** Walk it once in your own browser,
+before you open Guidde. It takes about ten minutes and it tells you three
+things the plan cannot: the real number after Scout's edits, the real
+behaviour of the highlight button, and how long the chat pause actually feels.
 
-`pnpm preflight:demo-video` automates the machine-checkable half of this
-(server up, credential authenticates, scorecard renders 75, chat route
-answers, probe session cleaned up). **The steps below are the half only you
-can do** — the ones that involve reading Scout's actual words and watching
-the screen.
+`pnpm preflight:demo-video` automates the machine-checkable half (server up,
+credential authenticates, scorecard renders 75, chat route answers, probe
+session cleaned up). The shot list is the half only a person can do — the ones
+that involve reading Scout's actual words and watching the screen.
 
-### 0. Preconditions
+### Two things to write down
 
-`pnpm dev` running. Browser at **http://localhost:3000/sign-in**. Sign in with
-`demo@nexstepper.com` / `nexstepper-demo`.
+| | From | Why |
+|---|---|---|
+| **N and M** | the highlight button's result line | the script needs the real skill counts |
+| **«SCORE_AFTER»** | the scorecard after Recompute | the payoff beat must not say a number the screen does not show |
 
-The dev build compiles routes on demand, so **the first load of the editor
-page will hang for a few seconds**. Warm it up during the manual test, not
-during a recording.
+### And one thing to reset
 
-### 1. The resume list
-
-Expect **two** resumes: "Jordan Ellis — Master Resume" and "Jordan Ellis —
-Cartwheel (Backend Platform)". The variant's badge must read **75**.
-
-**If the badge says anything else, stop and tell me.** That would be the
-list-badge-vs-scorecard divergence this repo already fixed once, coming back.
-
-### 2. Open the variant
-
-Expect: **75**, tier badge **Good**, and the seven dimensions —
-Keywords 68, Format 82, Impact 74, Experience match 69, Intent coverage 90,
-**Role fit 50**, Seniority fit 100. The radar chart renders. The resume
-reads *Jordan Ellis · Senior Software Engineer · Halcyon Systems · Rotosignal*.
-
-### 3. The highlight button
-
-Click **"Highlight this job's skills"**. Expect a pause of a second or two,
-then skills in the resume going **bold**, must-haves going **bold +
-underline**, and a result line: *"Bolded N skills, underlined M must-haves."*
-
-**Write down N and M.** The script needs the real numbers. Expect N ≈ 16.
-
-**If it says "nothing to highlight", stop** — the fixture is wrong.
-
-### 4. Scout
-
-Click the floating trigger, bottom-right. The chat panel opens; the header
-should read **"Scout · Claude Haiku 5.5"**.
-
-The intro bubble only appears after **45 seconds of idle** — don't wait for
-it. If you want it on camera, leave the editor open while you record another
-beat and grab it in that take.
-
-### 5. The chat turn — the one that matters
-
-Send the prompt. **Time the dead pause before the first token.** Measured
-twice today it came in at **4.3s and 11.7s** — so it varies. Anything over
-about 8 seconds must be jump-cut in post.
-
-Then read Scout's reply. The script's two lines at 0:58 and 1:12 are
-**predictions** — copy Scout's actual words and rewrite them. The structure
-must survive: one fixable gap, one fixable gap, one gap Scout refuses to
-close.
-
-### 6. The edits
-
-Expect the headline and bullets to change in place. The agent mark goes
-`working` → `applied`.
-
-### 7. The inline rewrite — the second fix
-
-Back on the scorecard, click the **Role fit** dimension bar.
-
-Expect: the resume jumps to the relevant field, the field pulses, and a Pro
-popover opens with **three alternatives**. Click one and it replaces the
-field in place. The popover takes a couple of seconds to produce the
-alternatives — short enough to leave in.
-
-**Confirm which field "Role fit" anchors to.** It should land on the headline
-(the thing Scout calls "Senior Software Engineer"). If it lands somewhere
-unhelpful, use **Impact** instead, which anchors to a bullet.
-
-### 8. Recompute — the money shot
-
-Click **Recompute**. The score recomputes.
-
-**Write down the new number. That is «SCORE_AFTER».** Do not predict it.
-
-Check that **Role fit moved off 50** — that is the bar the cold open put on
-screen.
-
-**If it reaches 100, something is wrong.** Kafka and OpenTelemetry are
-genuinely absent from Jordan's history, so the score must not reach 100. A
-video that ends at 100 is the one lie in an otherwise honest product.
-
-### 9. The refusal
-
-Open the **Northwind Supply — Customer Operations Specialist** application.
-Click "Highlight this job's skills" again.
-
-Expect: **"This posting doesn't name skills your resume lists — nothing to
-highlight."**
-
-**If it marks anything, stop and tell me** — Beat 6 cannot be filmed.
-
-### 10. Export and share
-
-Export → PDF (check the print preview renders the resume). Share → copy link.
-
-### 11. Re-seed before the shoot
-
-**This matters: the manual test dirties the data.** Scout's edits in step 6
-changed the resume, so the "before" state is no longer 75.
+The manual run dirties the data — Scout edits changed the resume and the
+score. The shoot must start from a clean seed, or Beat 1 opens on the wrong
+number:
 
 ```bash
 pnpm seed:demo:reset
 ```
-
-The shoot must start from a clean seed, or Beat 1 opens on the wrong number.
 
 ## Guidde: what the trial gives you, and what it doesn't
 

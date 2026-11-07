@@ -65,6 +65,8 @@ import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid'
 import { evaluateJevRequirements } from '@/lib/scoring-async/jev-requirements';
 import { resolveRenderedBreakdown } from '@/lib/scoring/snapshot-breakdown';
 import type { ScoreBreakdown } from '@/lib/scoring/score';
+import type { JobPosting } from '@/lib/resume-schema/job-posting';
+import type { ResumeData } from '@/lib/resume-schema/resume-data';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import {
   buildMatchBreakdown,
@@ -201,6 +203,63 @@ function resolveTargetDatabase(): string {
 
 const MASTER_NAME = 'Jordan Ellis — Master Resume';
 const VARIANT_NAME = 'Jordan Ellis — Cartwheel (Backend Platform)';
+const VARIANT2_NAME = 'Jordan Ellis — Northwind Supply (Customer Ops)';
+
+/**
+ * Create a variant of the master, score it against its posting, and persist
+ * both the link row and the score snapshot.
+ *
+ * The link row and the snapshot carry the SAME number, so the list badge and
+ * the scorecard cannot disagree — the bug this repo already fixed once.
+ */
+async function createScoredVariant(
+  userId: string,
+  input: {
+    masterId: string;
+    applicationId: string;
+    name: string;
+    jobContext: JobPosting;
+  }
+): Promise<{ id: string; score: number; data: ResumeData }> {
+  const variant = await createVariant(userId, input.masterId, {
+    jobContext: input.jobContext
+  });
+  if (!variant) throw new Error('Variant creation returned null');
+  await renameResume(variant.id, userId, input.name);
+
+  const loaded = await getResume(variant.id, userId);
+  if (!loaded) throw new Error('Variant vanished between creation and scoring');
+  if (!loaded.data.jobContext) {
+    throw new Error('Variant has no jobContext — the score would be meaningless.');
+  }
+
+  const breakdown = await scoreResumeHybridFromEnvelope(
+    loaded.data,
+    loaded.data.jobContext
+  );
+  const tips = buildDynamicTips(breakdown, loaded.data, loaded.data.jobContext);
+  const matchBreakdown = maybeAppendSkillGapEntry(
+    buildMatchBreakdown(breakdown),
+    breakdown
+  );
+
+  await createResumeVariant(
+    input.applicationId,
+    variant.id,
+    breakdown.overallScore,
+    matchBreakdown,
+    'Seeded by scripts/seed-demo.ts — synthetic demo account.'
+  );
+  await recordScoreSnapshot(variant.id, userId, {
+    matchScore: breakdown.overallScore,
+    matchBreakdown,
+    dynamicTips: tips,
+    breakdown,
+    computedInMs: breakdown.computedInMs
+  });
+
+  return { id: variant.id, score: breakdown.overallScore, data: loaded.data };
+}
 
 async function seed(): Promise<void> {
   const reset = process.argv.slice(2).includes('--reset');
@@ -301,54 +360,35 @@ async function seed(): Promise<void> {
   ok(`application 2 — ${DEMO_JD2_TITLE} @ ${DEMO_JD2_COMPANY} (names no skills)`);
 
   log('');
-  step('Creating the tailored variant');
-  const variant = await createVariant(userId, master.id, {
+  step('Creating the tailored variants');
+
+  const variant = await createScoredVariant(userId, {
+    masterId: master.id,
+    applicationId: app1.id,
+    name: VARIANT_NAME,
     jobContext: DEMO_JOB_CONTEXT
   });
-  if (!variant) throw new Error('Variant creation returned null');
-  await renameResume(variant.id, userId, VARIANT_NAME);
-  ok(`variant "${VARIANT_NAME}"`);
+  ok(`variant "${VARIANT_NAME}" → ${variant.score}`);
 
-  log('');
-  step('Scoring the variant (hybrid engine — one live model call)');
-  const loaded = await getResume(variant.id, userId);
-  if (!loaded) throw new Error('Variant vanished between creation and scoring');
-  if (!loaded.data.jobContext) {
-    throw new Error('Variant has no jobContext — the score would be meaningless.');
-  }
-
-  const breakdown = await scoreResumeHybridFromEnvelope(
-    loaded.data,
-    loaded.data.jobContext
-  );
-  const tips = buildDynamicTips(breakdown, loaded.data, loaded.data.jobContext);
-  const matchBreakdown = maybeAppendSkillGapEntry(
-    buildMatchBreakdown(breakdown),
-    breakdown
-  );
-
-  // The link row and the snapshot carry the SAME number, so the list badge
-  // and the scorecard cannot disagree — the bug this repo already fixed
-  // once.
-  await createResumeVariant(
-    app1.id,
-    variant.id,
-    breakdown.overallScore,
-    matchBreakdown,
-    'Seeded by scripts/seed-demo.ts — synthetic demo account.'
-  );
-  await recordScoreSnapshot(variant.id, userId, {
-    matchScore: breakdown.overallScore,
-    matchBreakdown,
-    dynamicTips: tips,
-    breakdown,
-    computedInMs: breakdown.computedInMs
+  // The second variant is what makes the refusal beat filmable. Without a
+  // resume carrying the no-skills posting, there is nothing in the UI to
+  // click "Highlight this job's skills" on — the application row alone is
+  // not reachable from any page.
+  //
+  // It is also a better Beat 1 shot: the resume list then shows ONE master
+  // with TWO variants under it, which is the "one master, many variants"
+  // feature card proven in a single frame.
+  const refusalVariant = await createScoredVariant(userId, {
+    masterId: master.id,
+    applicationId: app2.id,
+    name: VARIANT2_NAME,
+    jobContext: DEMO_JOB_CONTEXT_2
   });
-  ok(`score snapshot written — overall ${breakdown.overallScore}`);
+  ok(`variant "${VARIANT2_NAME}" → ${refusalVariant.score}`);
 
   log('');
   step('Running the first-session analysis (so Scout opens informed)');
-  const analysis = await runFirstSessionAnalysis(loaded.data, DEMO_JD_TEXT);
+  const analysis = await runFirstSessionAnalysis(variant.data, DEMO_JD_TEXT);
   if (analysis.ok) {
     await recordResumeAnalysis(
       variant.id,
@@ -362,7 +402,7 @@ async function seed(): Promise<void> {
     warn('Scout will still work, it will just ask a question first.');
   }
 
-  await verifyHighlightBeats(loaded.data);
+  await verifyHighlightBeats(variant.data);
   await printSummary(userId);
 }
 
