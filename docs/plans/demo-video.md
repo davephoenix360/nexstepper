@@ -430,8 +430,12 @@ the screen.
 
 ### 0. Preconditions
 
-`pnpm dev` running. Browser at `http://localhost:3000`. Sign in with
+`pnpm dev` running. Browser at **http://localhost:3000/sign-in**. Sign in with
 `demo@nexstepper.com` / `nexstepper-demo`.
+
+The dev build compiles routes on demand, so **the first load of the editor
+page will hang for a few seconds**. Warm it up during the manual test, not
+during a recording.
 
 ### 1. The resume list
 
