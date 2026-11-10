@@ -171,6 +171,34 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Dark mode was measured instead of eyeballed — and it turned out the
+  scorecard's bars were never drawn** — The report was "our product doesn't
+  respond well to dark mode theme", so the survey was a **contrast audit run
+  in a real browser** (Chrome + `puppeteer-core`, `prefers-color-scheme`
+  emulated so the app's own init script runs, every route in both themes, and
+  every visible text node's ratio computed against its *composited* ancestor
+  background). **15 real dark-mode failures across 15 routes → 0.** The worst
+  ones: `--destructive` was a *dark* red on a dark ground (**1.99:1**, and it
+  is overwhelmingly a TEXT colour in this app); the chat panel was a
+  hardcoded `bg-white` island whose `text-gray-*` contents flipped to
+  light-on-light; the resume preview's chrome bar was **white on white
+  (1.04:1)**, eight unreadable strings; the radar's 8px axis ticks measured
+  **3.65:1**; and `text-gray-900` made nine headings invisible. Also fixed:
+  the dialog scrim (invisible over dark), the Google sign-in button's
+  `dark:bg-white`, the emerald accents, the legal pages' missing theme
+  toggle, `color-scheme`/`theme-color` (which followed the OS, not the
+  in-app toggle), and a hero gradient written in Tailwind v3 syntax that
+  never compiled in v4. **The one that had nothing to do with dark mode:**
+  the scorecard's seven dimension bars were **5.2 pixels wide** — the 320px
+  rail spent 112px on the label, 36px on the value and 96.8px on a "Rewrite
+  with AI" pill, so the scorecard's central visual was a coloured dot for
+  every Pro user in both themes. The CTA is now the icon its own contract
+  described, and the track is **94px** with legible proportional fills.
+  Deliberately NOT changed: white on the brand indigo measures 4.33:1 in
+  light mode — marginal, and fixing it means re-hueing the brand, which is
+  the founder's call. 2205 tests pass. Drift memo:
+  `docs/drift/2026-11-10-dark-mode-contrast-audit-and-the-invisible-scorecard-bars.md`.
+
 - **Nexstepper has a 21-second launch video, and it is honest about the
   number** — Built with the `/brag` skill (Hyperframes 0.9.28), output in
   `brag-output/`: `brag.mp4` (1920×1080, 30fps, 648 frames, 21.6s, H.264 +

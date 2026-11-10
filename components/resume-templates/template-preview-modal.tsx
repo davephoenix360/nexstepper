@@ -152,7 +152,7 @@ export function TemplatePreviewBody({
         // shadow give it the "sheet of paper" affordance. `mx-auto`
         // centers it inside the dialog body.
         data-testid="template-preview-frame"
-        className="mx-auto max-h-[calc(100dvh-22rem)] overflow-auto rounded-md border border-zinc-200 bg-white shadow-sm"
+        className="mx-auto max-h-[calc(100dvh-22rem)] overflow-auto rounded-md border border-border bg-card shadow-sm"
       >
         {isKnown ? (
           <RenderedTemplate template={template} />
@@ -223,7 +223,7 @@ export function TemplateBadges({
       {template.meta.atsSafe && (
         <Badge
           variant="outline"
-          className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700"
+          className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
           data-testid={`template-ats-badge-${template.meta.id}`}
         >
           <ShieldCheck className="size-3" />
@@ -248,7 +248,7 @@ export function TemplateBadges({
           {template.meta.tags.map((t) => (
             <span
               key={t}
-              className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10pt] text-muted-foreground"
+              className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10pt] text-muted-foreground"
             >
               {t}
             </span>

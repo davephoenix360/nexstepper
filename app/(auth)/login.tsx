@@ -167,7 +167,7 @@ export function Login({
           <CardContent>
             {justReset && (
               <p
-                className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+                className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
                 role="status"
               >
                 Password reset — sign in with your new password.
@@ -182,7 +182,7 @@ export function Login({
                   onClick={handleGoogleSignIn}
                   disabled={googlePending || pending}
                   data-testid="google-sign-in"
-                  className="w-full bg-white text-slate-900 hover:bg-slate-50 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                  className="w-full bg-white text-slate-900 hover:bg-slate-50 dark:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-200"
                 >
                   {googlePending ? (
                     <>

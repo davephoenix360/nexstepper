@@ -50,7 +50,7 @@ export default async function DashboardHome() {
   return (
     <section className="flex-1 p-4 lg:p-8">
       <div className="mb-8">
-        <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
+        <h1 className="text-lg lg:text-2xl font-medium text-foreground">
           Welcome{user ? `, ${user.name || user.email}` : ''}.
         </h1>
         <p className="text-sm text-muted-foreground mt-1">

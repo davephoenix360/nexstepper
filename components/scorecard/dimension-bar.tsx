@@ -168,7 +168,7 @@ export function DimensionBar({
   // a hover affordance (`hover:bg-muted/40`) so the user can see
   // the row is clickable.
   const rowClassName = cn(
-    'flex items-center gap-3 py-1',
+    'flex items-center gap-2 py-1',
     interactive && 'cursor-pointer rounded-md transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400'
   );
 
@@ -197,12 +197,24 @@ export function DimensionBar({
         {Math.round(safeScore)}
       </span>
       {showProRewriteCta && (
+        /*
+         * The wand ALONE, not a "Rewrite with AI" pill.
+         *
+         * The scorecard lives in a 320px rail, and this row's fixed
+         * parts (a 112px label, a 36px value) plus a text pill left
+         * the BAR — the thing that shows the score — 5.2px wide.
+         * Measured, not estimated. The row is already a button that
+         * opens the AI popover for Pro users, so the pill was a second
+         * label for the same action, and the component's own contract
+         * was "a small Wand icon appears next to the score number".
+         */
         <span
-          className="flex shrink-0 items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
           data-testid={testId ? `${testId}-rewrite-cta` : 'score-dim-rewrite-cta'}
+          title="Rewrite with AI"
+          aria-label="Rewrite with AI"
         >
           <Wand2 className="h-3 w-3" aria-hidden />
-          Rewrite with AI
         </span>
       )}
     </>

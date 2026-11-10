@@ -157,7 +157,15 @@
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    /*
+     * Light red, not the shadcn default dark red. In this app
+     * `--destructive` is overwhelmingly a TEXT colour (every inline
+     * error message uses `text-destructive`), and a dark red on a dark
+     * ground measured 1.99:1 — unreadable. The destructive BUTTON
+     * carries its own `dark:bg-destructive/60` override, so it still
+     * reads as a button on a dark surface.
+     */
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
@@ -240,7 +248,14 @@
   --muted-foreground: hsl(240 5% 64.9%);
   --accent: hsl(240 3.7% 15.9%);
   --accent-foreground: hsl(0 0% 98%);
-  --destructive: hsl(0 62.8% 30.6%);
+  /*
+   * Light red, not shadcn's dark red. In this app `--destructive` is
+   * overwhelmingly a TEXT colour — every inline error uses
+   * `text-destructive` — and a dark red on a dark ground measured
+   * 1.99:1, i.e. invisible. The destructive BUTTON carries its own
+   * `dark:bg-destructive/60` override, so it still reads as a button.
+   */
+  --destructive: hsl(0 84.2% 60.2%);
   --destructive-foreground: hsl(0 0% 98%);
   --border: hsl(240 3.7% 15.9%);
   --input: hsl(240 3.7% 15.9%);

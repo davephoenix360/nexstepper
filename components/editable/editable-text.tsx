@@ -233,9 +233,15 @@ export function EditableText({
         // Inline-pointer + faint hover background to show the field is
         // clickable. Both no-op in print (hover doesn't fire, cursor
         // ignored).
-        'cursor-text hover:bg-indigo-50/40 dark:hover:bg-indigo-900/30 rounded-sm focus:outline-none focus:ring-2 focus:ring-indigo-300/50',
+        'cursor-text hover:bg-indigo-50/40 rounded-sm focus:outline-none focus:ring-2 focus:ring-indigo-300/50',
         // Empty state: muted placeholder text.
-        isEmpty && 'text-muted-foreground'
+        //
+        // NOT `text-muted-foreground`: the resume "paper" is
+        // `bg-white` in BOTH themes (it is a document, not a surface),
+        // so a theme token would flip to the dark theme's light grey
+        // and land on white paper at 2.56:1 — invisible. The paper's
+        // own palette is zinc, so the placeholder joins it.
+        isEmpty && 'text-zinc-500'
       )}
     >
       {isEmpty ? (
@@ -362,8 +368,10 @@ export function EditableTextarea({
         className,
         // Block-level too, so the surrounding layout treats the field as
         // a real paragraph, not a stray inline span.
-        'block w-full whitespace-pre-wrap rounded-sm cursor-text hover:bg-indigo-50/40 dark:hover:bg-indigo-900/30 focus:outline-none focus:ring-2 focus:ring-indigo-300/50',
-        isEmpty && 'text-muted-foreground italic'
+        'block w-full whitespace-pre-wrap rounded-sm cursor-text hover:bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-300/50',
+        // Empty state: muted placeholder text. See EditableText for why
+        // this is a paper-palette zinc and not a theme token.
+        isEmpty && 'text-zinc-500 italic'
       )}
     >
       {isEmpty ? (

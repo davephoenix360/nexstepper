@@ -114,7 +114,7 @@ export function AtsRadar({ breakdown }: { breakdown: ScoreBreakdown }) {
         <RadarChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
           <PolarGrid
             stroke="currentColor"
-            strokeOpacity={0.15}
+            strokeOpacity={0.22}
             gridType="polygon"
           />
           <PolarAngleAxis
@@ -124,11 +124,11 @@ export function AtsRadar({ breakdown }: { breakdown: ScoreBreakdown }) {
           />
           <PolarRadiusAxis
             domain={[0, 100]}
-            tick={{ fontSize: 8, fill: 'currentColor', opacity: 0.4 }}
+            tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.65 }}
             tickCount={4}
             axisLine={false}
             stroke="currentColor"
-            strokeOpacity={0.2}
+            strokeOpacity={0.3}
           />
           <Radar
             name="ATS score"

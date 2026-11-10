@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { Logo } from '@/components/brand/logo';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 /**
  * Layout for the legal pages (`/privacy`, `/terms`, `/cookies`).
@@ -22,7 +23,7 @@ export default function LegalLayout({
           <Link href="/" className="inline-flex items-center">
             <Logo variant="horizontal" height={30} priority />
           </Link>
-          <nav className="flex gap-4 text-sm text-muted-foreground">
+          <nav className="flex items-center gap-4 text-sm text-muted-foreground">
             <Link href="/privacy" className="hover:text-foreground">
               Privacy
             </Link>
@@ -32,6 +33,10 @@ export default function LegalLayout({
             <Link href="/cookies" className="hover:text-foreground">
               Cookies
             </Link>
+            {/* The legal pages are reachable by direct link, so they need
+                their own way to change theme — the marketing header is
+                not on this route. */}
+            <ThemeToggle />
           </nav>
         </div>
       </header>

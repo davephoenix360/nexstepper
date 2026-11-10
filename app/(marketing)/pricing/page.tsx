@@ -130,10 +130,10 @@ export default async function PricingPage() {
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-3">
+        <h1 className="text-3xl font-bold text-foreground mb-3">
           Pricing for broke-but-brave job-seekers
         </h1>
-        <p className="text-gray-600 max-w-xl mx-auto">
+        <p className="text-muted-foreground max-w-xl mx-auto">
           Free is genuinely useful. Pro is the price of a coffee — keeps
           the AI awake and the lights on while you land the gig.
         </p>
@@ -161,27 +161,27 @@ export default async function PricingPage() {
                 </div>
               )}
               <CardContent className="pt-8 pb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                <h2 className="text-xl font-semibold text-foreground mb-1">
                   {plan.name}
                 </h2>
                 <div className="mb-2">
                   {plan.price === null ? (
-                    <span className="text-4xl font-bold text-gray-900">
+                    <span className="text-4xl font-bold text-foreground">
                       Free
                     </span>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold text-gray-900">
+                      <span className="text-4xl font-bold text-foreground">
                         {formatPrice(plan.price.unitAmount, plan.price.currency)}
                       </span>
-                      <span className="text-base text-gray-600 ml-1">
+                      <span className="text-base text-muted-foreground ml-1">
                         /{plan.interval}
                       </span>
                     </>
                   )}
                 </div>
                 {plan.priceNote && (
-                  <p className="text-xs text-gray-500 mb-6 italic">
+                  <p className="text-xs text-muted-foreground mb-6 italic">
                     {plan.priceNote}
                   </p>
                 )}
@@ -210,7 +210,7 @@ export default async function PricingPage() {
                   ) : (
                     <button
                       disabled
-                      className="w-full py-2 px-4 rounded-full text-sm font-medium bg-gray-100 text-gray-500 cursor-not-allowed"
+                      className="w-full py-2 px-4 rounded-full text-sm font-medium bg-muted text-muted-foreground cursor-not-allowed"
                     >
                       {isCurrent ? '✓ Your current plan' : plan.cta}
                     </button>
@@ -224,7 +224,7 @@ export default async function PricingPage() {
         })}
       </div>
 
-      <p className="text-center text-sm text-gray-500 mt-12 max-w-md mx-auto">
+      <p className="text-center text-sm text-muted-foreground mt-12 max-w-md mx-auto">
         Free is everything most people need. Pro is CA$5 a month — cancel
         whenever.
       </p>

@@ -198,14 +198,14 @@ export function TemplateGalleryGrid({
           auto-saved (same info as the old footer line, but framed
           positively). */}
       <div
-        className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-[10pt] text-muted-foreground"
+        className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-muted/60 px-3 py-2 text-[10pt] text-muted-foreground"
         data-testid="template-gallery-footer"
       >
-        <span className="inline-flex items-center gap-1.5 text-emerald-700">
+        <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
           <ShieldCheck className="size-3" />
           Every template is ATS-safe by default
         </span>
-        <span className="text-zinc-300">·</span>
+        <span className="text-muted-foreground">·</span>
         <span>Picking a template saves automatically.</span>
       </div>
     </>
@@ -320,7 +320,7 @@ function TemplateCard({
             // "this is your current pick" affordance that doesn't
             // depend on reading the "Current" badge.
             'border-primary/50 bg-primary/[0.04] shadow-sm ring-1 ring-primary/20'
-          : 'border-zinc-200 hover:border-zinc-300 hover:shadow-sm'
+          : 'border-border hover:border-primary/50 hover:shadow-sm'
       )}
     >
       {/* Thumbnail area — the visual hook that differentiates the
@@ -330,7 +330,7 @@ function TemplateCard({
       <div
         className={cn(
           'relative overflow-hidden border-b',
-          isCurrent ? 'border-primary/15' : 'border-zinc-200'
+          isCurrent ? 'border-primary/15' : 'border-border'
         )}
         data-testid={`template-thumbnail-${template.meta.id}`}
       >
@@ -406,7 +406,7 @@ function TemplateCard({
           </span>
           {template.meta.atsSafe && (
             <span
-              className="inline-flex items-center gap-1 font-medium text-emerald-700"
+              className="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-400"
               data-testid={`template-card-ats-${template.meta.id}`}
             >
               <ShieldCheck className="size-3" />
@@ -429,7 +429,7 @@ function TemplateCard({
             {template.meta.tags.slice(0, 4).map((t) => (
               <span
                 key={t}
-                className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[9pt] text-muted-foreground"
+                className="rounded border border-border bg-muted px-1.5 py-0.5 text-[9pt] text-muted-foreground"
               >
                 {t}
               </span>

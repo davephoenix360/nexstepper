@@ -100,7 +100,7 @@ export function FeedbackForm({
         className="flex flex-col items-center gap-3 py-6 text-center"
         data-testid="feedback-success"
       >
-        <CheckCircle2 className="size-10 text-emerald-600" aria-hidden="true" />
+        <CheckCircle2 className="size-10 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         <h2 className="text-lg font-semibold tracking-tight">Thanks — got it.</h2>
         <p className="max-w-sm text-sm text-muted-foreground">
           We read every note personally.{' '}

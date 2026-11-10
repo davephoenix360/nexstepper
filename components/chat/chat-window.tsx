@@ -152,7 +152,7 @@ export function ChatWindow({
 
   return (
     <div
-      className="fixed right-6 z-50 flex h-[42rem] max-h-[calc(100vh-10rem)] w-[34rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl no-print"
+      className="fixed right-6 z-50 flex h-[42rem] max-h-[calc(100vh-10rem)] w-[34rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl no-print"
       // The inline style wins over the Tailwind classes.
       //
       // `bottom` clears the floating Feedback pill, which steps up
@@ -165,17 +165,17 @@ export function ChatWindow({
       style={{ bottom: `${CHAT_PANEL_BOTTOM_PX}px`, right: `${FLOATING_RIGHT_PX}px` }}
     >
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           {/* The agent's mark. A white circle rather than a filled
               indigo one, so the mark reads as the mark — navy
               brackets with the indigo dot — rather than a white
               silhouette. The dot is the only colour in the header. */}
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white">
-            <AgentMark state={agentState} size={20} className="text-gray-900" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card">
+            <AgentMark state={agentState} size={20} className="text-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-900">
+            <p className="truncate text-sm font-semibold text-foreground">
               {AGENT_DISPLAY_NAME}
             </p>
             {/* While the agent is doing something, its STATUS replaces
@@ -183,7 +183,7 @@ export function ChatWindow({
                 the page; the status is the thing you cannot. */}
             <p
               className={`truncate text-xs ${
-                agentStatus ? 'font-medium text-indigo-600' : 'text-gray-500'
+                agentStatus ? 'font-medium text-indigo-600 dark:text-indigo-300' : 'text-muted-foreground'
               }`}
             >
               {agentStatus ?? resumeName}
@@ -204,7 +204,7 @@ export function ChatWindow({
               onClick={() => setIsHistoryCollapsed((v) => !v)}
               title={isHistoryCollapsed ? 'Show history' : 'Hide history'}
               aria-label={isHistoryCollapsed ? 'Show history' : 'Hide history'}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
             >
               {isHistoryCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             </button>
@@ -212,14 +212,14 @@ export function ChatWindow({
           <button
             onClick={onNewChat}
             title="New conversation"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
           >
             <Plus size={16} />
           </button>
           <button
             onClick={onClose}
             title="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
           >
             <X size={16} />
           </button>
@@ -245,11 +245,11 @@ export function ChatWindow({
             <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
               {/* The one place the mark is large enough to be a
                   character rather than an icon. */}
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50">
-                <AgentMark state={agentState} size={44} className="text-gray-900" />
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                <AgentMark state={agentState} size={44} className="text-foreground" />
               </div>
-              <p className="mb-1 text-sm font-medium text-gray-900">Ask about your resume</p>
-              <p className="max-w-[16rem] text-xs leading-relaxed text-gray-500">
+              <p className="mb-1 text-sm font-medium text-foreground">Ask about your resume</p>
+              <p className="max-w-[16rem] text-xs leading-relaxed text-muted-foreground">
                 I can edit bullets, answer questions, or switch templates.
               </p>
 
@@ -265,7 +265,7 @@ export function ChatWindow({
                         .toLowerCase()
                         .replace(/[^a-z0-9]+/g, '-')
                         .replace(/^-|-$/g, '')}`}
-                      className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-left text-xs text-gray-700 transition hover:border-indigo-300 hover:bg-indigo-50/40 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-md border border-border bg-card px-2.5 py-1.5 text-left text-xs text-foreground transition hover:border-primary/50 hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {s.label}
                     </button>
@@ -305,7 +305,7 @@ export function ChatWindow({
                   aria-label="Jump to latest message"
                   title="Jump to latest"
                   data-testid="chat-jump-to-latest"
-                  className="absolute bottom-3 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-md transition-all hover:bg-gray-50 hover:text-gray-900"
+                  className="absolute bottom-3 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-md transition-all hover:bg-muted hover:text-foreground"
                 >
                   <ArrowDown size={16} />
                 </button>
@@ -314,7 +314,7 @@ export function ChatWindow({
           )}
 
           {/* Input */}
-          <div className="shrink-0 border-t border-gray-100 p-3">
+          <div className="shrink-0 border-t border-border p-3">
             {/* Which model is answering, and (on Free) what the
                 allowance is. One quiet line, below the conversation —
                 the answer to "what am I actually talking to", and the
@@ -322,7 +322,7 @@ export function ChatWindow({
                 without having to open a different screen. */}
             {(modelLabel || dailyLimit !== null) && (
               <p
-                className="mb-2 text-center text-[11px] text-gray-400"
+                className="mb-2 text-center text-[11px] text-muted-foreground"
                 data-testid="chat-model-label"
               >
                 {modelLabel ? `${AGENT_DISPLAY_NAME} · ${modelLabel}` : null}

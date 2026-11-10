@@ -158,7 +158,7 @@ export function ShareButton({
         Share
         {initialStatus.enabled && (
           <span
-            className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-700"
+            className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
             aria-hidden
           >
             on
@@ -293,7 +293,7 @@ function EnabledView({
               aria-label={copied ? 'Copied' : 'Copy link to clipboard'}
             >
               {copied ? (
-                <Check className="h-4 w-4 text-emerald-600" />
+                <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               ) : (
                 <Copy className="h-4 w-4" />
               )}
@@ -319,7 +319,7 @@ function EnabledView({
           <p className="mt-0.5 text-base font-semibold tabular-nums">
             {viewCount}
             {viewCount > initialViewCount && (
-              <span className="ml-1 text-[10px] font-normal text-emerald-600">
+              <span className="ml-1 text-[10px] font-normal text-emerald-600 dark:text-emerald-400">
                 (+{viewCount - initialViewCount} this session)
               </span>
             )}

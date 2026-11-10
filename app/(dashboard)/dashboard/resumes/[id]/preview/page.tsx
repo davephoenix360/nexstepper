@@ -93,7 +93,7 @@ export default async function ResumePreviewPage({
   const printSettings = coercePrintSettings(result.resume.printSettings);
 
   return (
-    <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0">
+    <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0 dark:bg-zinc-950">
       <div className="mx-auto max-w-[8.5in] px-4 print:max-w-none print:px-0">
         {/*
           Chrome bar — the only thing on screen that's NOT the
@@ -106,7 +106,7 @@ export default async function ResumePreviewPage({
               preview is rendering with — useful when the editor's
               template gallery was used to switch)
         */}
-        <div className="no-print mb-4 flex flex-col items-stretch gap-2 rounded-lg border bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="no-print mb-4 flex flex-col items-stretch gap-2 rounded-lg border border-border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <Button asChild variant="ghost" size="sm">
             <Link href={`/dashboard/resumes/${id}`}>
               <ArrowLeft className="mr-2 size-4" />

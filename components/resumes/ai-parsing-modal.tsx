@@ -219,12 +219,12 @@ export function AiParsingModal({
             <Sparkles className="h-7 w-7 animate-pulse text-primary" aria-hidden="true" />
           </div>
           <div
-            className={`absolute inset-0 flex items-center justify-center rounded-full bg-emerald-100 transition-all duration-500 ${
+            className={`absolute inset-0 flex items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20 transition-all duration-500 ${
               done ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
             }`}
           >
             <Check
-              className="h-7 w-7 text-emerald-600"
+              className="h-7 w-7 text-emerald-600 dark:text-emerald-400"
               strokeWidth={3}
               aria-hidden="true"
               data-testid="parsing-success-check"

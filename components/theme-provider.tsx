@@ -38,6 +38,19 @@ function getSystemTheme(): ResolvedTheme {
 function applyTheme(resolved: ResolvedTheme) {
   const root = document.documentElement;
   root.classList.toggle(DARK_CLASS, resolved === 'dark');
+  // Tell the UA which scheme is in force, so native scrollbars, form
+  // controls and the canvas background follow the app instead of the OS.
+  root.style.colorScheme = resolved;
+
+  // Keep the browser chrome (the mobile address bar) in step with the
+  // IN-APP theme. `app/layout.tsx` ships media-query-driven theme-color
+  // tags, which follow the OS preference — so a user who toggles to dark
+  // while their OS is light got a light address bar over a dark app.
+  const colour = resolved === 'dark' ? '#0a0a0f' : '#ffffff';
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute('content', colour);
+    meta.removeAttribute('media');
+  }
 }
 
 function readStoredTheme(): Theme {

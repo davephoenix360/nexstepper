@@ -157,7 +157,7 @@ export function AgentIntroBubble({
       role="status"
       aria-live="polite"
       data-testid="agent-intro-bubble"
-      className={`no-print fixed z-50 w-72 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-xl transition-all duration-200 motion-reduce:transition-none ${
+      className={`no-print fixed z-50 w-72 rounded-2xl border border-border bg-card p-4 text-left shadow-xl transition-all duration-200 motion-reduce:transition-none ${
         entered ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
       }`}
       style={{
@@ -170,18 +170,18 @@ export function AgentIntroBubble({
           trigger, so it never reaches the Feedback pill. */}
       <span
         aria-hidden="true"
-        className="absolute -bottom-[5px] right-6 h-3 w-3 rotate-45 rounded-[2px] border-b border-r border-gray-200 bg-white"
+        className="absolute -bottom-[5px] right-6 h-3 w-3 rotate-45 rounded-[2px] border-b border-r border-border bg-card"
       />
 
       <div className="flex items-start gap-2.5">
         {/* The agent's own mark, so the bubble is visibly the same
             thing as the button below it. */}
-        <AgentMark state="idle" size={28} className="mt-0.5 shrink-0 text-gray-900" />
+        <AgentMark state="idle" size={28} className="mt-0.5 shrink-0 text-foreground" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-900">{AGENT_INTRO_HEADLINE}</p>
-          <p className="mt-1 text-sm leading-snug text-gray-600">{AGENT_INTRO_BODY}</p>
+          <p className="text-sm font-semibold text-foreground">{AGENT_INTRO_HEADLINE}</p>
+          <p className="mt-1 text-sm leading-snug text-muted-foreground">{AGENT_INTRO_BODY}</p>
           {dailyLimit !== null && (
-            <p className="mt-1.5 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {agentIntroAllowanceLine(dailyLimit)}
             </p>
           )}
@@ -202,7 +202,7 @@ export function AgentIntroBubble({
         onClick={dismiss}
         aria-label="Dismiss"
         data-testid="agent-intro-dismiss"
-        className="absolute right-2 top-2 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
+        className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       >
         <X className="size-3.5" />
       </button>

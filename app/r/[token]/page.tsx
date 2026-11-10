@@ -112,7 +112,7 @@ export default async function SharedResumePage({
   });
 
   return (
-    <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0">
+    <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0 dark:bg-zinc-950">
       <div className="mx-auto max-w-[8.5in] px-4 print:max-w-none print:px-0">
         <Template data={result.data} />
       </div>

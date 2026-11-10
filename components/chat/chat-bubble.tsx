@@ -389,7 +389,7 @@ export function ChatBubble({
             ? `Close ${AGENT_DISPLAY_NAME}, the AI assistant`
             : `Open ${AGENT_DISPLAY_NAME}, the AI assistant`
         }
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-lg transition-all hover:border-gray-300 hover:shadow-xl hover:scale-105 active:scale-95 no-print"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition-all hover:border-border hover:shadow-xl hover:scale-105 active:scale-95 no-print"
         style={{ bottom: '1.5rem', right: '1.5rem' }}
       >
         {isOpen ? (
@@ -407,7 +407,7 @@ export function ChatBubble({
           // that forced the mark to be all white, and an all-white
           // 30px mark on indigo reads as a blob. The mark is more
           // legible in its own colours than the button is.
-          <AgentMark state={agentState} size={30} className="text-gray-900" />
+          <AgentMark state={agentState} size={30} className="text-foreground" />
         )}
       </button>
 

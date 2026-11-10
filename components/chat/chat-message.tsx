@@ -160,7 +160,7 @@ function ChatMessageComponent({ message, isLoading }: ChatMessageProps) {
       {/* Avatar */}
       <div
         className={`shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs
-          ${isUser ? 'bg-primary text-primary-foreground' : 'border border-border bg-white'}`}
+          ${isUser ? 'bg-primary text-primary-foreground' : 'border border-border bg-card'}`}
       >
         {isUser ? (
           <User className="h-3.5 w-3.5" />
@@ -175,7 +175,7 @@ function ChatMessageComponent({ message, isLoading }: ChatMessageProps) {
           <AgentMark
             state={isLoading ? 'working' : agentStateForMessage(message)}
             size={17}
-            className="text-zinc-700"
+            className="text-foreground"
           />
         )}
       </div>

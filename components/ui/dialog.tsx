@@ -199,7 +199,7 @@ export function Dialog({
         // lighter `/40` made the page content feel "right next to"
         // the modal which read as "the modal is a side panel" rather
         // than "the modal is a modal".
-        'backdrop:bg-zinc-900/60 backdrop:backdrop-blur-sm',
+        'backdrop:bg-black/60 backdrop:backdrop-blur-sm',
         // Grid centering (NOT flex — see docstring). We gate on
         // `open:` so the dialog stays at its UA `display: none`
         // when closed; the `open:` variant targets the `[open]`

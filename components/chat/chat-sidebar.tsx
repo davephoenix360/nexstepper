@@ -38,16 +38,16 @@ export function ChatSidebar({
   onNewChat
 }: ChatSidebarProps) {
   return (
-    <div className="flex h-full w-52 shrink-0 flex-col border-r border-gray-100 bg-gray-50/40">
+    <div className="flex h-full w-52 shrink-0 flex-col border-r border-border bg-muted/40">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-3 py-3">
-        <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-gray-700">
-          <MessageSquare className="h-4 w-4 shrink-0 text-gray-500" />
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-3">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+          <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="truncate">History</span>
         </div>
         <button
           onClick={onNewChat}
-          className="flex shrink-0 items-center gap-1 text-xs text-indigo-600 hover:underline"
+          className="flex shrink-0 items-center gap-1 text-xs text-indigo-600 dark:text-indigo-300 hover:underline"
           title="Start a new conversation"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -64,8 +64,8 @@ export function ChatSidebar({
                 onClick={() => onSelectSession(session.id)}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
                   session.id === activeSessionId
-                    ? 'bg-indigo-50 text-indigo-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    ? 'bg-primary/10 text-indigo-700 dark:text-indigo-300 font-medium'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
                 <Clock className="h-3.5 w-3.5 shrink-0 opacity-60" />

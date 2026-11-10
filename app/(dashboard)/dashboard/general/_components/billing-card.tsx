@@ -61,14 +61,14 @@ export function BillingCardView(
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div>
             <dt className="text-muted-foreground">Plan</dt>
-            <dd className="text-gray-900 font-medium mt-1" data-testid="billing-plan">
+            <dd className="text-foreground font-medium mt-1" data-testid="billing-plan">
               {planName}
             </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Status</dt>
             <dd
-              className="text-gray-900 font-medium mt-1"
+              className="text-foreground font-medium mt-1"
               data-testid="billing-status"
             >
               {statusLabel(status)}
@@ -79,7 +79,7 @@ export function BillingCardView(
               {plan === 'pro' && pro ? 'Renews on' : '—'}
             </dt>
             <dd
-              className="text-gray-900 font-medium mt-1"
+              className="text-foreground font-medium mt-1"
               data-testid="billing-period-end"
             >
               {currentPeriodEnd && plan === 'pro' && pro
