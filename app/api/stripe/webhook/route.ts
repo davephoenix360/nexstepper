@@ -50,11 +50,17 @@ export async function POST(request: NextRequest) {
       // checkout flow. Listed explicitly so the `default` case stays
       // useful for catching genuinely-unknown event types (added to
       // the Stripe API after our handler was written).
+      //
+      // `invoice.payment_failed` is a no-op ON PURPOSE: the demotion
+      // happens on `customer.subscription.updated`, which carries the
+      // authoritative `past_due` status. Handling the invoice event
+      // too would mean two code paths deciding the same thing.
       case 'invoice.finalized':
       case 'invoice.created':
       case 'invoice.upcoming':
       case 'invoice.paid':
       case 'invoice.payment_succeeded':
+      case 'invoice.payment_failed':
       case 'payment_method.attached':
       case 'customer.updated':
       case 'setup_intent.created':

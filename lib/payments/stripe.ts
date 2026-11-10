@@ -273,7 +273,38 @@ export async function handleSubscriptionChange(
         );
       }
     }
-  } else if (status === 'canceled' || status === 'unpaid') {
+  } else if (
+    status === 'canceled' ||
+    status === 'unpaid' ||
+    status === 'past_due' ||
+    status === 'incomplete' ||
+    status === 'incomplete_expired'
+  ) {
+    // The subscription is not (or no longer) paying.
+    //
+    // `canceled` — the user cancelled, or the subscription ended.
+    // `unpaid` — Stripe gave up collecting.
+    // `past_due` — a payment failed. The card is going to be retried,
+    //   but per the documented policy (`lib/billing/types.ts`:
+    //   "We demote to Free immediately so the user is nudged back to
+    //   billing") the user loses Pro access now rather than after
+    //   Stripe's dunning window.
+    // `incomplete` / `incomplete_expired` — the initial payment never
+    //   completed (a trial that ended without a working card).
+    //
+    // These statuses used to fall through the handler untouched, which
+    // left the local row saying `plan = 'pro', status = 'active'` — so
+    // `isProEffective` stayed true and the user kept Pro access after
+    // their payment failed, indefinitely. The documented policy and the
+    // code disagreed; the code now follows the policy.
+    //
+    // The `stripeCustomerId` column is deliberately NOT cleared, so the
+    // next `customer.subscription.updated` (the payment succeeding, or
+    // the subscription being reactivated) finds this row again and
+    // restores Pro.
+    //
+    // `paused` is NOT in this list, on purpose: a Stripe promotional
+    // pause keeps the customer's entitlement, so the row is left alone.
     const previousPlan = existing.plan;
     await upsertSubscription(existing.userId, {
       stripeSubscriptionId: null,
@@ -283,11 +314,22 @@ export async function handleSubscriptionChange(
       currentPeriodEnd: null
     });
     if (previousPlan === 'pro') {
-      trackServer(existing.userId, PostHogEvents.SUBSCRIPTION_CANCELED, {
-        plan: previousPlan
-      });
+      if (status === 'canceled' || status === 'unpaid') {
+        trackServer(existing.userId, PostHogEvents.SUBSCRIPTION_CANCELED, {
+          plan: previousPlan
+        });
+      } else {
+        // A payment failure is a downgrade, not a cancellation — the
+        // subscription still exists on Stripe's side.
+        trackServer(existing.userId, PostHogEvents.SUBSCRIPTION_DOWNGRADED, {
+          fromPlan: previousPlan,
+          toPlan: 'free'
+        });
+      }
     }
   }
+  // `paused` falls through deliberately: the customer keeps their
+  // entitlement, so the row is left exactly as it was.
 }
 
 /**
