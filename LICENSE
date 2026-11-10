@@ -22,6 +22,15 @@ SOFTWARE.
 
 ---
 
+## Third-party assets
+
+The MIT license above covers the **source code** in this repository. A small
+number of **media assets are licensed separately** and are not MIT:
+
+- `brag-output/` bundles a music track by Sascha Ende (CC BY 4.0) and the
+  Manrope webfont (SIL OFL 1.1). The full attribution is in
+  [`brag-output/CREDITS.md`](./brag-output/CREDITS.md).
+
 ## Trademark notice
 
 The MIT license above covers the **source code** in this repository. It does
