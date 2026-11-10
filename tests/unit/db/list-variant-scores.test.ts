@@ -109,9 +109,17 @@ describe('the list and the scorecard agree', () => {
     expect(listFn).not.toMatch(/scoreResumeFromEnvelope\([^)]*\)\.overallScore/);
   });
 
-  it('the page resolves the score through that same helper', () => {
+  it('the page resolves the score through that same rule', () => {
+    // The page reads the snapshot through `resolveVariantScore`,
+    // which delegates to the same pure rule the list uses. The chat
+    // goes through `resolveVariantScore` too — that is what stopped
+    // the agent quoting a different number from the scorecard.
     const page = read('app/(dashboard)/dashboard/resumes/[id]/page.tsx');
-    expect(page).toContain('resolveRenderedBreakdown');
+    expect(page).toContain('resolveVariantScore');
+
+    const resolver = read('lib/variant-score.ts');
+    expect(resolver).toContain('resolveRenderedBreakdownWithSource');
+    expect(resolver).toContain('resolveRenderedBreakdown');
   });
 
   it('a recompute revalidates the LIST path, not just the editor', () => {

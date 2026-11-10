@@ -36,6 +36,41 @@ export function resolveRenderedBreakdown(params: {
   persisted: unknown;
   compute: () => ScoreBreakdown;
 }): ScoreBreakdown {
+  return resolveRenderedBreakdownWithSource(params).breakdown;
+}
+
+/**
+ * Where the rendered breakdown came from.
+ *
+ * - `snapshot` — the breakdown the last recompute persisted. This is the
+ *   number the scorecard shows, so it is the number every surface must
+ *   quote.
+ * - `computed` — no usable snapshot existed, so the score was computed
+ *   on the spot with the sync engine.
+ */
+export type RenderedBreakdownSource = 'snapshot' | 'computed';
+
+/**
+ * The same rule as `resolveRenderedBreakdown`, but it also says WHICH
+ * rule fired.
+ *
+ * ## Why the source matters
+ *
+ * A surface that quotes a score to the user has to know whether it is
+ * quoting the number on their screen or a fallback the screen never
+ * showed. The chat agent is the case that bites: if it quotes a
+ * freshly-computed sync score while the scorecard renders the
+ * persisted hybrid score, the two numbers disagree and the agent looks
+ * like it is making things up.
+ *
+ * So the resolver returns the provenance, and the caller can say
+ * "this is your score" (snapshot) or "this is a keyword-only estimate;
+ * press Recompute for the full score" (computed).
+ */
+export function resolveRenderedBreakdownWithSource(params: {
+  persisted: unknown;
+  compute: () => ScoreBreakdown;
+}): { breakdown: ScoreBreakdown; source: RenderedBreakdownSource } {
   const persisted = params.persisted as ScoreBreakdown | null | undefined;
 
   if (
@@ -46,8 +81,8 @@ export function resolveRenderedBreakdown(params: {
     (persisted as ScoreBreakdown).dimensionScores &&
     (persisted as ScoreBreakdown).criteriaScores
   ) {
-    return persisted as ScoreBreakdown;
+    return { breakdown: persisted as ScoreBreakdown, source: 'snapshot' };
   }
 
-  return params.compute();
+  return { breakdown: params.compute(), source: 'computed' };
 }

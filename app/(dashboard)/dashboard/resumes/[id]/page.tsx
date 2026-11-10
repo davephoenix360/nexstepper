@@ -8,7 +8,6 @@ import {
   getResume,
   getShareStatus,
   getSubscription,
-  getLatestScoreSnapshot,
   countVariantsByMasterId
 } from '@/lib/db/queries';
 import type { MatchBreakdown } from '@/lib/db/queries';
@@ -24,8 +23,8 @@ import { ScorecardClient } from './_components/scorecard-client';
 import { RenameResumeControl } from './_components/rename-resume-button';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { AUTO_TAILOR_PROMPT } from '@/lib/chat/suggested-prompts';
-import { scoreResumeFromEnvelope, type ScoreBreakdown } from '@/lib/scoring';
-import { resolveRenderedBreakdown } from '@/lib/scoring/snapshot-breakdown';
+import type { ScoreBreakdown } from '@/lib/scoring';
+import { resolveVariantScore } from '@/lib/variant-score';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
 import { PLANS } from '@/lib/db/schema';
@@ -138,21 +137,21 @@ export default async function ResumeEditorPage({
   // scored before this column existed) do we compute it here — and that
   // path is the sync engine, which is pure, instant and free.
   //
+  // `resolveVariantScore` is the shared rule: the chat agent reads the
+  // score through the SAME function, so the number the agent quotes is
+  // the number on this screen. See `lib/variant-score.ts`.
+  //
   // Per plan §"Key design decisions" #6 and acceptance criterion #8.
-  const scoreSnapshot = !resume.isMaster
-    ? await getLatestScoreSnapshot(resume.id)
+  const score = !resume.isMaster
+    ? await resolveVariantScore({
+        resumeId: resume.id,
+        resume: data,
+        job: data.jobContext ?? null
+      })
     : null;
 
-  const persistedBreakdown = scoreSnapshot?.breakdown ?? null;
-
-  const breakdown: ScoreBreakdown | null =
-    !resume.isMaster && data.jobContext
-      ? resolveRenderedBreakdown({
-          persisted: persistedBreakdown,
-          compute: () =>
-            scoreResumeFromEnvelope(data, data.jobContext!, new Date())
-        })
-      : null;
+  const breakdown: ScoreBreakdown | null = score?.breakdown ?? null;
+  const scoreSnapshot = score?.snapshot ?? null;
 
   // Compute dynamic improvement tips server-side (same pass as the
   // breakdown). Empty object when no JD / no resume envelope so the

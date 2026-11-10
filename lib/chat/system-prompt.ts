@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring/score';
+import type { RenderedBreakdownSource } from '@/lib/scoring/snapshot-breakdown';
 import type { PrintSettings } from '@/lib/print-settings';
 import { printSettingsSummary } from '@/lib/print-settings';
 import { AGENT_DISPLAY_NAME } from '@/lib/brand/agent-mark';
@@ -275,7 +276,10 @@ export function buildResumeContext(data: ResumeData): string {
  * fallback scoring, etc.) — caller decides whether to omit the
  * section entirely.
  */
-export function buildAtsContext(score: ScoreBreakdown): string {
+export function buildAtsContext(
+  score: ScoreBreakdown,
+  source?: RenderedBreakdownSource | null
+): string {
   const dim = score.dimensionScores;
   const ic = score.intentCoverageBreakdown;
 
@@ -324,6 +328,21 @@ export function buildAtsContext(score: ScoreBreakdown): string {
     ? '\n\nNote: intent coverage is at the neutral default because v2 intent extraction was unavailable for this JD. Prioritise keyword coverage from the JD text.'
     : '';
 
+  // Provenance note.
+  //
+  // `snapshot` — this is the number on the user's scorecard. Nothing to
+  // say.
+  //
+  // `computed` — there is no persisted score yet, so this is a
+  // keyword-only estimate the user has NEVER been shown. The agent must
+  // not present it as "your score". It should measure properly with
+  // `getAtsScore` (which uses the same engine as the scorecard) before
+  // asserting a number.
+  const provenanceNote =
+    source === 'computed'
+      ? '\n\nNote: this score was computed on the fly because no score has been saved yet for this resume. It is a keyword-only estimate and is NOT the number on the scorecard. If the user asks for their score, call getAtsScore to measure it with the same engine the scorecard uses.'
+      : '';
+
   // Eligibility requirements — a degree, a certification, work
   // authorisation. These are NOT skill gaps and are deliberately not in
   // the missed list, so the assistant needs them separately or it will
@@ -342,7 +361,7 @@ export function buildAtsContext(score: ScoreBreakdown): string {
 Overall match: ${score.overallScore} / 100
 
 Dimension scores (0–100, sorted by strength):
-${dimLines}${missedSection}${eligibilitySection}${fallbackNote}
+${dimLines}${missedSection}${eligibilitySection}${fallbackNote}${provenanceNote}
 
 Use these numbers to prioritise edits — fixing a 38 in intentCoverage typically lifts the overall match more than tweaking a 78. Don't invent missing skills; only surface gaps the score actually reports.
 
@@ -492,7 +511,18 @@ export function buildSystemPrompt(
   resumeKind?: ResumeKind,
   printSettings?: PrintSettings | null,
   analysis?: FirstSessionAnalysis | null,
-  hiddenSections?: readonly string[]
+  hiddenSections?: readonly string[],
+  /**
+   * Where the score came from — the persisted snapshot the user sees on
+   * their scorecard, or a fallback computed on the spot.
+   *
+   * The agent needs this so it can be honest about which number it is
+   * quoting. A snapshot score IS the number on the user's screen. A
+   * computed one is a keyword-only estimate the user has never been
+   * shown, and the agent should measure properly (via `getAtsScore`)
+   * before asserting it.
+   */
+  atsScoreSource?: RenderedBreakdownSource | null
 ): string {
   const hidden = hiddenSections ?? data.print?.hiddenSections ?? [];
   const resumeText = buildResumeContext(data);
@@ -560,7 +590,9 @@ export function buildSystemPrompt(
   // score exists. The score is meaningless without a JD to compare
   // against, and a neutral fallback is just noise.
   const atsSection =
-    atsScore && jobSection ? '\n\n' + buildAtsContext(atsScore) : '';
+    atsScore && jobSection
+      ? '\n\n' + buildAtsContext(atsScore, atsScoreSource)
+      : '';
 
   // The first-session analysis, when one exists for this (resume, JD).
   //

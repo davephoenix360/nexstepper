@@ -7,6 +7,20 @@ import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 import { hybridSimilarity } from './hybrid-similarity';
 import { evaluateJevRequirements } from './jev-requirements';
 import { evaluateJevContentQuality } from './jev-content-quality';
+import { roleFitSimilarity, NEUTRAL_ROLE_FIT_SCORE } from './role-fit';
+
+/**
+ * The neutral Role Fit result — the dimension's fallback when no title
+ * signal is available. Used when the role-fit computation throws, so a
+ * failure degrades the dimension instead of failing the score.
+ */
+const NEUTRAL_ROLE_FIT = {
+  value: NEUTRAL_ROLE_FIT_SCORE,
+  bestSimilarity: null,
+  bestMatchingTitle: null,
+  jdTitle: '',
+  fallback: true
+};
 
 /**
  * Enhanced score wrapper.
@@ -27,8 +41,16 @@ import { evaluateJevContentQuality } from './jev-content-quality';
  *    "friendly". Measured against the 50-JD validation corpus, this
  *    moves Pearson r from 0.910 to 0.934.
  *
+ * 3. **The Role Fit dimension** is fed a real similarity value — the
+ *    cosine between the JD title and the candidate's best-matching work
+ *    title. It used to be handed `null`, which pinned the dimension at
+ *    its neutral 50 for every resume in every production path: a fixed
+ *    5 of 100 points that no candidate could move, on a scorecard that
+ *    showed a flat bar and called it a dimension. The implementation
+ *    existed in `role-fit.ts` and was tested; nothing called it.
+ *
  * Everything else — structure, content quality, alignment, intent
- * coverage, role fit, seniority fit — is the sync engine's own output,
+ * coverage, seniority fit — is the sync engine's own output,
  * untouched.
  *
  * Lives in `lib/scoring-async/` (NOT `lib/scoring/`) for the same
@@ -54,6 +76,8 @@ import { evaluateJevContentQuality } from './jev-content-quality';
  *     (replaces the BM25-only similarity score from the sync engine).
  *   - `criteriaScores['ATS Keyword Match']` <- Jev's genuine-requirement
  *     coverage and evidence depth (when the evaluation succeeded).
+ *   - `dimensionScores.roleFit` <- the semantic title similarity, rather
+ *     than the neutral fallback it used to take.
  *   - `dimensionScores.atsMatching` <- re-weighted to use the new
  *     sub-scores.
  *   - `overallScore` <- recomposed with the engine's own weights.
@@ -67,34 +91,56 @@ export async function scoreResumeHybridFromEnvelope(
   resume: ResumeData,
   job: JobPosting
 ): Promise<ScoreBreakdown> {
-  // 0. Ask Jev two things, in parallel:
+  // 0. Ask three things, in parallel:
   //
   //    a) which of the JD's requirement entries are genuine skills, and
   //       how strongly the resume evidences each one;
   //    b) whether each work bullet describes an accomplishment, and
-  //       whether it opens with a strong, active verb.
+  //       whether it opens with a strong, active verb;
+  //    c) how closely the JD's title matches the candidate's work titles
+  //       (the Role Fit dimension).
   //
   //    (b) does not depend on the JD, so it is a separate call with a
   //    smaller state. Running them together keeps the latency at one
   //    round trip rather than two.
   //
+  //    (c) uses the same local MiniLM pipeline as the hybrid similarity
+  //    below, so it costs a handful of extra embeddings on an already
+  //    warm pipeline, not another model load.
+  //
   //    A failed call is not an error: the evaluation comes back with
   //    `ok: false` and the engine keeps the token-based / lexical
-  //    scores.
-  const [evaluation, contentEvaluation] = await Promise.all([
+  //    scores. Role Fit swallows its own errors and returns the neutral
+  //    fallback.
+  const [evaluation, contentEvaluation, roleFit] = await Promise.all([
     evaluateJevRequirements(resume, job),
-    evaluateJevContentQuality(resume)
+    evaluateJevContentQuality(resume),
+    // Role Fit gets the same protection the Jev calls get: a failure
+    // is not an error. `roleFitSimilarity` swallows its own model
+    // errors, but a malformed envelope (a missing `sections.work`)
+    // would throw before its own try/catch — and an unhandled throw
+    // inside `Promise.all` would take the WHOLE score down with it.
+    // The dimension degrades to its neutral 50 instead, which is what
+    // it did before it was ever computed.
+    roleFitSimilarity(resume, job).catch(() => NEUTRAL_ROLE_FIT)
   ]);
 
   // 1. Run the sync engine first to get the unchanged baseline.
   // Pass `new Date()` as the engine's clock so the envelope-aware
   // Seniority Fit dimension gets real tenure signal (drift memo
   // 2026-09-20-ats-v2-validation-corpus.md §3 follow-up #1).
+  //
+  // Pass the Role Fit similarity we just computed. It used to be
+  // `null` here, which made the dimension a constant 50 for every
+  // resume in every production path — a fixed 5 of 100 points (v2
+  // weight 0.10) that no candidate could move, on a scorecard that
+  // showed a flat bar and called it a dimension. The implementation
+  // existed and was tested; nothing called it. Now it is called.
   const baseline = scoreResumeFromEnvelope(
     resume,
     job,
     new Date(),
-    { roleFitSimilarity: null },
+    { roleFitSimilarity: roleFit.bestSimilarity },
     { evaluation },
     { evaluation: contentEvaluation }
   );

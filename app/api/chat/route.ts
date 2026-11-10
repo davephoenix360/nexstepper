@@ -39,7 +39,7 @@ import { chatResponseHeaders } from '@/lib/chat/response-headers';
 import { hashJobDescription } from '@/lib/chat/first-session-analysis';
 import type { FirstSessionAnalysis } from '@/lib/chat/first-session-analysis';
 import { coercePrintSettings } from '@/lib/print-settings';
-import { scoreResumeFromEnvelope } from '@/lib/scoring';
+import { resolveVariantScore } from '@/lib/variant-score';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
 import { getModel, resolveChatModelPlan, CHAT_MAX_OUTPUT_TOKENS, CHAT_MAX_STEPS } from '@/lib/ai/providers';
@@ -297,23 +297,40 @@ export async function POST(req: NextRequest) {
 
   // ── Build system prompt (fresh context every turn) ────────────────────────
   //
-  // The ATS score is re-computed here from the envelope rather than read
-  // from the latest `score_snapshots` row, so the model sees numbers
-  // that reflect any in-memory edits the user just made (the snapshot
-  // is only written by `recomputeScoreAction`, which the user may not
-  // have clicked since their last edit). The engine is pure/sync and
-  // runs in ~10–50ms — negligible next to the model call.
+  // The ATS score is READ, not recomputed.
+  //
+  // It used to be re-computed here with the SYNC engine on every turn,
+  // because the snapshot is only written by `recomputeScoreAction` and the
+  // user may not have clicked it since their last edit. But the scorecard
+  // on the variant page renders the PERSISTED breakdown — the enhanced
+  // (Jev) score — so the agent was quoting a DIFFERENT NUMBER from the
+  // one on the user's screen. Not a stale number: a different number,
+  // produced by a different engine, from the same resume and JD.
+  //
+  // The two engines disagree exactly where the hybrid engine is designed
+  // to disagree with token matching (ATS keyword evidence, content
+  // quality, intent coverage), so this was the normal case rather than an
+  // edge case.
+  //
+  // So the agent now reads the score through the SAME resolver the page
+  // uses — `resolveVariantScore` — and the number it quotes is the number
+  // the user is looking at. The "measure my own edit" case is what the
+  // `getAtsScore` tool is for: it recomputes with the hybrid engine and
+  // persists the result, so the scorecard and the agent move together.
   //
   // Gated on `resume.resume.isMaster` (master resumes don't have JDs)
   // and on a non-null `jobContext` (the score is meaningless without one).
-  const atsScore =
+  const variantScore =
     !resume.resume.isMaster && resume.data.jobContext
-      ? scoreResumeFromEnvelope(
-          resume.data,
-          resume.data.jobContext,
-          new Date()
-        )
+      ? await resolveVariantScore({
+          resumeId: resume.resume.id,
+          resume: resume.data,
+          job: resume.data.jobContext
+        })
       : null;
+
+  const atsScore = variantScore?.breakdown ?? null;
+  const atsScoreSource = variantScore?.source ?? null;
 
   // The FIRST-SESSION ANALYSIS, if one has been computed for this
   // (resume, JD) pair. It is written when the user pastes a job
@@ -340,7 +357,9 @@ export async function POST(req: NextRequest) {
     resume.data.jobContext
       ? coercePrintSettings(resume.resume.printSettings)
       : null,
-    analysis as FirstSessionAnalysis | null
+    analysis as FirstSessionAnalysis | null,
+    undefined, // hiddenSections — defaults to the envelope's print settings
+    atsScoreSource
   );
 
   // ── Load chat history (last 20 messages to keep prompt size manageable) ───
@@ -528,10 +547,10 @@ export async function POST(req: NextRequest) {
       // the id is what lets the NEXT turn pair a `tool-result` message with
       // its `tool-call` (the route used to mint a random id per request,
       // which made that pairing impossible).
-      let toolCallsJson: Array<{ id: string; name: string; args: unknown }> = [];
+      const toolCallsJson: Array<{ id: string; name: string; args: unknown }> = [];
       // One entry per tool result, keyed by the same id, so a multi-step turn
       // that edits twice round-trips both.
-      let toolResultsJson: Array<{ id: string; result: unknown }> = [];
+      const toolResultsJson: Array<{ id: string; result: unknown }> = [];
       let finishReason: string | null = null;
       // Set when a resume-mutating tool ran, so we can tell the client to
       // revalidate the editor before the stream closes.

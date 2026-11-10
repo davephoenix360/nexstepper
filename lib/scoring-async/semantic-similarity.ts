@@ -90,6 +90,23 @@ let pipelinePromise: Promise<PipelineFn> | null = null;
 let transformersModulePromise: Promise<TransformersModule> | null = null;
 
 /**
+ * Embedding cache, keyed by the exact input text.
+ *
+ * ## Why it exists
+ *
+ * `semanticSimilarity(a, b)` embeds BOTH sides. The Role Fit dimension
+ * compares one JD title against every work title on the resume, so
+ * without a cache the JD title is re-embedded once per work title — the
+ * same string, over and over, for the same answer.
+ *
+ * Embeddings are deterministic for a given (model, text), so caching
+ * them is safe. The cache is per-process (a warm lambda), bounded, and
+ * FIFO-evicted.
+ */
+const EMBEDDING_CACHE_LIMIT = 64;
+const embeddingCache = new Map<string, Float32Array>();
+
+/**
  * Lazy-load the `@huggingface/transformers` module. Configures
  * `env.cacheDir` based on environment:
  *   - Production: `/tmp/.cache/hf-transformers` (Vercel's
@@ -198,16 +215,12 @@ export async function semanticSimilarity(
   if (!resumeText || !jobText) return 0;
 
   try {
-    const [pipeline, mod] = await Promise.all([loadPipeline(), loadTransformers()]);
-    // `pooling: 'mean'` averages token embeddings into a single
-    // sentence vector — the standard MiniLM pooling strategy.
-    // `normalize: true` L2-normalizes the output so cosine
-    // similarity collapses to dot product (cheaper).
-    const [resumeEmb, jobEmb] = await Promise.all([
-      pipeline(truncate(resumeText), { pooling: 'mean', normalize: true }),
-      pipeline(truncate(jobText), { pooling: 'mean', normalize: true })
+    const [resumeVec, jobVec] = await Promise.all([
+      embedText(resumeText),
+      embedText(jobText)
     ]);
-    const raw = mod.cos_sim(resumeEmb.data, jobEmb.data);
+    const mod = await loadTransformers();
+    const raw = mod.cos_sim(resumeVec, jobVec);
     // Clamp + map [-1, 1] → [0, 1]. Math.max(0, ...) defends
     // against any numerical noise that pushes the cosine slightly
     // below zero for unrelated documents.
@@ -225,6 +238,32 @@ export async function semanticSimilarity(
 }
 
 /**
+ * Embed one text into a normalized sentence vector, memoised by the
+ * exact input string.
+ *
+ * Throws on failure — the caller (`semanticSimilarity`) catches and
+ * degrades to 0, which the hybrid scorer treats as "no semantic
+ * contribution".
+ */
+async function embedText(text: string): Promise<Float32Array> {
+  const cached = embeddingCache.get(text);
+  if (cached) return cached;
+
+  const [pipeline] = await Promise.all([loadPipeline(), loadTransformers()]);
+  const emb = await pipeline(truncate(text), { pooling: 'mean', normalize: true });
+  const vector =
+    emb.data instanceof Float32Array ? emb.data : new Float32Array(emb.data);
+
+  // FIFO eviction — the cache is a hot-path optimisation, not a store.
+  if (embeddingCache.size >= EMBEDDING_CACHE_LIMIT) {
+    const oldest = embeddingCache.keys().next().value;
+    if (oldest !== undefined) embeddingCache.delete(oldest);
+  }
+  embeddingCache.set(text, vector);
+  return vector;
+}
+
+/**
  * Reset the module-level singleton pipeline + transformers
  * promise. Used by tests to force a fresh load (and to clear
  * the cached module between test files when needed). Not
@@ -236,4 +275,5 @@ export async function semanticSimilarity(
 export function _resetSemanticCacheForTests(): void {
   pipelinePromise = null;
   transformersModulePromise = null;
+  embeddingCache.clear();
 }

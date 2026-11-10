@@ -29,16 +29,21 @@ import { auth } from '@/lib/auth';
  * ## Why the hybrid path, and the fallback
  *
  * The scorecard the user is looking at is computed with the HYBRID
- * scorer (BM25 + semantic embeddings). The chat prompt uses the cheap
- * sync scorer, because the hybrid path pays a ~2-5s cold start for the
- * ONNX model on a cold lambda and the prompt is rebuilt on every turn.
+ * scorer (BM25 + semantic embeddings), and that number is persisted as
+ * the latest score snapshot. The chat's system prompt now READS that
+ * snapshot, so the number the agent quotes in prose is the number on
+ * the user's screen.
  *
- * The tool uses the HYBRID path, because the number the agent quotes has
- * to match the number on the user's screen — a mismatch there is a trust
- * problem, and the tool is called rarely enough that the cold start does
- * not matter. If the hybrid path fails (model download blocked, ONNX
- * unavailable, timeout) it falls back to the sync scorer so the agent
- * always gets a number rather than an error.
+ * This tool is the other half: it measures again, after the agent has
+ * edited the resume. It runs the HYBRID path — the same engine the
+ * scorecard uses — so "it went from 57 to 63" is a real measurement
+ * rather than a guess, and it persists the result so the scorecard and
+ * the agent move together.
+ *
+ * If the hybrid path fails (model download blocked, ONNX unavailable,
+ * timeout) it falls back to the sync scorer so the agent always gets a
+ * number rather than an error — and it says so in the output, because a
+ * keyword-only number is not the number on the screen.
  */
 
 const SYNC_TIMEOUT_MS = 15_000;
@@ -107,16 +112,30 @@ export async function executeGetAtsScore(
   // edit. Only for the hybrid path — writing a BM25-only score into the
   // snapshot history would make the scorecard jump to a different number
   // than the one the user sees when they hit Recompute themselves.
+  //
+  // The FULL breakdown is persisted, not just the headline. This is the
+  // same contract `recomputeScoreAction` writes with: the page renders
+  // the PERSISTED breakdown (`resolveRenderedBreakdown`), so a snapshot
+  // without one is invisible to the page — it falls back to the sync
+  // engine and the scorecard shows a DIFFERENT number from the one the
+  // agent just reported. That is the "a number that disagrees with
+  // itself" failure, arriving through the back door.
   if (usedHybrid) {
     try {
       const { buildDynamicTips } = await import('@/lib/scoring/tips');
-      const { buildMatchBreakdown } = await import('@/lib/inline-issue/build-match-breakdown');
+      const { buildMatchBreakdown, maybeAppendSkillGapEntry } = await import(
+        '@/lib/inline-issue/build-match-breakdown'
+      );
       const { recordScoreSnapshot } = await import('@/lib/db/queries');
       const tips = buildDynamicTips(breakdown, data, data.jobContext);
       await recordScoreSnapshot(resumeId, userId, {
         matchScore: breakdown.overallScore,
-        matchBreakdown: buildMatchBreakdown(breakdown),
+        matchBreakdown: maybeAppendSkillGapEntry(
+          buildMatchBreakdown(breakdown),
+          breakdown
+        ),
         dynamicTips: tips,
+        breakdown,
         computedInMs: breakdown.computedInMs
       });
     } catch {
