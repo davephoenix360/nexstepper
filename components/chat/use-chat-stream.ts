@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef } from 'react';
+
 /**
  * Custom streaming hook for the AI chat assistant.
  *
@@ -132,11 +134,31 @@ export function useChatStream({
   onUsage,
   onResumeUpdated
 }: UseChatStreamOptions) {
-  /** Accumulated messages for the current session. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let messages: ChatMessageRow[] = [];
-  /** Whether a stream is currently in flight. */
-  let isStreaming = false;
+  /**
+   * Accumulated messages for the current session.
+   *
+   * Held in a ref rather than a plain `let` because it is written from
+   * inside the async turn, and a render-scoped variable cannot be
+   * reassigned from an async function without breaking React's rules.
+   *
+   * The hook returns a plain snapshot, exactly as before. Nothing reads
+   * it — the caller owns the message state and is kept in sync through
+   * the `onMessage` callback.
+   */
+  const messagesRef = useRef<ChatMessageRow[]>([]);
+  /**
+   * Whether a stream is currently in flight.
+   *
+   * Held in a ref rather than a plain `let` because it is written from
+   * inside the async turn — between the request starting and the stream
+   * ending — and a render-scoped variable cannot be reassigned from an
+   * async function without breaking React's rules.
+   *
+   * The hook still returns a plain boolean, exactly as before: a
+   * snapshot of the value at render time. The parent owns the
+   * authoritative streaming state (see the note at the top of this file).
+   */
+  const isStreamingRef = useRef(false);
 
   /**
    * Send a message and stream the response.
@@ -149,19 +171,28 @@ export function useChatStream({
    * something, and it only came back after closing and reopening the chat
    * (which re-fetches from the DB). Hence the explicit parameter.
    */
+  /**
+   * The in-flight request's abort controller.
+   *
+   * A ref rather than a property stashed on the function object: a ref
+   * survives re-renders, so `cancel()` always aborts the request that is
+   * actually running — not the one a stale render started. The previous
+   * version kept the controller on the function, which meant a `cancel()`
+   * from a stale closure aborted a controller that had already finished.
+   */
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   async function sendMessage(
     sessionId: string | null,
     message: string,
     currentMessages: ChatMessageRow[] = []
   ): Promise<string | null> {
     // Cancel any in-flight request
-    if ((sendMessage as any)._abortController) {
-      (sendMessage as any)._abortController.abort();
-    }
+    abortControllerRef.current?.abort();
     const abortController = new AbortController();
-    (sendMessage as any)._abortController = abortController;
+    abortControllerRef.current = abortController;
 
-    isStreaming = true;
+    isStreamingRef.current = true;
 
     const userId = makeId();
     const assistantId = makeId();
@@ -178,7 +209,7 @@ export function useChatStream({
       { id: userId, role: 'user', content: message },
       { id: assistantId, role: 'assistant', content: '' }
     ];
-    messages = seeded;
+    messagesRef.current = seeded;
     onMessage([...seeded]);
 
     try {
@@ -199,9 +230,9 @@ export function useChatStream({
         // Drop only the turn that failed — keep the prior conversation. The
         // old code reset to `[]` here, so one error (a 429, a dropped
         // connection) silently erased the user's whole chat from the screen.
-        messages = [...currentMessages];
-        onMessage([...messages]);
-        isStreaming = false;
+        messagesRef.current = [...currentMessages];
+        onMessage([...messagesRef.current]);
+        isStreamingRef.current = false;
         return null;
       }
 
@@ -228,9 +259,9 @@ export function useChatStream({
 
       if (!res.body) {
         onError?.('No response body');
-        messages = [...currentMessages];
-        onMessage([...messages]);
-        isStreaming = false;
+        messagesRef.current = [...currentMessages];
+        onMessage([...messagesRef.current]);
+        isStreamingRef.current = false;
         return null;
       }
 
@@ -266,15 +297,19 @@ export function useChatStream({
           switch (event.type) {
             case 'text-delta': {
               const delta = String(event.delta ?? '');
-              const { messages: nextMessages, assistant } = buildAssistantMessage(messages, assistantId);
+              const { messages: nextMessages, assistant } = buildAssistantMessage(messagesRef.current, assistantId);
               // Immutable update: replace the assistant in the array with a
               // new object so memo'd children re-render correctly.
               const updatedAssistant: ChatMessageRow = {
                 ...assistant,
                 content: assistant.content + delta
               };
-              messages = mapReplaceById(nextMessages, assistantId, updatedAssistant);
-              onMessage([...messages]);
+              messagesRef.current = mapReplaceById(
+                nextMessages,
+                assistantId,
+                updatedAssistant
+              );
+              onMessage([...messagesRef.current]);
               break;
             }
 
@@ -283,26 +318,34 @@ export function useChatStream({
                 name: String(event.toolName ?? ''),
                 args: event.args as unknown
               });
-              const { messages: nextMessages, assistant } = buildAssistantMessage(messages, assistantId);
+              const { messages: nextMessages, assistant } = buildAssistantMessage(messagesRef.current, assistantId);
               const updatedAssistant: ChatMessageRow = {
                 ...assistant,
                 toolCalls: [...state.toolCalls]
               };
-              messages = mapReplaceById(nextMessages, assistantId, updatedAssistant);
-              onMessage([...messages]);
+              messagesRef.current = mapReplaceById(
+                nextMessages,
+                assistantId,
+                updatedAssistant
+              );
+              onMessage([...messagesRef.current]);
               onToolCall?.(String(event.toolName), event.args as unknown);
               break;
             }
 
             case 'tool_result': {
               state.toolResult = event.result;
-              const { messages: nextMessages, assistant } = buildAssistantMessage(messages, assistantId);
+              const { messages: nextMessages, assistant } = buildAssistantMessage(messagesRef.current, assistantId);
               const updatedAssistant: ChatMessageRow = {
                 ...assistant,
                 toolResult: state.toolResult
               };
-              messages = mapReplaceById(nextMessages, assistantId, updatedAssistant);
-              onMessage([...messages]);
+              messagesRef.current = mapReplaceById(
+                nextMessages,
+                assistantId,
+                updatedAssistant
+              );
+              onMessage([...messagesRef.current]);
               onToolResult?.(event.result as unknown);
               break;
             }
@@ -314,7 +357,7 @@ export function useChatStream({
               break;
 
             case 'done':
-              isStreaming = false;
+              isStreamingRef.current = false;
               onDone?.(event.finishReason as string | null);
               break;
 
@@ -325,25 +368,28 @@ export function useChatStream({
         }
       }
 
-      isStreaming = false;
+      isStreamingRef.current = false;
       return resolvedSessionId;
     } catch (err) {
-      isStreaming = false;
+      isStreamingRef.current = false;
       if ((err as Error).name === 'AbortError') {
         return null;
       }
       onError?.((err as Error).message ?? 'Stream failed');
-      messages = [...currentMessages];
-      onMessage([...messages]);
+      messagesRef.current = [...currentMessages];
+      onMessage([...messagesRef.current]);
       return null;
     }
   }
 
   function cancel() {
-    if ((sendMessage as any)._abortController) {
-      (sendMessage as any)._abortController.abort();
-    }
+    abortControllerRef.current?.abort();
   }
 
-  return { sendMessage, cancel, messages, isStreaming };
+  return {
+    sendMessage,
+    cancel,
+    messages: messagesRef.current,
+    isStreaming: isStreamingRef.current
+  };
 }

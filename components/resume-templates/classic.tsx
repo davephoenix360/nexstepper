@@ -758,7 +758,7 @@ function ClassicWithForm({
                       <p className="font-semibold text-zinc-900">{r.name}</p>
                     )}
                     {isSet(r.reference) && (
-                      <p className="italic text-zinc-700">"{r.reference}"</p>
+                      <p className="italic text-zinc-700">&quot;{r.reference}&quot;</p>
                     )}
                   </div>
                 ))}

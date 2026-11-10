@@ -171,6 +171,67 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The scorecard and the chat agent now quote the SAME number — and Role Fit
+  is a measurement again** — A full architecture review of the tree
+  (`docs/architecture-review.html`, committed this session) read every
+  subsystem independently and produced a findings register. Two of its
+  findings were P0 and both were the same shape: **a number that disagreed
+  with itself**, which is this codebase's characteristic failure mode —
+  not a crash, but two surfaces computing the same thing separately. The
+  history is in the drift memos: the list badge vs the scorecard (fixed
+  2026-10-23), the scorecard tips vs the score (fixed 2026-11-02), the
+  recompute flicker (fixed 2026-10-22). **The last two paths had been left
+  behind.** The chat route recomputed the score with the **SYNC** engine on
+  every turn while the scorecard rendered the persisted **HYBRID** score — and
+  those engines differ exactly where the hybrid one is built to disagree (ATS
+  keyword evidence, content quality, intent coverage), so this was the
+  NORMAL case, not an edge case. A user could look at a scorecard saying 57,
+  ask the agent "what's my score?", and be told 51. The agent was not wrong;
+  it was answering from a different engine. **The fix is one resolver,
+  three surfaces**: new `lib/variant-score.ts` (`resolveVariantScore`) reads
+  the persisted snapshot through the existing pure rule
+  (`resolveRenderedBreakdownWithSource`) and falls back to the sync engine
+  only for a variant that has never been scored — the page and the chat both
+  call it, and the list keeps the pure helper because it needs a batched
+  `SELECT DISTINCT ON` query. The agent is now told the score's
+  **provenance**, so when the number was computed on the fly it says so
+  rather than presenting an estimate as the scorecard's number. And the
+  chat's own `getAtsScore` tool now writes the **full breakdown** into its
+  snapshot — without it, the snapshot it wrote was invisible to the page,
+  which rejected it and fell back to the sync engine, so the divergence
+  returned by the back door. **Role Fit was a constant 50 in every
+  production path** — `score-hybrid.ts` handed the sync engine
+  `{ roleFitSimilarity: null }`, so every resume scored exactly
+  `0.10 × 50 = 5.0` points from a dimension no candidate could move and no
+  edit could change, and the scorecard showed a flat bar and called it a
+  dimension. The implementation was never missing: `roleFitSimilarity()`
+  existed, was tested, and had exactly one caller — the test file. It is
+  now called, in parallel with the two Jev evaluations, and a failure
+  degrades the dimension to neutral instead of taking the whole score down
+  with it. **This also unblocks `docs/plans/demo-video.md` Beat 6**, which
+  treated "Role fit moves off 50" as unfilmable. Also shipped: the
+  **CI gates** the review found missing — `pnpm lint` (ESLint, flat config,
+  `eslint-config-next`; the repo had **no linter at all**), the **build
+  step** (the TODO's stated reason — "it would need a live Postgres" — was
+  checked and is **wrong**: `headers()` is a dynamic API, so every
+  DB-reading route is already `ƒ (Dynamic)` and the build never opens a
+  connection), and a throwaway **Postgres service container** so `prebuild`
+  applies migrations `0000`–`0013` to an empty database on every PR — which
+  matters because this repo has been bitten by a silently-skipped migration
+  before (ADR 0003). The linter's two React Compiler rules
+  (`set-state-in-effect`, `refs`) are **warnings, not errors**: 42 sites that
+  need a behavioural migration, not a lint fix, and doing them in the same
+  change as a scoring fix would risk the editor for no product gain. The
+  other 26 were fixed properly — including a genuine bug where two templates
+  returned early **above** a hook call. **And a failed payment now costs the
+  user their Pro plan**: the webhook handled `active|trialing` and
+  `canceled|unpaid`, and **`past_due` fell through both**, leaving the local
+  row saying `plan='pro', status='active'` — so `isProEffective` stayed true
+  and the user kept Pro access after their card failed, indefinitely. The
+  policy in `lib/billing/types.ts` and the code disagreed, and the code was
+  what ran. 2,228 tests pass. Drift memo:
+  `docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md`.
+
 - **Dark mode was measured instead of eyeballed — and it turned out the
   scorecard's bars were never drawn** — The report was "our product doesn't
   respond well to dark mode theme", so the survey was a **contrast audit run
@@ -1955,6 +2016,40 @@ The page might be behind auth middleware, but the Server Action is a public
 endpoint callable by anyone with the URL. Every protected action calls
 `requireUser()` (or equivalent) at the top.
 
+### 8. One value, one resolver — surfaces must not compute the same thing separately
+
+**This codebase's characteristic failure mode is not a crash. It is a number
+that disagrees with itself.** Two surfaces each computing "the ATS score for
+this variant" will drift, because they will not be the same code path.
+
+The ATS score has been hit four times now:
+
+| When | Which two surfaces disagreed |
+|---|---|
+| 2026-10-22 | The page recomputed with the sync engine, so the enhanced score flashed and was replaced |
+| 2026-10-23 | The list computed its own score; the badge said 47 while the scorecard said 57 |
+| 2026-11-02 | The scorecard's tips read different values than the score they sat under |
+| 2026-11-10 | The chat agent recomputed with the sync engine and quoted 51 while the scorecard showed 57 |
+
+**The rule:** the persisted snapshot is the score, and every surface reads it
+through the same resolver. The pure half is
+`resolveRenderedBreakdownWithSource` (`lib/scoring/snapshot-breakdown.ts`); the
+DB-aware half is `resolveVariantScore` (`lib/variant-score.ts`). The page and
+the chat call the latter; the list calls the former directly, because it needs a
+batched query. A surface that needs to show or quote a score **must not** call
+`scoreResumeFromEnvelope` for itself.
+
+The same rule applies to the rich-text marks, the print settings, the template
+registry, and the share token: **one component / one helper, called by every
+surface**, so they cannot disagree. Where a surface genuinely needs a different
+value (the chat measures a score again after its own edit), it must be a
+deliberate, separate path — the `getAtsScore` tool — and it must persist what
+it computed so the next reader sees the same number.
+
+**And a test that asserts it.** Each of these fixes shipped with an anti-drift
+test that fails if a surface goes back to computing its own value. The test is
+the point: "the helper exists" is exactly what was true before the bug.
+
 ## Recurring traps (learned the hard way — reuse these)
 
 These are not stylistic preferences. Each one cost a real user-facing bug, and
@@ -2417,11 +2512,33 @@ re-litigating settled decisions.
 ## How to verify before committing
 
 ```bash
-pnpm typecheck       # must be clean
-pnpm build           # must produce all routes
-pnpm dev             # smoke-test any new UI
-pnpm test            # 970+ unit tests must stay green (incl. ATS validation corpus, Pearson r > 0.7)
+pnpm lint           # must be 0 errors (warnings are the React Compiler backlog — see below)
+pnpm typecheck      # must be clean
+pnpm build          # must produce all routes
+pnpm dev            # smoke-test any new UI
+pnpm test           # 2200+ unit tests must stay green (incl. ATS validation corpus, Pearson r > 0.7)
 ```
+
+These are the **same four gates CI runs**, in the same order
+(`.github/workflows/ci.yml`): lint → typecheck → test → build. The build step
+runs against a throwaway Postgres service container so `prebuild` applies
+migrations `0000`–`0013` to an empty database — which is the only place the
+migration chain is proven to still apply cleanly from scratch.
+
+**On `pnpm lint`:** the repo had no linter at all before 2026-11-10. Two rules
+are **warnings on purpose** — `react-hooks/set-state-in-effect` and
+`react-hooks/refs`, the React Compiler's rules, at 42 sites. Fixing them is a
+React Compiler migration (move state updates out of effects, replace
+render-time ref reads with state), not a lint fix, and it should be its own
+change. Everything else is an error and fails CI.
+
+**A build needs no database.** The old CI TODO claimed it did ("the root
+layout calls `getUser()` at request time, which the build also evaluates").
+That is wrong: `getUser()` reads the session via `headers()`, which is a
+dynamic API, so Next.js bails out of prerendering every route that touches it
+and the build never opens a connection. Verified by building against an
+unreachable database — it succeeds, and the route table comes back entirely
+`ƒ (Dynamic)`.
 
 If you add a new env var: add it to `.env.example` with a placeholder value and
 document its purpose in the comment above it.

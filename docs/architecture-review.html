@@ -225,6 +225,21 @@
   <div class="eyebrow">Architecture review · November 2026</div>
   <h1>Nexstepper — Architecture &amp; Infrastructure Review</h1>
   <p class="lede">A ground-level read of the system Nexstepper actually runs today: what it is built on, how each major feature is put together, which decisions were load-bearing, and where the seams are showing. Diagrams are inline SVG — this file opens offline with no CDN.</p>
+
+  <div class="callout warn" style="margin-top:22px">
+    <span class="label">Status since publication — read this first</span>
+    <p>This review is a <b>snapshot of 2026-11-10</b>, and it is kept as-is so the reasoning stays legible. Some of its findings have since been <b>fixed</b>; the findings register below is therefore a record of what was true when it was written, not of what is true now.</p>
+    <p><b>Closed since publication</b> (drift memo: <code>docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md</code>):</p>
+    <ul>
+      <li><b>P0 — Role Fit was a constant 50.</b> Now computed: <code>roleFitSimilarity()</code> is called from the hybrid engine. The dimension is a real measurement, and <code>docs/plans/demo-video.md</code> Beat 6 is filmable as written again.</li>
+      <li><b>P0 — the chat agent quoted a different score than the scorecard.</b> Now one resolver for all three surfaces: <code>lib/variant-score.ts</code>.</li>
+      <li><b>P1 — the chat's ATS tool wrote a snapshot the page could not see.</b> It now persists the full breakdown.</li>
+      <li><b>P1 — a failed payment did not cost the user their Pro plan.</b> <code>past_due</code> and <code>incomplete</code> now demote.</li>
+      <li><b>P1 — CI never compiled the route graph, and there was no linter.</b> CI now runs lint → typecheck → test → build, with a throwaway Postgres so the migration chain is proven on every PR.</li>
+    </ul>
+    <p><b>Still open</b>: the P2s (Liveblocks and Inngest are stubs; the applications pipeline is a third path through the domain that nothing exercises; six documentation artefacts disagree with the tree; server-side analytics fire regardless of consent) and the P3s. The <b>42 React Compiler lint warnings</b> are a deliberate backlog, not a regression.</p>
+  </div>
+
   <div class="metagrid">
     <div><span>Repository</span><strong>nextep-saas (web)</strong></div>
     <div><span>Commit reviewed</span><strong><code>1788c65</code></strong></div>

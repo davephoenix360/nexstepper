@@ -711,7 +711,7 @@ export function ValidationSummary({
         />
         <div className="flex-1">
           <p className="font-medium text-destructive">
-            Couldn't save — please fix{' '}
+            Couldn&apos;t save — please fix{' '}
             {errors.length === 1
               ? 'this field'
               : `these ${errors.length} fields`}

@@ -59,6 +59,7 @@ export function useDebouncedAutosave({
    * and hands the result to the caller's `save`, which is where the real
    * typing happens.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- documented boundary; see the note above
   control: any;
   /** Performs the actual save. Resolves falsy on failure. */
   save: (values: unknown) => Promise<unknown>;

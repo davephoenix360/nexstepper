@@ -1,10 +1,39 @@
 name: CI
 
-# Gate every push to main + every PR. Run typecheck + unit tests.
-# We don't run `next build` here yet — it would need a live Postgres
-# (the root layout calls getUser() at request time, which the build
-# also evaluates). When we add a CI DB (or a build-time DB bypass),
-# add `pnpm build` as a third step.
+# Gate every push to main + every PR.
+#
+# Four gates, in increasing order of cost:
+#
+#   1. lint      — ESLint (React hooks, Next.js rules, TS rules)
+#   2. typecheck — `tsc --noEmit`
+#   3. test      — the unit suite
+#   4. build     — `next build`, which compiles the ROUTE GRAPH
+#
+# ## Why the build is now in CI
+#
+# It used to be a TODO, on the grounds that "it would need a live
+# Postgres (the root layout calls getUser() at request time, which the
+# build also evaluates)".
+#
+# That reason was wrong, and it was checked rather than assumed:
+# `getUser()` reads the session via `headers()`, and `headers()` is a
+# dynamic API — Next.js bails out of prerendering any route that
+# touches it. So every route that needs the database is ALREADY
+# dynamic, and the build never opens a connection. Verified by running
+# the build against an unreachable database: it succeeds, and the
+# route table comes back entirely `ƒ (Dynamic)`.
+#
+# The build is still the only gate that catches "this route does not
+# compile" — and the deploy is the worst place to find that out,
+# because `prebuild` runs `pnpm db:migrate` first. A build failure on
+# `main` is therefore also a migration failure against production.
+#
+# The Postgres service below exists for the MIGRATIONS, not for the
+# build: `prebuild` applies migrations `0000`–`0013` to a throwaway
+# database, which proves the chain still applies cleanly from scratch.
+# This repo has been bitten by a silently-skipped migration before
+# (ADR 0003 — `db:push` desynced the journal and migration 0003 never
+# ran), so the chain is worth proving on every PR.
 
 on:
   push:
@@ -20,7 +49,35 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: nexstepper_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # The throwaway database the migrations are applied to.
+      POSTGRES_URL: postgres://ci:ci@localhost:5432/nexstepper_ci
+      # Only used to satisfy Better Auth's boot-time checks. Never a
+      # real secret — this database and these keys are disposable.
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-real
+      # The origin the prerendered robots.txt / sitemap.xml are built
+      # against. Static output freezes the origin at BUILD time, so the
+      # build needs a value even though the routes are dynamic.
+      BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
 
     steps:
       - name: Checkout
@@ -42,17 +99,17 @@ jobs:
         # before it ships.
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Unit tests
         run: pnpm test
-        env:
-          POSTGRES_URL: postgres://test:test@localhost:5432/test
 
-      # TODO when we have a CI DB or a build-time DB bypass:
-      # - name: Build
-      #   run: pnpm build
-      #   env:
-      #     POSTGRES_URL: postgres://test:test@localhost:5432/test
-      #     BETTER_AUTH_SECRET: ci-only-secret
+      # `pnpm build` runs `prebuild` → `pnpm db:migrate` against the
+      # service Postgres above, so this step ALSO proves the migration
+      # chain applies cleanly from an empty database.
+      - name: Build
+        run: pnpm build

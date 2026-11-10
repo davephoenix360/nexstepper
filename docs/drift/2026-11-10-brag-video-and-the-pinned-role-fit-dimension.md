@@ -100,6 +100,19 @@ one awaited call in `score-hybrid.ts`; the second is a copy change. Leaving it
 as-is is a third, defensible option — but then the 2:16 plan's Beat 6 has to
 change too.
 
+> **UPDATE — 2026-11-10, later the same day.** The first option was taken:
+> `roleFitSimilarity()` is now called from the hybrid scorer, so Role Fit is
+> a real measurement rather than a constant 50. See
+> `docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md`.
+>
+> **Consequence for this memo:** the "Role fit is pinned at 50" finding below
+> is **fixed**, and the demo video's Beat 6 ("Role fit moves off 50") is
+> filmable as written again. The measured table above is still accurate for
+> the state of the engine **at filming time** — it was measured before the
+> fix, and the film renders the app faithfully. A re-record would show a
+> different Role fit number, and the "never budged" claim below describes
+> the engine as it was, not as it is.
+
 ## Also worth knowing
 
 - **The dev server moved to port 3002.** Another project on this machine

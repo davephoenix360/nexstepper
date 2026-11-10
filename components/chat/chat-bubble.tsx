@@ -235,6 +235,7 @@ export function ChatBubble({
   // would cause a re-fetch loop).
   const activeSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- "latest value" ref; the React Compiler is not enabled (next.config.ts)
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
 

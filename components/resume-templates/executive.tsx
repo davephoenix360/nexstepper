@@ -253,10 +253,16 @@ function ExecutiveSection({
   // as a header band with no body underneath. Same null-detection
   // convention as SmartSection; child renderers MUST return null
   // (not an empty fragment) when they have no data in read-only.
+  //
+  // The hook is called BEFORE this early return: a conditional return
+  // above a hook changes the number of hooks called between renders,
+  // which React forbids ("Rendered fewer hooks than expected"). The
+  // hook is safe in read-only mode — `useSectionPrint` branches to the
+  // no-form path when `mode.editable` is false.
+  const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
   if (!mode.editable && (children === null || children === undefined)) {
     return null;
   }
-  const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
   const sectionClassName = cn(
     sectionSlug && hidden && 'print:hidden opacity-60'
   );

@@ -124,6 +124,7 @@ export function useUndoHistory({
    * `Control<T>` is invariant in practice, and the editor's form is
    * built with `useForm({ resolver } as never)`).
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- documented boundary; see the note above
   control: any;
   /**
    * Restores a snapshot into the form. The editor passes

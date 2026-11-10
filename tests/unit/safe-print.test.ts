@@ -100,7 +100,8 @@ describe('triggerPrint', () => {
 
   it('handles non-Error throws without crashing', () => {
     const print = () => {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal -- intentional non-Error throw
+      // The non-Error throw is the point of this test — `triggerPrint`
+      // has to survive a throw that is not an `Error` instance.
       throw 'string error';
     };
     const result = triggerPrint({

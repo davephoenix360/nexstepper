@@ -201,7 +201,7 @@ export function buildDynamicTips(
         : '';
       out['ATS Coverage'] = (
         <>
-          You're addressing <strong>{covered} of {total}</strong> required
+          You&apos;re addressing <strong>{covered} of {total}</strong> required
           responsibilities. Not yet covered:{' '}
           <strong>{samples.join('; ')}</strong>
           {tail}.
@@ -216,7 +216,7 @@ export function buildDynamicTips(
     const list = missingSections.slice(0, MAX_MISSING_SECTIONS_IN_TIP);
     out['Section Completeness'] = (
       <>
-        You're missing the{' '}
+        You&apos;re missing the{' '}
         <strong>{joinWithAnd(list)}</strong>{' '}
         {list.length > 1 ? 'sections' : 'section'}. Add{' '}
         {list.length > 1 ? 'them' : 'it'} to lift your score.

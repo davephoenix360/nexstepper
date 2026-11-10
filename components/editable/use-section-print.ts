@@ -47,12 +47,13 @@ type FormShape = {
  *
  * Why the explicit `mode` instead of detecting `useFormContext()`
  * internally:
- *   `useFormContext()` returns `null` (not throws) when no
- *   provider is present, but downstream `useWatch({ control })`
- *   then crashes on `control._getWatch`. A hook can't safely
- *   call `useWatch` conditionally without violating React's
- *   rules-of-hooks. The explicit `mode` keeps the hook
- *   deterministic in both modes.
+ *   `useFormContext()` THROWS when no provider is present ("useFormContext
+ *   should be used within FormProvider"), and downstream `useWatch({ control })`
+ *   then crashes on `control._getWatch`. A hook cannot safely call `useWatch`
+ *   conditionally without violating React's rules-of-hooks, and it cannot
+ *   call it unconditionally either — that is exactly what would throw in
+ *   the preview path, where there is no FormProvider at all. The explicit
+ *   `mode` keeps the hook deterministic in both modes.
  *
  * `hidden` updates reactively:
  *   - editor mode: via `useWatch` on the live form value.
@@ -69,10 +70,18 @@ export function useSectionPrint(
   // branches are pure functions of their inputs — the conditional
   // is stable for a given component instance (a section helper
   // doesn't move between editor and preview within its lifetime).
+  //
+  // The rules-of-hooks rule cannot see that stability, so it is
+  // disabled here deliberately. The alternative — calling BOTH
+  // branches unconditionally — is not available: the form branch
+  // calls `useFormContext()`, which throws outside a FormProvider,
+  // and the preview path has no provider.
+  /* eslint-disable react-hooks/rules-of-hooks -- conditional is stable per component instance; see the note above */
   if (mode.editable) {
     return useSectionPrintFromForm(slug);
   }
   return useSectionPrintFromData(slug, mode.data);
+  /* eslint-enable react-hooks/rules-of-hooks */
 }
 
 function useSectionPrintFromForm(slug: string) {

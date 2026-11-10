@@ -232,7 +232,7 @@ export default function PrivacyPage() {
           <ul>
             <li><strong>Mistral</strong> (<code>mistral/mistral-nemo</code>) — primary for structured extraction (JD/resume parsing, formatting, scoring intent).</li>
             <li><strong>Anthropic</strong> (<code>anthropic/claude-haiku-5.5</code>) — primary for the AI chat assistant on the Pro plan, which can read your resume and propose edits to it.</li>
-            <li><strong>Reflection</strong> (<code>reflection/beam-free</code>) — primary for the AI chat assistant on the Free plan, and a fallback for the Pro plan. Every entry on the Free plan's chain is priced at $0.</li>
+            <li><strong>Reflection</strong> (<code>reflection/beam-free</code>) — primary for the AI chat assistant on the Free plan, and a fallback for the Pro plan. Every entry on the Free plan&apos;s chain is priced at $0.</li>
             <li><strong>Amazon</strong> (<code>amazon/nova-micro</code>) — first fallback for the Pro chat chain and second fallback for structured extraction.</li>
             <li><strong>OpenAI</strong> (<code>openai/gpt-4o-mini</code>) — last fallback for structured extraction only.</li>
             <li><strong>Z.ai</strong> (<code>zai/glm-5.3-flash</code>) — second fallback for the Pro chat chain.</li>
