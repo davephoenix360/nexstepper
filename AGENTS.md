@@ -171,6 +171,33 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Nexstepper has a 21-second launch video, and it is honest about the
+  number** — Built with the `/brag` skill (Hyperframes 0.9.28), output in
+  `brag-output/`: `brag.mp4` (1920×1080, 30fps, 648 frames, 21.6s, H.264 +
+  AAC, poster baked into frame 0), `brag.jpg`, `brag-plan.md`,
+  `composition-brief.md`, `share-copy.txt` and the composition itself. The
+  film shows the ATS scorecard assembling (**75/100**, tier **Good**, the
+  seven real dimension bars in the app's own tier colours), then the
+  scorecard's own miss list — *"These requirements from the JD are not
+  evidenced in your resume: **event-driven architectures**, Kafka,
+  OpenTelemetry (top 3 of 6)"* — then Scout answering with a line captured
+  verbatim from a live `/api/chat` turn (*"Nothing on the resume shows
+  those, so I left them out."*), and finally the truth: the one requirement
+  Scout could prove gets evidenced, the list drops to **Kafka, OpenTelemetry,
+  Prometheus (top 3 of 5)**, Keywords goes **68 → 72** and the score goes
+  **75 → 76**. **Nothing invented.** — the score moves ONE point, because
+  that is all the truth is worth, and the video says so. Every number was
+  **measured with the shipped engine** against the real seeded fixture, not
+  predicted; the dev fixture was restored to its pristine 75 baseline
+  afterwards. The by-product is a finding: **Role fit is a constant 50 for
+  every resume**, because `lib/scoring-async/score-hybrid.ts:97` passes
+  `{ roleFitSimilarity: null }` into the sync engine and nothing in
+  production ever calls `roleFitSimilarity()` — which makes
+  `docs/plans/demo-video.md` Beat 6 ("Role fit moves off 50") unfilmable as
+  written, and that plan now carries a warning at the top. Plan:
+  `brag-output/brag-plan.md`. Drift memo:
+  `docs/drift/2026-11-10-brag-video-and-the-pinned-role-fit-dimension.md`.
+
 - **A candidate can now bold, italicise or underline their resume — and
   the ATS score did not move** — The thing resumes do by hand to signal
   "this is aimed at *this* posting". Drag-select text in the rendered

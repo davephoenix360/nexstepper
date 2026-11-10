@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nexstepper — the outro</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+  </head>
+  <body>
+    <template>
+    <style>
+      @font-face {
+        font-family: 'Manrope';
+        src: url('../assets/fonts/manrope-latin.woff2') format('woff2');
+        font-weight: 200 800;
+        font-style: normal;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+          U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Manrope';
+        src: url('../assets/fonts/manrope-latin-ext.woff2') format('woff2');
+        font-weight: 200 800;
+        font-style: normal;
+        font-display: block;
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+          U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+          U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+          U+A720-A7FF;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #f4f4f5;
+        font-family: 'Manrope', sans-serif;
+        color: #09090b;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #outro {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+      }
+
+      /* The requirements that are still genuinely missing. They stay rose and
+         unanswered — that is the point of the line underneath. */
+      #left-over {
+        position: absolute;
+        top: 200px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 14px;
+        opacity: 0;
+      }
+      .chip {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-size: 28px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      #left-over-count {
+        margin-left: 10px;
+        font-size: 28px;
+        color: #757578;
+      }
+
+      #stack {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 424px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #outro-line {
+        font-size: 104px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        opacity: 0;
+      }
+      #outro-mark {
+        margin-top: 46px;
+        width: 286px;
+        height: auto;
+        display: block;
+        opacity: 0;
+      }
+      #outro-url {
+        margin-top: 24px;
+        font-size: 28px;
+        font-weight: 600;
+        color: #52525b;
+        letter-spacing: 0.01em;
+        opacity: 0;
+      }
+    </style>
+      <div
+        id="outro"
+        data-composition-id="outro"
+        data-width="1920"
+        data-height="1080"
+      >
+        <div id="left-over">
+          <span class="chip">Kafka</span>
+          <span class="chip">OpenTelemetry</span>
+          <span class="chip">Prometheus</span>
+          <span id="left-over-count">(top 3 of 5)</span>
+        </div>
+
+        <div id="stack">
+          <div id="outro-line">Nothing invented.</div>
+          <img id="outro-mark" src="../assets/brand/wordmark.png" alt="Nexstepper" />
+          <div id="outro-url">nexstepper.com</div>
+        </div>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+
+        // The requirements that stayed missing, still unanswered.
+        tl.fromTo(
+          '#left-over',
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' },
+          0.55
+        );
+
+        // The line lands on the 18.55s chime (0.95s into this scene).
+        tl.fromTo(
+          '#outro-line',
+          { opacity: 0, y: 20, filter: 'blur(8px)' },
+          {
+            opacity: 1,
+            y: 0,
+            filter: 'blur(0px)',
+            duration: 0.5,
+            ease: 'power4.out'
+          },
+          0.95
+        );
+        tl.fromTo(
+          '#outro-mark',
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' },
+          1.5
+        );
+        // Held to the end of the film so the closing line gets its 2s.
+        tl.fromTo(
+          '#outro-url',
+          { opacity: 0, y: 8 },
+          { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' },
+          1.9
+        );
+
+        window.__timelines['outro'] = tl;
+      </script>
+    </template>
+  </body>
+</html>

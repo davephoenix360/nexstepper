@@ -1,5 +1,42 @@
 # Demo Video — Plan
 
+> **⚠️ Before shooting: Role fit cannot move off 50.**
+>
+> This plan's Beat 1 opens on **Role fit — 50** as the weakest bar, and Beat 6
+> is built around it moving. On the current engine that is not filmable:
+> **Role fit is a constant 50 for every resume**, because
+> `lib/scoring-async/score-hybrid.ts:97` passes
+> `{ roleFitSimilarity: null }` into the sync engine and nothing in production
+> ever calls `roleFitSimilarity()` (`lib/scoring-async/role-fit.ts:64` — the
+> only callers are tests). A null similarity falls back to
+> `NEUTRAL_ROLE_FIT_SCORE` = 50 (`lib/scoring/dimensions/role-fit.ts:45-50`).
+> Measured across four edits — pristine, relabelled headline, reframed job
+> title, both — it never moved, while every other dimension responded.
+>
+> **Three ways out, and one is a product decision, not a filming one:**
+> 1. **Fix the dimension** — await `roleFitSimilarity()` in the hybrid scorer.
+>    Then this plan shoots exactly as written.
+> 2. **Re-label the dimension** so it does not promise a measurement it is not
+>    making, and re-point Beats 1 and 6 at a bar that does move (**Keywords**
+>    does: 68 → 72 on a truthful edit).
+> 3. **Shoot it anyway** — but the video would imply a fix the engine cannot
+>    produce, which is the one thing this product does not do.
+>
+> Whichever you pick, **«SCORE_AFTER» still has to be measured, never
+> predicted** — and see the measured numbers below.
+>
+> **Measured, for reference** (the real engine, the real seeded Cartwheel
+> fixture, the real recompute path): overall **75 → 76**, Keywords **68 → 72**,
+> every other dimension unchanged, tier **Good** throughout. The one edit:
+> *"Built the asynchronous transcription pipeline"* → *"Built the **event-driven**
+> transcription pipeline"* — which is what the posting asked for and what the
+> pipeline already was. See
+> `docs/drift/2026-11-10-brag-video-and-the-pinned-role-fit-dimension.md`.
+>
+> A **21-second** launch video built from these measured numbers already
+> exists — `brag-output/brag.mp4` — and is the better first asset to publish
+> while this 2:16 master is re-planned.
+
 ## Objective
 
 Give Nexstepper a product video that sells the thing competitors don't sell:

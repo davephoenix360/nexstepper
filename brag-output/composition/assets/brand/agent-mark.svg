@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" fill="none">
+  <!-- Nexstepper AI Editorial Agent Mark -->
+  <!-- 2 monoline strokes with rounded terminals (#0F172A) + 1 solid accent circle (#6366F1) -->
+  <!-- Centred on 1024x1024 canvas with generous 24% margin. Flat vector, solid transparent background -->
+  <path
+    d="M 280 500 L 280 320 A 40 40 0 0 1 320 280 L 500 280"
+    stroke="#0F172A"
+    stroke-width="72"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M 744 524 L 744 704 A 40 40 0 0 1 704 744 L 524 744"
+    stroke="#0F172A"
+    stroke-width="72"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle
+    cx="512"
+    cy="512"
+    r="54"
+    fill="#6366F1"
+  />
+</svg>

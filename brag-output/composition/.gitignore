@@ -1,0 +1,4 @@
+# HyperFrames build artifacts — check reports, key-frame snapshots and the
+# recorded revision state. The project itself (index.html, compositions/,
+# assets/) is source and is committed.
+.hyperframes/

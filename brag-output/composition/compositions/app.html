@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nexstepper — the app</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+  </head>
+  <body>
+    <template>
+    <style>
+      /* Manrope — the app's only family (app/layout.tsx). Not a Hyperframes
+         bundled family, so it ships as a local woff2 with an @font-face. */
+      @font-face {
+        font-family: 'Manrope';
+        src: url('../assets/fonts/manrope-latin.woff2') format('woff2');
+        font-weight: 200 800;
+        font-style: normal;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+          U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Manrope';
+        src: url('../assets/fonts/manrope-latin-ext.woff2') format('woff2');
+        font-weight: 200 800;
+        font-style: normal;
+        font-display: block;
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+          U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+          U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+          U+A720-A7FF;
+      }
+      :root {
+        --surface: #ffffff;
+        --ink: #09090b;
+        --muted: #757578;
+        --accent: #6366f1;
+        --accent-deep: #4338ca;
+        --border: #e4e4e7;
+        --rose-ink: #b91c1c;
+        --rose-tint: #fef2f2;
+        --rose-line: #fecaca;
+        --badge-bg: #ecfccb;
+        --badge-ink: #365314;
+        --badge-line: #d9f99d;
+        --font-ui: 'Manrope', sans-serif;
+        --font-num: 'JetBrains Mono', monospace;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #f4f4f5;
+        font-family: var(--font-ui);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+      }
+      #app {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+      }
+      /* ---------- the app card ---------- */
+      #card {
+        position: absolute;
+        left: 160px;
+        top: 90px;
+        width: 1600px;
+        height: 900px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 24px 48px rgba(9, 9, 11, 0.06);
+        display: flex;
+        overflow: hidden;
+      }
+      /* ---------- left: the ATS scorecard ---------- */
+      #left {
+        width: 900px;
+        padding: 44px 52px 40px;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border);
+      }
+      #variant-name {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--muted);
+        letter-spacing: -0.01em;
+      }
+      #score-row {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        margin-top: 8px;
+        opacity: 0;
+      }
+      #score-num {
+        font-size: 124px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.045em;
+        font-variant-numeric: tabular-nums;
+      }
+      #score-den {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      #tier-badge {
+        margin-left: 8px;
+        align-self: center;
+        background: var(--badge-bg);
+        color: var(--badge-ink);
+        border: 1px solid var(--badge-line);
+        border-radius: 7px;
+        padding: 8px 16px;
+        font-size: 28px;
+        font-weight: 700;
+      }
+      #dims {
+        margin-top: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .dim {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .dim-label {
+        width: 272px;
+        font-size: 28px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .dim-track {
+        flex: 1;
+        height: 10px;
+        background: #f4f4f5;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .dim-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+      }
+      .dim-value {
+        width: 64px;
+        text-align: right;
+        font-family: var(--font-num);
+        font-size: 28px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      /* ---------- the miss list (the scorecard's per-skill miss list) ---------- */
+      #miss-panel {
+        margin-top: 26px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 22px 24px;
+        position: relative;
+        height: 240px;
+        opacity: 0;
+      }
+      .miss-head {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--ink);
+        line-height: 1.35;
+      }
+      .miss-count {
+        position: absolute;
+        left: 24px;
+        top: 186px;
+        font-size: 28px;
+        color: var(--muted);
+      }
+      .chip-set {
+        position: absolute;
+        left: 24px;
+        top: 112px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .chip {
+        background: var(--rose-tint);
+        border: 1px solid var(--rose-line);
+        color: var(--rose-ink);
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-size: 28px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      #chips-b {
+        opacity: 0;
+      }
+      #count-b {
+        opacity: 0;
+      }
+      #chip-event,
+      #chip-kafka,
+      #chip-otel {
+        opacity: 0;
+      }
+      /* ---------- right: the posting, then Scout ---------- */
+      #right {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      #jd-panel {
+        position: absolute;
+        inset: 0;
+        padding: 52px 48px;
+        background: var(--surface);
+      }
+      #jd-title {
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.18;
+      }
+      #jd-meta {
+        margin-top: 8px;
+        font-size: 24px;
+        color: var(--muted);
+      }
+      #jd-label {
+        margin-top: 38px;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      #jd-reqs {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .req {
+        font-size: 23px;
+        line-height: 1.4;
+        color: var(--ink);
+        padding-left: 18px;
+        position: relative;
+      }
+      .req::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 12px;
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #d4d4d8;
+      }
+      #req-event .hl {
+        background: rgba(99, 102, 241, 0.14);
+        border-radius: 4px;
+        padding: 1px 3px;
+        color: var(--accent-deep);
+        font-weight: 700;
+      }
+      /* ---------- Scout's chat ---------- */
+      #chat-panel {
+        position: absolute;
+        inset: 0;
+        padding: 52px 48px;
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+        opacity: 0;
+      }
+      #chat-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      #chat-mark {
+        width: 52px;
+        height: 52px;
+      }
+      #chat-name {
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      #chat-msg {
+        align-self: flex-start;
+        max-width: 560px;
+        background: #f4f4f5;
+        border-radius: 14px;
+        padding: 22px 26px;
+        font-size: 28px;
+        line-height: 1.4;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        min-height: 36px;
+      }
+      #edit-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px 22px;
+        opacity: 0;
+      }
+      #edit-label {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      #edit-line {
+        margin-top: 8px;
+        font-size: 28px;
+        line-height: 1.4;
+        color: var(--ink);
+      }
+      #edit-new {
+        font-weight: 800;
+        color: var(--accent-deep);
+        background: rgba(99, 102, 241, 0.16);
+        border-radius: 4px;
+        padding: 1px 3px;
+      }
+    </style>
+      <div id="app" data-composition-id="app" data-width="1920" data-height="1080">
+        <div id="card">
+          <div id="left">
+            <div id="variant-name" style="opacity: 0">
+              Jordan Ellis — Cartwheel (Backend Platform)
+            </div>
+            <div id="score-row">
+              <div id="score-num">0</div>
+              <div id="score-den">/100</div>
+              <div id="tier-badge" style="opacity: 0">Good</div>
+            </div>
+            <div id="dims">
+              <div class="dim">
+                <div class="dim-label">Keywords</div>
+                <div class="dim-track">
+                  <div class="dim-fill" id="f-keywords" style="background: #84cc16"></div>
+                </div>
+                <div class="dim-value" id="v-keywords" style="color: #4d7c0f; opacity: 0">68</div>
+              </div>
+              <div class="dim">
+                <div class="dim-label">Format</div>
+                <div class="dim-track">
+                  <div class="dim-fill" id="f-format" style="background: #10b981"></div>
+                </div>
+                <div class="dim-value" id="v-format" style="color: #047857; opacity: 0">82</div>
+              </div>
+              <div class="dim">
+                <div class="dim-label">Impact</div>
+                <div class="dim-track">
+                  <div class="dim-fill" id="f-impact" style="background: #84cc16"></div>
+                </div>
+                <div class="dim-value" id="v-impact" style="color: #4d7c0f; opacity: 0">74</div>
+              </div>
+              <div class="dim">
+                <div class="dim-label">Experience match</div>
+                <div class="dim-track">
+                  <div class="dim-fill" id="f-alignment" style="background: #84cc16"></div>
+                </div>
+                <div class="dim-value" id="v-alignment" style="color: #4d7c0f; opacity: 0">69</div>
+              </div>
+              <div class="dim">
+                <div class="dim-label">Intent coverage</div>
+                <div class="dim-track">
+                  <div class="dim-fill" id="f-intent" style="background: #10b981"></div>
+                </div>
+                <div class="dim-value" id="v-intent" style="color: #047857; opacity: 0">90</div>
+              </div>
+              <div class="dim">
+                <div class="dim-label">Role fit</div>
+                <div class="dim-track">
+                  <div class="dim-fill" id="f-role" style="background: #f59e0b"></div>
+                </div>
+                <div class="dim-value" id="v-role" style="color: #b45309; opacity: 0">50</div>
+              </div>
+              <div class="dim">
+                <div class="dim-label">Seniority fit</div>
+                <div class="dim-track">
+                  <div class="dim-fill" id="f-seniority" style="background: #10b981"></div>
+                </div>
+                <div class="dim-value" id="v-seniority" style="color: #047857; opacity: 0">100</div>
+              </div>
+            </div>
+            <div id="miss-panel">
+              <div class="miss-head">
+                These requirements from the JD are not evidenced in your resume:
+              </div>
+              <div class="chip-set" id="chips-a" data-layout-allow-overlap>
+                <span class="chip" id="chip-event">event-driven architectures</span>
+                <span class="chip" id="chip-kafka">Kafka</span>
+                <span class="chip" id="chip-otel">OpenTelemetry</span>
+              </div>
+              <div class="chip-set" id="chips-b" data-layout-allow-overlap>
+                <span class="chip">Kafka</span>
+                <span class="chip">OpenTelemetry</span>
+                <span class="chip">Prometheus</span>
+              </div>
+              <div class="miss-count" id="count-a">(top 3 of 6)</div>
+              <div class="miss-count" id="count-b">(top 3 of 5)</div>
+            </div>
+          </div>
+          <div id="right">
+            <div id="jd-panel" data-layout-allow-overlap>
+              <div id="jd-title">Senior Backend Engineer, Platform</div>
+              <div id="jd-meta" data-layout-ignore>Cartwheel · Seattle, WA (Hybrid)</div>
+              <div id="jd-label" data-layout-ignore>Requirements</div>
+              <div id="jd-reqs" data-layout-ignore>
+                <div class="req">
+                  5+ years building and operating backend services in production.
+                </div>
+                <div class="req">
+                  Strong proficiency in one of Go, Python, or Java.
+                </div>
+                <div class="req">
+                  Production experience with PostgreSQL, including schema design and
+                  query performance.
+                </div>
+                <div class="req" id="req-event">
+                  Experience designing distributed systems and
+                  <span class="hl">event-driven architectures</span>.
+                </div>
+                <div class="req">
+                  Hands-on experience with Kubernetes, Terraform, and AWS.
+                </div>
+                <div class="req">
+                  Comfort with gRPC or a similar service-to-service RPC model.
+                </div>
+                <div class="req">
+                  A track record of owning on-call for production systems.
+                </div>
+              </div>
+            </div>
+            <div id="chat-panel">
+              <div id="chat-head">
+                <img id="chat-mark" src="../assets/brand/agent-mark.svg" alt="" />
+                <div id="chat-name">Scout</div>
+              </div>
+              <div id="chat-msg"></div>
+              <div id="edit-card">
+                <div id="edit-label" data-layout-ignore>Halcyon Systems</div>
+                <div id="edit-line">
+                  Built the
+                  <span id="edit-new">event-driven</span>
+                  transcription pipeline
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        // Text is written from a timeline callback, which can fire before the
+        // scene is in the document. Resolve inside the scene root, and never
+        // let a callback throw — a throw here aborts the rest of the timeline.
+        const setText = (id, value) => {
+          try {
+            const selector = id.charAt(0) === '#' ? id : '#' + id;
+            const root = document.getElementById('app');
+            const el = root
+              ? root.querySelector(selector)
+              : document.querySelector(selector);
+            if (el) {
+              el.textContent = value;
+              return;
+            }
+            if (!setText.warned) {
+              setText.warned = true;
+              console.warn('[brag] missing element ' + selector);
+            }
+          } catch (error) {
+            if (!setText.warned) {
+              setText.warned = true;
+              console.warn('[brag] setText failed', error);
+            }
+          }
+        };
+        /* ----------------------------------------------------------------
+         * Scene 1 — A good score (0.0 - 5.6)
+         * -------------------------------------------------------------- */
+        tl.fromTo(
+          '#card',
+          { scale: 1.03, y: 14 },
+          { scale: 1, y: 0, duration: 0.55, ease: 'power4.out' },
+          0
+        );
+        tl.fromTo(
+          '#variant-name',
+          { opacity: 0, filter: 'blur(6px)' },
+          { opacity: 1, filter: 'blur(0px)', duration: 0.34, ease: 'power3.out' },
+          0.15
+        );
+        // 75 counts up and lands on the 1.60s strong cue.
+        tl.to('#score-row', { opacity: 1, duration: 0.35, ease: 'power2.out' }, 0.8);
+        const scoreProxy = { v: 0 };
+        tl.to(
+          scoreProxy,
+          {
+            v: 75,
+            duration: 0.8,
+            ease: 'power2.out',
+            onUpdate: () => {
+              setText('score-num', Math.round(scoreProxy.v));
+            }
+          },
+          0.8
+        );
+        tl.fromTo(
+          '#tier-badge',
+          { opacity: 0, scale: 0.86 },
+          { opacity: 1, scale: 1, duration: 0.34, ease: 'power3.out' },
+          1.7
+        );
+        // Seven dimension bars fill on the beat grid (114.84 BPM).
+        const bars = [
+          ['#f-keywords', '#v-keywords', 68, 2.12],
+          ['#f-format', '#v-format', 82, 2.65],
+          ['#f-impact', '#v-impact', 74, 3.18],
+          ['#f-alignment', '#v-alignment', 69, 3.7],
+          ['#f-intent', '#v-intent', 90, 4.23],
+          ['#f-role', '#v-role', 50, 4.75],
+          ['#f-seniority', '#v-seniority', 100, 5.28]
+        ];
+        bars.forEach(([fillId, valueId, target, at]) => {
+          tl.fromTo(
+            fillId,
+            { width: '0%' },
+            { width: target + '%', duration: 0.42, ease: 'power3.out' },
+            at
+          );
+          tl.fromTo(
+            valueId,
+            { opacity: 0 },
+            { opacity: 1, duration: 0.3, ease: 'power2.out' },
+            at
+          );
+          const counter = { v: 0 };
+          tl.to(
+            counter,
+            {
+              v: target,
+              duration: 0.42,
+              ease: 'power3.out',
+              onUpdate: () => {
+                setText(valueId, Math.round(counter.v));
+              }
+            },
+            at
+          );
+        });
+        /* ----------------------------------------------------------------
+         * Scene 2 — Not evidenced (5.6 - 11.4)
+         * -------------------------------------------------------------- */
+        tl.fromTo(
+          '#miss-panel',
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.42, ease: 'power3.out' },
+          6.3
+        );
+        tl.fromTo(
+          '#chip-event',
+          { opacity: 0, y: 8 },
+          { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' },
+          7.0
+        );
+        tl.fromTo(
+          '#chip-kafka',
+          { opacity: 0, y: 8 },
+          { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' },
+          7.65
+        );
+        tl.fromTo(
+          '#chip-otel',
+          { opacity: 0, y: 8 },
+          { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' },
+          8.3
+        );
+        // The honest count lands with the last chip.
+        tl.fromTo(
+          '#count-a',
+          { opacity: 0 },
+          { opacity: 1, duration: 0.3, ease: 'power2.out' },
+          9.2
+        );
+        // The posting's own wording lights up, tying the chip to the JD.
+        tl.fromTo(
+          '#req-event .hl',
+          { backgroundColor: 'rgba(99,102,241,0.14)' },
+          {
+            backgroundColor: 'rgba(99,102,241,0.42)',
+            duration: 0.45,
+            ease: 'power2.inOut',
+            yoyo: true,
+            repeat: 1
+          },
+          7.4
+        );
+        /* ----------------------------------------------------------------
+         * Scene 3 — Scout (11.4 - 17.6)
+         * -------------------------------------------------------------- */
+        tl.to('#jd-panel', { opacity: 0, duration: 0.3, ease: 'power2.in' }, 11.45);
+        tl.fromTo(
+          '#chat-panel',
+          { opacity: 0, x: 34 },
+          { opacity: 1, x: 0, duration: 0.45, ease: 'power3.out' },
+          11.5
+        );
+        // Scout types his real line.
+        tl.fromTo(
+          '#chat-msg',
+          { opacity: 0, y: 6 },
+          { opacity: 1, y: 0, duration: 0.25, ease: 'power2.out' },
+          12.4
+        );
+        const scoutText = 'Nothing on the resume shows those, so I left them out.';
+        const typeProxy = { n: 0 };
+        tl.fromTo(
+          typeProxy,
+          { n: 0 },
+          {
+            n: scoutText.length,
+            duration: 2.2,
+            ease: 'none',
+            immediateRender: true,
+            onUpdate: () => {
+              setText(
+                'chat-msg',
+                scoutText.slice(0, Math.round(typeProxy.n))
+              );
+            }
+          },
+          12.6
+        );
+        // The line Scout rewrote. It appears as he works; the word the posting
+        // needed is the one that just left the miss list.
+        tl.fromTo(
+          '#edit-card',
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.42, ease: 'power3.out' },
+          13.4
+        );
+        tl.fromTo(
+          '#edit-new',
+          { backgroundColor: 'rgba(99,102,241,0.16)' },
+          {
+            backgroundColor: 'rgba(99,102,241,0.4)',
+            duration: 0.5,
+            ease: 'power2.inOut',
+            yoyo: true,
+            repeat: 1
+          },
+          15.62
+        );
+        // The chip Scout proved lifts out of the miss list.
+        tl.fromTo(
+          '#chip-event',
+          { scale: 1, backgroundColor: '#fef2f2' },
+          {
+            scale: 1.05,
+            backgroundColor: '#e0e7ff',
+            duration: 0.25,
+            ease: 'power2.out',
+            yoyo: true,
+            repeat: 1
+          },
+          15.45
+        );
+        tl.to(
+          '#chip-event',
+          { opacity: 0, y: -26, duration: 0.35, ease: 'power2.in' },
+          15.8
+        );
+        // The list is now the real post-edit list.
+        tl.to('#chips-a', { opacity: 0, duration: 0.25, ease: 'power2.in' }, 16.0);
+        tl.fromTo(
+          '#chips-b',
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.35, ease: 'power3.out' },
+          16.05
+        );
+        tl.to('#count-a', { opacity: 0, duration: 0.18, ease: 'power1.in' }, 16.0);
+        tl.fromTo(
+          '#count-b',
+          { opacity: 0 },
+          { opacity: 1, duration: 0.3, ease: 'power2.out' },
+          16.22
+        );
+        // The recompute: Keywords 68 -> 72, score 75 -> 76.
+        tl.to(
+          '#f-keywords',
+          { width: '72%', duration: 0.9, ease: 'power3.out' },
+          16.05
+        );
+        const kwProxy = { v: 68 };
+        tl.to(
+          kwProxy,
+          {
+            v: 72,
+            duration: 0.9,
+            ease: 'power3.out',
+            onUpdate: () => {
+              setText('v-keywords', Math.round(kwProxy.v));
+            }
+          },
+          16.05
+        );
+        const afterProxy = { v: 75 };
+        tl.to(
+          afterProxy,
+          {
+            v: 76,
+            duration: 0.6,
+            ease: 'power2.out',
+            onUpdate: () => {
+              setText('score-num', Math.round(afterProxy.v));
+            }
+          },
+          16.25
+        );
+        /* ----------------------------------------------------------------
+         * Scene 4 — the card recedes; the outro takes the frame.
+         * -------------------------------------------------------------- */
+        tl.to(
+          '#card',
+          { opacity: 0, scale: 0.96, duration: 0.45, ease: 'power2.inOut' },
+          17.6
+        );
+        window.__timelines['app'] = tl;
+      </script>
+    </template>
+  </body>
+</html>
