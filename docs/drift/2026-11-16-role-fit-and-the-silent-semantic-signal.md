@@ -258,7 +258,47 @@ loaded through a computed path, has to be named by hand — and until it
 is, the feature it powers is dead in production while every local run
 and every unit test says it works.
 
-### Bug 2d — and then the deploy would not go out at all
+### Bug 2d — the include key was a GLOB, and `[id]` is a character class
+
+With the module resolving, the next production error was one layer
+deeper:
+
+```
+Failed to load external module onnxruntime-node:
+Error: libonnxruntime.so.1: cannot open shared object file
+```
+
+The binding was there; the library it dlopens was not. And the local
+build showed why: **the variant page's trace had the `.node` addon (the
+tracer resolved the template path itself) but not `libonnxruntime.so.1`**
+— so the include had never fired for that route, only for `/api/chat`.
+
+**The cause is that the keys of `outputFileTracingIncludes` are ROUTE
+GLOBS, matched with picomatch** — and in a glob, `[id]` is a
+*character class*, not a literal segment. Next's own documentation
+escapes it (`'/api/login/\\[\\[\\.\\.\\.slug\\]\\]'`), and a project
+shipping this exact package does the same (`"/\\[user\\]"`).
+
+The fix is the escaped key:
+
+```ts
+'/dashboard/resumes/\\[id\\]': ONNX_LINUX_FILES
+```
+
+Verified against the build's own traces afterwards: **3 routes carry the
+`.so` (the variant page, its preview, and `/api/chat`), 32 carry
+neither.**
+
+And the platforms we will never run on are now excluded
+(`outputFileTracingExcludes`): darwin, win32, linux/arm64 and
+`onnxruntime-web`. The payload per function dropped from **108 MB to
+44 MB** — `libonnxruntime.so.1` alone is 43.7 MB.
+
+**Lesson worth keeping:** a glob in a config key is a glob. The same
+bracket that reads as "the dynamic segment" to a human reads as "the
+set {i, d}" to the matcher.
+
+### Bug 2e — and then the deploy would not go out at all
 
 The ONNX fix built and passed CI, and the deploy failed:
 

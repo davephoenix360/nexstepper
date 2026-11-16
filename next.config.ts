@@ -21,6 +21,22 @@ import type { NextConfig } from 'next';
  * bundled. Phase 3 of the ATS engine review introduced this dep — see
  * `docs/drift/2026-09-19-ats-engine-review.md`.
  */
+/**
+ * The Linux native artifacts `onnxruntime-node` needs at runtime.
+ *
+ * The paths point at pnpm's **physical store** (`node_modules/.pnpm/…`)
+ * because the symlinked `node_modules/onnxruntime-node` path does not
+ * exist for a transitive dependency — and the glob is resolved by
+ * Next's tracer, which does not follow symlinks out of the store.
+ *
+ * `linux/x64` only: Vercel builds linux/x64, and the other platforms
+ * are excluded by `outputFileTracingExcludes` below.
+ */
+const ONNX_LINUX_FILES = [
+  './node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v6/linux/x64/**/*',
+  './node_modules/.pnpm/onnxruntime-common@*/node_modules/onnxruntime-common/**/*'
+];
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -84,14 +100,56 @@ const nextConfig: NextConfig = {
    * `linux/**` covers x64 and arm64; Vercel builds x64 today, but an
    * arm64 build would otherwise deploy a function with no binding.
    */
+  /**
+   * Force the ONNX runtime's native binary into the function bundle —
+   * but ONLY for the routes that actually run the scorer.
+   *
+   * ## The gap
+   *
+   * `onnxruntime-node/dist/binding.js` loads its addon with
+   * `require(`../bin/napi-v6/${process.platform}/${process.arch}/onnxruntime_binding.node`)`
+   * — a template-literal path. Next's tracer resolves the ADDON (it can
+   * see the template) but not the shared library the addon dlopens, so
+   * `libonnxruntime.so.1` never reaches the deployment and the runtime
+   * fails with `ERR_DLOPEN_FAILED`.
+   *
+   * ## Why the key is escaped
+   *
+   * The keys of `outputFileTracingIncludes` are ROUTE GLOBS, matched
+   * with picomatch — and in a glob, `[id]` is a CHARACTER CLASS, not a
+   * literal segment. Next's own docs escape it
+   * (`'/api/login/\\[\\[\\.\\.\\.slug\\]\\]'`), and a project shipping
+   * this exact package does the same (`"/\\[user\\]"`).
+   *
+   * Empirically, the unescaped key did NOT apply to the variant page's
+   * trace: the binding was there (the tracer found it) and the library
+   * was not (the include never fired).
+   *
+   * ## Why only these two routes
+   *
+   * The native binaries are 44 MB, and adding them to every route
+   * changes every route's output bundle — which is what moved Vercel's
+   * route grouping and took the deployment over the Hobby plan's
+   * 12-function ceiling. Only two routes run the hybrid scorer:
+   *
+   *   - `/api/chat` — the `getAtsScore` tool.
+   *   - `/dashboard/resumes/[id]` — the Recompute server action.
+   */
   outputFileTracingIncludes: {
-    '/api/chat': [
-      './node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v6/linux/**/*',
-      './node_modules/.pnpm/onnxruntime-common@*/node_modules/onnxruntime-common/**/*'
-    ],
-    '/dashboard/resumes/[id]': [
-      './node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v6/linux/**/*',
-      './node_modules/.pnpm/onnxruntime-common@*/node_modules/onnxruntime-common/**/*'
+    '/api/chat': ONNX_LINUX_FILES,
+    '/dashboard/resumes/\\[id\\]': ONNX_LINUX_FILES
+  },
+  /**
+   * And drop the platforms we will never run on. Vercel builds
+   * linux/x64; shipping darwin, win32 and arm64 costs ~60 MB per
+   * function for nothing, and `onnxruntime-web` is the browser build.
+   */
+  outputFileTracingExcludes: {
+    '*': [
+      './node_modules/onnxruntime-node/bin/napi-v6/darwin/**',
+      './node_modules/onnxruntime-node/bin/napi-v6/win32/**',
+      './node_modules/onnxruntime-node/bin/napi-v6/linux/arm64/**',
+      './node_modules/onnxruntime-web/**'
     ]
   }
 };

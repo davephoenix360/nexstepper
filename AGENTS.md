@@ -2423,6 +2423,39 @@ can't see. The integer columns in this schema to watch are
 `tokens_used` / `turns_used`. `tests/unit/scoring/integer-columns.test.ts`
 asserts the invariant.
 
+### 9. A config key that looks like a path is a GLOB — `[id]` is a character class
+
+The keys of `outputFileTracingIncludes` / `outputFileTracingExcludes` are
+**route globs**, matched with picomatch. So a dynamic segment has to be
+escaped:
+
+```ts
+// ❌ Wrong — `[id]` is the character class {i,d} to a glob matcher
+outputFileTracingIncludes: {
+  '/dashboard/resumes/[id]': ['./node_modules/…/linux/x64/**']
+}
+
+// ✅ Right — the literal segment
+outputFileTracingIncludes: {
+  '/dashboard/resumes/\\[id\\]': ['./node_modules/…/linux/x64/**']
+}
+```
+
+This cost us a deploy: the variant page's function shipped the ONNX
+**binding** but not the **library** it dlopens, so the recompute 500'd
+with `libonnxruntime.so.1: cannot open shared object file` — while the
+chat route, whose key had no dynamic segment, worked.
+
+Two more rules from the same fight:
+
+- **The tracer follows `require`, not `dlopen`.** A native addon that
+  loads a shared library at runtime (`onnxruntime-node` → `libonnxruntime.so.1`,
+  `sharp` → `libvips-cpp.so`) needs the library named by hand.
+- **Check the trace, not the build.** `node -e "…"` over
+  `.next/**/*.nft.json` shows exactly which files each route's function
+  will contain. A green build proves nothing here — the failure is at
+  `dlopen`, in production.
+
 ## Folder structure (current + planned)
 
 ```
