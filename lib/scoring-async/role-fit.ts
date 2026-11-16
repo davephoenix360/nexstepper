@@ -26,7 +26,7 @@
  */
 
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
-import { semanticSimilarity } from './semantic-similarity';
+import { semanticSimilarity, getSemanticError } from './semantic-similarity';
 
 /**
  * Output of the Role Fit dimension. Surfaces the best-matching
@@ -133,6 +133,30 @@ export async function roleFitSimilarity(
       }
     }
   } catch {
+    return {
+      value: NEUTRAL_ROLE_FIT_SCORE,
+      bestSimilarity: null,
+      bestMatchingTitle: null,
+      jdTitle,
+      fallback: true
+    };
+  }
+
+  // If the embedding model was unavailable, every similarity above is a
+  // zero that means "could not measure", NOT "measured zero".
+  //
+  // This distinction is worth five points of the user's score and the
+  // difference between "your titles don't match this job" and "we
+  // couldn't check". `semanticSimilarity` swallows its own errors and
+  // returns 0, so the failure is invisible here unless we ask the
+  // marker.
+  //
+  // Before this check, a dead model made Role Fit read **0** — a flat,
+  // damning bar and a silent 5-point penalty on every resume. The
+  // neutral 50 is the honest answer for a dimension that could not be
+  // measured, and the scorecard's "keyword-only score" notice explains
+  // why.
+  if (getSemanticError()) {
     return {
       value: NEUTRAL_ROLE_FIT_SCORE,
       bestSimilarity: null,

@@ -40,7 +40,6 @@ vi.mock('@/lib/scoring-async/semantic-similarity', () => ({
   resetSemanticError,
   getSemanticError
 }));
-
 import {
   roleFitSimilarity,
   NEUTRAL_ROLE_FIT_SCORE
@@ -96,6 +95,8 @@ describe('roleFitSimilarity', () => {
   beforeEach(() => {
     semanticSimilarity.mockReset();
     semanticSimilarity.mockResolvedValue(0.72);
+    getSemanticError.mockReset();
+    getSemanticError.mockReturnValue(null);
   });
 
   it('measures against the JD title when there is one', async () => {
@@ -177,5 +178,42 @@ describe('roleFitSimilarity', () => {
 
     expect(result.value).toBe(NEUTRAL_ROLE_FIT_SCORE);
     expect(result.fallback).toBe(true);
+  });
+
+  it('reads the neutral score — not zero — when the model was unavailable', async () => {
+    // `semanticSimilarity` swallows its own errors and returns 0. A
+    // zero there means "could not measure", NOT "measured zero".
+    //
+    // This is not academic: when the embedding model was dead in
+    // production, Role Fit read **0** — a flat, damning bar and a
+    // silent 5-point penalty on every resume, for a dimension nobody
+    // had measured. The neutral 50 is the honest answer, and the
+    // scorecard's "keyword-only score" notice says why.
+    semanticSimilarity.mockResolvedValue(0);
+    getSemanticError.mockReturnValue(
+      'Could not load the "sharp" module using the linux-x64 runtime'
+    );
+
+    const result = await roleFitSimilarity(
+      RESUME,
+      job({ title: '', roleFamily: 'Software Engineer' })
+    );
+
+    expect(result.value).toBe(NEUTRAL_ROLE_FIT_SCORE);
+    expect(result.fallback).toBe(true);
+  });
+
+  it('keeps a genuine zero when the model worked and the titles are unrelated', async () => {
+    // A real measurement of zero is still a real measurement.
+    semanticSimilarity.mockResolvedValue(0);
+    getSemanticError.mockReturnValue(null);
+
+    const result = await roleFitSimilarity(
+      RESUME,
+      job({ title: '', roleFamily: 'Software Engineer' })
+    );
+
+    expect(result.value).toBe(0);
+    expect(result.fallback).toBe(false);
   });
 });

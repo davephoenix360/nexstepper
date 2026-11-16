@@ -156,6 +156,19 @@ async function main(): Promise<void> {
       const b = s.breakdown as Record<string, unknown> | null;
       const dims = (b?.dimensionScores ?? {}) as Record<string, number>;
       const crit = (b?.criteriaScores ?? {}) as Record<string, number>;
+      const degraded = (b?.degraded ?? {}) as { semantic?: string };
+      if (degraded.semantic) {
+        console.log('');
+        console.log(`${BOLD}DEGRADED — semantic signal unavailable${RESET}`);
+        // Printed with explicit newlines: sharp's error message is a
+        // multi-line block whose second half names the actual reason.
+        console.log(
+          degraded.semantic
+            .split('\n')
+            .map((line) => `  ${line}`)
+            .join('\n')
+        );
+      }
       console.log('');
       console.log(
         `${BOLD}STORED SNAPSHOT${RESET} ${DIM}${String(s.created_at).slice(0, 19)}${RESET}`
@@ -262,6 +275,12 @@ async function main(): Promise<void> {
         continue;
       }
       const dims = b.dimensionScores as Record<string, number>;
+      const degraded = b.degraded as { semantic?: string } | undefined;
+      if (degraded?.semantic) {
+        console.log(
+          `    ${RED}DEGRADED — semantic signal unavailable:${RESET} ${degraded.semantic}`
+        );
+      }
       const crit = (b.criteriaScores ?? {}) as Record<string, number>;
       console.log(
         `    dimensions: ${Object.entries(dims)

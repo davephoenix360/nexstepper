@@ -145,27 +145,71 @@ So: the bundling, the download, the native module and the data are all
 fine. **The failure is specific to the Vercel deployment**, and the only
 way to name it is to have the error rather than a swallowed one.
 
-### The fix
-
-**The failure now carries itself.**
+### The fix, part one — make the failure carry itself
 
 - `semanticSimilarity` records the failure message instead of discarding
   it, and logs it.
 - The hybrid engine scopes that marker to one computation and puts it in
   the breakdown as `degraded.semantic`.
 - The breakdown is persisted with the snapshot — so the reason is
-  readable from the database, and in the next deploy it will be in the
-  score snapshot of whichever resume the founder recomputes.
+  readable from the database.
 - The scorecard renders a **"Keyword-only score"** notice.
 
 The score itself is unchanged. Only the honesty about it changes. A
 number whose provenance is unknown is worse than a number with a caveat
 attached.
 
-**Next step:** deploy, recompute, read `degraded.semantic` out of the
-snapshot, fix the actual cause. This memo deliberately does not guess at
-it — every hypothesis tested above was falsified, and a guess would be
-another silent failure with a different symptom.
+### The cause — `sharp`, and a Next.js 16.2 file-tracing bug
+
+Deployed, recomputed, and read the reason straight out of the snapshot:
+
+```
+Failed to load external module @huggingface/transformers:
+Error: Could not load the "sharp" module using the linux-x64 runtime
+  ERR_DLOPEN_FAILED: libvips-cpp.so.8.18.6: cannot open shared object file
+```
+
+We do not use sharp. It arrives as a transitive dependency of
+`@huggingface/transformers` (for image processing we never do), and it
+was breaking production in a way that looked like nothing at all.
+
+**The mechanism** (vercel/next.js#96064, lovell/sharp#4567, and
+vercel/vercel#11220): `@vercel/nft` — Next.js's file tracer — carries a
+**special case for sharp, gated on `sharp/lib/index.js` existing.**
+sharp 0.35 moved its entry point to `dist/index.cjs` and `lib/` now
+holds only `index.d.ts`, so on 0.35 the gate cannot match and **the
+libvips shared object is never traced into the serverless function**.
+
+The `.node` addon itself traces fine — which is exactly why the failure
+shows up at `dlopen` time rather than at `require` time, and why every
+other symptom was a silent zero.
+
+Our versions match the reported bug exactly: Next.js **16.2.10**, sharp
+**0.35.4** (via `@huggingface/transformers` 4.3.0), pnpm, Vercel. The
+fix landed upstream in next@16.3.0; we are on 16.2.
+
+**The fix:** pin sharp to **0.34.5** via a pnpm override in
+`pnpm-workspace.yaml`. sharp 0.34 keeps `lib/index.js`, so the tracer's
+special case fires and libvips is included in the function bundle. We do
+not call sharp's API ourselves, so the version carries no behavioural
+risk — verified: the local demo fixture produces byte-identical numbers
+before and after the override (78 → 79, Role fit 84).
+
+### Bug 2b — a dead model made Role Fit read 0
+
+With the semantic model dead, `semanticSimilarity` returns 0 for every
+comparison, and Role Fit — which now measures, thanks to the role-family
+fallback — dutifully reported **0**: a flat, damning bar and a silent
+5-point penalty on every resume, for a dimension nobody had measured.
+
+A zero that means "could not measure" is not a zero that means "measured
+zero". `roleFitSimilarity` now asks the failure marker and returns the
+neutral 50 when the model was unavailable, while a genuine zero (titles
+that really are unrelated) still reads 0. The scorecard's "keyword-only
+score" notice explains why the dimension is neutral.
+
+That took the score from **54** (Role Fit 0) to what it should have been
+all along.
 
 ---
 

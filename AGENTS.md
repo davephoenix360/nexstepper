@@ -171,6 +171,38 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **`sharp` was silently killing the semantic half of the ATS score in
+  production — a Next.js 16.2 file-tracing bug** — The follow-up to the
+  Role Fit fix. With the failure now captured rather than swallowed,
+  the persisted snapshot named it: `Failed to load external module
+  @huggingface/transformers: Could not load the "sharp" module using
+  the linux-x64 runtime — ERR_DLOPEN_FAILED: libvips-cpp.so.8.18.6:
+  cannot open shared object file`. We do not use sharp; it arrives as a
+  transitive dependency of `@huggingface/transformers` (for image
+  processing we never do), and it was breaking production in a way
+  that looked like nothing at all. **The mechanism:**
+  `@vercel/nft` — Next's file tracer — carries a **special case for
+  sharp, gated on `sharp/lib/index.js` existing**. sharp 0.35 moved its
+  entry point to `dist/index.cjs`, so on 0.35 the gate cannot match and
+  **the libvips shared object is never traced into the serverless
+  function**. The `.node` addon itself traces fine — which is why it
+  failed at `dlopen` rather than at `require`, and why every symptom
+  was a silent zero. Our versions matched the reported bug exactly:
+  Next **16.2.10**, sharp **0.35.4**, pnpm, Vercel; the fix landed
+  upstream in next@16.3.0 (vercel/next.js#96064, lovell/sharp#4567,
+  vercel/vercel#11220). **Fixed by pinning sharp to 0.34.5** via a pnpm
+  override — 0.34 keeps `lib/index.js`, so the tracer's special case
+  fires and libvips is included. We never call sharp's API, so the
+  version carries no behavioural risk: the demo fixture produces
+  byte-identical numbers before and after. **And a dead model made
+  Role Fit read 0** — a flat, damning bar and a silent 5-point
+  penalty on every resume, for a dimension nobody had measured. A zero
+  that means "could not measure" is not a zero that means "measured
+  zero": `roleFitSimilarity` now asks the failure marker and returns
+  the neutral 50, while a genuine zero still reads 0. 2,245 tests pass.
+  Drift memo:
+  `docs/drift/2026-11-16-role-fit-and-the-silent-semantic-signal.md`.
+
 - **Role Fit was 50 for every resume in production — the JD never had a
   title to measure against** — The founder clicked Recompute on a live
   variant and Role Fit came back at exactly **50** — the neutral
