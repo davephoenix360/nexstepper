@@ -27,6 +27,11 @@ yarn-error.log*
 
 # local env files
 .env
+# Any other env file that might hold a real secret — but NOT the
+# template, which is meant to be committed.
+.env*
+!.env.example
+!.env.example.*
 
 # vercel
 .vercel

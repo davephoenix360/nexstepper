@@ -2,7 +2,6 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import Script from 'next/script';
-import { getUser } from '@/lib/db/queries';
 import { PostHogProvider } from '@/components/posthog-provider';
 import { PostHogIdentify } from '@/components/posthog-identify';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -57,10 +56,36 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Pre-warm the session on the server so layout-level reads are cheap.
-  // Better Auth's cookie cache means this typically does no DB work.
-  // (Will throw if no DB is reachable — see README for setup steps.)
-  await getUser();
+  // ## There is deliberately no `getUser()` here.
+  //
+  // It used to be here as a "pre-warm the session so layout-level reads
+  // are cheap" optimisation. It was a self-defeating one:
+  //
+  //   - `getUser()` reads the session via `headers()`, and `headers()`
+  //     is a DYNAMIC API. A dynamic API in the ROOT layout makes EVERY
+  //     route in the app dynamic — so every page became a Serverless
+  //     Function with its own cold start, including the marketing
+  //     home page, the legal pages and the sign-in page.
+  //   - The result was DISCARDED. Nothing read it.
+  //   - The pages that actually need the session read it themselves:
+  //     the dashboard layout has its own auth gate, the marketing hero
+  //     reads it to personalise the CTA, and `/pricing` reads the
+  //     subscription. `PostHogIdentify` uses the client-side session
+  //     query.
+  //
+  // It also cost us the deployment: Vercel's Hobby plan allows 12
+  // Serverless Functions per deployment, and grouping every page as a
+  // function put the app exactly on that ceiling — so the next change
+  // that made one group's output differ (the native ONNX runtime for
+  // the scoring engine) split a group and took the count to 13, which
+  // Vercel refuses:
+  //
+  //   "No more than 12 Serverless Functions can be added to a
+  //    Deployment on the Hobby plan."
+  //
+  // Removing this call lets every page that does not need the session
+  // be PRERENDERED at build time: fewer functions, no cold start on the
+  // marketing site, and real headroom under the ceiling.
 
   return (
     <html lang="en" suppressHydrationWarning className={manrope.className}>

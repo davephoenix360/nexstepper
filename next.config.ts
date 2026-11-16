@@ -45,7 +45,8 @@ const nextConfig: NextConfig = {
    */
   serverExternalPackages: ['@huggingface/transformers', 'onnxruntime-node'],
   /**
-   * Force the ONNX runtime's native binary into the function bundle.
+   * Force the ONNX runtime's native binary into the function bundle —
+   * but ONLY for the routes that actually run the scorer.
    *
    * `onnxruntime-node/dist/binding.js` loads its binding with
    * `require(`../bin/napi-v6/${process.platform}/${process.arch}/onnxruntime_binding.node`)`
@@ -55,17 +56,40 @@ const nextConfig: NextConfig = {
    * `ERR_DLOPEN_FAILED` — or, if the package itself is missing,
    * `Cannot find module 'onnxruntime-node'`.
    *
-   * These globs are the supported way to add files a tracer cannot
-   * discover. They point at pnpm's physical store paths (the symlinked
-   * `node_modules/onnxruntime-node` path does not exist for a
-   * transitive dependency) and cover the Linux x64 + arm64 binaries.
+   * ## Why these two routes and not `/**`
    *
-   * Why `linux/**` and not just `linux/x64`: Vercel builds for x64
-   * today, but an arm64 build would otherwise deploy a function with
-   * no binding at all.
+   * The native binaries are **44 MB** (libonnxruntime.so alone is
+   * 43.7 MB). Adding them to EVERY route would add 44 MB to every
+   * function — and, more importantly, it would change every route's
+   * output bundle. Vercel groups routes into Serverless Functions when
+   * their output is identical, so changing every route's bundle
+   * changes the grouping, and the app ran straight into the Hobby
+   * plan's ceiling of 12 functions:
+   *
+   *   "No more than 12 Serverless Functions can be added to a
+   *    Deployment on the Hobby plan."
+   *
+   * Only two routes run the hybrid scorer:
+   *
+   *   - `/api/chat` — the `getAtsScore` tool.
+   *   - `/dashboard/resumes/[id]` — the Recompute server action.
+   *
+   * So only those two get the runtime. Everything else keeps the small
+   * bundle it had, the grouping is preserved, and the deployment stays
+   * small.
+   *
+   * The globs point at pnpm's **physical store paths** — the symlinked
+   * `node_modules/onnxruntime-node` path does not exist for a
+   * transitive dependency, so the glob has to name the store directory.
+   * `linux/**` covers x64 and arm64; Vercel builds x64 today, but an
+   * arm64 build would otherwise deploy a function with no binding.
    */
   outputFileTracingIncludes: {
-    '/**': [
+    '/api/chat': [
+      './node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v6/linux/**/*',
+      './node_modules/.pnpm/onnxruntime-common@*/node_modules/onnxruntime-common/**/*'
+    ],
+    '/dashboard/resumes/[id]': [
       './node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v6/linux/**/*',
       './node_modules/.pnpm/onnxruntime-common@*/node_modules/onnxruntime-common/**/*'
     ]
