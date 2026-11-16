@@ -171,6 +171,34 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Seniority Fit was measuring nothing — and charging the candidate for
+  it** — The founder asked whether their own scorecard's "Seniority fit —
+  50" was correct. It wasn't. The dimension got the candidate's years by
+  parsing the resume's work-history dates **with its own ISO-only
+  parser** — but the date field is free text (`date-range.tsx` passes
+  through whatever the user typed), so a real resume's "May 2026" /
+  "September 2022" parsed to nothing, the year total came out 0, and the
+  dimension returned its neutral 50. Which reads like "we couldn't
+  measure this" but actually **charged the candidate 5 of their 100
+  points and made the date format decide the score** — the same career
+  written "2026-05" scored 100, written "May 2026" scored 50. **The
+  irony: the codebase already knew the right formats.** The eligibility
+  module had a `parseYearMonth` that handles "June 2027", "Jun 2027",
+  "06 2027" — and a test literally named *"reads the formats resumes
+  actually use"* — while the Seniority Fit dimension kept a second,
+  weaker copy. Two modules, two parsers, two answers. **Now there is one
+  parser** (`lib/scoring/date-parse.ts`), shared. Also: a role ending in
+  the future is clamped to now — you cannot have experience that has not
+  happened yet. **And the lesson is now a trap:** a dimension that
+  returns the same number for everyone is not measuring. The tell in all
+  three of these was the number being exactly 50 — a constant reads like
+  a plausible score. Test fixtures must use the formats USERS produce:
+  the seniority suite passed for months with ISO dates while the
+  dimension did nothing for every real user. On the founder's production
+  resume: **Seniority Fit 50 → 100**, overall 74 → ~79. 2,260 tests
+  pass. Drift memo:
+  `docs/drift/2026-11-16-seniority-fit-measured-nothing.md`.
+
 - **The semantic half of the ATS score had never run in production — and
   now it does** — The closing entry in the longest chain this repo has
   had. Role Fit was 50 for every resume because **the JD had no title to
@@ -2268,7 +2296,6 @@ Three rules that follow:
   turns into functions.
 
 ### 10. One value, one resolver — surfaces must not compute the same thing separately
-
 **This codebase's characteristic failure mode is not a crash. It is a number
 that disagrees with itself.** Two surfaces each computing "the ATS score for
 this variant" will drift, because they will not be the same code path.
@@ -2500,6 +2527,33 @@ Two more rules from the same fight:
   `.next/**/*.nft.json` shows exactly which files each route's function
   will contain. A green build proves nothing here — the failure is at
   `dlopen`, in production.
+
+### 10. A dimension that returns the same number for everyone is not measuring
+
+Three dimensions in a row have read as "measured" while measuring
+nothing:
+
+| Dimension | What it actually did | What it should have done |
+|---|---|---|
+| Role Fit | The JD had no title (the attach path never wrote one) | Fall back to `job.roleFamily` — which the schema always documented as the fallback |
+| Seniority Fit | Parsed ISO dates only, but the date field is free text, so every real resume parsed to zero months | Share the one date parser (`lib/scoring/date-parse.ts`) that already understood "May 2026" |
+| ATS Similarity | The embedding model never loaded in production, so the semantic term was silently zero | Capture the failure and say so on the scorecard |
+
+**The tell in all three: the number was exactly 50.** A constant reads
+like a plausible score. A dimension that cannot move is a dimension
+that cannot be wrong — and therefore cannot be right.
+
+**Two rules that follow:**
+
+- **One grammar, one parser.** If two modules parse the same kind of
+  value, they must share one parser. `lib/scoring/date-parse.ts` exists
+  because the eligibility module and the Seniority Fit dimension had
+  two copies and disagreed.
+- **Test fixtures must use the formats USERS produce.** The seniority
+  suite passed for months with ISO dates while the dimension did
+  nothing for every real user — the fixtures were written in the
+  format the parser accepted. A fixture that no user would type is a
+  fixture that proves nothing.
 
 ## Folder structure (current + planned)
 

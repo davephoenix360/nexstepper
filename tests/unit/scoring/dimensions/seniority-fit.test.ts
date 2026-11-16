@@ -580,3 +580,159 @@ describe('scoreSeniorityFit — date parsing', () => {
     expect(result.value).toBe(NEUTRAL_SENIORITY_FIT_SCORE);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The formats resumes ACTUALLY use
+// ---------------------------------------------------------------------------
+
+describe('scoreSeniorityFit — the date formats resumes actually use', () => {
+  /**
+   * ## Why this block exists
+   *
+   * The dimension used to carry its own ISO-only date parser, so it
+   * measured NOTHING for any resume whose dates were typed the way
+   * people type them — "May 2026", "Sep. 2022", "January 2025".
+   *
+   * The tests above could not catch it, because every fixture in this
+   * file used ISO dates: **the fixtures were written in the format the
+   * parser accepted, not the format the product's users produce.**
+   *
+   * These fixtures use the real formats instead. If a date format is
+   * not understood, the dimension goes back to measuring nothing —
+   * silently, and it will show up here.
+   */
+  const REAL_FORMATS = [
+    { label: 'full month name', start: 'May 2024', end: 'January 2026' },
+    { label: 'abbreviated month', start: 'Jan 2024', end: 'January 2026' },
+    { label: 'month with a trailing dot', start: 'Sep. 2023', end: 'January 2026' },
+    { label: 'September spelled out', start: 'September 2023', end: 'January 2026' },
+    { label: 'month first, ISO-ish', start: '05 2024', end: '01 2026' }
+  ];
+
+  for (const { label, start, end } of REAL_FORMATS) {
+    it(`measures tenure from ${label} dates`, () => {
+      // May 2024 → August 2026 = 27 months → 2 years (rounded).
+      const resume = makeResume({
+        sections: {
+          work: [
+            {
+              company: 'Acme',
+              location: '',
+              url: '',
+              description: '',
+              positions: [
+                { title: 'Engineer', startDate: start, endDate: end, highlights: [] }
+              ]
+            }
+          ]
+        }
+      });
+
+      const result = scoreSeniorityFit(resume, makeJob({ yearsRequiredMin: 2 }), NOW);
+      // Each fixture spans two years once parsed (e.g. May 2024 →
+      // January 2026 = 20 months → 2 years).
+      expect(result.resumeYears).toBe(2);
+      expect(result.fallback).toBe(false);
+      expect(result.value).toBe(100);
+    });
+  }
+
+  it('does not charge a candidate for typing a month instead of an ISO date', () => {
+    // The regression this locks: the SAME career, written two ways, must
+    // score the same. Before the fix, "May 2024" scored 50 (neutral) and
+    // "2024-05" scored 100 — a 5-point penalty for a typing habit.
+    const build = (startDate: string, endDate: string) =>
+      makeResume({
+        sections: {
+          work: [
+            {
+              company: 'Acme',
+              location: '',
+              url: '',
+              description: '',
+              positions: [
+                { title: 'Engineer', startDate, endDate, highlights: [] }
+              ]
+            }
+          ]
+        }
+      });
+
+    const typed = scoreSeniorityFit(
+      build('May 2024', 'August 2026'),
+      makeJob({ yearsRequiredMin: 2 }),
+      NOW
+    );
+    const iso = scoreSeniorityFit(
+      build('2024-05', '2026-08'),
+      makeJob({ yearsRequiredMin: 2 }),
+      NOW
+    );
+
+    expect(typed.resumeYears).toBe(iso.resumeYears);
+    expect(typed.value).toBe(iso.value);
+    expect(typed.fallback).toBe(false);
+  });
+
+  it('does not count experience that has not happened yet', () => {
+    // A role listed as "May 2026 – December 2026" with "now" in
+    // November 2026 has run for six months, not eight. Without the
+    // clamp, the engine pays the candidate for time they have not
+    // worked yet.
+    const resume = makeResume({
+      sections: {
+        work: [
+          {
+            company: 'Acme',
+            location: '',
+            url: '',
+            description: '',
+            positions: [
+              {
+                title: 'Engineer',
+                startDate: 'August 2024',
+                endDate: 'June 2026',
+                highlights: []
+              }
+            ]
+          }
+        ]
+      }
+    });
+
+    const result = scoreSeniorityFit(resume, makeJob({ yearsRequiredMin: 0 }), NOW);
+    // "Now" is January 2026, so this role has run from August 2024 to
+    // January 2026 = 17 months → 1 year. Without the clamp it would be
+    // 22 months → 2 years, i.e. the candidate would be paid for eight
+    // months they have not worked.
+    expect(result.resumeYears).toBe(1);
+  });
+
+  it('counts a current role up to now when the end date says "present"', () => {
+    const resume = makeResume({
+      sections: {
+        work: [
+          {
+            company: 'Acme',
+            location: '',
+            url: '',
+            description: '',
+            positions: [
+              {
+                title: 'Engineer',
+                startDate: 'January 2025',
+                endDate: 'Present',
+                highlights: []
+              }
+            ]
+          }
+        ]
+      }
+    });
+
+    const result = scoreSeniorityFit(resume, makeJob({ yearsRequiredMin: 1 }), NOW);
+    // January 2025 → January 2026 (now) = 12 months → 1 year.
+    expect(result.resumeYears).toBe(1);
+    expect(result.value).toBe(100);
+  });
+});

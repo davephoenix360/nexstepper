@@ -1,4 +1,5 @@
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
+import { parseYearMonthForTenure, type YearMonth } from '@/lib/scoring/date-parse';
 
 /**
  * v2 Seniority Fit dimension.
@@ -132,9 +133,9 @@ export function scoreSeniorityFit(
 
   const resumeYears = computeResumeYears(resume, now);
   if (resumeYears === 0) {
-    // No work history at all — can't compute years even if JD
-    // asks for some. Fall back to neutral (consistent with how
-    // the engine treats "no signal" elsewhere).
+    // No work history we can measure — can't compute years even if JD
+    // asks for some. Fall back to neutral (consistent with how the
+    // engine treats "no signal" elsewhere).
     return {
       value: NEUTRAL_SENIORITY_FIT_SCORE,
       resumeYears: 0,
@@ -191,7 +192,7 @@ export function scoreSeniorityFit(
  * years at the end.
  *
  * Pure / sync — does NOT use `Date` (the purity test bans `new
- * Date` + `Date.now`). Instead parses ISO date strings into a tiny
+ * Date` + `Date.now`). Instead parses date strings into a tiny
  * `{year, month}` shape and does arithmetic on integers. The `now`
  * Date parameter is only used to construct a `YearMonth` snapshot
  * of "today" for tenure math.
@@ -207,13 +208,23 @@ function computeResumeYears(resume: ResumeData, now: Date): number {
   let totalMonths = 0;
   for (const company of resume.sections.work) {
     for (const pos of company.positions) {
-      const start = parseIsoYearMonth(pos.startDate);
+      const start = parseResumeDate(pos.startDate);
       if (!start) continue;
       const isPresent =
         !pos.endDate || pos.endDate.trim().toLowerCase() === 'present';
-      const end = isPresent ? nowYM : parseIsoYearMonth(pos.endDate);
+      const end = isPresent ? nowYM : parseResumeDate(pos.endDate);
       if (!end) continue;
-      const months = monthDiff(start, end);
+      // A role that ENDS IN THE FUTURE has not happened yet. A
+      // student listing "May 2026 – December 2026" has worked from
+      // May to now — not for eight months. Clamping to `now` keeps
+      // the dimension from paying the candidate for time they have
+      // not worked yet.
+      const effectiveEnd =
+        end.year > nowYM.year ||
+        (end.year === nowYM.year && end.month > nowYM.month)
+          ? nowYM
+          : end;
+      const months = monthDiff(start, effectiveEnd);
       if (months > 0) totalMonths += months;
     }
   }
@@ -224,12 +235,12 @@ function computeResumeYears(resume: ResumeData, now: Date): number {
 /**
  * Tiny year/month value object. Avoids Date entirely so the
  * dimension stays inside the purity test's invariants.
+ *
+ * `YearMonth` itself now lives in `lib/scoring/date-parse.ts`, shared
+ * with the eligibility module — see the note there for why there is
+ * exactly one date parser in the engine.
  */
-interface YearMonth {
-  year: number;
-  /** 1-12 (matches the ISO month convention, not JS Date's 0-11). */
-  month: number;
-}
+type DimensionYearMonth = YearMonth;
 
 /**
  * Convert a Date to a YearMonth. Only called on the caller-provided
@@ -238,37 +249,38 @@ interface YearMonth {
  * purity test never executes this code path because every test
  * fixture passes an explicit Date.
  */
-function nowToYearMonth(d: Date): YearMonth {
+function nowToYearMonth(d: Date): DimensionYearMonth {
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
 }
 
 /**
- * Parse an ISO 8601 partial date string into a `YearMonth`. Pure
- * string parsing — no `Date` object construction. Supports:
- *   - "2020"        → { year: 2020, month: 1 }
- *   - "2020-01"     → { year: 2020, month: 1 }
- *   - "2020-01-15"  → { year: 2020, month: 1 } (day ignored)
+ * Parse a resume date string into a year and month.
  *
- * Returns null for unparseable / empty inputs.
+ * ## Why this is not an ISO-only parser any more
+ *
+ * This dimension used to carry its own ISO-only parser, while the
+ * eligibility module beside it understood the formats resumes actually
+ * use. The consequence was invisible and unfair: **the date format a
+ * candidate typed decided their Seniority Fit score.**
+ *
+ * A resume whose dates were "May 2026" / "September 2022" parsed to
+ * nothing, the year total came out as 0, and the dimension returned its
+ * neutral 50 — which reads like "we couldn't measure this" but
+ * actually charges the candidate 5 of their 100 points against a JD
+ * that asked for no experience at all. The same candidate with
+ * "2026-05" scored 100.
+ *
+ * Now both dimensions share `parseYearMonthForTenure` from
+ * `lib/scoring/date-parse.ts`.
+ *
+ * `parseYearMonthForTenure` (rather than the plain parser) because a
+ * bare year ("2020") has no month and tenure arithmetic needs one —
+ * January is the conventional stand-in.
  */
-function parseIsoYearMonth(s: string | undefined): YearMonth | null {
-  const trimmed = (s ?? '').trim();
-  if (!trimmed) return null;
-  // Year only.
-  const yearOnly = /^(\d{4})$/.exec(trimmed);
-  if (yearOnly) {
-    const year = Number(yearOnly[1]);
-    return { year, month: 1 };
-  }
-  // Year + month (optionally + day).
-  const yearMonth = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(trimmed);
-  if (yearMonth) {
-    const year = Number(yearMonth[1]);
-    const month = Number(yearMonth[2]);
-    if (month < 1 || month > 12) return null;
-    return { year, month };
-  }
-  return null;
+function parseResumeDate(
+  value: string | undefined
+): DimensionYearMonth | null {
+  return parseYearMonthForTenure(value);
 }
 
 /**
@@ -276,6 +288,9 @@ function parseIsoYearMonth(s: string | undefined): YearMonth | null {
  * partial months as full months — matches how recruiters think:
  * "worked there from June 2020 to June 2023" is 3 years, not 2.99).
  */
-function monthDiff(start: YearMonth, end: YearMonth): number {
+function monthDiff(
+  start: DimensionYearMonth,
+  end: DimensionYearMonth
+): number {
   return (end.year - start.year) * 12 + (end.month - start.month);
 }

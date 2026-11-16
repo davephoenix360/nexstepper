@@ -289,91 +289,28 @@ export function eligibilityVocabulary(
 /* Evaluation                                                         */
 /* ------------------------------------------------------------------ */
 
-/** A year and (optionally) a month. Avoids `Date` entirely — see purity. */
-interface YearMonth {
-  year: number;
-  /** 1-12, or 0 when the source only gave a year. */
-  month: number;
-}
-
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December'
-];
-
-const MONTH_KEYS: Record<string, number> = {
-  jan: 1,
-  feb: 2,
-  mar: 3,
-  apr: 4,
-  may: 5,
-  jun: 6,
-  jul: 7,
-  aug: 8,
-  sep: 9,
-  oct: 10,
-  nov: 11,
-  dec: 12
-};
-
 /**
- * Parse a resume date string into a year and month.
+ * The date parser lives in `lib/scoring/date-parse.ts` — it is shared
+ * with the Seniority Fit dimension, which used to carry its own
+ * ISO-only copy and therefore measured nothing for any resume whose
+ * dates were typed the way people actually type them.
  *
- * Handles "2027-06", "06/2027", "June 2027", "Jun 2027", "06 2027" and a
- * bare "2027". Returns null when there is no year in it.
+ * Re-exported here because this module is where it historically lived
+ * and `parseYearMonth` is part of its public surface.
  */
-export function parseYearMonth(value: string | null | undefined): YearMonth | null {
-  if (!value) return null;
-  const text = value.toLowerCase().trim();
-  if (text.length === 0) return null;
+export {
+  parseYearMonth,
+  parseYearMonthForTenure,
+  formatYearMonth,
+  MONTH_NAMES,
+  type YearMonth
+} from './date-parse';
 
-  // "2027-06" / "2027/06"
-  const iso = text.match(/(\d{4})\s*[-/.]\s*(\d{1,2})/);
-  if (iso) {
-    const month = Number(iso[2]);
-    if (month >= 1 && month <= 12) {
-      return { year: Number(iso[1]), month };
-    }
-  }
-
-  // "june 2027" / "jun 2027"
-  const named = text.match(/([a-z]{3,9})\.?\s+(\d{4})/);
-  if (named) {
-    const month = MONTH_KEYS[named[1].slice(0, 3)];
-    if (month) return { year: Number(named[2]), month };
-  }
-
-  // "06 2027"
-  const monthFirst = text.match(/(\d{1,2})\s+(\d{4})/);
-  if (monthFirst) {
-    const month = Number(monthFirst[1]);
-    if (month >= 1 && month <= 12) {
-      return { year: Number(monthFirst[2]), month };
-    }
-  }
-
-  // A bare year.
-  const year = text.match(/\b(\d{4})\b/);
-  if (year) return { year: Number(year[1]), month: 0 };
-
-  return null;
-}
-
-/** Format a parsed date for display — "June 2027" or "2027". */
-export function formatYearMonth(ym: YearMonth): string {
-  if (ym.month === 0) return String(ym.year);
-  return `${MONTH_NAMES[ym.month - 1]} ${ym.year}`;
-}
+import {
+  parseYearMonth,
+  formatYearMonth,
+  type YearMonth
+} from './date-parse';
 
 /** Is the given month/year in the past relative to `now`? */
 function isPast(ym: YearMonth, now: Date): boolean {
