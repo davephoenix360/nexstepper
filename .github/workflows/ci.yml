@@ -113,3 +113,17 @@ jobs:
       # chain applies cleanly from an empty database.
       - name: Build
         run: pnpm build
+
+      # The build is green even when a native module's shared library
+      # never makes it into the function bundle — the failure is at
+      # `dlopen`, in production, on the user's screen. This check reads
+      # the build's own traces and (on Linux) actually LOADS the ONNX
+      # addon, so that class of bug fails here instead.
+      #
+      # It exists because the embedding model broke production three
+      # times in a row and every failure was silent: sharp's libvips,
+      # then onnxruntime-node missing entirely, then
+      # libonnxruntime.so.1 missing. Upstream, `@vercel/nft` follows
+      # `require` but not `dlopen` (vercel/next.js#97973).
+      - name: Check native tracing
+        run: pnpm check:native-tracing

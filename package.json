@@ -20,7 +20,8 @@
     "seed:demo:reset": "tsx --conditions=react-server scripts/seed-demo.ts --reset",
     "preflight:demo-video": "tsx --conditions=react-server scripts/preflight-demo-video.ts",
     "measure:demo-score": "tsx --conditions=react-server scripts/measure-demo-score.ts",
-    "diagnose:prod-score": "tsx --conditions=react-server scripts/diagnose-prod-score.ts"
+    "diagnose:prod-score": "tsx --conditions=react-server scripts/diagnose-prod-score.ts",
+    "check:native-tracing": "node scripts/check-native-tracing.mjs"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.148",
