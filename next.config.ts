@@ -27,7 +27,49 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb'
     }
   },
-  serverExternalPackages: ['@huggingface/transformers']
+  /**
+   * Keep the ONNX stack out of the server bundle.
+   *
+   * `@huggingface/transformers` loads a native ONNX runtime and, since
+   * sharp 0.34, a native image library — both are native code the
+   * bundler chokes on, so they are resolved at runtime from
+   * node_modules instead.
+   *
+   * `onnxruntime-node` is listed too because the transformers package
+   * requires it DYNAMICALLY (a computed specifier), which the file
+   * tracer cannot follow — so without it here the module would be
+   * missing from the deployed function and the embedding model would
+   * never load. See `lib/scoring-async/semantic-similarity.ts` for the
+   * side-effect import that makes the tracer follow it, and the drift
+   * memo `docs/drift/2026-11-16-role-fit-and-the-silent-semantic-signal.md`.
+   */
+  serverExternalPackages: ['@huggingface/transformers', 'onnxruntime-node'],
+  /**
+   * Force the ONNX runtime's native binary into the function bundle.
+   *
+   * `onnxruntime-node/dist/binding.js` loads its binding with
+   * `require(`../bin/napi-v6/${process.platform}/${process.arch}/onnxruntime_binding.node`)`
+   * — a template-literal path. No file tracer can follow that, so the
+   * `.node` addon (and the `libonnxruntime.so` it links against) never
+   * reaches the deployment, and the runtime fails with
+   * `ERR_DLOPEN_FAILED` — or, if the package itself is missing,
+   * `Cannot find module 'onnxruntime-node'`.
+   *
+   * These globs are the supported way to add files a tracer cannot
+   * discover. They point at pnpm's physical store paths (the symlinked
+   * `node_modules/onnxruntime-node` path does not exist for a
+   * transitive dependency) and cover the Linux x64 + arm64 binaries.
+   *
+   * Why `linux/**` and not just `linux/x64`: Vercel builds for x64
+   * today, but an arm64 build would otherwise deploy a function with
+   * no binding at all.
+   */
+  outputFileTracingIncludes: {
+    '/**': [
+      './node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v6/linux/**/*',
+      './node_modules/.pnpm/onnxruntime-common@*/node_modules/onnxruntime-common/**/*'
+    ]
+  }
 };
 
 export default withSentryConfig(nextConfig, {

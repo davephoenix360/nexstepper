@@ -211,6 +211,53 @@ score" notice explains why the dimension is neutral.
 That took the score from **54** (Role Fit 0) to what it should have been
 all along.
 
+### Bug 2c — the ONNX runtime was missing from the function too
+
+The sharp override deployed, and the very next recompute moved the error
+one layer down:
+
+```
+Error: Cannot find module 'onnxruntime-node'
+Require stack:
+- /var/task/node_modules/.pnpm/@huggingface+transformers@4.3.0/node_modules/@huggingface/transformers/dist/transformers.node.mjs
+```
+
+Same class of problem, different reason. Two gaps, both invisible to a
+file tracer:
+
+1. **`require('onnxruntime-node')` inside transformers is dynamic** — a
+   computed specifier, so `nft` cannot follow it and the module never
+   reaches the deployment.
+2. **`onnxruntime-node/dist/binding.js` loads its native binding from a
+   template-literal path** —
+   `require(\`../bin/napi-v6/${process.platform}/${process.arch}/onnxruntime_binding.node\`)`
+   — so even the `.node` addon and the `libonnxruntime.so` it links
+   against cannot be discovered by any tracer.
+
+**The fix**, both halves:
+
+- `onnxruntime-node` is now a **direct dependency** (pinned to exactly
+  `1.30.0`, the version transformers asks for, so there is one copy and
+  not two) and is listed in `serverExternalPackages`. A side-effect
+  import in `lib/scoring-async/semantic-similarity.ts` makes the tracer
+  follow it from our own code — which is what puts it in the function
+  bundle. The runtime never uses that binding; transformers loads its
+  own.
+- `next.config.ts` adds `outputFileTracingIncludes` pointing at the
+  **physical pnpm store paths** for the Linux bindings (x64 + arm64) and
+  for `onnxruntime-common`. The symlinked `node_modules/onnxruntime-node`
+  path does not exist for a transitive dependency, so the glob has to
+  name the store directory.
+
+The package ships every platform's binary inside itself, so one glob
+covers the deployment.
+
+**Lesson worth keeping:** the file tracer follows *static* requires and
+nothing else. A native module reached through a dynamic specifier, or
+loaded through a computed path, has to be named by hand — and until it
+is, the feature it powers is dead in production while every local run
+and every unit test says it works.
+
 ---
 
 ## Bug 3 — "Computed in 32 ms" was not the compute time

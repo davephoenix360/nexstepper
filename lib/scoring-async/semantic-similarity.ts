@@ -83,6 +83,36 @@ type TransformersModule = {
 };
 
 /**
+ * Side-effect import — NOT used at runtime.
+ *
+ * `@huggingface/transformers` requires `onnxruntime-node` DYNAMICALLY, and
+ * Next's file tracer cannot follow a computed specifier. So the module was
+ * missing from the deployed function entirely, and the local embedding
+ * model never loaded in production:
+ *
+ *   Error: Cannot find module 'onnxruntime-node'
+ *   Require stack:
+ *   - /var/task/node_modules/.pnpm/@huggingface+transformers@4.3.0/.../transformers.node.mjs
+ *
+ * Importing it HERE makes the tracer follow the dependency from our own
+ * code, which is what puts it in the function bundle. The runtime never
+ * uses this binding — `transformers` loads its own — so this is purely a
+ * packaging statement.
+ *
+ * It has to be a real dependency of this package for pnpm's strict layout
+ * to resolve it at all, which is why `onnxruntime-node` is pinned in
+ * `package.json` (at exactly the version transformers asks for, so there
+ * is one copy, not two).
+ *
+ * The native `.node` addon it loads is a computed path too
+ * (`../bin/napi-v6/${process.platform}/${process.arch}/…`), so it is
+ * added by hand in `next.config.ts` via `outputFileTracingIncludes`.
+ *
+ * See `docs/drift/2026-11-16-role-fit-and-the-silent-semantic-signal.md`.
+ */
+import 'onnxruntime-node';
+
+/**
  * Module-level cache for the pipeline + a single-flight promise so
  * concurrent first-calls share one model load (instead of N).
  */

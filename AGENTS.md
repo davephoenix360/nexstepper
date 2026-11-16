@@ -171,6 +171,35 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The ONNX runtime was missing from the serverless function — the
+  embedding model had never run in production** — The follow-up to the
+  sharp fix, and the same failure class one layer down. With the sharp
+  override deployed, the next recompute moved the error to
+  `Cannot find module 'onnxruntime-node'` (require stack:
+  `/var/task/node_modules/.pnpm/@huggingface+transformers@4.3.0/…/transformers.node.mjs`).
+  **Two gaps, both invisible to a file tracer:** the transformers
+  package requires `onnxruntime-node` with a **computed specifier**, so
+  `nft` cannot follow it; and `onnxruntime-node/dist/binding.js` loads
+  its native addon from a **template-literal path** —
+  `require(\`../bin/napi-v6/${process.platform}/${process.arch}/onnxruntime_binding.node\`)`
+  — so the `.node` file and the `libonnxruntime.so` it links against
+  could never be discovered by any tracer. Fixed on both sides:
+  `onnxruntime-node` is now a **direct dependency** (pinned to exactly
+  the `1.30.0` transformers asks for, so there is one copy, not two),
+  listed in `serverExternalPackages`, and imported for its side effect
+  in `lib/scoring-async/semantic-similarity.ts` so the tracer follows
+  it from our own code; and `next.config.ts` adds
+  `outputFileTracingIncludes` pointing at the **physical pnpm store
+  paths** for the Linux x64 + arm64 bindings (the symlinked
+  `node_modules/onnxruntime-node` path does not exist for a transitive
+  dependency). Verified locally against the build's own trace: the
+  Linux binaries and 400+ ONNX entries are now in it. **The lesson worth
+  keeping:** the tracer follows *static* requires and nothing else — a
+  native module reached through a dynamic specifier, or loaded from a
+  computed path, has to be named by hand. Until it is, the feature it
+  powers is dead in production while every local run and every unit
+  test says it works.
+
 - **`sharp` was silently killing the semantic half of the ATS score in
   production — a Next.js 16.2 file-tracing bug** — The follow-up to the
   Role Fit fix. With the failure now captured rather than swallowed,
