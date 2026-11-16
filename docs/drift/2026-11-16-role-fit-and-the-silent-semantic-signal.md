@@ -357,6 +357,29 @@ sitting on for weeks, and the change merely tipped it over. The
 diagnostic that found it was diffing two build logs — not reading the
 error message, which pointed at a limit rather than a cause.
 
+## Verified in production
+
+The founder recomputed on the live app after the fix landed, and the
+snapshot says what it should:
+
+| | Before | After |
+|---|---|---|
+| ATS Similarity | 40 (BM25 only — the semantic term was dead) | **84** |
+| Role Fit | 50 (neutral fallback) | **92** |
+| Keywords | 60 | **70** |
+| **Overall** | 54 | **65** |
+| Degradation flag | `libonnxruntime.so.1: cannot open shared object file` | **none** |
+| Computed in | 32 ms (the deterministic part only) | **2,099 ms** (the whole computation) |
+
+Tier moved from **Partial** to **Good**, the "Keyword-only score"
+notice is gone, and the scorecard's timing now describes what the user
+actually waited for.
+
+**The score moved because the score was finally being measured properly**
+— not because anything about the resume changed. The semantic half of
+the hybrid scorer had never run in production, on any score, for any
+user, since the feature shipped.
+
 ---
 
 ## Bug 3 — "Computed in 32 ms" was not the compute time

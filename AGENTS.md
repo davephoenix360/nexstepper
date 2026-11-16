@@ -171,6 +171,51 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The semantic half of the ATS score had never run in production — and
+  now it does** — The closing entry in the longest chain this repo has
+  had. Role Fit was 50 for every resume because **the JD had no title to
+  measure against**: `createVariantFromJdAction` built the envelope from
+  the raw JD text with a comment saying "the future parser will
+  overwrite title/company/keywords", and the "Save JD" action copied
+  `existingJobContext?.title ?? ''` — also empty. `job.roleFamily` was
+  extracted and stored all along, with the schema documenting it as the
+  Role Fit fallback: **a documented fallback that was never
+  implemented, on the exact dimension that depends on it.** Fixed on both
+  sides — Role Fit compares against `job.title || job.roleFamily`
+  (fixing every JD already in the database, no migration), and the
+  intent extractor now returns `jobTitle` in the same round trip it
+  already reads the posting in. **But the real story was underneath it:
+  the semantic half of the hybrid scorer had NEVER run in production,
+  on any score, for any user.** Every ATS Similarity was `0.4 × BM25`
+  with the semantic term at zero — and nothing said so. The chain:
+  `@huggingface/transformers` pulls in `sharp` (for image processing
+  we never do), and **sharp 0.35 moved its entry point, so Next's file
+  tracer's special case for sharp stopped matching and `libvips` was
+  never traced into the function** — a known Next 16.2 + Turbopack +
+  pnpm + Vercel bug (vercel/next.js#96064), fixed by pinning sharp to
+  0.34.5. Then `onnxruntime-node` itself was missing (it is required
+  with a computed specifier, so no tracer can follow it) and then
+  `libonnxruntime.so.1` was missing (dlopen, not require). **Three
+  silent failures, and the app only found out because the failure was
+  captured instead of swallowed.** It is now: the reason travels in the
+  breakdown as `degraded.semantic`, is persisted with the snapshot, and
+  renders as a "Keyword-only score" notice. And **a dead model made
+  Role Fit read 0** — a flat, damning bar and a silent 5-point penalty
+  on every resume, for a dimension nobody had measured; a zero that
+  means "could not measure" is not a zero that means "measured zero",
+  so it now reads the neutral 50. **Verified in production: ATS
+  Similarity 40 → 84, Role Fit 50 → 92, overall 54 → 65, tier
+  Partial → Good, notice gone.** Two more lessons are now written down
+  as traps: a config key that looks like a path is a GLOB (`[id]` is a
+  character class — the tracing include needed `'/dashboard/resumes/\\[id\\]'`),
+  and the app was sitting **exactly** on Vercel's Hobby ceiling of 12
+  Serverless Functions because `app/layout.tsx` called `getUser()` to
+  "pre-warm the session" and then **discarded the result** — and since
+  `getUser()` reads via `headers()`, a dynamic API in the ROOT layout
+  made all 26 pages functions. Removing it prerendered 10 of them. 2,245
+  tests pass. Drift memo:
+  `docs/drift/2026-11-16-role-fit-and-the-silent-semantic-signal.md`.
+
 - **Every page in the app was a Serverless Function — and the deploy
   failed because the app was sitting exactly on Vercel's 12-function
   ceiling** — The follow-up to the ONNX packaging. The deploy failed
