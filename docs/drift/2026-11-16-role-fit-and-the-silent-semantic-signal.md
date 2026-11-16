@@ -258,6 +258,65 @@ loaded through a computed path, has to be named by hand — and until it
 is, the feature it powers is dead in production while every local run
 and every unit test says it works.
 
+### Bug 2d — and then the deploy would not go out at all
+
+The ONNX fix built and passed CI, and the deploy failed:
+
+```
+Build Failed
+No more than 12 Serverless Functions can be added to a Deployment on
+the Hobby plan.
+```
+
+It was not size (87 MB per function against Vercel's 250 MB limit) and
+not the build (CI's Ubuntu build passed, and the Vercel build log ends
+with "Build Completed in /vercel/output" — the failure is in
+"Deploying outputs...", when Vercel turns build output into functions).
+Diffing the two build logs showed the route tables were byte-identical.
+
+**The mechanism:** Vercel groups routes into Serverless Functions when
+their output is identical. The app was sitting **exactly** on the
+Hobby ceiling of 12. The ONNX packaging changed the output of the
+scoring routes, which split a group — and 13 is one too many.
+
+**The real cause underneath it: every page in the app was a function.**
+`app/layout.tsx` called `getUser()` as a "pre-warm the session so
+layout-level reads are cheap" optimisation — and then **discarded the
+result**. But `getUser()` reads the session via `headers()`, and
+`headers()` is a *dynamic API*. A dynamic API in the ROOT layout makes
+every route in the app dynamic.
+
+So 26 pages were Serverless Functions — each with its own cold start,
+including the marketing home page, the legal pages and the sign-in page
+— on a plan that allows 12 functions. The optimisation was making the
+app more expensive than it needed to be.
+
+The pages that actually need the session read it themselves: the
+dashboard layout has its own auth gate, the marketing hero reads it to
+personalise the CTA, `/pricing` reads the subscription, and
+`PostHogIdentify` uses the client-side session query. **Removing the
+call lets 10 pages be prerendered at build time** — dynamic routes go
+from **26 to 16**, and the marketing site stops paying for a cold start
+on every visit.
+
+Two auth pages read `useSearchParams()`, which in Next 16 forces a page
+into client-side rendering unless the component is wrapped in a Suspense
+boundary. `sign-in` and `sign-up` now wrap `<Login>` the same way
+`reset-password` already did.
+
+**And the tracing include was scoped.** It had been applied to `'/**'`
+— every route. The native binaries are 44 MB, and adding them to every
+route changed every route's bundle, which is what moved the grouping.
+They now go only to the two routes that run the scorer (`/api/chat` and
+`/dashboard/resumes/[id]`). Verified against the build's own traces:
+**2 traces carry the ONNX binaries, 33 carry neither.**
+
+**Lesson worth keeping:** a deployment failure is not always about the
+thing you changed. This one was about a ceiling the app had been
+sitting on for weeks, and the change merely tipped it over. The
+diagnostic that found it was diffing two build logs — not reading the
+error message, which pointed at a limit rather than a cause.
+
 ---
 
 ## Bug 3 — "Computed in 32 ms" was not the compute time

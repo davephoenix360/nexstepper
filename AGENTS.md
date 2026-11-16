@@ -171,6 +171,43 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Every page in the app was a Serverless Function — and the deploy
+  failed because the app was sitting exactly on Vercel's 12-function
+  ceiling** — The follow-up to the ONNX packaging. The deploy failed
+  with `Build Failed — No more than 12 Serverless Functions can be
+  added to a Deployment on the Hobby plan`, which pointed at a limit
+  rather than a cause. It was not size (87 MB per function against a
+  250 MB limit) and not the build (CI's Ubuntu build passed, and the
+  Vercel log ends with "Build Completed in /vercel/output" — the
+  failure is in "Deploying outputs..."). Diffing the two build logs
+  showed the route tables were byte-identical. **The mechanism:**
+  Vercel groups routes into Functions when their output is identical,
+  so the app had been sitting on exactly 12 for weeks and the ONNX
+  change split one group → 13. **The cause underneath it:**
+  `app/layout.tsx` called `getUser()` as a "pre-warm the session so
+  layout-level reads are cheap" optimisation — and then **discarded the
+  result**. But `getUser()` reads the session via `headers()`, and
+  `headers()` is a *dynamic API*: a dynamic API in the ROOT layout
+  makes **every route in the app dynamic**. So 26 pages were
+  Functions, each with its own cold start, including the marketing
+  home page and the legal pages, on a plan that allows 12. The pages
+  that need the session read it themselves (the dashboard layout has
+  its own auth gate, the marketing hero personalises the CTA,
+  `/pricing` reads the subscription, `PostHogIdentify` uses the
+  client-side session query). **Removing it lets 10 pages be
+  PRERENDERED** — dynamic routes go from **26 to 16**, and the
+  marketing site stops paying for a cold start on every visit. Two
+  auth pages read `useSearchParams()`, which in Next 16 forces a page
+  into client-side rendering unless it is wrapped in a Suspense
+  boundary; `sign-in` and `sign-up` now wrap `<Login>` the way
+  `reset-password` already did. **And the tracing include was scoped**
+  from `'/**'` (every route — 44 MB of native binaries each, and it
+  changed every route's bundle, which is what moved the grouping) to
+  just the two routes that run the scorer. Verified against the
+  build's own traces: 2 traces carry the ONNX binaries, 33 carry
+  neither. 2,245 tests pass. Drift memo:
+  `docs/drift/2026-11-16-role-fit-and-the-silent-semantic-signal.md`.
+
 - **The ONNX runtime was missing from the serverless function — the
   embedding model had never run in production** — The follow-up to the
   sharp fix, and the same failure class one layer down. With the sharp
@@ -2159,7 +2196,33 @@ The page might be behind auth middleware, but the Server Action is a public
 endpoint callable by anyone with the URL. Every protected action calls
 `requireUser()` (or equivalent) at the top.
 
-### 8. One value, one resolver — surfaces must not compute the same thing separately
+### 9. The Hobby plan allows 12 Serverless Functions — keep the dynamic route count under it
+
+Vercel's Hobby plan caps a deployment at **12 Serverless Functions**. The
+app sat at exactly 12 for weeks, and the next change that made one
+group's output differ split a group and took the count to 13 — which
+Vercel refuses:
+
+> Build Failed — No more than 12 Serverless Functions can be added to a
+> Deployment on the Hobby plan.
+
+Three rules that follow:
+
+- **A dynamic API in the ROOT layout makes the whole app dynamic.**
+  `getUser()` reads the session via `headers()`, so calling it in
+  `app/layout.tsx` turned all 26 pages into functions — including the
+  marketing home page and the legal pages. A page that does not need
+  the session should not read it.
+- **`outputFileTracingIncludes` should be scoped to the routes that need
+  it.** `'/**'` applies to every route, which both bloats every
+  function and changes every route's output — and Vercel groups routes
+  into functions by identical output.
+- **Before adding a route that reads the session, a cookie, or a
+  header, count the functions.** `pnpm build` prints the route table
+  with a `ƒ (Dynamic)` marker per route; that is the number Vercel
+  turns into functions.
+
+### 10. One value, one resolver — surfaces must not compute the same thing separately
 
 **This codebase's characteristic failure mode is not a crash. It is a number
 that disagrees with itself.** Two surfaces each computing "the ATS score for
