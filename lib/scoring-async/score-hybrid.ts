@@ -8,6 +8,7 @@ import { hybridSimilarity } from './hybrid-similarity';
 import { evaluateJevRequirements } from './jev-requirements';
 import { evaluateJevContentQuality } from './jev-content-quality';
 import { roleFitSimilarity, NEUTRAL_ROLE_FIT_SCORE } from './role-fit';
+import { getSemanticError, resetSemanticError } from './semantic-similarity';
 
 /**
  * The neutral Role Fit result — the dimension's fallback when no title
@@ -91,6 +92,17 @@ export async function scoreResumeHybridFromEnvelope(
   resume: ResumeData,
   job: JobPosting
 ): Promise<ScoreBreakdown> {
+  // Wall-clock for the WHOLE enhanced computation.
+  //
+  // The baseline engine measures itself and stamps `computedInMs` on
+  // the breakdown — but that only covers the deterministic part. The
+  // enhanced path then adds two AI round trips and a model inference on
+  // top, and the old code returned the BASELINE's number unchanged. So
+  // the scorecard said "Computed in 32 ms" for a computation that had
+  // really spent seconds in the network. The number has to describe
+  // what the user actually waited for.
+  const startedAt = Date.now();
+
   // 0. Ask three things, in parallel:
   //
   //    a) which of the JD's requirement entries are genuine skills, and
@@ -112,6 +124,12 @@ export async function scoreResumeHybridFromEnvelope(
   //    `ok: false` and the engine keeps the token-based / lexical
   //    scores. Role Fit swallows its own errors and returns the neutral
   //    fallback.
+  // Scope the semantic-failure marker to THIS computation. The marker
+  // lives at module scope (a warm lambda serves many requests), so it
+  // has to be cleared before we start, or a failure from an earlier
+  // request would be reported against this score.
+  resetSemanticError();
+
   const [evaluation, contentEvaluation, roleFit] = await Promise.all([
     evaluateJevRequirements(resume, job),
     evaluateJevContentQuality(resume),
@@ -156,6 +174,11 @@ export async function scoreResumeHybridFromEnvelope(
   );
   const newSimilarityScore = hybridSimilarityValue * 100;
 
+  // Did the semantic signal actually contribute? If the embedding model
+  // failed to load, `semanticSimilarity` returned 0 and the hybrid
+  // value is pure BM25 — the scorer degraded without saying so.
+  const semanticError = getSemanticError();
+
   // 3. Recompute the atsMatching dimension value using the new
   // similarity score. Mirrors the weighting logic in
   // `lib/scoring/dimensions/ats-matching.ts` so the dimension
@@ -199,7 +222,15 @@ export async function scoreResumeHybridFromEnvelope(
       ...baseline.criteriaScores,
       'ATS Similarity': newSimilarityScore
     },
-    overallScore: Math.round(newOverall)
+    overallScore: Math.round(newOverall),
+    // The wall-clock of the WHOLE computation — the two AI round trips
+    // and the embedding inference included. The baseline's own number
+    // covered only the deterministic part.
+    computedInMs: Date.now() - startedAt,
+    // Was the semantic signal actually used? If the embedding model
+    // could not be loaded, the scorer silently became BM25-only — and
+    // the user was told nothing. The reason travels with the score.
+    ...(semanticError ? { degraded: { semantic: semanticError } } : {})
   };
 }
 

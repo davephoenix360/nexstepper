@@ -236,6 +236,24 @@ export function ScorecardPanel({
           "add bachelor's degree to your resume" is not advice. */}
       <EligibilityList notes={breakdown.eligibility} />
 
+      {/* The scorer degraded — say so.
+          The enhanced scorer is 0.4 × BM25 + 0.6 × semantic. If the
+          embedding model can't load, the semantic term contributes
+          nothing and the score quietly becomes keyword-based. That
+          happened in production for every score, silently. A number
+          the user can't trust the provenance of is worse than a
+          number with a caveat attached. */}
+      {breakdown.degraded?.semantic && (
+        <p
+          className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+          data-testid="scorecard-degraded-notice"
+        >
+          <strong>Keyword-only score.</strong> The semantic matching
+          engine was unavailable for this run, so this score is based on
+          keyword matching alone.
+        </p>
+      )}
+
       <p className="mt-4 text-xs text-muted-foreground">
         Computed in {breakdown.computedInMs} ms.
       </p>

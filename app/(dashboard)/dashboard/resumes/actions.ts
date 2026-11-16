@@ -598,6 +598,18 @@ export async function createVariantFromJdAction(
 
   const jobContext = jobPostingSchema.parse({
     id: randomUUID(),
+    // The JD's title, as the posting wrote it. The intent extractor
+    // already reads the posting, so it returns the title in the same
+    // round trip — no second AI call.
+    //
+    // This used to be left empty, and the comment above said "the
+    // future parser will overwrite title/company/keywords". That
+    // future never arrived: the JD panel's save action copies the
+    // existing title, which was also empty. So every JD attached
+    // through the product had NO title, and the Role Fit dimension
+    // had nothing to compare against — every resume in production
+    // scored the neutral 50.
+    title: extractResult.ok ? extractResult.data.intent.jobTitle : '',
     description: parsed.data.jdText,
     source: 'paste',
     capturedAt: new Date().toISOString(),

@@ -107,6 +107,39 @@ const EMBEDDING_CACHE_LIMIT = 64;
 const embeddingCache = new Map<string, Float32Array>();
 
 /**
+ * The most recent semantic-signal failure, as a message.
+ *
+ * ## Why this exists
+ *
+ * `semanticSimilarity` catches its own errors and returns 0, so a
+ * dead embedding model degrades the hybrid scorer to pure BM25 —
+ * **silently**. In production that is exactly what happened: every
+ * score snapshot read `ATS Similarity = 40`, which is `0.4 × BM25`
+ * with the semantic term contributing nothing. Nothing in the UI, the
+ * logs, or the database said so.
+ *
+ * A scorer that quietly stops being the scorer it claims to be is
+ * worse than one that is honest about being degraded. So the failure
+ * is captured, carried through the breakdown, persisted with the
+ * snapshot, and shown on the scorecard.
+ *
+ * Diagnostic only — it never changes the score. Scoped by the caller
+ * (`resetSemanticError()` at the start of a computation), so a warm
+ * lambda does not report a failure from an earlier request.
+ */
+let lastSemanticError: string | null = null;
+
+/** The last semantic-signal failure message, or null. */
+export function getSemanticError(): string | null {
+  return lastSemanticError;
+}
+
+/** Clear the failure marker. Callers scope it to one computation. */
+export function resetSemanticError(): void {
+  lastSemanticError = null;
+}
+
+/**
  * Lazy-load the `@huggingface/transformers` module. Configures
  * `env.cacheDir` based on environment:
  *   - Production: `/tmp/.cache/hf-transformers` (Vercel's
@@ -226,13 +259,24 @@ export async function semanticSimilarity(
     // below zero for unrelated documents.
     const normalized = (Math.max(-1, Math.min(1, raw)) + 1) / 2;
     return normalized;
-  } catch {
+  } catch (err) {
     // Module-load failure (e.g. no onnxruntime binding, no
     // internet for model download, OOM). Fall back to 0; the
     // hybrid scorer treats 0 as "no semantic contribution" and
     // relies on BM25 alone. We swallow the error rather than
     // throw — semantic is opt-in and shouldn't break the
     // surrounding score.
+    //
+    // But we do NOT swallow it SILENTLY: the message is captured
+    // (see `getSemanticError`) so the caller can record that the
+    // scorer degraded, and it is logged so the production logs
+    // carry the reason. A scorer that quietly stops being the
+    // scorer it claims to be is worse than one that is honest.
+    const message = err instanceof Error ? err.message : String(err);
+    lastSemanticError = message;
+    console.error(
+      `[semantic-similarity] semantic signal unavailable: ${message}`
+    );
     return 0;
   }
 }

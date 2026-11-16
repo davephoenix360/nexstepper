@@ -129,7 +129,19 @@ export async function setVariantJobContextAction(
 
   const jobContext: JobPosting = jobPostingSchema.parse({
     id: existingJobContext?.id ?? randomUUID(),
-    title: existingJobContext?.title ?? '',
+    // The JD's title, from the intent extractor — which already reads
+    // the posting in this same round trip, so it costs nothing extra.
+    //
+    // This used to be `existingJobContext?.title ?? ''`, and since
+    // nothing ever wrote a title, it was ALWAYS empty. A JD with no
+    // title means the Role Fit dimension has nothing to compare
+    // against, so it fell back to the neutral 50 for every resume.
+    //
+    // On a failed extraction we keep whatever we had, so a re-save
+    // never regresses a title that already landed.
+    title: useExistingIntent
+      ? (existingJobContext?.title ?? '')
+      : extractResult.data.intent.jobTitle || (existingJobContext?.title ?? ''),
     company: existingJobContext?.company ?? '',
     location: existingJobContext?.location ?? '',
     description: parsed.data.jdText,

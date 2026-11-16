@@ -155,8 +155,9 @@ Be precise; be conservative; never invent facts that aren't in the text.
 
 # Output contract
 
-Return a single object matching the Zod ExtractJdIntentResult schema (mustHaveSkills, niceToHaveSkills, implicitSkills, seniorityLevel, yearsRequiredMin, yearsRequiredMax, roleFamily, domainSignals). Field-by-field rules:
+Return a single object matching the Zod ExtractJdIntentResult schema (jobTitle, mustHaveSkills, niceToHaveSkills, implicitSkills, seniorityLevel, yearsRequiredMin, yearsRequiredMax, roleFamily, domainSignals). Field-by-field rules:
 
+- jobTitle: the job title exactly as the posting writes it ("Senior Backend Engineer, Platform"). Usually the first line of the posting, or the "Job title:" / "Role:" field, or the title of a saved page. Empty string if the posting has no discernible title. Do NOT invent one, and do NOT reuse the roleFamily value here -- return what the posting says.
 - mustHaveSkills: skills the JD explicitly marks as required, OR that appear in a "Requirements" / "Qualifications" / "What you need" / "You have" / "Required" section header. Each entry should be a concrete skill name ("TypeScript", "PostgreSQL", "Kubernetes") not a generic category ("databases", "programming languages"). Be specific -- vague entries are useless for resume matching.
 - niceToHaveSkills: skills in a "Nice to have" / "Preferred" / "Bonus" / "Plus" section, OR explicitly hedged ("experience with X is a plus", "familiarity with Y preferred", "bonus points for Z"). Empty array if the JD doesn't separate them.
 - implicitSkills: skills the JD doesn't name directly but that experienced recruiters would infer. Examples: "Kubernetes" implies "containers + Linux"; "distributed systems" implies "consensus / replication"; "ML model deployment" implies "Docker + cloud platform". Be RUTHLESSLY conservative -- empty array is fine. A wrong implicit skill damages the candidate's match score.

@@ -192,6 +192,33 @@ export type ScoreBreakdown = {
   /** Wall-clock milliseconds the score took to compute. For the UI footer. */
   computedInMs: number;
   /**
+   * Non-fatal degradations in the compute path.
+   *
+   * ## Why this field exists
+   *
+   * The enhanced scorer combines BM25 with a semantic-embedding signal
+   * (0.4 × BM25 + 0.6 × semantic). If the embedding model cannot be
+   * loaded — no ONNX binding, no network for the model download, OOM —
+   * the semantic term contributes nothing and the scorer quietly
+   * becomes BM25-only. That happened in production for every score,
+   * silently: the numbers looked fine, nothing errored, and the
+   * "hybrid" score was not hybrid.
+   *
+   * A scorer that stops being the scorer it claims to be, without
+   * saying so, is worse than one that is honest about being degraded.
+   * So the reason is carried through the breakdown, persisted with
+   * the snapshot, and shown on the scorecard.
+   *
+   * Diagnostic only — it never changes the score.
+   */
+  degraded?: {
+    /**
+     * Why the semantic signal was unavailable, if it was. Present only
+     * when the semantic term contributed nothing to the score.
+     */
+    semantic?: string;
+  };
+  /**
    * v2 Intent Coverage breakdown — the per-priority miss lists + the
    * penalty applied + the fallback flag. Always present in the
    * shape; consumers that don't care about v2 can ignore it.

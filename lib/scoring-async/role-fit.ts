@@ -66,7 +66,31 @@ export async function roleFitSimilarity(
   job: JobPosting
 ): Promise<RoleFitResult> {
   const jdTitle = (job.title ?? '').trim();
-  if (!jdTitle) {
+
+  // ## Why the role family is the fallback
+  //
+  // `job.title` is EMPTY for every JD attached through the product.
+  //
+  // The attach paths build the envelope from the raw JD text and the
+  // intent extractor's output — and neither one wrote a title. The
+  // `createVariantFromJdAction` comment said the "future parser will
+  // overwrite title/company/keywords", and the JD panel's save action
+  // copied `existingJobContext?.title ?? ''` — which is also empty.
+  // So the promise was never kept, and Role Fit had nothing to measure:
+  // every resume in production scored the neutral 50.
+  //
+  // `roleFamily` IS populated — the intent extractor always returns it
+  // ("Full Stack Engineer", "Software Engineer"), and the storage
+  // schema has always documented it as the Role Fit fallback:
+  //
+  //   "Used by the Phase 2 Role Fit dimension as a fallback when
+  //    JobBERT-V3 title similarity is unavailable."
+  //
+  // It was never wired up. Now it is.
+  const jdRoleFamily = (job.roleFamily ?? '').trim();
+  const comparisonTarget = jdTitle || jdRoleFamily;
+
+  if (!comparisonTarget) {
     return {
       value: NEUTRAL_ROLE_FIT_SCORE,
       bestSimilarity: null,
@@ -102,7 +126,7 @@ export async function roleFitSimilarity(
   let bestMatchingTitle: string | null = null;
   try {
     for (const title of resumeTitles) {
-      const sim = await semanticSimilarity(title, jdTitle);
+      const sim = await semanticSimilarity(title, comparisonTarget);
       if (sim > bestSimilarity) {
         bestSimilarity = sim;
         bestMatchingTitle = title;

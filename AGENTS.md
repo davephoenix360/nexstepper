@@ -171,6 +171,50 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **Role Fit was 50 for every resume in production — the JD never had a
+  title to measure against** — The founder clicked Recompute on a live
+  variant and Role Fit came back at exactly **50** — the neutral
+  constant — three days after Role Fit had been fixed to be a real
+  measurement. It had shipped. **The dimension was measuring nothing.**
+  A read-only query against production (SELECTs only, via the new
+  `scripts/diagnose-prod-score.ts`) found the chain:
+  `createVariantFromJdAction` builds the `JobPosting` envelope from the
+  raw JD text plus the intent extractor's output, with the comment
+  *"the future parser will overwrite title/company/keywords"* — and the
+  "Save JD" action set `title: existingJobContext?.title ?? ''`, which
+  is **also** empty because nothing ever wrote one. The parsed JD's
+  `jobTitle` is a required non-empty field of `parsedJdSchema`; the
+  title existed, it was just never written into the envelope. And
+  `job.roleFamily` — "Full Stack Engineer" — was extracted and stored
+  all along, with the schema documenting it as the Role Fit fallback:
+  **a documented fallback that was never implemented, on the exact
+  dimension that depends on it.** Fixed on both sides: Role Fit compares
+  against `job.title || job.roleFamily` (which fixes every JD already in
+  the database, no migration), and the intent extractor now returns
+  `jobTitle` — it already reads the posting in the same round trip, so
+  it is free — which both attach paths write into the envelope.
+  Measured on the founder's actual production resume: **Role Fit
+  50 → 92**, overall 59 → 65. **The same query found a second, bigger
+  bug: every production snapshot read `ATS Similarity = 40`, which is
+  exactly `0.4 × BM25` with the semantic term at zero — the embedding
+  model was never loading, so every score in production was silently
+  BM25-only while being called the enhanced one.** Nothing errored,
+  nothing was logged, and the scorecard said "Computed in 32 ms". The
+  failure is now captured instead of swallowed, carried in the breakdown
+  as `degraded.semantic`, persisted with the snapshot, and rendered as a
+  **"Keyword-only score"** notice — a number whose provenance is unknown
+  is worse than a number with a caveat attached. Every hypothesis for
+  the model failure was **tested and falsified** rather than guessed:
+  cache size (23 MB), cold download (4.6 s, works), the bundled
+  production server with `VERCEL=1` and a cold `/tmp` (works), the native
+  runtime (present). The cause is specific to the Vercel deployment, and
+  the next deploy's snapshot will name it. Third: the hybrid engine
+  returned the *baseline's* `computedInMs`, so "Computed in 32 ms"
+  described only the deterministic part of a computation that had really
+  spent seconds in the network — it now measures the whole thing. 2,243
+  tests pass. Drift memo:
+  `docs/drift/2026-11-16-role-fit-and-the-silent-semantic-signal.md`.
+
 - **The documentation was wrong in seven places — and two of those numbers
   had been rotting by hand** — The architecture review's P2 finding was
   *"one drift sweep"*, and it turned out to be seven artefacts, not six:

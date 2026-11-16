@@ -21,6 +21,20 @@ import { JD_INTENT_EXTRACTOR_SYSTEM_PROMPT } from './prompts';
  * schema mirrors it 1:1.
  */
 export const extractJdIntentSchema = z.object({
+  /**
+   * The job title as the posting wrote it ("Senior Backend Engineer,
+   * Platform").
+   *
+   * Why the extractor returns it: the attach paths already make this
+   * one AI round-trip, and the title was being lost — the envelope was
+   * built from the raw text and never got a title, so the Role Fit
+   * dimension had nothing to compare against and every resume scored
+   * the neutral 50. One extra field on an existing call is free; a
+   * second call is not.
+   *
+   * Empty string when the posting has no discernible title.
+   */
+  jobTitle: z.string().trim().max(200).default(''),
   mustHaveSkills: z.array(z.string().min(1).max(120)).max(50).default([]),
   niceToHaveSkills: z.array(z.string().min(1).max(120)).max(50).default([]),
   implicitSkills: z.array(z.string().min(1).max(120)).max(50).default([]),
