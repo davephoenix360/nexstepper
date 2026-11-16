@@ -5,7 +5,7 @@
  * template. Replaces the old compact `<TemplatePicker>` dropdown.
  *
  * Why a modal (not a popover or dropdown)
- *   Five templates today. The user is choosing between visually
+ *   The user is choosing between visually
  *   distinct layouts; a 72-character dropdown made them pick blind.
  *   A full modal with a 2-column grid gives each template its own
  *   card (name, version, ATS badge, Pro badge, description, tags,

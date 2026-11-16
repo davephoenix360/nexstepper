@@ -29,7 +29,7 @@ three of them are corrected to match what was actually built.
 | Vercel production deployment | **Live** |
 | Neon **prod** project | **Live** |
 | Neon **dev** project | **Live** — separate project (see §1.2) |
-| Migrations `0000`–`0008` | Applied |
+| Migrations `0000`–`0013` | Applied |
 | Custom domain | **Live** — `www.nexstepper.com` canonical (see §0.2) |
 | Resend | Verified, sending |
 | Sentry + PostHog | Wired, real keys |
@@ -758,9 +758,12 @@ event — confirm this UX is acceptable before launch).
 Every box ticked — **state verified 2026-10-08**:
 
 - [x] Neon prod DB live, upgrade trigger (§1.1) noted in your
-      calendar — migrations `0000`–`0008` exist in the repo and prod
+      calendar — migrations `0000`–`0013` exist in the repo and prod
       is serving, which implies they applied via `prebuild`; confirm
-      against the prod connection string if you want certainty
+      against the prod connection string if you want certainty.
+      **CI now proves the chain applies from scratch**: every PR runs
+      `pnpm build` against a throwaway Postgres, so `prebuild` applies
+      `0000`–`0013` to an empty database on every push.
 - [ ] Stripe in live mode, Pro product + webhook + customer portal
       — **still gated by the soft-launch decision**, see
       `docs/drift/2026-09-27-soft-launch-pro-gating.md`

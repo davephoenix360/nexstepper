@@ -236,6 +236,7 @@
       <li><b>P1 — the chat's ATS tool wrote a snapshot the page could not see.</b> It now persists the full breakdown.</li>
       <li><b>P1 — a failed payment did not cost the user their Pro plan.</b> <code>past_due</code> and <code>incomplete</code> now demote.</li>
       <li><b>P1 — CI never compiled the route graph, and there was no linter.</b> CI now runs lint → typecheck → test → build, with a throwaway Postgres so the migration chain is proven on every PR.</li>
+      <li><b>P2 — the documentation drift sweep.</b> Done on 2026-11-16. All seven artefacts below are corrected, and the two numbers that used to rot by hand — the test count and the migration range — now have a generator behind them (<code>pnpm test:count</code>).</li>
     </ul>
     <p><b>Still open</b>: the P2s (Liveblocks and Inngest are stubs; the applications pipeline is a third path through the domain that nothing exercises; six documentation artefacts disagree with the tree; server-side analytics fire regardless of consent) and the P3s. The <b>42 React Compiler lint warnings</b> are a deliberate backlog, not a regression.</p>
   </div>
@@ -1229,7 +1230,7 @@
 <div class="finding sev-P2">
   <h4><span class="sev">P2</span> Liveblocks and Inngest are in the stack, the runbook and the plan constants — but do nothing</h4>
   <p><b>Evidence.</b> <code>lib/liveblocks/server.ts</code> is 13 lines and <b>imported by nothing</b> — the pricing page says so explicitly. <code>lib/inngest/client.ts</code> defines exactly one function, <code>testEvent</code>, on an <code>app/test</code> trigger. Both appear in <code>.env.example</code>, in the AGENTS.md "locked stack", and in the production runbook. <code>PLANS.pro.canCollab</code> is <code>true</code> and <code>PLANS.pro.canOptimize</code> is read by nothing.</p>
-  <p><b>Impact.</b> The pricing page and the plan constants advertise a capability that does not exist. The schema comment promising a periodic prune of <code>stripe_events_processed</code> has no implementation, so that table grows without bound. And two paid services sit in the environment adding cost and attack surface for zero function.</p>
+  <p><b>Impact.</b> The plan constants advertise a capability that does not exist — <code>PLANS.pro.canCollab</code> is <code>true</code> for a feature nobody can reach. (The <b>pricing copy</b> is innocent: it was corrected on 2026-10-21 and carries an explicit "Do not re-add either until the feature is built" note, so the marketing site does not advertise collab either.) The schema comment promising a periodic prune of <code>stripe_events_processed</code> has no implementation, so that table grows without bound. And two paid services sit in the environment adding cost and attack surface for zero function.</p>
   <p><b>Recommendation.</b> Either ship the collaboration slice or remove Liveblocks from the stack and the pricing copy. Inngest is cheap to keep if the first real job lands — the score recompute is the obvious candidate — but the <code>app/test</code> function should not be the only one. If Liveblocks is deferred, <code>canCollab</code> should not be <code>true</code>.</p>
 </div>
 
@@ -1241,18 +1242,19 @@
 </div>
 
 <div class="finding sev-P2">
-  <h4><span class="sev">P2</span> Six documentation artefacts disagree with the tree</h4>
-  <p><b>Evidence.</b></p>
+  <h4><span class="sev">P2</span> Seven documentation artefacts disagreed with the tree <span class="pill ok">SWEPT 2026-11-16</span></h4>
+  <p><b>Evidence (as found).</b></p>
   <ul>
-    <li>Test counts: <code>README.md:37</code> says 970/78 files; <code>AGENTS.md</code> says 2,205; the tree has 172 files / ~1,970 cases.</li>
-    <li><code>docs/setup/production.md:32</code> and <code>:762</code> say migrations <code>0000</code>–<code>0008</code>; there are 14 (<code>0000</code>–<code>0013</code>).</li>
-    <li><code>posthog-ai-observability-report.md:35</code> says <code>posthogPrivacyMode: false</code>; <code>lib/ai/providers.ts:647</code> sets it <code>true</code> — the code is the privacy-safe one, the report is wrong.</li>
-    <li>ADR 0002 describes an auto-print preview flow that no longer exists.</li>
-    <li>The <code>WEIGHTS_V2</code> doc comment says the weights are 0.68/0.32; the constants are 0.70/0.30. The constants are correct and sum to 1.00.</li>
-    <li>The template gallery's docstring says "Five templates today"; there are six.</li>
+    <li>Test counts: <code>README.md:37</code> said 970/78 files; <code>AGENTS.md</code> said 2,205; the tree had 172 files / ~1,970 cases.</li>
+    <li><code>docs/setup/production.md:32</code> and <code>:762</code> said migrations <code>0000</code>–<code>0008</code>; there are 14 (<code>0000</code>–<code>0013</code>).</li>
+    <li><code>posthog-ai-observability-report.md:35</code> said <code>posthogPrivacyMode: false</code>; <code>lib/ai/providers.ts:647</code> sets it <code>true</code> — the code is the privacy-safe one, the report was wrong.</li>
+    <li>ADR 0002 described an auto-print preview flow that no longer exists.</li>
+    <li>The <code>WEIGHTS_V2</code> doc comment said the weights are 0.68/0.32; the constants are 0.70/0.30. The constants were correct and sum to 1.00.</li>
+    <li>The template gallery's docstring said "Five templates today"; there are six.</li>
+    <li><code>docs/plans/demo-video.md</code> opened with a warning that Role Fit could not move off 50 — true when written, false by the end of the same day.</li>
   </ul>
   <p><b>Impact.</b> Individually trivial; collectively they make the documentation untrustworthy in exactly the places a new contributor (or a new session of this agent) looks first. The migration range is the dangerous one, because it answers "what is in production?" incorrectly.</p>
-  <p><b>Recommendation.</b> One drift sweep. Generate the test count and the migration range from the tree rather than typing them.</p>
+  <p><b>Resolution.</b> Swept on 2026-11-16. All seven are corrected. The two numbers that had rotted by hand are now <b>generated</b> rather than typed: <code>pnpm test:count</code> runs the suite with the JSON reporter and prints the real file and case counts, and the docs carry a dated number with a pointer to that command instead of a bare figure. The demo-video plan was not only corrected but <b>re-measured</b> against the shipped engine — <code>pnpm measure:demo-score</code> reproduces the seeded fixture in memory and prints the before/after scores, so the video's numbers can be regenerated in one command rather than re-derived by hand.</p>
 </div>
 
 <div class="finding sev-P2">

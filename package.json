@@ -13,11 +13,13 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
+    "test:count": "node scripts/test-count.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "seed:demo": "tsx --conditions=react-server scripts/seed-demo.ts",
     "seed:demo:reset": "tsx --conditions=react-server scripts/seed-demo.ts --reset",
-    "preflight:demo-video": "tsx --conditions=react-server scripts/preflight-demo-video.ts"
+    "preflight:demo-video": "tsx --conditions=react-server scripts/preflight-demo-video.ts",
+    "measure:demo-score": "tsx --conditions=react-server scripts/measure-demo-score.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.148",

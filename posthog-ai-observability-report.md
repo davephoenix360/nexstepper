@@ -32,8 +32,11 @@ Wired and build-verified. A live generation was not sent because this setup does
 
 ## Privacy mode
 
-- **Effective setting:** prompt and completion recording is enabled. `posthogPrivacyMode: false` is set in `lib/ai/providers.ts:218` for the Vercel AI SDK v6 wrapper.
-- **What is captured:** with privacy mode off, SDK-captured AI generation events include prompt inputs and model outputs, in addition to model, token, latency, and cost metadata.
-- **When to change it:** enable privacy mode before sending prompts or responses whose sensitive content must not be stored in PostHog.
-- **How to change it:** set `posthogPrivacyMode: true` in `lib/ai/providers.ts`. This excludes `$ai_input` and `$ai_output_choices` from SDK-captured events; it does not remove previously stored events or arbitrary custom properties.
+- **Effective setting:** prompt and completion recording is **disabled**. `posthogPrivacyMode: true` is set in `lib/ai/providers.ts:647` for the Vercel AI SDK v6 wrapper.
+- **What is captured:** with privacy mode ON, SDK-captured AI generation events exclude `$ai_input` and `$ai_output_choices`. Only metadata is sent — model, token counts, latency, cost, and the trace structure. **Prompt and response content never leaves the app.**
+- **Why:** a resume and a pasted job description are personal data with PII. Sending them to PostHog would create a second processor receiving that data, expanding the privacy surface area with no operational benefit. Cost tracking and reliability still work in privacy mode.
+- **When to change it:** flip to `false` only if you intentionally need prompt capture for AI quality evaluation — and update this report and the privacy page at the same time.
+- **How to change it:** set `posthogPrivacyMode: false` in `lib/ai/providers.ts`. This includes `$ai_input` and `$ai_output_choices` in SDK-captured events; it does not remove previously stored events or arbitrary custom properties.
 - [AI Observability privacy mode documentation](https://posthog.com/docs/ai-observability/privacy-mode)
+
+> **Corrected 2026-11-16.** This section previously reported `posthogPrivacyMode: false` and described prompt/response content being captured. The code has had privacy mode **on** since it was introduced — the report was wrong, not the code. The privacy-safe setting is the one that shipped.

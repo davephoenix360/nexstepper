@@ -34,7 +34,7 @@ links, and (planned) peer reviews + real-time collaboration.
 | Liveblocks real-time collab UI | 📋 Phase 5 | server stub wired |
 | `/api/job-contexts` for browser extension | 📋 post-launch | — |
 
-**Test count:** **970/970 green** across 78 files. Run `pnpm test`.
+**Test count:** **2,228 tests across 175 files** (verified 2026-11-16). Run `pnpm test`. If you need the current number, run `pnpm test:count` — it prints the real totals rather than a hand-typed figure, because this line used to be wrong three separate times.
 
 ## Stack
 
@@ -43,7 +43,7 @@ links, and (planned) peer reviews + real-time collaboration.
 | Framework | Next.js 16.2 (App Router, Turbopack default) |
 | Language | TypeScript 5.x strict |
 | UI | shadcn/ui + Tailwind v4 |
-| Database | Postgres (Neon in prod, postgres-js locally — driver auto-detected) |
+| Database | Postgres (Neon in prod, postgres-js locally) |
 | ORM | Drizzle (no Prisma) |
 | Auth | Better Auth 1.6 |
 | Billing | Stripe |
@@ -81,10 +81,15 @@ pnpm dev                          # http://localhost:3000
 ### Verification (before you commit)
 
 ```bash
+pnpm lint            # eslint — 0 errors (warnings are a tracked backlog)
 pnpm typecheck       # tsc --noEmit — must be clean
-pnpm test            # 970+ unit tests must stay green
+pnpm test            # 2,200+ unit tests must stay green
 pnpm build           # all routes must compile
 ```
+
+These are the same four gates CI runs. See
+[`AGENTS.md`](./AGENTS.md#how-to-verify-before-committing) for what each
+one catches and why the build needs no database.
 
 ## Self-hosting
 

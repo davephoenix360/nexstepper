@@ -1,41 +1,50 @@
 # Demo Video — Plan
 
-> **⚠️ Before shooting: Role fit cannot move off 50.**
+> **⚠️ Re-measured 2026-11-16 — every number in this plan changed.**
 >
-> This plan's Beat 1 opens on **Role fit — 50** as the weakest bar, and Beat 6
-> is built around it moving. On the current engine that is not filmable:
-> **Role fit is a constant 50 for every resume**, because
-> `lib/scoring-async/score-hybrid.ts:97` passes
-> `{ roleFitSimilarity: null }` into the sync engine and nothing in production
-> ever calls `roleFitSimilarity()` (`lib/scoring-async/role-fit.ts:64` — the
-> only callers are tests). A null similarity falls back to
-> `NEUTRAL_ROLE_FIT_SCORE` = 50 (`lib/scoring/dimensions/role-fit.ts:45-50`).
-> Measured across four edits — pristine, relabelled headline, reframed job
-> title, both — it never moved, while every other dimension responded.
+> **Role Fit is fixed.** `lib/scoring-async/score-hybrid.ts` now calls
+> `roleFitSimilarity()` instead of handing the sync engine
+> `{ roleFitSimilarity: null }`, so the dimension is a real measurement
+> rather than a constant 50. See
+> `docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md`.
 >
-> **Three ways out, and one is a product decision, not a filming one:**
-> 1. **Fix the dimension** — await `roleFitSimilarity()` in the hybrid scorer.
->    Then this plan shoots exactly as written.
-> 2. **Re-label the dimension** so it does not promise a measurement it is not
->    making, and re-point Beats 1 and 6 at a bar that does move (**Keywords**
->    does: 68 → 72 on a truthful edit).
-> 3. **Shoot it anyway** — but the video would imply a fix the engine cannot
->    produce, which is the one thing this product does not do.
+> That kills this plan's original cold open. The old Beat 1 pointed at
+> **Role fit — 50** as the weakest bar and Beat 6 was built around it
+> moving. It is no longer the weakest bar, and it no longer moves.
 >
-> Whichever you pick, **«SCORE_AFTER» still has to be measured, never
-> predicted** — and see the measured numbers below.
+> **Re-measured with the shipped engine** (`pnpm measure:demo-score`, the
+> real seeded Cartwheel fixture, the real hybrid scorer — nothing
+> hand-typed):
 >
-> **Measured, for reference** (the real engine, the real seeded Cartwheel
-> fixture, the real recompute path): overall **75 → 76**, Keywords **68 → 72**,
-> every other dimension unchanged, tier **Good** throughout. The one edit:
-> *"Built the asynchronous transcription pipeline"* → *"Built the **event-driven**
-> transcription pipeline"* — which is what the posting asked for and what the
-> pipeline already was. See
-> `docs/drift/2026-11-10-brag-video-and-the-pinned-role-fit-dimension.md`.
+> | | Overall | Keywords | Format | Impact | Experience match | Intent coverage | Role fit | Seniority fit |
+> |---|---|---|---|---|---|---|---|---|
+> | **Before** | **78** | 68 | 82 | 74 | 69 | 90 | 84 | 100 |
+> | **After** | **79** | **71** | 82 | 74 | 69 | 90 | 84 | 100 |
 >
-> A **21-second** launch video built from these measured numbers already
-> exists — `brag-output/brag.mp4` — and is the better first asset to publish
-> while this 2:16 master is re-planned.
+> Overall moved **78 → 79** because Keywords moved **68 → 71**. Every
+> other dimension was unchanged, and the only edit was the honest one:
+> *"Built the asynchronous transcription pipeline"* → *"Built the
+> **event-driven** transcription pipeline"* — which is what the posting
+> asked for and what the pipeline already was.
+>
+> **The good news: the story got better.** The weakest bar is now
+> **Keywords — 68**, and Keywords is exactly the bar that moves. So the
+> cold open, the fix, and the payoff now all point at the SAME bar:
+> the product shows you the weakest dimension, names the gap, fixes it
+> in place, and the number moves because of it. That is the whole thesis
+> in one gesture. Beat 1 and Beat 6 have been re-pointed below.
+>
+> **The rendered video is now out of date.** `brag-output/brag.mp4`
+> was produced against the pre-fix engine, so it shows **75** and
+> **Role fit — 50**. It is a faithful recording of the app as it was on
+> 2026-11-10, and it is still a true thing that happened — but it does
+> not match what the app says today. **Re-shoot before publishing it as
+> current**, or say so in the caption.
+>
+> **«SCORE_AFTER» still has to be measured, never predicted** — and now
+> there is a command for it: `pnpm measure:demo-score` prints the
+> before/after numbers from the shipped engine without touching the
+> database.
 
 ## Objective
 
@@ -194,29 +203,36 @@ Six beats. Each beat earns the next one.
 
 **Visual.** The resume list — `/dashboard/resumes`. Two rows: **"Jordan Ellis
 — Master Resume"** and **"Jordan Ellis — Cartwheel (Backend Platform)"** with
-a **75** badge on the variant. Hold three seconds. Click into the variant.
-The scorecard opens: **75/100**, tier badge **Good**. The camera drifts to the
-weakest bar: **Role fit — 50**.
+a **78** badge on the variant. Hold three seconds. Click into the variant.
+The scorecard opens: **78/100**, tier badge **Good**. The camera drifts to the
+weakest bar: **Keywords — 68**.
 
 **VO.**
-> Seventy-five out of a hundred. A good score. On one dimension, half marks.
+> Seventy-eight out of a hundred. A good score — and one dimension is
+> dragging the whole thing down.
 
 **Why.** The list shot is the whole product in one frame — one master, a
 tailored variant, and the score on it — and it proves the **first card on
 your own landing page** without a word of narration. It is also the cheapest
 possible way to establish what the product is before the scorecard appears.
 
-The number then lands as a **revelation** rather than a complaint: 75 is good,
+The number then lands as a **revelation** rather than a complaint: 78 is good,
 and it is still wrong for this job. A candidate who scored 74 and could see
 the numbers but no way to improve them is precisely the complaint that
-produced the scorecard-tips drift memo. Here the fix is visible: role fit is
-50 because the resume calls Jordan a *Senior Software Engineer* and the
-posting wants a *Senior Backend Engineer*.
+produced the scorecard-tips drift memo. Here the fix is visible: **Keywords
+is 68** because the posting asks for *event-driven architectures* and
+Jordan's resume never says the word — even though the transcription pipeline
+was event-driven all along.
+
+**Why Keywords and not Role fit.** Role fit used to be the weakest bar, at a
+pinned 50. It is fixed now (it reads **84**), and the weakest bar is
+**Keywords — 68** — which is also the bar the honest fix moves. So the
+cold open, the fix and the payoff all point at the same dimension.
 
 **Do not** open on the logo. Open on the thing that's broken.
 
 **Do not** open on a low score. A "47" cold open would be a lie about this
-fixture — the engine says 75, and the video has to say 75.
+fixture — the engine says 78, and the video has to say 78.
 
 
 ### Beat 2 — The posting and the scorecard (0:08–0:15) · Job context attached
@@ -224,12 +240,12 @@ fixture — the engine says 75, and the video has to say 75.
 **Visual.** Still on the variant page. Frame the **right rail**: the **JD
 panel** at the top — "Senior Backend Engineer, Platform", Cartwheel,
 Seattle — with the parsed posting underneath — then tilt down to the **ATS
-scorecard**: **75/100**, tier badge **Good**, the radar, and the seven
+scorecard**: **78/100**, tier badge **Good**, the radar, and the seven
 dimension bars.
 
 **VO.**
-> One master, tailored to this posting. Seventy-five out of a hundred — a
-> good score. On one dimension, half marks.
+> One master, tailored to this posting. Seventy-eight out of a hundred — a
+> good score. And one dimension is dragging the whole thing down.
 
 **Why.** This replaces the original 9-second import/paste/tailor montage,
 and it is strictly better. The montage needed the founder to paste a JD into
@@ -310,7 +326,7 @@ technical audience that reads SaaS demo videos.
 
 ### Beat 5 — The inline rewrite (1:06–1:23) · You fix it yourself
 
-**Visual.** Back on the scorecard. Click the **Role fit** dimension bar. The
+**Visual.** Back on the scorecard. Click the **Keywords** dimension bar. The
 resume jumps to the relevant field and it pulses. The Pro popover opens with
 **three alternatives**. Click one. It replaces the field in place.
 
@@ -330,20 +346,34 @@ the popover's is that it hands you the pen. Neither subsumes the other, and
 showing both is what makes the product feel like a tool rather than one
 clever trick.
 
-**One thing to confirm during the manual test:** which field the **Role fit**
-bar anchors to. It should land on the headline — the thing Scout is about to
-call "Senior Software Engineer" — but confirm it. If it lands somewhere
-unhelpful, use **Impact** (Accomplishment Focus) instead, which anchors to a
-bullet, and let Scout's headline fix carry the narrative.
+**Where the Keywords bar anchors — this is a fact, not a guess.** The
+dimension maps to the `ATS Coverage` criterion
+(`lib/inline-issue/build-match-breakdown.ts:58`), and `ATS Coverage` falls
+into the default branch of `defaultPathForCriterion`
+(`lib/inline-issue/criterion-to-path.ts:76-77`): the **first** work bullet,
+`sections.work[0].positions[0].highlights[0]` — which on Jordan's resume is
+*"Built the Go service layer behind the shared-workspace recording flow
+(gRPC over PostgreSQL), running on Kubernetes in AWS and provisioned with
+Terraform."*
+
+**That is a different bullet from the one Scout edits in Beat 4** (the
+transcription pipeline). Deliberately: Beat 4 is the agent finding and fixing
+a gap on its own; Beat 5 is the user taking the pen on a gap the scorecard
+flagged. Two different bullets, two different mechanisms, one point each.
+
+**One thing to confirm during the manual test:** that the popover opens on
+that bullet and that the preview shows the text it is about to replace. If
+the anchor lands somewhere unhelpful, fall back to **Impact**
+(Accomplishment Focus), which also anchors to a bullet.
 
 ### Beat 6 — The payoff (1:23–1:43) · The number moves
 
-**Visual.** Recompute. The score animates from **75** to whatever it really
-becomes. The radar shape shifts. The dimension bars fill — and **Role fit
-moves off 50**, which is the bar the cold open put on screen.
+**Visual.** Recompute. The score animates from **78** to whatever it really
+becomes. The radar shape shifts. The **Keywords** bar grows — the bar the
+cold open put on screen.
 
 **VO.**
-> Seventy-five to «SCORE_AFTER». Nothing invented. Every change is something
+> Seventy-eight to «SCORE_AFTER». Nothing invented. Every change is something
 > your resume already proves.
 
 **Why.** This is the money shot and it must be the last thing the viewer sees
@@ -358,6 +388,13 @@ Recompute, read the number off the screen, then write it into the script.
 Do not predict it. And **do not let it reach 100** — Kafka and OpenTelemetry
 are genuinely absent from Jordan's history, and a video that ends at 100 would
 be the one lie in an otherwise honest product.
+
+> **Measured on 2026-11-16, for reference** (`pnpm measure:demo-score`, the
+> shipped engine, the real fixture, Scout's edit only): overall
+> **78 → 79**, Keywords **68 → 71**, every other dimension unchanged, tier
+> **Good** throughout. Beat 5's inline rewrite adds a second edit on a
+> different bullet, so the shot's real number may land higher — **measure it
+> on the day**, and use the measured value in the script.
 
 
 ### Beat 7 — The refusal (1:43–1:53) · Proof it's honest
@@ -483,8 +520,8 @@ Follow this in order. It is the whole video as a list of clicks.
   Variants branch off each one for specific roles."*
 - One master card: **Jordan Ellis — Master Resume**
 - Two variant rows nested under it:
-  - **Jordan Ellis — Cartwheel (Backend Platform)** — badge **75**
-  - **Jordan Ellis — Northwind Supply (Customer Ops)** — badge **55**
+  - **Jordan Ellis — Cartwheel (Backend Platform)** — badge **78**
+  - **Jordan Ellis — Northwind Supply (Customer Ops)** — badge **57**
 - A "+ Create" button top-right
 
 **Say:** "One master. A tailored variant for every job."
@@ -506,15 +543,15 @@ Follow this in order. It is the whole video as a list of clicks.
   Washington, Docsmith, and the skills block
 - **RIGHT, top:** the **JD panel** — "Senior Backend Engineer, Platform",
   Cartwheel, Seattle, and the posting text below
-- **RIGHT, bottom:** the **ATS scorecard** — big **75**, badge **Good**, the
+- **RIGHT, bottom:** the **ATS scorecard** — big **78**, badge **Good**, the
   radar chart, and the seven bars: Keywords 68, Format 82, Impact 74,
-  Experience match 69, Intent coverage 90, **Role fit 50**, Seniority fit 100
+  Experience match 69, Intent coverage 90, Role fit 84, Seniority fit 100
 - Below the bars, the eligibility list — the bachelor's degree, ticked green
 
-**Say:** "Seventy-five out of a hundred. A good score. On one dimension, half
-marks."
+**Say:** "Seventy-eight out of a hundred. A good score — and one dimension is
+dragging the whole thing down."
 
-**Hold** so the frame ends on **Role fit — 50**.
+**Hold** so the frame ends on **Keywords — 68**.
 
 ---
 
@@ -581,7 +618,7 @@ refuses to close.
 
 ### Shot 5 — The inline rewrite (1:06–1:23)
 
-**Do:** click the **Role fit** bar in the scorecard (right rail).
+**Do:** click the **Keywords** bar in the scorecard (right rail).
 
 **You should see:**
 - The resume jumps to the relevant field and it **pulses**
@@ -591,8 +628,13 @@ refuses to close.
 **Say:** "Or fix it yourself. Click what's wrong. It gives you three ways to
 say it better."
 
-**Confirm which field "Role fit" anchors to.** It should be the headline. If
-it lands somewhere unhelpful, use **Impact** instead (that one anchors to a
+**Confirm which field "Keywords" anchors to.** It should be the **first work
+bullet** — *"Built the Go service layer behind the shared-workspace recording
+flow (gRPC over PostgreSQL)…"* — because the dimension maps to the
+`ATS Coverage` criterion, which falls into `defaultPathForCriterion`'s
+default branch (`lib/inline-issue/criterion-to-path.ts:76-77`). That is a
+*different* bullet from the one Scout edits in Shot 4, on purpose. If it
+lands somewhere unhelpful, use **Impact** instead (that one also anchors to a
 bullet).
 
 ---
@@ -606,11 +648,16 @@ radar shifts.
 
 **Write down the new number. That is «SCORE_AFTER».**
 
-**Say:** "Seventy-five to «SCORE_AFTER». Nothing invented. Every change is
+**Say:** "Seventy-eight to «SCORE_AFTER». Nothing invented. Every change is
 something your resume already proves."
 
-**Check:** Role fit moved off 50. **If it hits 100, stop** — Kafka and
+**Check:** **Keywords** moved off 68. **If it hits 100, stop** — Kafka and
 OpenTelemetry are genuinely absent, so it must not reach 100.
+
+> The measured value on 2026-11-16 was **78 → 79**, with Keywords
+> **68 → 71 or 72**. The ±1 is real: the Jev evaluation is a probabilistic
+> judge, so two runs of the same fixture can differ by a point. Read the
+> number off the screen.
 
 ---
 
@@ -690,19 +737,30 @@ It refuses to run against the production database. The repo has two Neon
 projects, `.env.local` is the dev one, and the seeder compares the resolved
 host against `.env.production.local` and aborts if they match.
 
-**What the seeder produced on 2026-11-02** (these are the real numbers — the
-scorecard will render exactly this):
+**What the engine produces today** (re-measured 2026-11-16 with the shipped
+engine — `pnpm measure:demo-score`, the real seeded Cartwheel fixture, the
+real hybrid scorer; these are the numbers the scorecard renders):
 
-| | |
-|---|---|
-| **Overall score** | **75** |
-| Keywords | 68.1 |
-| Format | 82.3 |
-| Impact | 74.1 |
-| Experience match | 69.2 |
-| Intent coverage | 89.5 |
-| **Role fit** | **50** |
-| Seniority fit | 100 |
+| | Before | After Scout's edit |
+|---|---|---|
+| **Overall score** | **78** | **79** |
+| Keywords | 68 | **71** |
+| Format | 82 | 82 |
+| Impact | 74 | 74 |
+| Experience match | 69 | 69 |
+| Intent coverage | 90 | 90 |
+| Role fit | 84 | 84 |
+| Seniority fit | 100 | 100 |
+
+The only edit is the honest one: *"Built the asynchronous transcription
+pipeline"* → *"Built the **event-driven** transcription pipeline"*. Every
+other dimension is unchanged, because nothing else about the resume changed.
+
+> The previous table said **75** overall with **Role fit 50**. That was
+> true before Role Fit was fixed (`docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md`).
+> The score moved 75 → 78 because Role Fit moved 50 → 84 — a 34-point
+> improvement on a dimension worth 0.10 of the score, which is 3.4 points.
+> Nothing else moved.
 
 And the two highlight beats, verified by running the same Jev evaluation the
 button runs:
@@ -714,7 +772,9 @@ button runs:
 
 **Read those numbers off the screen during rehearsal and put them in the
 script.** Do not write a number that isn't the one on screen — a video that
-says 71 while the card says 75 is the list-badge bug in a video.
+says 71 while the card says 75 is the list-badge bug in a video. And if you
+need the numbers before the shoot, `pnpm measure:demo-score` prints them
+from the shipped engine without touching the database.
 
 ### What the fixture is designed to prove
 
@@ -723,10 +783,14 @@ distributed systems 2.47, Kubernetes 2.23, Terraform 2.03, AWS 2.12. The
 resume has the work.
 
 But the resume's headline says **Senior Software Engineer**, and the posting
-wants a **Senior Backend Engineer**. Role fit is 50, and the ATS keyword
-match is only 68, because the resume never says "distributed systems",
-"event-driven" or "microservices" — even though the migration bullet means
-exactly that.
+wants a **Senior Backend Engineer**. The ATS keyword match is only 68,
+because the resume never says "distributed systems", "event-driven" or
+"microservices" — even though the migration bullet means exactly that.
+
+(Role fit used to be the story here, at a pinned 50. It is fixed and now
+reads **84** — the headline is *close enough* to the posting's title that the
+semantic match is high. The gap is in the **keywords**: the resume has the
+work but never uses the posting's words for it.)
 
 That is the demo's thesis in one candidate: **the resume shows it; the
 resume doesn't say it.** Scout's honest job is to reframe, not to invent.
@@ -738,6 +802,14 @@ the score after the fix still won't be 100 — and shouldn't be.
 Same account, same resume, same JD, same score, same Scout reply, same edit
 set, every time. The seeder is idempotent: the second run is a no-op, so the
 AI calls are never repeated and the demo state cannot drift between takes.
+
+**One honest caveat on "same score, every time".** The Jev evaluation is a
+**probabilistic judge** — it returns probability-weighted evidence, not a
+deterministic verdict. Two runs of the identical fixture can differ by a
+point (measured: Keywords landed on 71 and 72 across two runs of the same
+edit on 2026-11-16). Everything else — the six other dimensions, the
+overall, the miss list — was stable. So: read the number off the screen at
+rehearsal, and treat a ±1 on Keywords as expected rather than as a mistake.
 
 ### Account state
 
@@ -768,7 +840,7 @@ things the plan cannot: the real number after Scout's edits, the real
 behaviour of the highlight button, and how long the chat pause actually feels.
 
 `pnpm preflight:demo-video` automates the machine-checkable half (server up,
-credential authenticates, scorecard renders 75, chat route answers, probe
+credential authenticates, scorecard renders 78, chat route answers, probe
 session cleaned up). The shot list is the half only a person can do — the ones
 that involve reading Scout's actual words and watching the screen.
 
@@ -872,7 +944,7 @@ Guidde has two recording modes and picking the wrong one kills the payoff:
   whether you were speaking at the time.
 
 **Record every beat of the hero video in Product Demo / Screen Capture mode.**
-The step-by-step mode turns the score animating from 75 to 84 and Scout's
+The step-by-step mode turns the score animating from 78 to 79 and Scout's
 bullet rewriting in place into two still screenshots with arrows on them — which
 is a how-to guide, not a demo, and it destroys the two beats that make the
 video worth watching.
@@ -893,11 +965,11 @@ long take. Six recordings also means a botched take costs you one beat.
 
 | Beat | Guidde | Mode | Notes |
 |---|---|---|---|
-| 1 — Cold open | `01-cold-open` | Product Demo | The resume list (master + variant + 75 badge), then click into the variant, let it sit on Role fit 50 |
+| 1 — Cold open | `01-cold-open` | Product Demo | The resume list (master + variant + 78 badge), then click into the variant, let it sit on Keywords 68 |
 | 2 — Setup montage | `02-setup` | Step-by-step + Screen Walkthrough | Import, paste JD, create variant |
 | 3 — The reading | `03-highlight` | Product Demo | Click "Highlight this job's skills", skills go bold, must-haves underline |
 | 4 — Scout | `04-scout` | Product Demo | Open chat, send the prompt, watch the edits land |
-| 5 — The inline rewrite | `05-inline` | Product Demo | Click the Role fit bar, three alternatives, pick one |
+| 5 — The inline rewrite | `05-inline` | Product Demo | Click the Keywords bar, three alternatives, pick one |
 | 6 — The payoff | `06-score` | Product Demo | Click Recompute, hold on the score moving |
 | 7 — The refusal | `07-refusal` | Product Demo | Switch to the Northwind posting, click highlight, it refuses |
 | 8 — Close | `08-close` | Product Demo | Export → PDF → share link |
@@ -1067,8 +1139,8 @@ you send it until it does, then film that.
 
 **4. The video overpromises.** A demo that shows a score jumping 47 → 71 when
 the real improvement is 9 points is the kind of thing a reviewer screenshots.
-**Mitigation:** the seeded fixture scores **75**, and every number in the
-script comes off the screen during rehearsal. A believable 75 → 84 beats a
+**Mitigation:** the seeded fixture scores **78**, and every number in the
+script comes off the screen during rehearsal. A believable 78 → 79 beats a
 fantasy 47 → 100 — and the score must **not** reach 100, because Kafka and
 OpenTelemetry are genuinely absent from Jordan's history.
 
@@ -1115,7 +1187,7 @@ separate take while the editor idles, or drop it.
       refusal fires as written.
 - [x] A first-session analysis is persisted, so Scout opens informed.
 - [x] `pnpm preflight:demo-video` exists and reports **READY TO SHOOT** —
-      server up, credential authenticates, scorecard renders 75, chat route
+      server up, credential authenticates, scorecard renders 78, chat route
       answers, probe session cleaned up. It exits non-zero on any failure.
 
 **Capture**

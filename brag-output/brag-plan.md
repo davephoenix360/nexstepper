@@ -1,5 +1,27 @@
 # Brag Plan: Nexstepper
 
+> **⚠️ This plan describes the video as RENDERED on 2026-11-10, and it
+> keeps saying 75 because that is what `brag.mp4` shows.**
+>
+> The engine has changed since the render. **Role Fit was a constant 50
+> and is now a real measurement** — the fix landed on 2026-11-10, the
+> same day this video was rendered, and it landed *after* the numbers
+> below were measured. The seeded fixture now scores **78**, with Role
+> fit **84** instead of 50, and the honest edit moves it to **79**.
+>
+> **Nothing in this document is wrong about the video.** It is a faithful
+> record of a real thing that happened. But it does **not** describe what
+> the app says today, so:
+>
+> - **Re-shoot before publishing it as current.** `pnpm measure:demo-score`
+>   prints the current numbers from the shipped engine without touching
+>   the database.
+> - The current plan (`docs/plans/demo-video.md`) has been re-pointed at
+>   **Keywords**, which is now the weakest bar *and* the bar the honest
+>   fix moves — a better story than the one this video tells.
+>
+> See `docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md`.
+
 ## What is this app?
 
 Nexstepper is an AI resume builder: you keep one master resume, paste a job
@@ -278,7 +300,7 @@ line and thins to silence under the wordmark.
 
 | On screen | Source |
 |---|---|
-| `75` → `76` | measured with the shipped engine (`scoreResumeHybridFromEnvelope`) against the real seeded Cartwheel fixture; `scripts/seed-demo.ts` prints "renders 75 from the persisted snapshot" |
+| `75` → `76` | measured with the engine **as it stood on 2026-11-10** (`scoreResumeHybridFromEnvelope`) against the real seeded Cartwheel fixture; `scripts/seed-demo.ts` printed "renders 75 from the persisted snapshot". The engine now reads 78 — see the banner at the top of this file. |
 | `Good` tier badge | `tierLabelFor()` in `components/scorecard/dimension-bar.tsx` (65–79 = Good) |
 | Keywords 68, Format 82, Impact 74, Experience match 69, Intent coverage 90, Role fit 50, Seniority fit 100 | the seeded snapshot's dimension scores, rendered as `Math.round` does |
 | "These requirements from the JD are not evidenced in your resume:" | `buildDynamicTips` — `ATS Keyword Match`, verbatim from the real output |
@@ -296,11 +318,17 @@ line and thins to silence under the wordmark.
 "higher score" that the engine did not produce. The score moves **one point**
 because that is all the truth is worth — and the video says so.
 
-**Known engine limitation (deliberately not shown):** Role Fit is pinned at
+**Known engine limitation (deliberately not shown) — AS RENDERED:** Role Fit is pinned at
 the neutral 50 for every resume, because `lib/scoring-async/score-hybrid.ts`
-passes `{ roleFitSimilarity: null }` into the sync engine and the async
-`roleFitSimilarity()` helper is never called from the scorer. The scorecard
+passed `{ roleFitSimilarity: null }` into the sync engine and the async
+`roleFitSimilarity()` helper was never called from the scorer. The scorecard
 renders it faithfully, but no line in this video claims it is a gap or a fix.
+
+> **Since the render:** that limitation is fixed. The hybrid scorer now calls
+> `roleFitSimilarity()`, and the same fixture reads Role fit **84** with an
+> overall of **78**. The bar in this video still reads 50 because that is what
+> the app produced on 2026-11-10. See
+> `docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md`.
 
 ---
 

@@ -1,5 +1,26 @@
 # 0002 — Use browser print-to-PDF (not a managed PDF API)
 
+> **Update — 2026-10, 2026-11-16.** The *decision* (browser print, no
+> managed PDF API) has not changed and every consequence below still
+> holds. **The mechanics described in the Decision section have.** The
+> flow moved:
+>
+> | Then (as written below) | Now |
+> |---|---|
+> | "Download PDF" opened `/preview?print=1` in a new tab | The editor has a one-click **Print** button |
+> | The preview page auto-ran `window.print()` on mount | The preview page has **no print button and no auto-print** |
+> | The preview's chrome bar carried the "Destination: Save as PDF" help text | The help text lives in a **help dialog** on the editor's print button (`components/print/print-help-dialog.tsx`) |
+> | `DownloadPdfButton` captured the server-side-rendering seam | `app/(dashboard)/dashboard/resumes/[id]/print-button.tsx` captures it |
+>
+> The page at `/dashboard/resumes/[id]/preview` is now a pure "what does my
+> resume look like at print size" view; its only chrome action is Share.
+> The *why* is unchanged and still valid: the print call has to happen
+> synchronously inside the click handler (a Safari requirement), which
+> means it must live in the editor, not behind a navigation.
+>
+> Corrected 2026-11-16: the "When to revisit" section below named
+> `DownloadPdfButton`, which no longer exists.
+
 ## Context
 
 The rebuild plan called for **Playwright (Chromium) via a managed API**
@@ -99,4 +120,5 @@ attached PDF, email attachments, bulk export, recruiter integrations —
 the right shape is a **separate worker process** that owns the
 template registry + a headless renderer. NOT `react-dom/server`
 inside a Next.js app route (Next.js 16 reserves that module for its
-own RSC pipeline). The `DownloadPdfButton` JSDoc captures this seam.
+own RSC pipeline). The editor's `print-button.tsx` JSDoc captures this
+seam.

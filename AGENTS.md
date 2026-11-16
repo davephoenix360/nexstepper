@@ -147,10 +147,10 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `7f0d320` as of **2026-10-09**.
+**Now (in flight)** — `main` is at `554afa1` as of **2026-11-16**.
 **Production is LIVE.** All §11 boxes are checked: Vercel deployed,
 **two separate Neon projects** (one prod, one dev — *not* one project
-with branches), migrations `0000`–`0008` applied,
+with branches), migrations `0000`–`0013` applied,
 **`www.nexstepper.com`** serving with valid SSL,
 Resend + Sentry + PostHog + Vercel AI Gateway all wired with real
 keys. **Stripe live mode is now live and verified** (account
@@ -170,6 +170,44 @@ plan. Drift memo:
 > so to the user; it was wrong.
 
 **Recently shipped (for context, last 7 days)**
+
+- **The documentation was wrong in seven places — and two of those numbers
+  had been rotting by hand** — The architecture review's P2 finding was
+  *"one drift sweep"*, and it turned out to be seven artefacts, not six:
+  `README.md` claimed "970/970 across 78 files" (it is 2,228 across 175),
+  `AGENTS.md` and `docs/setup/production.md` both claimed migrations
+  `0000`–`0008` (there are 14, `0000`–`0013` — and the migration range is
+  the dangerous one, because it answers *"what is in production?"*),
+  `posthog-ai-observability-report.md` said `posthogPrivacyMode: false`
+  and described prompt and completion recording as enabled when the code
+  has had it **on** since it was introduced, ADR 0002 described an
+  auto-print preview flow that no longer exists, and two code comments
+  (the `WEIGHTS_V2` doc comment's `0.68/0.32` vs the constants' real
+  `0.70/0.30`, and the template gallery's "Five templates today" against
+  six) were lying the same way. **The seventh was created by the previous
+  session's own work:** the demo-video plan opened with "⚠️ Role fit
+  cannot move off 50" — true when it was written, false by the end of
+  the same day, because the Role Fit fix landed after it. **The same bug
+  class the review was about, in a different costume: a document quoting a
+  value the code no longer produces.** So the sweep included a
+  **re-measurement**, not a find-and-replace: new
+  `scripts/measure-demo-score.ts` (`pnpm measure:demo-score`) reproduces
+  the seeded fixture **in memory** and scores it with the shipped engine,
+  writing nothing. It reports **78** overall, Keywords **68**, Role fit
+  **84** — the score moved 75 → 78 and the only bar that moved is the
+  dimension we fixed. The second posting (the refusal beat) reads **57**.
+  Two things fell out of that: the story got **better** (the weakest bar
+  is now Keywords — 68, which is exactly the bar the honest edit moves,
+  so the cold open, the fix and the payoff all point at one dimension),
+  and the engine is **not bit-for-bit deterministic** — Jev is a
+  probabilistic judge, so two runs of the identical fixture landed on
+  Keywords 71 and 72. Everything else was stable. The plan's
+  determinism checklist now says so. **And the numbers that rotted by
+  hand now have a generator behind them:** `pnpm test:count` runs the
+  suite with the JSON reporter and prints the real file and case counts,
+  and the docs carry a dated number plus a pointer to the command instead
+  of a bare figure. Drift memo:
+  `docs/drift/2026-11-16-documentation-drift-sweep.md`.
 
 - **The scorecard and the chat agent now quote the SAME number — and Role Fit
   is a measurement again** — A full architecture review of the tree
@@ -2516,7 +2554,8 @@ pnpm lint           # must be 0 errors (warnings are the React Compiler backlog 
 pnpm typecheck      # must be clean
 pnpm build          # must produce all routes
 pnpm dev            # smoke-test any new UI
-pnpm test           # 2200+ unit tests must stay green (incl. ATS validation corpus, Pearson r > 0.7)
+pnpm test           # 2200+ unit tests must stay green
+pnpm test:count     # prints the REAL file/case counts — use this, don't type them
 ```
 
 These are the **same four gates CI runs**, in the same order
@@ -2524,6 +2563,17 @@ These are the **same four gates CI runs**, in the same order
 runs against a throwaway Postgres service container so `prebuild` applies
 migrations `0000`–`0013` to an empty database — which is the only place the
 migration chain is proven to still apply cleanly from scratch.
+
+**Never type a test count or a migration range.** Both used to be hand-typed
+in three places each and all of them were wrong (`970/970 across 78 files`,
+`2,205 tests`, `migrations 0000–0008`). `pnpm test:count` prints the real
+figures; `lib/db/migrations/` is the real range. See
+`docs/drift/2026-11-16-documentation-drift-sweep.md`.
+
+**`pnpm measure:demo-score`** prints the demo fixture's ATS score from the
+shipped engine — before and after the demo's one edit — without touching a
+database. Use it whenever a document quotes a score; do not re-derive one by
+hand.
 
 **On `pnpm lint`:** the repo had no linter at all before 2026-11-10. Two rules
 are **warnings on purpose** — `react-hooks/set-state-in-effect` and
