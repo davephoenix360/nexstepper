@@ -34,7 +34,7 @@ links, and (planned) peer reviews + real-time collaboration.
 | Liveblocks real-time collab UI | 📋 Phase 5 | server stub wired |
 | `/api/job-contexts` for browser extension | 📋 post-launch | — |
 
-**Test count:** **2,316 tests across 180 files** (verified 2026-11-17). Run `pnpm test`. If you need the current number, run `pnpm test:count` — it prints the real totals rather than a hand-typed figure, because this line used to be wrong three separate times.
+**Test count:** **2,339 tests across 181 files** (verified 2026-11-17). Run `pnpm test`. If you need the current number, run `pnpm test:count` — it prints the real totals rather than a hand-typed figure, because this line used to be wrong three separate times.
 
 ## Stack
 

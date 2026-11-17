@@ -27,8 +27,17 @@ import {
   type JevRequirementEvaluation
 } from './jev-requirements';
 import type { JevContentQualityEvaluation } from './jev-content-quality';
-import { flattenJobText, flattenResumeText } from './similarity';
+import {
+  flattenJobText,
+  flattenResumeText
+} from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
+import {
+  WEIGHTS as WEIGHTS_CONST,
+  WEIGHTS_V2 as WEIGHTS_V2_CONST,
+  type DimensionKey as DimensionKeyConst,
+  type DimensionKeyV2 as DimensionKeyV2Const
+} from './weights';
 import { resumeDataToScoreable } from './resume-adapter';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 
@@ -80,45 +89,11 @@ import type { ResumeData, JobPosting } from '@/lib/resume-schema';
  *     criteria" #5 + drift note in the PR description).
  */
 
-export const WEIGHTS = {
-  atsMatching: 0.3,
-  structure: 0.2,
-  contentQuality: 0.3,
-  alignment: 0.2
-} as const;
+export const WEIGHTS = WEIGHTS_CONST;
+export const WEIGHTS_V2 = WEIGHTS_V2_CONST;
 
-/**
- * v2 weights (Phase 2) — 7 dimensions. Used when the JD has
- * populated `mustHaveSkills` / `niceToHaveSkills` /
- * `implicitSkills` (i.e. the v2 intent extractor produced useful
- * output). Sum: 1.00 (0.70 from the four scaled v1 dimensions +
- * 0.30 from the three v2 dimensions = intent coverage + role fit +
- * seniority fit).
- *
- *   v1 dims scaled to 0.70 combined (down from Phase 1's 0.85):
- *     atsMatching × 0.21 (was 0.30)
- *     structure   × 0.14 (was 0.20)
- *     contentQuality × 0.21 (was 0.30)
- *     alignment   × 0.14 (was 0.20)
- *   Phase 2 v2 dims take the remaining 0.30:
- *     intentCoverage × 0.10 (down from Phase 1's 0.15 — Role Fit
- *                            and Seniority Fit share the carved-out
- *                            weight equally)
- *     roleFit × 0.10 (new)
- *     seniorityFit × 0.10 (new)
- */
-export const WEIGHTS_V2 = {
-  atsMatching: 0.21,
-  structure: 0.14,
-  contentQuality: 0.21,
-  alignment: 0.14,
-  intentCoverage: 0.10,
-  roleFit: 0.10,
-  seniorityFit: 0.10
-} as const;
-
-export type DimensionKey = keyof typeof WEIGHTS;
-export type DimensionKeyV2 = keyof typeof WEIGHTS_V2;
+export type DimensionKey = DimensionKeyConst;
+export type DimensionKeyV2 = DimensionKeyV2Const;
 
 export type ScoreBreakdown = {
   /** 0-100, rounded to integer. The single number on the scorecard. */

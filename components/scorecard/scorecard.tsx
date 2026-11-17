@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ScoreBreakdown } from '@/lib/scoring';
 import { CRITERIA_TIPS, type DynamicTips } from '@/lib/scoring/tips';
+import { biggestRecoverableWin } from '@/lib/scoring/priority';
 import type { SubCriterionKey } from '@/lib/inline-issue/types';
 
 import {
@@ -116,6 +117,49 @@ export function ScorecardPanel({
     ((criterion: SubCriterionKey) => () =>
       onIssueDimClick({ criterion }));
 
+  /**
+   * "Start here" — the dimension with the most recoverable points.
+   *
+   * The seven bars are in a fixed order, which tells the candidate
+   * nothing about where to spend their time. A candidate looking at
+   * "Keywords 54, Impact 62, Role fit 92" cannot tell which bar is
+   * worth their afternoon.
+   *
+   * The measure is `weight × (100 − score)`: how many points of the
+   * OVERALL score this dimension is leaving on the table. The weight
+   * matters — a dimension at 50 that carries 21% of the score is worth
+   * more than one at 50 that carries 10%.
+   *
+   * It says "up to N points" because that is the honest ceiling: it
+   * assumes the dimension could be made perfect, which it may not be.
+   */
+  const topWin = biggestRecoverableWin(breakdown.dimensionScores, {
+    useV2Weights: !breakdown.intentCoverageBreakdown?.fallback
+  });
+  /** The criterion each dimension bar opens, so "start here" can open one too. */
+  const CRITERION_FOR_DIMENSION: Record<string, SubCriterionKey> = {
+    Keywords: 'ATS Coverage',
+    Format: 'Section Completeness',
+    Impact: 'Accomplishment Focus',
+    'Experience match': 'Tailoring',
+    'Intent coverage': 'Intent Coverage',
+    'Role fit': 'Role Fit',
+    'Seniority fit': 'Seniority Fit'
+  };
+  const topWinCriterion = topWin ? CRITERION_FOR_DIMENSION[topWin.label] : undefined;
+
+  /** The "start here" line. Shared by the button and the plain-text form. */
+  const startHereText = (win: NonNullable<typeof topWin>) => (
+    <>
+      <span className="font-medium">Start here: {win.label}</span>{' '}
+      <span className="text-muted-foreground">
+        is at {Math.round(win.score)}/100 and carries{' '}
+        {Math.round(win.weight * 100)}% of your score — worth up to{' '}
+        {win.points.toFixed(1)} points.
+      </span>
+    </>
+  );
+
   return (
     <aside
       aria-label="ATS scorecard"
@@ -156,6 +200,37 @@ export function ScorecardPanel({
           and the dimension bars so the "shape" is the first thing
           the user scans after the headline number. */}
       <AtsRadar breakdown={breakdown} />
+
+      {/* "Start here" — the biggest single win available. Sits directly
+          under the radar, above the bars, so it is read BEFORE the
+          candidate starts reading seven numbers. Clicking it opens the
+          same surface as clicking that dimension's bar, so "here is
+          where to start" and "here is how to start" are one click
+          apart.
+
+          The advice renders whether or not the parent wired a click
+          handler — the information is useful on its own (the server
+          mirror renders this panel without one). Only the CLICK
+          depends on the handler. */}
+      {topWin ? (
+        topWinCriterion && dimHandler ? (
+          <button
+            type="button"
+            onClick={dimHandler(topWinCriterion)}
+            data-testid="scorecard-start-here"
+            className="mt-3 w-full rounded-md border border-dashed px-3 py-2 text-left text-xs hover:bg-accent/50"
+          >
+            {startHereText(topWin)}
+          </button>
+        ) : (
+          <p
+            data-testid="scorecard-start-here"
+            className="mt-3 rounded-md border border-dashed px-3 py-2 text-xs"
+          >
+            {startHereText(topWin)}
+          </p>
+        )
+      ) : null}
 
       <ul className="mt-4 space-y-1">
         <DimensionBar

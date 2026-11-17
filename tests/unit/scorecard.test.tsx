@@ -184,3 +184,60 @@ describe('ScorecardPanel — empty state', () => {
     expect(html).toContain('Attach a job description');
   });
 });
+
+/**
+ * "Start here" — the dimension with the most recoverable points.
+ *
+ * The seven bars are in a fixed order, so a candidate cannot tell
+ * where to spend their time. This names the biggest single win and
+ * opens the same surface as clicking that bar.
+ */
+describe('ScorecardPanel — start here', () => {
+  it('names the dimension with the most recoverable points', () => {
+    const html = renderToStaticMarkup(
+      <ScorecardPanel
+        breakdown={makeBreakdown({
+          dimensionScores: {
+            atsMatching: 40,
+            structure: 85,
+            contentQuality: 70,
+            alignment: 95,
+            intentCoverage: 100,
+            roleFit: 100,
+            seniorityFit: 100
+          },
+          intentCoverageBreakdown: {
+            value: 100,
+            missed: { mustHave: [], niceToHave: [], implicit: [] },
+            penalty: 0,
+            fallback: false,
+            eligibility: []
+          }
+        })}
+      />
+    );
+    expect(html).toContain('data-testid="scorecard-start-here"');
+    expect(html).toContain('Start here: Keywords');
+    // 0.21 x (100 - 40) = 12.6
+    expect(html).toContain('12.6 points');
+  });
+
+  it('does not offer a win when there is nothing to fix', () => {
+    const html = renderToStaticMarkup(
+      <ScorecardPanel
+        breakdown={makeBreakdown({
+          dimensionScores: {
+            atsMatching: 100,
+            structure: 100,
+            contentQuality: 100,
+            alignment: 100,
+            intentCoverage: 100,
+            roleFit: 100,
+            seniorityFit: 100
+          }
+        })}
+      />
+    );
+    expect(html).not.toContain('data-testid="scorecard-start-here"');
+  });
+});

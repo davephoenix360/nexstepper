@@ -158,6 +158,53 @@ The field is optional, because score snapshots are persisted: a
 snapshot written before this change has none, and the tip falls back
 to its static copy.
 
+---
+
+# Part 3 — Telling the candidate WHICH one to fix first
+
+Seven bars, in a fixed order, is an order of layout — not an order of
+opportunity. A candidate looking at "Keywords 54, Impact 62, Role fit
+92" cannot tell which bar is worth their afternoon.
+
+The measure is **recoverable points**:
+
+```
+recoverable = weight × (100 − dimensionScore)
+```
+
+The weight is the part that matters. A dimension at 50 that carries
+21% of the score is worth more than one at 50 that carries 10%, so
+ranking by the raw score would point the candidate at the wrong bar.
+
+The scorecard now renders a **"Start here"** line under the radar,
+above the bars, so it is read *before* the seven numbers:
+
+> **Start here: Keywords** is at 40/100 and carries 21% of your score
+> — worth up to 12.6 points.
+
+Clicking it opens the same surface as clicking that dimension's bar,
+so "here is where to start" and "here is how to start" are one click
+apart.
+
+**"Up to"** because that is the honest ceiling: it assumes the
+dimension could be made perfect, which it may not be.
+
+### The weights had to move to be readable
+
+The weights lived in `lib/scoring/score.ts`, and importing them from
+the client component would have pulled the whole scoring engine into
+the browser bundle. They now live in `lib/scoring/weights.ts` — one
+source of truth, two consumers — and `score.ts` re-exports them so
+the public surface is unchanged.
+
+### Two rules the ranking follows
+
+- **Never offer a dimension the engine is not using.** Under the v1
+  weight set the three v2 dimensions carry zero, so a broken Role Fit
+  is not offered as a win — the engine is not reading it.
+- **Never offer a win when there is nothing to fix.** A resume at 100
+  across the board gets no "Start here" line.
+
 ## The lesson
 
 **A path is only useful if the editor renders exactly that testid.**
@@ -172,4 +219,5 @@ function's return value only pins the function.
 
 And: **"make it better" is not advice.** Every tip now names the
 specific thing that is wrong and the specific edit that fixes it.
+
 

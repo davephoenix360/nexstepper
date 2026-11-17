@@ -2821,6 +2821,20 @@ the same thing. Two computations of one thing is one too many, and
 when they disagree the tip and the number beside it contradict each
 other.
 
+**Seven bars in a fixed order is an order of layout, not of
+opportunity.** The scorecard now renders a **"Start here"** line
+under the radar: the dimension with the most **recoverable points**,
+where `recoverable = weight × (100 − dimensionScore)`. The weight is
+the part that matters — a dimension at 50 carrying 21% of the score is
+worth more than one at 50 carrying 10%, so ranking by the raw score
+would point the candidate at the wrong bar. It says "up to N points"
+because that is the honest ceiling. Two rules: never offer a dimension
+the engine is not using (the v1 weight set gives the v2 dimensions
+zero), and never offer a win when there is nothing to fix. The weights
+moved to `lib/scoring/weights.ts` so the client component can read
+them without pulling the engine into the browser bundle — `score.ts`
+re-exports them, so the public surface is unchanged.
+
 ## Folder structure (current + planned)
 
 ```
