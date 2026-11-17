@@ -360,3 +360,83 @@ decision, not a bug fix:
 
 Either way the JD''s requirement bullets should stop living only in the
 raw prose — that is the part that is unambiguously wrong.
+---
+
+# Part 8 — End-to-end: the advice reaches the agent on real data
+
+The unit test proves the prompt BUILDS correctly. It does not prove the
+production path puts the right inputs in — the resume, the job context
+and the persisted score are three separate reads, and any one of them
+can be wrong (a stale snapshot, a job context without a title, a score
+from before the last edit).
+
+So: read the real rows, build the real prompt, print the ATS section.
+(SELECT only; a one-off vitest run against the prod database, because
+`lib/chat/system-prompt.ts` is `server-only` and cannot be imported by a
+plain script.)
+
+The founder''s own CleerDental variant, verbatim from the prompt the
+agent receives:
+
+```
+=== ATS SCORE (latest, vs current JD) ===
+Overall match: 66 / 100
+
+Dimension scores (0-100, sorted by strength):
+  structure        100
+  intentCoverage    87
+  contentQuality    70
+  atsMatching       66
+  roleFit           50
+  seniorityFit      50
+  alignment         32
+
+Top missed keywords / skills (priority order):
+  x MUST-HAVE missing (1): Customer understanding
+  ~ nice-to-have missing (2): Voice AI, Healthcare data
+
+What to fix (the scorecard shows this - quote it, do not improvise):
+  - ATS Keyword Match: These requirements from the JD are not evidenced
+    in your resume: Voice AI, Healthcare data.
+  - Intent Coverage: Missing 1 must-have skill: Customer understanding,
+    plus Missing 2 nice-to-haves: Voice AI, Healthcare data.
+  - ATS Similarity: BM25 similarity is 40/100 - your wording differs
+    from the JD. Try paraphrasing your bullets to use the same
+    vocabulary as the posting.
+  - Accomplishment Focus: 4 of 9 work bullets describe a task rather
+    than an outcome (Building Launchpad, a new internal tool in
+    TypeScript (React + ASP.NET Core)...; Designed a discounts API
+    end-to-end (payload schema, optimized SQL extraction, caching
+    strategy)...; Applied LLM application best practices...). Say what
+    changed, not just what you did - the effect, the result, the thing
+    that got better.
+  - Action Verb Usage: 1 of 9 bullets open weakly or passively (Worked
+    in Agile team sprints with iterative builds, peer reviews, and
+    engineering feedback; improved delivery consistency through tighter
+    Git workflows...). Lead with what you did - Built, Led, Scaled, Cut,
+    Launched.
+  - Tailoring: Your summary is 0% similar to the job title. Try
+    mirroring these title keywords in your summary: swe, cleerdental.
+  - Role Fit: This role asks for SWE CleerDental. Your headline reads
+    Software Engineer. The headline is the first thing they see - make
+    it name the role you''re applying for.
+  - Soft Skills: Your resume is missing leadership, collaborated,
+    communication, and stakeholder mentions - add them with concrete
+    examples.
+
+Start here: Experience match is at 32/100 and carries 14% of the overall
+score - worth up to 9.6 points. Recommend this one first.
+```
+
+Every number in there came from the persisted snapshot, every sentence
+from the same tip builder the scorecard uses, and the ranking is the
+same recoverable-points measure the scorecard's "Start here" line uses.
+
+Before this session the agent saw only:
+
+```
+contentQuality: 70
+```
+
+and would have answered "how do I improve my Impact score?" with
+something it made up. Now it has the answer, named down to the bullet.
