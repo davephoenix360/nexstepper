@@ -150,8 +150,7 @@ describe('the chat prompt carries the scorecard advice', () => {
     const prompt = buildSystemPrompt(
       { ...resume, jobContext: job },
       job,
-      score,
-      'variant'
+      score
     );
 
     // At least one real tip made it across.
@@ -170,8 +169,7 @@ describe('the chat prompt carries the scorecard advice', () => {
     const prompt = buildSystemPrompt(
       { ...resume, jobContext: job },
       job,
-      score,
-      'variant'
+      score
     );
     expect(prompt).toMatch(/do not improvise/i);
   });
@@ -183,8 +181,7 @@ describe('the chat prompt carries the scorecard advice', () => {
     const prompt = buildSystemPrompt(
       { ...resume, jobContext: job },
       job,
-      score,
-      'variant'
+      score
     );
     expect(prompt).toContain('Start here:');
   });
