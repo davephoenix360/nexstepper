@@ -2871,6 +2871,38 @@ moved to `lib/scoring/weights.ts` so the client component can read
 them without pulling the engine into the browser bundle — `score.ts`
 re-exports them, so the public surface is unchanged.
 
+### 13. An accuracy record is not evidence unless something asserts it still describes the code
+
+`tests/fixtures/jev-corpus-measurements.json` is how the repo knows the
+engine is accurate. The offline test read it as a committed fact — but
+it asserted the FIXTURE''s internal consistency, not that the fixture
+still described the app.
+
+So when the engine changed, the record silently became a description
+of an engine that no longer existed. Measured on 2026-11-17: **17 of 50
+entries had moved**, and the recorded correlation (0.9103) no longer
+matched the engine''s (0.9156).
+
+The fix exploits a property worth remembering: **the fixture stores
+Jev''s evaluation, and that evaluation is an INPUT to the score, not an
+output of it.** So re-scoring with the stored evaluation needs no AI
+call, no gateway credit and no network. The record splits:
+
+| Half | Describes | Refreshed by |
+|---|---|---|
+| MODEL — AUC, pSkill means, evidence means | the model and the JD''s requirement lines | `MEASURE_JEV=1` (needs the AI) |
+| ENGINE — overall scores, correlations, MAE, control agreement | the engine | `pnpm refresh:jev-fixture` (free) |
+
+And the ENGINE half now has a guard:
+`tests/unit/scoring/jev-fixture-current.test.ts` re-scores the corpus
+with the current engine and fails if the record disagrees, with the
+command to fix it in the message. Perturbing one entry by one point
+makes it fail, so it is a real guard and not a tautology.
+
+**The generalisation:** the part of a measurement that tracks the CODE
+is the part that goes stale, and it is usually the cheap half to
+re-derive.
+
 ## Folder structure (current + planned)
 
 ```

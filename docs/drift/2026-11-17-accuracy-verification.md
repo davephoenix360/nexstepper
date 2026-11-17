@@ -229,3 +229,72 @@ the spread, not just the mean.
 real user write?* Three times this month the engine accepted exactly
 one form of something (ISO dates, one job title, one soft-skill
 spelling) and silently charged the candidate for the other forms.
+
+---
+
+# Part 6 — The accuracy record had stopped describing the engine
+
+The accuracy record — `tests/fixtures/jev-corpus-measurements.json` — is
+how the repo knows the engine is accurate. The offline test reads it as
+a committed fact.
+
+But it asserts the FIXTURE''s internal consistency, not that the fixture
+still describes the app. So when the engine changed, the record silently
+became a description of an engine that no longer existed.
+
+Measured on 2026-11-17 (`pnpm probe:jev-fixture-drift`):
+
+```
+fixture recorded at          : 2026-10-23
+entries the engine moved     : 17 of 50
+largest move                : 1 point
+correlation in the fixture  : 0.9103
+correlation NOW             : 0.9156
+```
+
+The record was a month stale. Its CONCLUSIONS still held (the Jev path
+still beats the token path), but its per-entry numbers described an
+engine that no longer shipped — and nothing flagged it.
+
+## The good news: the refresh is free
+
+The fixture stores Jev''s evaluation (`lines`, `requirements`, `gates`,
+`scorable`, `bullets`). That evaluation is an INPUT to the score, not an
+output of it — so re-scoring with the stored evaluation needs **no AI
+call, no gateway credit and no network**.
+
+So the record splits cleanly:
+
+| Half | Describes | Refreshed by |
+|---|---|---|
+| MODEL — AUC, pSkill means, evidence means | the model and the JD''s requirement lines | `MEASURE_JEV=1` (needs the AI) |
+| ENGINE — overall scores, correlations, MAE, control agreement | the engine | `pnpm refresh:jev-fixture` (free) |
+
+And the ENGINE half now has a GUARD: `tests/unit/scoring/
+jev-fixture-current.test.ts` re-scores the corpus with the current
+engine and fails if the record disagrees — with the command to fix it
+in the message. Perturbing one entry by one point makes it fail, so it
+is a real guard and not a tautology.
+
+After the refresh:
+
+```
+correlation  sync 0.9103 → 0.9156
+correlation  jev  0.9472 → 0.9480
+MAE          sync 13.40 → 13.34
+control agreement 0.9173 → 0.9212
+```
+
+The engine changes made it MORE accurate, and the record now says so.
+
+## The lesson
+
+**An accuracy record is not evidence unless something asserts that it
+still describes the code.** The same shape as every other drift this
+repo has found: two lists that must agree, and nothing asserting that
+they do.
+
+And the difference worth remembering: **a measurement can be cheap to
+repeat.** The AI half needs the gateway; the engine half does not. So
+the part of the record that tracks the code — the part that actually
+goes stale — can be re-derived on every engine change, for free.

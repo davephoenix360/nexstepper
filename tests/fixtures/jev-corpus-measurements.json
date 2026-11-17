@@ -1,31 +1,4 @@
 {
-  "_comment": "Jev (typesafe-ai/jev) measurements over the 50-JD ATS validation corpus. Produced by scripts/measure-jev-corpus.cjs, which runs the REAL evaluateJevRequirements so the fixture can only describe what the app does. The offline claims live in tests/unit/scoring/jev-corpus.test.ts.",
-  "summary": {
-    "model": "jev-1.14.0",
-    "measuredAt": "2026-10-23T00:12:35.196Z",
-    "corpusSize": 50,
-    "linesClassified": 428,
-    "classificationInput": "the JD's requirement lines (non-circular against the hand-authored lists)",
-    "scoreInput": "the intent extractor's skill lists (what production stores)",
-    "meanPSkillForRealSkills": 0.8728106508875746,
-    "meanPSkillForNonSkills": 0.27711111111111086,
-    "auc": 0.9231097961867193,
-    "control": {
-      "n": 520,
-      "meanEvidenceForTokenPresent": 2.2658966565349554,
-      "meanEvidenceForTokenAbsent": 0.3273298429319372,
-      "agreement": 0.9173076923076923
-    },
-    "correlation": {
-      "sync": 0.9102575622975897,
-      "jev": 0.9471543655253862
-    },
-    "meanAbsoluteError": {
-      "sync": 13.4,
-      "jev": 12.62
-    },
-    "wallClockSeconds": 36.162
-  },
   "measurements": [
     {
       "id": "S-001",
@@ -365,7 +338,7 @@
         }
       ],
       "syncOverall": 86,
-      "jevOverall": 92,
+      "jevOverall": 93,
       "syncContentQuality": 89.28571428571429,
       "jevContentQuality": 91.9464285714286,
       "syncIntentCoverage": 98.5,
@@ -1024,8 +997,8 @@
           "opening": 2.91
         }
       ],
-      "syncOverall": 80,
-      "jevOverall": 90,
+      "syncOverall": 81,
+      "jevOverall": 91,
       "syncContentQuality": 69.38775510204081,
       "jevContentQuality": 91.44217687074828,
       "syncIntentCoverage": 96,
@@ -1352,7 +1325,7 @@
           "opening": 2.02
         }
       ],
-      "syncOverall": 80,
+      "syncOverall": 81,
       "jevOverall": 89,
       "syncContentQuality": 65.3061224489796,
       "jevContentQuality": 85.7482993197279,
@@ -1680,8 +1653,8 @@
           "opening": 1.37
         }
       ],
-      "syncOverall": 74,
-      "jevOverall": 82,
+      "syncOverall": 75,
+      "jevOverall": 83,
       "syncContentQuality": 57.142857142857146,
       "jevContentQuality": 72.96598639455783,
       "syncIntentCoverage": 97.5,
@@ -2325,7 +2298,7 @@
         }
       ],
       "syncOverall": 79,
-      "jevOverall": 88,
+      "jevOverall": 89,
       "syncContentQuality": 59.18367346938776,
       "jevContentQuality": 86.30612244897961,
       "syncIntentCoverage": 96,
@@ -2628,8 +2601,8 @@
           "opening": 2.12
         }
       ],
-      "syncOverall": 73,
-      "jevOverall": 85,
+      "syncOverall": 74,
+      "jevOverall": 86,
       "syncContentQuality": 40.81632653061225,
       "jevContentQuality": 72.6326530612245,
       "syncIntentCoverage": 98.5,
@@ -3224,8 +3197,8 @@
           "opening": 1.99
         }
       ],
-      "syncOverall": 75,
-      "jevOverall": 83,
+      "syncOverall": 76,
+      "jevOverall": 84,
       "syncContentQuality": 59.18367346938776,
       "jevContentQuality": 80.21768707482994,
       "syncIntentCoverage": 84.5,
@@ -4369,7 +4342,7 @@
           "opening": 2.4
         }
       ],
-      "syncOverall": 66,
+      "syncOverall": 67,
       "jevOverall": 75,
       "syncContentQuality": 50,
       "jevContentQuality": 82.32142857142858,
@@ -4940,7 +4913,7 @@
           "opening": 2.9
         }
       ],
-      "syncOverall": 73,
+      "syncOverall": 74,
       "jevOverall": 80,
       "syncContentQuality": 69.04761904761905,
       "jevContentQuality": 87.73015873015872,
@@ -5225,7 +5198,7 @@
           "opening": 1.4
         }
       ],
-      "syncOverall": 63,
+      "syncOverall": 64,
       "jevOverall": 65,
       "syncContentQuality": 50,
       "jevContentQuality": 66.9761904761905,
@@ -5801,7 +5774,7 @@
           "opening": 2.66
         }
       ],
-      "syncOverall": 67,
+      "syncOverall": 68,
       "jevOverall": 79,
       "syncContentQuality": 54.761904761904766,
       "jevContentQuality": 82.10317460317462,
@@ -6084,8 +6057,8 @@
           "opening": 2.27
         }
       ],
-      "syncOverall": 73,
-      "jevOverall": 78,
+      "syncOverall": 74,
+      "jevOverall": 79,
       "syncContentQuality": 69.04761904761905,
       "jevContentQuality": 78.93650793650795,
       "syncIntentCoverage": 97.5,
@@ -6628,7 +6601,7 @@
           "opening": 2.1
         }
       ],
-      "syncOverall": 76,
+      "syncOverall": 77,
       "jevOverall": 82,
       "syncContentQuality": 69.04761904761905,
       "jevContentQuality": 83.13492063492063,
@@ -7090,7 +7063,7 @@
           "opening": 2.22
         }
       ],
-      "syncOverall": 61,
+      "syncOverall": 62,
       "jevOverall": 66,
       "syncContentQuality": 33.33333333333333,
       "jevContentQuality": 46.77777777777777,
@@ -8133,7 +8106,7 @@
         }
       ],
       "syncOverall": 73,
-      "jevOverall": 74,
+      "jevOverall": 75,
       "syncContentQuality": 80,
       "jevContentQuality": 84.60000000000001,
       "syncIntentCoverage": 77.5,
@@ -10334,7 +10307,7 @@
           "opening": 2.3
         }
       ],
-      "syncOverall": 65,
+      "syncOverall": 66,
       "jevOverall": 64,
       "syncContentQuality": 60.714285714285715,
       "jevContentQuality": 59.10714285714286,
@@ -11244,7 +11217,7 @@
         }
       ],
       "syncOverall": 60,
-      "jevOverall": 58,
+      "jevOverall": 59,
       "syncContentQuality": 57.142857142857146,
       "jevContentQuality": 69.04761904761905,
       "syncIntentCoverage": 72,
@@ -11898,8 +11871,8 @@
           "opening": 1.59
         }
       ],
-      "syncOverall": 44,
-      "jevOverall": 41,
+      "syncOverall": 45,
+      "jevOverall": 42,
       "syncContentQuality": 52.38095238095238,
       "jevContentQuality": 49.95238095238095,
       "syncIntentCoverage": 48,
@@ -12123,7 +12096,7 @@
           "opening": 2.32
         }
       ],
-      "syncOverall": 38,
+      "syncOverall": 39,
       "jevOverall": 37,
       "syncContentQuality": 52.38095238095238,
       "jevContentQuality": 46.33333333333334,
@@ -12601,8 +12574,8 @@
           "opening": 2.27
         }
       ],
-      "syncOverall": 42,
-      "jevOverall": 40,
+      "syncOverall": 43,
+      "jevOverall": 41,
       "syncContentQuality": 38.095238095238095,
       "jevContentQuality": 47.539682539682545,
       "syncIntentCoverage": 61.5,
@@ -12796,8 +12769,8 @@
           "opening": 2.82
         }
       ],
-      "syncOverall": 55,
-      "jevOverall": 53,
+      "syncOverall": 56,
+      "jevOverall": 54,
       "syncContentQuality": 71.42857142857143,
       "jevContentQuality": 72.79365079365081,
       "syncIntentCoverage": 48,
@@ -13323,5 +13296,32 @@
         "Kafka"
       ]
     }
-  ]
+  ],
+  "summary": {
+    "model": "jev-1.14.0",
+    "measuredAt": "2026-10-23T00:12:35.196Z",
+    "corpusSize": 50,
+    "linesClassified": 428,
+    "classificationInput": "the JD's requirement lines (non-circular against the hand-authored lists)",
+    "scoreInput": "the intent extractor's skill lists (what production stores)",
+    "meanPSkillForRealSkills": 0.8728106508875746,
+    "meanPSkillForNonSkills": 0.27711111111111086,
+    "auc": 0.9231097961867193,
+    "control": {
+      "n": 520,
+      "meanEvidenceForTokenPresent": 2.2658966565349554,
+      "meanEvidenceForTokenAbsent": 0.3273298429319372,
+      "agreement": 0.9211538461538461
+    },
+    "correlation": {
+      "sync": 0.9155631734952697,
+      "jev": 0.948043768983892
+    },
+    "meanAbsoluteError": {
+      "sync": 13.34,
+      "jev": 12.66
+    },
+    "wallClockSeconds": 36.162,
+    "engineRefreshedAt": "2026-11-17T04:43:12.355Z"
+  }
 }
