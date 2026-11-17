@@ -610,6 +610,18 @@ export async function createVariantFromJdAction(
     // had nothing to compare against — every resume in production
     // scored the neutral 50.
     title: extractResult.ok ? extractResult.data.intent.jobTitle : '',
+    // The JD's own location, as the posting wrote it. Same round trip,
+    // same reason as the title above.
+    //
+    // It matters because a posting that names its city ("we build our
+    // platform in San Francisco") puts `san` and `francisco` into the
+    // keyword vocabulary. The candidate was charged for them while their
+    // own location field could not pay them off — the Edmonton bug,
+    // fixed in the tip and never in the score. With the location known,
+    // those tokens are excluded from the vocabulary: a city is not a
+    // skill, and nobody should be marked down for the job naming its own
+    // address.
+    location: extractResult.ok ? extractResult.data.intent.jobLocation : '',
     description: parsed.data.jdText,
     source: 'paste',
     capturedAt: new Date().toISOString(),

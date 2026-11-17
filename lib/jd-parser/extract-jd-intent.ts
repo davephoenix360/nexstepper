@@ -35,6 +35,23 @@ export const extractJdIntentSchema = z.object({
    * Empty string when the posting has no discernible title.
    */
   jobTitle: z.string().trim().max(200).default(''),
+  /**
+   * Where the job is, as the posting writes it ("San Francisco, CA",
+   * "London, UK", "Remote - US").
+   *
+   * Why the extractor returns it: the JD's own city enters the JD's
+   * keyword vocabulary through its prose ("we build our platform in San
+   * Francisco" → `san`, `francisco` become keywords the candidate is
+   * expected to evidence). The candidate's location field could not pay
+   * that off — the Edmonton bug, fixed in the tip and never in the
+   * score. With the job's location known, those tokens can be excluded
+   * from the vocabulary: a city is not a skill, and the candidate should
+   * not be marked down for the job naming its own address.
+   *
+   * Empty string when the posting states no location, or says remote
+   * without naming a place.
+   */
+  jobLocation: z.string().trim().max(120).default(''),
   mustHaveSkills: z.array(z.string().min(1).max(120)).max(50).default([]),
   niceToHaveSkills: z.array(z.string().min(1).max(120)).max(50).default([]),
   implicitSkills: z.array(z.string().min(1).max(120)).max(50).default([]),

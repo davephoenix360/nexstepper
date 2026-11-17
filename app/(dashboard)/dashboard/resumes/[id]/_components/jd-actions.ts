@@ -143,7 +143,20 @@ export async function setVariantJobContextAction(
       ? (existingJobContext?.title ?? '')
       : extractResult.data.intent.jobTitle || (existingJobContext?.title ?? ''),
     company: existingJobContext?.company ?? '',
-    location: existingJobContext?.location ?? '',
+    // The JD's own location, from the intent extractor — same round trip
+    // as the title, so it costs nothing extra.
+    //
+    // It used to be `existingJobContext?.location ?? ''`, and since
+    // nothing ever wrote a location, it was ALWAYS empty. That matters
+    // because a posting that names its city puts `san` and `francisco`
+    // into the keyword vocabulary: the candidate was charged for the
+    // job's own address while their location field could not pay it off.
+    //
+    // On a failed extraction we keep whatever we had, so a re-save never
+    // regresses a location that already landed.
+    location: useExistingIntent
+      ? (existingJobContext?.location ?? '')
+      : extractResult.data.intent.jobLocation || (existingJobContext?.location ?? ''),
     description: parsed.data.jdText,
     requirements: existingJobContext?.requirements ?? [],
     niceToHaves: existingJobContext?.niceToHaves ?? [],
