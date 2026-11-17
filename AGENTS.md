@@ -2833,6 +2833,16 @@ handed to the agent, so the chat quotes the scorecard's advice instead
 of writing its own. The `getAtsScore` tool carries it too: the agent
 calls that to measure its own edits, and without the advice it could
 see the number go up but not know what to do next.
+**A place that shows the FIX must show the REASON.** The AI-rewrite
+popover offered three rewrites of a bullet with no explanation, so the
+reason lived somewhere else — the inline tip at the bottom of the
+editor — and the user had to read two places to answer "why is this
+bullet flagged?". The controller already received the scorecard's
+`dynamicTips` (destructured as `_dynamicTips`: accepted and ignored);
+they are now used, and the popover renders the criterion's tip above the
+bullet. The click now reads as one conversation — the reason, the
+bullet, three ways to fix it — and it is the same tip the scorecard and
+the chat show.
 **Advice and action must name the same thing.** The Impact advice said
 "10 of 29 work bullets describe a task rather than an outcome (…three
 named bullets…)" while the popover anchored to **bullet #1** — which

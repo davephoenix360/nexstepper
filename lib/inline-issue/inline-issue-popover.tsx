@@ -45,6 +45,19 @@ export type InlineIssuePopoverProps = {
   criterion: SubCriterionKey;
   /** Current bullet text — displayed at the top of the popover. */
   currentText: string;
+  /**
+   * WHY this leaf needs work — the scorecard's own tip for the
+   * criterion.
+   *
+   * The popover used to show the bullet and three rewrites with no
+   * explanation, so the reason lived somewhere else (the inline tip
+   * in the editor). The popover is where the rewrite happens, so it is
+   * where the reason belongs.
+   *
+   * It is the same tip the scorecard and the chat show, so the three
+   * surfaces cannot disagree about what is wrong.
+   */
+  tip?: React.ReactNode;
   /** Whether the popover is open (controlled). */
   open: boolean;
   /** Called when the popover wants to open / close (Esc, outside-click). */
@@ -71,10 +84,33 @@ export type InlineIssuePopoverProps = {
   onApply: (text: string) => void;
 };
 
+/**
+ * The "why this leaf needs work" block inside the popover.
+ *
+ * Extracted from the popover body so it can be rendered — and pinned —
+ * by the static-markup test runner. The popover itself renders through
+ * a Radix portal, which does not render in `renderToStaticMarkup`.
+ *
+ * It is the scorecard's own tip for the criterion, so the popover, the
+ * scorecard and the chat cannot disagree about what is wrong.
+ */
+export function InlineIssueReason({ tip }: { tip?: React.ReactNode }) {
+  if (!tip) return null;
+  return (
+    <div
+      className="mt-2 rounded-sm bg-indigo-50 px-2 py-1.5 text-[11px] leading-snug text-indigo-900 line-clamp-4 dark:bg-indigo-950 dark:text-indigo-200"
+      data-testid="inline-issue-tip"
+    >
+      {tip}
+    </div>
+  );
+}
+
 export function InlineIssuePopover({
   path,
   criterion,
   currentText,
+  tip,
   open,
   onOpenChange,
   enrichAction,
@@ -200,6 +236,15 @@ export function InlineIssuePopover({
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
         </div>
+
+        {/*
+            The reason this leaf needs work, above the bullet it is
+            about. Clamped to 4 lines: the tip's FIRST sentence carries
+            the finding ("10 of 29 work bullets describe a task rather
+            than an outcome"), and the named bullets follow it. The
+            full text is in the editor's inline tip.
+        */}
+        <InlineIssueReason tip={tip} />
 
         <p
           className="mt-2 line-clamp-3 text-[11px] italic text-muted-foreground"

@@ -344,3 +344,40 @@ different conversations about the same resume.
 The generalisation: **when a surface names specific items, the action it
 triggers must target one of those items.** The index alone is not an
 identity.
+---
+
+# Part 6 — The popover now says WHY, not just how
+
+The last piece: the popover showed the bullet and three rewrites with no
+explanation. So the REASON lived somewhere else — the inline tip at the
+bottom of the editor — and the user had to read two places to answer
+"why is this bullet flagged?".
+
+The popover is where the rewrite happens, so it is where the reason
+belongs. The controller already received the scorecard''s `dynamicTips`
+(they were destructured as `_dynamicTips` — accepted and ignored); they
+are now used, and the popover renders the criterion''s tip above the
+bullet it is about.
+
+So the whole click now reads as one conversation:
+
+    AI rewrite · Accomplishment Focus
+    10 of 29 work bullets describe a task rather than an outcome (…)
+    "Maintained the internal dashboard used by the support team"
+    [three rewrites]   Apply / Regenerate
+
+It is the SAME tip the scorecard and the chat show, so the three
+surfaces cannot disagree about what is wrong.
+
+### On whether to keep the rewrite at all
+
+The founder asked whether the modal should stay, or whether the click
+should just show what to do. The answer this session landed on: **the
+click''s payload is the ADVICE; the rewrite is the option.** The advice
+is now in three places (scorecard, chat, popover) and the rewrite is one
+button away from the reason it exists — which is the state that makes
+the rewrite worth paying for.
+
+The rewrite stays. It is a Pro feature at the highest-intent moment in
+the product: the user has just been told exactly what is wrong and
+where.

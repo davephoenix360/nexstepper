@@ -75,7 +75,7 @@ export function useInlineIssueController({
   enrichAction,
   resumeId,
   isPro,
-  dynamicTips: _dynamicTips,
+  dynamicTips,
   matchBreakdown
 }: UseInlineIssueControllerOptions) {
   const [popoverOpen, setPopoverOpen] = React.useState(false);
@@ -199,6 +199,18 @@ export function useInlineIssueController({
       path: active.path,
       criterion: active.criterion,
       currentText: active.currentText,
+      /**
+       * WHY this leaf needs work.
+       *
+       * The popover used to show the bullet and three rewrites with no
+       * explanation — so the user had to look elsewhere (the inline tip
+       * in the editor) for WHY the bullet was flagged. The popover is
+       * where the AI rewrite happens, so it is where the reason belongs.
+       *
+       * It is the same tip the scorecard and the chat show, so the
+       * three surfaces cannot disagree about what is wrong.
+       */
+      tip: dynamicTips?.[active.criterion] ?? null,
       open: popoverOpen,
       onOpenChange: setPopoverOpen,
       enrichAction,
@@ -216,7 +228,7 @@ export function useInlineIssueController({
         setActive(null);
       }
     };
-  }, [active, popoverOpen, enrichAction, resumeId]);
+  }, [active, popoverOpen, enrichAction, resumeId, dynamicTips]);
 
   return {
     trigger,
