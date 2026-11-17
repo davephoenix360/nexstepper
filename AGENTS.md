@@ -147,14 +147,15 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `b50eacd` **pushed** as of
+**Now (in flight)** — `main` is at `bac3c4b` **pushed and deployed** as of
 **2026-11-17**. Two batches are live: the scoring-field audit and its
 fixes (`08c1071` … `9f1a09d`), and the scorecard-communication fixes
-(`1fc17cd`, `b50eacd`) — the "Rewrite with AI" popover never opened
-(one wrong path spelling), and the advice now names the specific thing
-to fix. The founder's own production resume reads **79** on the last
-stored snapshot and **83** on this checkout — every delta is one of
-these fixes, and it lands when the variant is next recomputed.
+(`1fc17cd` … `bac3c4b`) — the "Rewrite with AI" popover never opened
+(one wrong path spelling), the advice now names the specific thing to
+fix, and the ATS Coverage sub-criterion is retired (it was dead in
+production; Intent Coverage already measures requirement coverage).
+The founder's own production resume reads **91**, and the local engine
+agrees with the stored snapshot dimension for dimension.
 **Production is LIVE.** All §11 boxes are checked: Vercel deployed,
 **two separate Neon projects** (one prod, one dev — *not* one project
 with branches), migrations `0000`–`0013` applied,
