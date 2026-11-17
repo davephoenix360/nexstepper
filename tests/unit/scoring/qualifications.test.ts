@@ -16,9 +16,11 @@ import {
   detectQualification,
   eligibilityVocabulary,
   evaluateEligibility,
+  findMatchingCertificate,
   formatYearMonth,
   parseYearMonth,
   partitionRequirements,
+  toCertificateLike,
   toEducationLike,
   type EligibilityRequirement
 } from '@/lib/scoring/qualifications';
@@ -164,8 +166,7 @@ describe('degreeSatisfies', () => {
   });
 });
 
-describe('evaluateEligibility — the candidate in school', () => {
-  const requirement: EligibilityRequirement = {
+describe('evaluateEligibility — the candidate in school', () => {  const requirement: EligibilityRequirement = {
     text: "Bachelor's degree in Computer Science or equivalent practical experience",
     kind: 'degree',
     requiredDegreeLevel: 'bachelor',
@@ -311,5 +312,117 @@ describe('toEducationLike', () => {
   it('returns an empty list for a non-array', () => {
     expect(toEducationLike(undefined)).toEqual([]);
     expect(toEducationLike({})).toEqual([]);
+  });
+});
+
+/**
+ * The certification branch.
+ *
+ * ## The bug this pins
+ *
+ * The branch used to return a hardcoded "your resume does not list one" —
+ * `sections.certificates` was never consulted. A candidate holding the
+ * exact certification the JD asks for was told to go and list it. The
+ * message was a falsehood shown to a user.
+ */
+describe('evaluateEligibility — the certification branch', () => {
+  const requirement: EligibilityRequirement = {
+    text: 'Must be certified in AWS',
+    kind: 'certification',
+    requiredDegreeLevel: null,
+    acceptsAlternative: false
+  };
+
+  it('says the resume lists it when the candidate holds it', () => {
+    const note = evaluateEligibility(requirement, [], true, NOW, [
+      { name: 'AWS Solutions Architect Associate', issuer: 'Amazon Web Services' }
+    ]);
+    expect(note.status).toBe('met');
+    expect(note.message).toContain('lists a matching certification');
+    expect(note.message).toContain('AWS Solutions Architect Associate');
+  });
+
+  it('never claims the resume lacks one when it does list it', () => {
+    const note = evaluateEligibility(requirement, [], true, NOW, [
+      { name: 'AWS Solutions Architect Associate', issuer: 'Amazon Web Services' }
+    ]);
+    expect(note.message).not.toContain('does not list one');
+  });
+
+  it('still says "does not list one" when the resume genuinely lists none', () => {
+    const note = evaluateEligibility(requirement, [], true, NOW, []);
+    expect(note.status).toBe('not-listed');
+    expect(note.message).toContain('does not list one');
+  });
+
+  it('distinguishes "lists some, but not this one" from "lists none"', () => {
+    const note = evaluateEligibility(requirement, [], true, NOW, [
+      { name: 'Google Cloud Professional Architect', issuer: 'Google' }
+    ]);
+    expect(note.status).toBe('not-listed');
+    expect(note.message).toContain('none of them is the one this role asks for');
+  });
+
+  it('matches on whole words, not substrings', () => {
+    // "AWS" must not match "lawsuit".
+    const note = evaluateEligibility(
+      { ...requirement, text: 'Must be certified in AWS' },
+      [],
+      true,
+      NOW,
+      [{ name: 'Certified Public Accountant', issuer: 'Local Law Society' }]
+    );
+    expect(note.status).toBe('not-listed');
+  });
+
+  it('matches a multi-word credential on any of its subject tokens', () => {
+    const note = evaluateEligibility(
+      { ...requirement, text: 'Must hold an active PMP certification' },
+      [],
+      true,
+      NOW,
+      [{ name: 'PMP — Project Management Professional', issuer: 'PMI' }]
+    );
+    expect(note.status).toBe('met');
+  });
+});
+
+describe('findMatchingCertificate', () => {
+  const requirement: EligibilityRequirement = {
+    text: 'Must be certified in AWS',
+    kind: 'certification',
+    requiredDegreeLevel: null,
+    acceptsAlternative: false
+  };
+
+  it('returns the matching certificate', () => {
+    const cert = { name: 'AWS Certified Solutions Architect', issuer: 'Amazon' };
+    expect(findMatchingCertificate(requirement, [cert])).toBe(cert);
+  });
+
+  it('returns null when nothing matches', () => {
+    expect(findMatchingCertificate(requirement, [{ name: 'Terraform Associate' }])).toBeNull();
+  });
+
+  it('ignores an empty certificate entry', () => {
+    expect(findMatchingCertificate(requirement, [{ name: '', issuer: '' }])).toBeNull();
+  });
+});
+
+describe('toCertificateLike', () => {
+  it('parses the unknown certificate shape defensively', () => {
+    const parsed = toCertificateLike([
+      { name: 'AWS Solutions Architect Associate', issuer: 'Amazon Web Services' },
+      null,
+      'nonsense'
+    ]);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].name).toBe('AWS Solutions Architect Associate');
+    expect(parsed[0].issuer).toBe('Amazon Web Services');
+  });
+
+  it('returns an empty list for a non-array', () => {
+    expect(toCertificateLike(undefined)).toEqual([]);
+    expect(toCertificateLike({})).toEqual([]);
   });
 });

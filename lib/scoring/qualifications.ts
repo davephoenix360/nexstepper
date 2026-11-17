@@ -96,6 +96,22 @@ export interface EducationLike {
   endDate?: string | null;
 }
 
+/**
+ * The parts of a certificate entry this module needs.
+ *
+ * ## Why this type exists
+ *
+ * The certification branch of `evaluateEligibility` used to be a hardcoded
+ * "your resume does not list one" — the resume's `sections.certificates`
+ * was never consulted. A candidate holding the exact certification the JD
+ * asks for was told to go and list it. The message was a falsehood, and a
+ * falsehood shown to a user is worse than no message at all.
+ */
+export interface CertificateLike {
+  name?: string;
+  issuer?: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Detection                                                          */
 /* ------------------------------------------------------------------ */
@@ -345,32 +361,200 @@ export function degreeSatisfies(
 }
 
 /**
+ * Words that appear in every "you must hold this credential" requirement
+ * and therefore say nothing about WHICH credential is wanted.
+ *
+ * Without this list, "Must be certified in AWS" reduces to the tokens
+ * `must`, `be`, `certified`, `in`, `aws` — and the first four match almost
+ * any certificate name (`"Big Zebra Certified"` contains "be" and "in").
+ */
+const CERTIFICATION_GATE_WORDS: ReadonlySet<string> = new Set([
+  'must',
+  'shall',
+  'should',
+  'need',
+  'needs',
+  'required',
+  'requirement',
+  'requirements',
+  'hold',
+  'holds',
+  'possess',
+  'active',
+  'have',
+  'has',
+  'be',
+  'is',
+  'are',
+  'certified',
+  'certification',
+  'certifications',
+  'certify',
+  'license',
+  'licence',
+  'licensed',
+  'accredited',
+  'accreditation',
+  'valid',
+  'current',
+  'qualified',
+  'a',
+  'an',
+  'the',
+  'in',
+  'of',
+  'with',
+  'and',
+  'or',
+  'to',
+  'for'
+]);
+
+/**
+ * Does one of the resume's certificates match this requirement?
+ *
+ * Returns the matching certificate, or null.
+ *
+ * The requirement is reduced to its **subject** — the tokens that say which
+ * credential is wanted ("AWS" in "must be certified in AWS") — and each
+ * subject token is matched against the certificate's name and issuer on
+ * **word boundaries**.
+ *
+ * Word boundaries matter: a substring match would let "aws" match
+ * "lawsuit", and "pmp" match "pmpl". The subject token is matched
+ * whole-word; the haystack is the certificate's own text.
+ *
+ * Conservative by design. A near miss (the JD wants "Certified Medical
+ * License", the resume says "Medical License, MD") reports "not listed"
+ * rather than claiming a match it cannot justify.
+ */
+export function findMatchingCertificate(
+  requirement: EligibilityRequirement,
+  certificates: CertificateLike[]
+): CertificateLike | null {
+  const subjects = requirementTokens(requirement.text).filter(
+    (token) => !CERTIFICATION_GATE_WORDS.has(token) && token.length >= 2
+  );
+  if (subjects.length === 0) return null;
+
+  for (const certificate of certificates) {
+    const haystack = `${certificate.name ?? ''} ${certificate.issuer ?? ''}`;
+    if (haystack.trim().length === 0) continue;
+    for (const subject of subjects) {
+      if (matchesWholeWord(haystack, subject)) return certificate;
+    }
+  }
+  return null;
+}
+
+/** Lowercase word tokens of a piece of text. */
+function requirementTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((token) => token.length >= 2);
+}
+
+/**
+ * Is `token` present in `text` as a whole word?
+ *
+ * Word boundaries on both sides: "aws" matches "AWS Certified" and
+ * "Certified AWS", but not "lawsuit" or "draws".
+ */
+function matchesWholeWord(text: string, token: string): boolean {
+  const pattern = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  return pattern.test(text);
+}
+
+/**
  * Resolve one eligibility requirement against a resume.
  *
  * `now` is injected so the scoring engine stays free of a clock. When it
  * is null the date comparison cannot run and the status degrades to
  * `unknown` rather than guessing.
+ *
+ * `certificates` is optional and defaults to empty: a caller that does
+ * not have the resume's certificate list still gets an answer, it just
+ * cannot confirm a certification.
  */
 export function evaluateEligibility(
   requirement: EligibilityRequirement,
   education: EducationLike[],
   hasWorkHistory: boolean,
-  now: Date | null
+  now: Date | null,
+  certificates: CertificateLike[] = []
 ): EligibilityNote {
   if (requirement.kind === 'degree') {
     return evaluateDegree(requirement, education, hasWorkHistory, now);
   }
 
-  // Certification and authorisation are not things the resume's dates can
-  // settle — the candidate either lists them or does not.
-  const listed = education.length > 0;
   if (requirement.kind === 'certification') {
+    return evaluateCertification(requirement, certificates);
+  }
+
+  // Work authorisation and clearance are not things the resume's fields
+  // can settle — the schema has no field for it. The message says so
+  // rather than pretending the resume was checked.
+  return {
+    requirement,
+    status: 'not-listed',
+    message:
+      'This role has a work-authorisation or clearance requirement. It is not a skill ' +
+      'you can add to your resume — worth checking early if it applies to you.'
+  };
+}
+
+/**
+ * Does the resume list the certification this role asks for?
+ *
+ * ## The bug this replaced
+ *
+ * The branch used to be:
+ *
+ * ```ts
+ * const listed = education.length > 0;   // never used
+ * if (requirement.kind === 'certification') {
+ *   return { status: 'not-listed', message: '...your resume does not list one...' };
+ * }
+ * ```
+ *
+ * `sections.certificates` was never read, and the message — "your resume
+ * does not list one" — was emitted unconditionally. A candidate holding
+ * the exact certification was told to go and list it. The dead `listed`
+ * binding was the fossil of the check that was never finished.
+ *
+ * Now the resume's certificates ARE consulted, and the message is true in
+ * every branch: it says "not listed" only when the resume genuinely lists
+ * no matching certification.
+ */
+function evaluateCertification(
+  requirement: EligibilityRequirement,
+  certificates: CertificateLike[]
+): EligibilityNote {
+  const match = findMatchingCertificate(requirement, certificates);
+
+  if (match) {
+    const name = (match.name ?? '').trim();
+    return {
+      requirement,
+      status: 'met',
+      message: name
+        ? `Your resume lists a matching certification (${name}).`
+        : 'Your resume lists a matching certification.'
+    };
+  }
+
+  const listed = certificates.filter(
+    (certificate) => `${certificate.name ?? ''} ${certificate.issuer ?? ''}`.trim() !== ''
+  );
+
+  if (listed.length > 0) {
     return {
       requirement,
       status: 'not-listed',
       message:
-        'This role asks for a certification or licence. Your resume does not list one — ' +
-        'check whether you hold it, and add it if you do.'
+        'Your resume lists certifications, but none of them is the one this role asks ' +
+        'for. Check whether the requirement covers a different certification.'
     };
   }
 
@@ -378,8 +562,8 @@ export function evaluateEligibility(
     requirement,
     status: 'not-listed',
     message:
-      'This role has a work-authorisation or clearance requirement. It is not a skill ' +
-      'you can add to your resume — worth checking early if it applies to you.',
+      'This role asks for a certification or licence. Your resume does not list one — ' +
+      'check whether you hold it, and add it if you do.'
   };
 }
 
@@ -464,15 +648,18 @@ function evaluateDegree(
 
 /**
  * Resolve a set of requirements against a resume.
+ *
+ * `certificates` is optional — see `evaluateEligibility`.
  */
 export function evaluateEligibilityNotes(
   requirements: EligibilityRequirement[],
   education: EducationLike[],
   hasWorkHistory: boolean,
-  now: Date | null
+  now: Date | null,
+  certificates: CertificateLike[] = []
 ): EligibilityNote[] {
   return requirements.map((requirement) =>
-    evaluateEligibility(requirement, education, hasWorkHistory, now)
+    evaluateEligibility(requirement, education, hasWorkHistory, now, certificates)
   );
 }
 
@@ -496,6 +683,26 @@ export function toEducationLike(value: unknown): EducationLike[] {
           : null,
       startDate: typeof record.startDate === 'string' ? record.startDate : '',
       endDate: typeof record.endDate === 'string' ? record.endDate : ''
+    });
+  }
+  return out;
+}
+
+/**
+ * Narrow an unknown list of certificate entries to `CertificateLike`.
+ *
+ * Same defensive posture as `toEducationLike`: the scoreable shape carries
+ * `certificates` as `unknown[]`.
+ */
+export function toCertificateLike(value: unknown): CertificateLike[] {
+  if (!Array.isArray(value)) return [];
+  const out: CertificateLike[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue;
+    const record = entry as Record<string, unknown>;
+    out.push({
+      name: typeof record.name === 'string' ? record.name : '',
+      issuer: typeof record.issuer === 'string' ? record.issuer : ''
     });
   }
   return out;

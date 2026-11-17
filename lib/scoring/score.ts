@@ -18,6 +18,7 @@ import {
 } from './dimensions/seniority-fit';
 import {
   evaluateEligibilityNotes,
+  toCertificateLike,
   toEducationLike,
   type EligibilityNote
 } from './qualifications';
@@ -280,6 +281,15 @@ export type ScoreableResume = ResumeTextSource & {
   education?: unknown[];
   awards?: unknown[];
   publications?: unknown[];
+  /**
+   * The resume's certificate entries.
+   *
+   * Carried because the eligibility module needs them: a JD that asks for
+   * a certification must be able to see whether the candidate lists one.
+   * Before this, the certification note was a hardcoded "your resume does
+   * not list one" — see `lib/scoring/qualifications.ts`.
+   */
+  certificates?: unknown[];
 };
 
 export type ScoreableJob = JobTextSource & {
@@ -398,7 +408,8 @@ export function resumeDataToScoreable(resume: ResumeData): ScoreableResume {
     })),
     education: sections.education ?? [],
     awards: sections.awards ?? [],
-    publications: sections.publications ?? []
+    publications: sections.publications ?? [],
+    certificates: sections.certificates ?? []
   };
 }
 
@@ -599,7 +610,8 @@ export function scoreResume(
     intentCoverageBreakdown.eligibility,
     toEducationLike(resume.education),
     (resume.work?.length ?? 0) > 0,
-    now
+    now,
+    toCertificateLike(resume.certificates)
   );
 
   // v2 Phase 2 — Role Fit (sync surface). Consumes the pre-computed
