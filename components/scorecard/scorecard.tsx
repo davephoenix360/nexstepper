@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ScoreBreakdown } from '@/lib/scoring';
@@ -44,6 +46,32 @@ import { cn } from '@/lib/utils';
  * sub-criteria hover tips remain available on each dim bar via
  * `CRITERIA_TIPS`.
  */
+
+/**
+ * The tip for the Keywords bar.
+ *
+ * The coverage tip ("you're addressing 3 of 5 required
+ * responsibilities") only fires when the JD envelope carries a
+ * requirements LIST — and no attach path writes one, so in production it
+ * never fires and this bar fell back to the generic static advice ("if
+ * the JD asks for five things and you only address three…").
+ *
+ * The keyword tip names the actual missing tokens and DOES work in
+ * production, so it is the fallback.
+ *
+ * Same defect class as the missing JD title: a field the engine and the
+ * UI read that nothing writes.
+ *
+ * Extracted so the selection is testable — the tip itself renders inside
+ * a Radix tooltip, which does not appear in static markup.
+ */
+export function keywordsBarTip(dynamicTips: DynamicTips): ReactNode {
+  return (
+    dynamicTips['ATS Coverage'] ??
+    dynamicTips['ATS Keyword Match'] ??
+    CRITERIA_TIPS['ATS Keyword Match']
+  );
+}
 
 export function ScorecardPanel({
   breakdown,
@@ -237,7 +265,11 @@ export function ScorecardPanel({
           label="Keywords"
           score={breakdown.dimensionScores.atsMatching}
           testId="score-dim-keywords"
-          tip={dynamicTips['ATS Keyword Match'] ?? CRITERIA_TIPS['ATS Keyword Match']}
+          // The coverage tip only fires when the JD envelope carries a
+          // requirements LIST — which no attach path writes, so it never
+          // fires in production. The keyword tip names the actual
+          // missing tokens and does work, so it is the fallback.
+          tip={keywordsBarTip(dynamicTips)}
           onIssueClick={dimHandler?.('ATS Coverage')}
           showProRewriteCta={showProRewriteCta}
         />

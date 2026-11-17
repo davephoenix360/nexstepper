@@ -34,6 +34,7 @@ import {
   readFixture,
   recomputeEngineHalf
 } from '../../../scripts/jev-fixture-recompute';
+import { JEV_MODEL } from '@/lib/ai/jev';
 
 describe('the Jev corpus record describes the CURRENT engine', () => {
   const corpus = readCorpus();
@@ -80,6 +81,21 @@ describe('the Jev corpus record describes the CURRENT engine', () => {
     expect(recomputed.summary.correlation.jev).toBeGreaterThan(
       recomputed.summary.correlation.sync
     );
+  });
+
+  it('was measured with the model the app is still using', () => {
+    // The MODEL half of the record — the AUC, the pSkill means, the
+    // evidence means — describes the model and the JD's requirement
+    // lines. It does not go stale when the engine changes; it goes
+    // stale when the MODEL does.
+    //
+    // So this is the guard for it: if `JEV_MODEL` is bumped, the
+    // record's model half is describing a model that no longer runs,
+    // and it has to be re-measured with `MEASURE_JEV=1`.
+    //
+    // (As of 2026-11-17 both are `jev-1.14.0`, so the model half was
+    // still valid — only the engine half had drifted.)
+    expect(fixture.summary.model).toBe(JEV_MODEL);
   });
 
   it('still separates the tiers on content quality', () => {

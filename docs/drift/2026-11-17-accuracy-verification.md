@@ -298,3 +298,65 @@ And the difference worth remembering: **a measurement can be cheap to
 repeat.** The AI half needs the gateway; the engine half does not. So
 the part of the record that tracks the code — the part that actually
 goes stale — can be re-derived on every engine change, for free.
+---
+
+# Part 7 — The JD''s requirement bullets never reach the engine
+
+Found while checking whether the Jev model half of the accuracy record
+was stale (it is NOT — the app still pins `jev-1.14.0`, the same model
+the fixture was measured with; that now has its own guard).
+
+## The measurement
+
+`scripts/probe-jd-envelope-fields.ts` (SELECT only) asks production
+which JD envelope fields are actually stored:
+
+```
+  Test Resume 1 — Variant
+    requirements     : 0 item(s)
+    niceToHaves      : 0 item(s)
+    mustHaveSkills   : 10 item(s)
+    niceToHaveSkills : 4 item(s)
+    description chars: 3434
+```
+
+Every variant: `requirements` 0, `niceToHaves` 0. The JD''s requirement
+bullets live ONLY inside the raw `description` text (3.4k–6.5k chars).
+
+## What reads the empty field
+
+| Reader | Effect in production |
+|---|---|
+| ATS matching''s `coverageScore` | SKIPPED — the weights re-normalise to keyword 0.75 / similarity 0.25 ✓ graceful, documented |
+| the "ATS Coverage" TIP | can never fire → the **Keywords bar** showed generic static advice |
+| `jobEligibilityGates` | finds no gates there — but it now reads the skill lists too, which is why the degree gate works at all |
+
+## Same defect class as the missing JD title
+
+The attach paths build the envelope from the raw text and never write
+the structured fields the engine and the UI read. The JD title was
+fixed on 2026-11-16 by having the extractor return it; the requirements
+list is the same bug in a second field.
+
+## What is done
+
+The Keywords bar now falls back to the **keyword** tip — which names
+the actual missing tokens and DOES work in production — instead of the
+coverage tip that can never fire. Extracted as `keywordsBarTip()` so
+the selection is testable (the tip renders inside a Radix tooltip, which
+does not appear in static markup).
+
+## What is NOT done, and why
+
+Whether to REVIVE the coverage sub-criterion (wire the requirement
+bullets into the envelope) or RETIRE it (let the v2 Intent Coverage
+dimension be the one that measures requirement coverage) is a design
+decision, not a bug fix:
+
+- Reviving it means the ATS dimension carries a coverage term AND the
+  Intent Coverage dimension carries one — **the same measurement
+  counted twice** in the overall score.
+- Retiring it means removing a persisted `criteriaScores` key.
+
+Either way the JD''s requirement bullets should stop living only in the
+raw prose — that is the part that is unambiguously wrong.

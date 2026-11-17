@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { ScorecardPanel } from '@/components/scorecard/scorecard';
+import { ScorecardPanel, keywordsBarTip } from '@/components/scorecard/scorecard';
 import type { ScoreBreakdown } from '@/lib/scoring';
 
 /**
@@ -239,5 +239,24 @@ describe('ScorecardPanel — start here', () => {
       />
     );
     expect(html).not.toContain('data-testid="scorecard-start-here"');
+  });
+
+  it('the Keywords bar falls back to the keyword tip when coverage has none', () => {
+    // The coverage tip ("you're addressing 3 of 5 required
+    // responsibilities") only fires when the JD envelope carries a
+    // requirements LIST — and no attach path writes one, so in
+    // production it never fires. The keyword tip names the actual
+    // missing tokens and does work, so it is the fallback.
+    const fallback = keywordsBarTip({
+      'ATS Keyword Match': 'Add these missing keywords from the JD: Kubernetes, Helm.'
+    });
+    expect(renderToStaticMarkup(<>{fallback}</>)).toContain('Kubernetes');
+
+    // And the coverage tip still wins when it IS there.
+    const coverage = keywordsBarTip({
+      'ATS Coverage': 'You are addressing 3 of 5 required responsibilities.',
+      'ATS Keyword Match': 'Add these missing keywords from the JD: Kubernetes.'
+    });
+    expect(renderToStaticMarkup(<>{coverage}</>)).toContain('3 of 5');
   });
 });
