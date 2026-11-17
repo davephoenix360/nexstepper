@@ -147,13 +147,19 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `bac3c4b` **pushed and deployed** as of
-**2026-11-17**. Two batches are live: the scoring-field audit and its
-fixes (`08c1071` … `9f1a09d`), and the scorecard-communication fixes
+**Now (in flight)** — `main` is at `c268407` **pushed and deployed**, plus
+one batch committed **locally only** (`e350473`, not pushed): the chat
+agent can now name the weakest sub-criterion — the twelve criterion
+scores are in its context, and the weakest *measured* one is stated.
+Three batches are live: the scoring-field audit and its fixes
+(`08c1071` … `9f1a09d`), the scorecard-communication fixes
 (`1fc17cd` … `bac3c4b`) — the "Rewrite with AI" popover never opened
 (one wrong path spelling), the advice now names the specific thing to
 fix, and the ATS Coverage sub-criterion is retired (it was dead in
-production; Intent Coverage already measures requirement coverage).
+production; Intent Coverage already measures requirement coverage) —
+and the rewrite-target fix (`c268407`), where the client had been
+overriding the server's chosen target so the AI always enriched the
+first work bullet.
 The founder's own production resume reads **91**, and the local engine
 agrees with the stored snapshot dimension for dimension.
 **Production is LIVE.** All §11 boxes are checked: Vercel deployed,
