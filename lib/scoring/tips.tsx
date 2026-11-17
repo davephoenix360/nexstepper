@@ -42,6 +42,8 @@ import type { JobPosting, ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from './score';
 import { SOFT_SKILLS, STOP_WORDS, WEAK_VERBS } from './dictionaries';
 import { jobTokensWithoutStopWords as sharedJobTokensWithoutStopWords } from './jd-tokens';
+import { flattenResumeText } from './similarity';
+import { resumeDataToScoreable } from './resume-adapter';
 
 // ---------------------------------------------------------------------------
 // Static fallback tips — always present, plain strings.
@@ -386,54 +388,64 @@ export function buildDynamicTips(
 // ---------------------------------------------------------------------------
 
 /**
- * Flatten the resume into one text blob for tokenization. Mirrors
- * `flattenResumeText` from `lib/scoring/similarity.ts` closely enough
- * for actionable advice — we don't need pixel-perfect parity with
- * the engine, just a representative signal.
+ * Flatten the resume into one text blob for tokenization.
+ *
+ * This is the CANONICAL engine text (`flattenResumeText`) plus the
+ * fields the engine deliberately leaves out. It has to be a superset:
+ * the tip claims a keyword is "missing from your resume", so if the
+ * resume mentions it ANYWHERE, the tip must not tell the candidate to
+ * add it.
+ *
+ * ## The Edmonton bug, and what it became
+ *
+ * The tip used to have its own copy of the flatten, and its copy
+ * included the location while the engine's did not. So the two
+ * disagreed: a resume in Edmonton applying to an Edmonton job was told
+ * to add "edmonton" and "ab" to its resume. Both were already on it.
+ * The fix then was to add the location to the TIP.
+ *
+ * The half of the fix that was missing was the other side: the engine's
+ * scored text still excluded locations, so the JD's own city
+ * ("san francisco") stayed in the keyword vocabulary and the candidate
+ * was charged for a token their location field could not pay off. That
+ * is closed now too — the engine reads the location, and the JD's
+ * location tokens are excluded from the vocabulary
+ * (`lib/scoring/jd-tokens.ts`).
+ *
+ * ## The extra fields (deliberately not in the engine's text)
+ *
+ * The employer name, a role's location, an institution and an award's
+ * awarder are proper nouns: not evidence a JD can ask for, so the
+ * engine ignores them. But the tip must still see them, or it would tell
+ * the candidate to add a keyword they already have.
  */
 export function flattenResumeTextForTips(resume: ResumeData): string {
   const parts: string[] = [];
-  parts.push(resume.sections.basics.summary ?? '');
-  parts.push(resume.sections.basics.label ?? '');
-  // The LOCATION. The tip claims a keyword is "missing from your
-  // resume", so the presence test has to look at the resume — but the
-  // engine's scored text deliberately excludes locations (a city is
-  // not a skill), so the two disagreed. A resume in Edmonton applying
-  // to an Edmonton job was told to add "edmonton" and "ab" to its
-  // resume. Both were already on it.
-  const basicsLocation = resume.sections.basics.location;
+  const sections = resume.sections;
+
+  // The canonical engine text.
+  parts.push(
+    flattenResumeText(resumeDataToScoreable(resume)),
+    // ...plus the proper nouns the engine ignores.
+    sections.basics.name ?? ''
+  );
+  const basicsLocation = sections.basics.location;
   if (typeof basicsLocation === 'string') {
     parts.push(basicsLocation);
   } else if (basicsLocation) {
     parts.push(basicsLocation.city ?? '', basicsLocation.region ?? '');
   }
-  for (const s of resume.sections.skills) {
-    parts.push(s.name, ...(s.keywords ?? []));
+  for (const w of sections.work) {
+    parts.push(w.company ?? '', w.location ?? '');
   }
-  for (const w of resume.sections.work) {
-    parts.push(w.description ?? '', w.location ?? '');
-    for (const p of w.positions) {
-      parts.push(p.title ?? '');
-      if (p.highlights) parts.push(...p.highlights);
-    }
+  for (const edu of sections.education ?? []) {
+    parts.push(edu.institution ?? '');
   }
-  for (const proj of resume.sections.projects ?? []) {
-    parts.push(proj.name ?? '', proj.description ?? '');
-    if (proj.highlights) parts.push(...proj.highlights);
+  for (const a of sections.awards ?? []) {
+    parts.push(a.awarder ?? '');
   }
-  for (const edu of resume.sections.education ?? []) {
-    parts.push(
-      edu.institution ?? '',
-      edu.degree?.degreeLevel ?? '',
-      ...(edu.degree?.majors ?? []),
-      ...(edu.degree?.minors ?? [])
-    );
-  }
-  for (const a of resume.sections.awards ?? []) {
-    parts.push(a.title ?? '', a.awarder ?? '');
-  }
-  for (const pub of resume.sections.publications ?? []) {
-    parts.push(pub.name ?? '', pub.publisher ?? '');
+  for (const pub of sections.publications ?? []) {
+    parts.push(pub.publisher ?? '');
   }
   return parts.filter(Boolean).join(' ');
 }

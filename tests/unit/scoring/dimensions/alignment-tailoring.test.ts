@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { scoreAlignment } from '@/lib/scoring/dimensions/alignment';
+import type { ResumeTextSource } from '@/lib/scoring/similarity';
 
 /**
  * Regression tests for the `tailoring` sub-criterion.
@@ -22,13 +23,26 @@ import { scoreAlignment } from '@/lib/scoring/dimensions/alignment';
  *
  * It is now **recall** of the title's vocabulary: `|summary ∩ title| / |title|`.
  */
-const extras = { hasProjects: true, hasAwards: false, hasPublications: false };
+/**
+ * A resume with one substantive project.
+ *
+ * The dimension used to take the "has extras" signal as an argument —
+ * a presence boolean computed by the caller. It now reads its own
+ * input, so the project has to actually be there.
+ */
+const WITH_PROJECT: ResumeTextSource = {
+  basics: { summary: '', label: '' },
+  skills: [],
+  work: [],
+  projects: [
+    { name: 'Nextep', description: 'Built the resume builder', highlights: [] }
+  ]
+};
 
 function tailoringOf(summary: string, title: string): number {
   return scoreAlignment(
     { basics: { summary, label: '' }, skills: [], work: [] },
-    { title },
-    extras
+    { title }
   ).breakdown.tailoring;
 }
 
@@ -99,15 +113,14 @@ describe('alignment — value stays on a 0-100 scale', () => {
     // soft-skill mention. Under Jaccard this could not exceed ~43.
     const best = scoreAlignment(
       {
+        ...WITH_PROJECT,
         basics: {
           summary: 'Backend engineer who leads cross-functional teams',
           label: 'Backend Engineer'
         },
-        skills: [{ name: 'Communication', keywords: ['stakeholder management'] }],
-        work: []
+        skills: [{ name: 'Communication', keywords: ['stakeholder management'] }]
       },
-      { title: 'Backend Engineer' },
-      extras
+      { title: 'Backend Engineer' }
     );
     expect(best.breakdown.tailoring).toBe(100);
     expect(best.breakdown.hasExtras).toBe(100);
@@ -118,8 +131,7 @@ describe('alignment — value stays on a 0-100 scale', () => {
   it('returns 0 for an empty resume rather than throwing', () => {
     const r = scoreAlignment(
       { basics: { summary: '', label: '' }, skills: [], work: [] },
-      { title: 'Backend Engineer' },
-      { hasProjects: false, hasAwards: false, hasPublications: false }
+      { title: 'Backend Engineer' }
     );
     expect(r.value).toBe(0);
   });

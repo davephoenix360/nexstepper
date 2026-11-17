@@ -9,16 +9,23 @@ import { SOFT_SKILLS } from '../dictionaries';
  *   1. `tailoring`    — 50% — recall of the JD title's vocabulary in the
  *      resume summary. See `titleCoverage` below for why this is recall
  *      rather than Jaccard.
- *   2. `hasExtras`    — 30% — does the resume have any of
- *      projects / awards / publications? Either 0 or 100. (A
- *      binary signal — we don't count how many of each.)
+ *   2. `hasExtras`    — 30% — does the resume show anything distinctive?
+ *      Binary: 0 or 100. See `calcUniqueValue` below for what counts.
  *   3. `softSkills`   — 20% — fraction of the soft-skill phrase list
  *      (12 phrases, expanded from the legacy 4 per the post-ship review)
  *      that appear in the resume.
  *
- * Known limitation: `hasExtras` is binary, so one project and ten projects
- * score identically. Noted, not changed — see
- * `docs/drift/2026-10-01-ats-scoring-review.md` §4.
+ * ## The `extras` argument is gone
+ *
+ * The dimension used to take `{ hasProjects, hasAwards, hasPublications }`
+ * as a third argument — presence booleans computed by the caller. That
+ * was the wrong test: an EMPTY project shell (a title and nothing else)
+ * counted as "unique value" exactly like a substantial project.
+ *
+ * It also put the signal in the wrong place. The resume itself carries
+ * projects, awards and publications now, so the dimension reads its own
+ * input instead of being told about it by the caller — one source of
+ * truth, which is the lesson of the whole field-coverage audit.
  */
 
 export type AlignmentScore = {
@@ -38,13 +45,11 @@ const WEIGHTS = { tailoring: 0.5, hasExtras: 0.3, softSkills: 0.2 } as const;
 
 export function scoreAlignment(
   resume: ResumeTextSource,
-  job: JobTextSource,
-  extras: { hasProjects: boolean; hasAwards: boolean; hasPublications: boolean }
+  job: JobTextSource
 ): AlignmentScore {
   const tailoring = titleCoverage(resume.basics.summary ?? '', job.title ?? '');
 
-  const hasExtras =
-    extras.hasProjects || extras.hasAwards || extras.hasPublications ? 100 : 0;
+  const hasExtras = calcUniqueValue(resume);
 
   const softSkills = calcSoftSkills(resume);
 
@@ -55,6 +60,55 @@ export function scoreAlignment(
       WEIGHTS.softSkills * softSkills,
     breakdown: { tailoring, hasExtras, softSkills }
   };
+}
+
+/**
+ * "Unique Value" — does the resume show something the JD did not ask for?
+ *
+ * ## What counts
+ *
+ * A project, an award or a publication — but only if it says something.
+ * An entry with a title and no body is a shell, and a shell is not
+ * evidence of distinctive work.
+ *
+ * ## Why the COUNT is deliberately not rewarded
+ *
+ * The obvious improvement is "one project and ten projects should not
+ * score identically" — that was the documented limitation, and it is
+ * still true: `hasExtras` is binary.
+ *
+ * It is binary on purpose. This sub-criterion measures DISTINCTIVENESS,
+ * not quantity. One substantial project demonstrates it; ten thin ones
+ * do not make a candidate more distinctive, they make the resume longer
+ * — and the "Optimal Length" criterion already penalises bloat. Grading
+ * by count would reward padding, which is the opposite of what the
+ * sub-criterion is for.
+ *
+ * What DID change is the test: presence became substance.
+ */
+function calcUniqueValue(resume: ResumeTextSource): number {
+  const projects = resume.projects ?? [];
+  const awards = resume.awards ?? [];
+  const publications = resume.publications ?? [];
+
+  const hasSubstance = (text: string): boolean => text.trim().length > 0;
+
+  const substantiveProject = projects.some(
+    (project) =>
+      hasSubstance(project.name ?? '') ||
+      hasSubstance(project.description ?? '') ||
+      (project.highlights ?? []).some(hasSubstance)
+  );
+  const substantiveAward = awards.some(
+    (award) => hasSubstance(award.title ?? '') || hasSubstance(award.summary ?? '')
+  );
+  const substantivePublication = publications.some(
+    (publication) =>
+      hasSubstance(publication.name ?? '') ||
+      hasSubstance(publication.summary ?? '')
+  );
+
+  return substantiveProject || substantiveAward || substantivePublication ? 100 : 0;
 }
 
 /**

@@ -532,12 +532,7 @@ export function scoreResume(
   const content = scoreContentQuality(resume, {
     jev: jevContentQuality?.evaluation ?? null
   });
-  const alignment = scoreAlignment(resume, job, {
-    hasProjects: (resume.projects?.length ?? 0) > 0,
-    hasAwards: Array.isArray(resume.awards) && resume.awards.length > 0,
-    hasPublications:
-      Array.isArray(resume.publications) && resume.publications.length > 0
-  });
+  const alignment = scoreAlignment(resume, job);
 
   // v2 Intent Coverage — always computed, but returns neutral when
   // the JD has no v2 priority data (legacy rows / failed extract).

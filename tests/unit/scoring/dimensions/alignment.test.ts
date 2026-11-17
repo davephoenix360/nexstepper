@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { scoreAlignment } from '@/lib/scoring/dimensions/alignment';
-import type { JobTextSource, ResumeTextSource } from '@/lib/scoring/similarity';
+import type { ResumeTextSource } from '@/lib/scoring/similarity';
 
 /**
  * Locks the alignment dimension in isolation. Three sub-criteria:
@@ -27,18 +27,11 @@ const BASE_RESUME: ResumeTextSource = {
   projects: []
 };
 
-const NO_EXTRAS = {
-  hasProjects: false,
-  hasAwards: false,
-  hasPublications: false
-};
-
 describe('scoreAlignment', () => {
   it('scores zero on tailoring when summary and title share no tokens', () => {
     const result = scoreAlignment(
       BASE_RESUME,
-      { title: 'Junior Java Developer', description: '' },
-      NO_EXTRAS
+      { title: 'Junior Java Developer', description: '' }
     );
     expect(result.breakdown.tailoring).toBe(0);
   });
@@ -46,8 +39,7 @@ describe('scoreAlignment', () => {
   it('scores positive on tailoring when summary echoes the title', () => {
     const result = scoreAlignment(
       BASE_RESUME,
-      { title: 'Senior TypeScript Engineer', description: '' },
-      NO_EXTRAS
+      { title: 'Senior TypeScript Engineer', description: '' }
     );
     // Jaccard of summary tokens {"senior","engineer","typescript","react","experience"}
     // vs title tokens {"senior","typescript","engineer"} — overlap 3, union 5 → 60%
@@ -55,32 +47,58 @@ describe('scoreAlignment', () => {
     expect(result.breakdown.tailoring).toBeLessThanOrEqual(100);
   });
 
-  it('scores 100 on hasExtras when projects is non-empty', () => {
-    const result = scoreAlignment(BASE_RESUME, {}, {
-      ...NO_EXTRAS,
-      hasProjects: true
-    });
+  it('scores 100 on hasExtras when a project has substance', () => {
+    const result = scoreAlignment(
+      {
+        ...BASE_RESUME,
+        projects: [
+          { name: 'Nextep', description: 'Built the resume builder', highlights: [] }
+        ]
+      },
+      {}
+    );
     expect(result.breakdown.hasExtras).toBe(100);
   });
 
-  it('scores 100 on hasExtras when awards is non-empty', () => {
-    const result = scoreAlignment(BASE_RESUME, {}, {
-      ...NO_EXTRAS,
-      hasAwards: true
-    });
+  it('scores 100 on hasExtras when an award has substance', () => {
+    const result = scoreAlignment(
+      { ...BASE_RESUME, awards: [{ title: 'Engineer of the Year', summary: '' }] },
+      {}
+    );
     expect(result.breakdown.hasExtras).toBe(100);
   });
 
-  it('scores 100 on hasExtras when publications is non-empty', () => {
-    const result = scoreAlignment(BASE_RESUME, {}, {
-      ...NO_EXTRAS,
-      hasPublications: true
-    });
+  it('scores 100 on hasExtras when a publication has substance', () => {
+    const result = scoreAlignment(
+      { ...BASE_RESUME, publications: [{ name: 'Scaling Kafka', summary: '' }] },
+      {}
+    );
     expect(result.breakdown.hasExtras).toBe(100);
   });
 
   it('scores 0 on hasExtras when all three lists are empty', () => {
-    const result = scoreAlignment(BASE_RESUME, {}, NO_EXTRAS);
+    const result = scoreAlignment(BASE_RESUME, {});
+    expect(result.breakdown.hasExtras).toBe(0);
+  });
+
+  it('scores 0 on hasExtras when an entry is an empty shell', () => {
+    // ## The bug this pins
+    //
+    // The sub-criterion used to take `{ hasProjects, hasAwards,
+    // hasPublications }` as an argument — PRESENCE booleans computed by
+    // the caller. A project with a title and nothing else counted as
+    // "unique value" exactly like a substantial one. The test is on
+    // substance now, and the dimension reads its own input instead of
+    // being told about it.
+    const result = scoreAlignment(
+      {
+        ...BASE_RESUME,
+        projects: [{ name: '', description: '', highlights: [] }],
+        awards: [{ title: '', summary: '' }],
+        publications: [{ name: '', summary: '' }]
+      },
+      {}
+    );
     expect(result.breakdown.hasExtras).toBe(0);
   });
 
@@ -100,7 +118,7 @@ describe('scoreAlignment', () => {
       work: [],
       projects: []
     };
-    const result = scoreAlignment(resume, {}, NO_EXTRAS);
+    const result = scoreAlignment(resume, {});
     expect(result.breakdown.softSkills).toBe(100);
   });
 
@@ -114,7 +132,7 @@ describe('scoreAlignment', () => {
     // "team" is present (substring hit), the other 11 are not.
     // 1 / 12 = 8.33% — the partial-score contract holds even
     // with the expanded list.
-    const result = scoreAlignment(resume, {}, NO_EXTRAS);
+    const result = scoreAlignment(resume, {});
     expect(result.breakdown.softSkills).toBeCloseTo(8.33, 1);
   });
 
@@ -126,8 +144,7 @@ describe('scoreAlignment', () => {
         work: [],
         projects: []
       },
-      {},
-      NO_EXTRAS
+      {}
     );
     expect(result.breakdown.softSkills).toBe(0);
   });
@@ -142,7 +159,7 @@ describe('scoreAlignment', () => {
       work: [],
       projects: []
     };
-    const result = scoreAlignment(resume, {}, NO_EXTRAS);
+    const result = scoreAlignment(resume, {});
     expect(result.breakdown.softSkills).toBeCloseTo(8.33, 1);
   });
 
@@ -161,8 +178,7 @@ describe('scoreAlignment', () => {
         work: [],
         projects: [{ name: 'Open source', description: '', highlights: [] }]
       },
-      { title: sameText },
-      { hasProjects: true, hasAwards: false, hasPublications: false }
+      { title: sameText }
     );
     expect(result.value).toBe(100);
   });
@@ -170,15 +186,14 @@ describe('scoreAlignment', () => {
   it('handles a completely empty resume + job without crashing', () => {
     const result = scoreAlignment(
       { basics: {}, skills: [], work: [], projects: [] },
-      {},
-      NO_EXTRAS
+      {}
     );
     expect(result.value).toBe(0);
   });
 
   it('is deterministic — same input → same output', () => {
-    const a = scoreAlignment(BASE_RESUME, { title: 'Engineer' }, NO_EXTRAS);
-    const b = scoreAlignment(BASE_RESUME, { title: 'Engineer' }, NO_EXTRAS);
+    const a = scoreAlignment(BASE_RESUME, { title: 'Engineer' });
+    const b = scoreAlignment(BASE_RESUME, { title: 'Engineer' });
     expect(a.value).toBe(b.value);
     expect(a.breakdown).toEqual(b.breakdown);
   });
