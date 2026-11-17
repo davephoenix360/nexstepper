@@ -198,7 +198,7 @@ plan. Drift memo:
   in the tip and never in the score); the eligibility vocabulary reads
   the same source as the notes, so a candidate **with** a bachelor's
   degree gains **1.60** points where they used to lose **1.91**; and
-  **26 of 51 fields now move the score**. The structural fix underneath
+  **28 of 51 fields now move the score**. The structural fix underneath
   them all: there were **five** copies of "the resume's text" — the
   keyword score, the BM25 signal, the semantic signal, the word count and
   the tip — and they were not equal. There is **one** now. Drift memo:
@@ -2605,7 +2605,7 @@ every part of `basics.location`, `work[].company`, all of
 `volunteer[]`, `awards[]` text, `publications[]` text, `languages[]`,
 `interests[]` and `references[]`.
 
-**All of that was fixed on 2026-11-17** — 26 of the 51 now move the
+**All of that was fixed on 2026-11-17** — 28 of the 51 now move the
 score. The rule the fix follows, and the rule to keep following:
 
 > **A field earns its place by being evidence a JD can ask for.**

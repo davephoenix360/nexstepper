@@ -300,13 +300,13 @@ adapter had three copies and now has one
 | `awards[].title`, `.summary` | +3.00 each |
 | `publications[].name`, `.summary` | +3.00 each |
 
-**26 of the 51 probed fields now move the score** — up from 10.
+**28 of the 51 probed fields now move the score** — up from 10.
 
-### Still ignored — 25 fields, and why
+### Still ignored — 23 fields, and why
 
 ```
 basics.name, basics.email, basics.phone, basics.url
-basics.location.address, .postalCode, .countryCode
+basics.location.address, .postalCode
 basics.profiles[].username
 work[].company, work[].location, work[].url
 skills[].level
