@@ -176,10 +176,18 @@ export function ScorecardClient({
   }
 
   function handleIssueDimClick(input: { criterion: SubCriterionKey }) {
-    controller.trigger({
-      path: defaultPathForCriterion(input.criterion),
-      criterion: input.criterion
-    });
+    // NO explicit path.
+    //
+    // The server's `matchBreakdown` is the authority on WHICH leaf a
+    // criterion targets — it was built with the resume in hand, so it
+    // points at the bullet the advice NAMES (e.g. "2 of 7 work bullets
+    // describe a task rather than an outcome (Applied LLM…; Developed
+    // a C#/.NET…)").
+    //
+    // Passing `defaultPathForCriterion(criterion)` here always landed on
+    // the heuristic's leaf — the FIRST work bullet — so the AI rewrite
+    // kept improving the top bullet instead of one of the named ones.
+    controller.trigger({ criterion: input.criterion });
   }
 
   function handleIssueSkillClick(input: {
@@ -187,10 +195,10 @@ export function ScorecardClient({
     bucket: 'mustHave' | 'niceToHave' | 'implicit';
     criterion: 'Intent Coverage';
   }) {
-    controller.trigger({
-      path: defaultPathForSkill(),
-      criterion: input.criterion
-    });
+    // Also no explicit path: the breakdown carries a skill-gap row for
+    // Intent Coverage pointing at the skills block, and the controller's
+    // fallback for that criterion is the same leaf.
+    controller.trigger({ criterion: input.criterion });
   }
 
   // No JD attached → render the placeholder (delegates to

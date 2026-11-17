@@ -423,3 +423,72 @@ rewrite happens, so that is where the full picture belongs.
 mapping is pinned by a test: every criterion is in exactly one
 dimension, the clicked criterion comes first, and no criterion is
 returned twice.
+---
+
+# Part 8 — The client was overriding the server''s target
+
+Found by the founder, testing on the dev server:
+
+> *"when I click it, it seems that the AI is trying to enrich the wrong
+> bullet points — it always tries to improve the top experience bullet
+> instead of one of the ones that were highlighted in the message."*
+
+## Where it actually went wrong
+
+Part 5 fixed the SERVER: the MatchBreakdown''s Impact row now points at
+the bullet the advice names. The stored data proves it:
+
+```
+Impact row path : sections.work.1.positions.0.highlights.1
+bullet AT path  : "Applied LLM application best practices (prompt/interface
+                   iteration, reliability-focused integration, …)"
+the advice says : 2 of 7 work bullets describe a task rather than an outcome
+                   (Applied LLM application best practices …; Developed a
+                   C#/.NET Windows application layer …)
+→ does the path point at a bullet the advice names? YES
+```
+
+The server was right. The CLIENT was ignoring it.
+
+The controller resolves a click''s target in this order:
+
+1. an explicit `path` the caller supplied,
+2. the `matchBreakdown` row for that criterion,
+3. the `defaultPathForCriterion` heuristic.
+
+And the scorecard''s dimension-bar click **always supplied step 1**:
+
+```ts
+controller.trigger({
+  path: defaultPathForCriterion(input.criterion),  // ← always
+  criterion: input.criterion
+});
+```
+
+So step 2 — the row that points at the bullet the advice names — was
+never consulted. Every dimension click landed on the heuristic''s leaf:
+**the first work bullet.** Which is exactly what the founder saw.
+
+## The fix
+
+The client stops deciding targets. A dimension click says WHICH
+CRITERION; the server''s breakdown says WHICH LEAF. Only an inline
+issue — the user clicking a specific bullet in the editor — supplies a
+path, because then the leaf IS the target.
+
+`lib/inline-issue/resolve-target.ts` holds the resolution as a pure
+function, so it can be pinned: the breakdown wins, an explicit path
+wins over everything (the user chose that leaf), and the heuristic is
+the last resort.
+
+## The lesson
+
+**The server computing the right answer is not enough if the client
+overrides it.** Part 5 wrote the correct path into the breakdown and
+everything looked right in the data — the bug was invisible from the
+database and only visible by clicking.
+
+**When two layers both know the answer, the one with the CONTEXT should
+win.** The server had the resume in hand and could point at the weak
+bullet; the client had a static heuristic. The client was overriding the
+server with the weaker answer.

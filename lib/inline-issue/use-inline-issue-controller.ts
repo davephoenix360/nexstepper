@@ -13,6 +13,7 @@ import {
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { MatchBreakdown } from '@/lib/db/queries';
 import { defaultPathForCriterion } from '@/lib/inline-issue/criterion-to-path';
+import { resolveTargetPath } from '@/lib/inline-issue/resolve-target';
 import { siblingCriteria } from '@/lib/inline-issue/dimension-criteria';
 import { buildSuppressionNotice } from './suppression-notice';
 
@@ -66,8 +67,16 @@ export type UseInlineIssueControllerOptions = {
 };
 
 export type TriggerInput = {
-  /** EditableText path the user clicked from. */
-  path: string;
+  /**
+   * EditableText path the user clicked from.
+   *
+   * OPTIONAL, and that is the point: a dimension-bar or skill-chip
+   * click says WHICH CRITERION, and the server's `matchBreakdown` says
+   * WHICH LEAF. Only an inline issue — the user clicking a specific
+   * bullet in the editor — supplies a path, because then the leaf IS
+   * the target.
+   */
+  path?: string;
   /** Sub-criterion the user clicked. */
   criterion: SubCriterionKey;
 };
@@ -117,13 +126,12 @@ export function useInlineIssueController({
   const trigger = React.useCallback(
     ({ path, criterion }: TriggerInput) => {
       // Path resolution precedence:
-      //   1. Use the `path` arg if provided (caller chose).
-      //   2. Else look up `matchBreakdown` for this criterion.
+      //   1. Use the `path` arg if provided (the user clicked a leaf).
+      //   2. Else look up `matchBreakdown` for this criterion — the
+      //      server's per-criterion target, which points at the bullet
+      //      the ADVICE NAMES.
       //   3. Else fall back to `defaultPathForCriterion(criterion)`.
-      const resolvedPath =
-        path ??
-        resolvePathFromBreakdown(matchBreakdown, criterion) ??
-        defaultPathForCriterion(criterion);
+      const resolvedPath = resolveTargetPath(matchBreakdown, criterion, path);
       const text = readLeafText(resolvedPath);
       const target = mapPathToSection(resolvedPath, criterion);
       setActive({
