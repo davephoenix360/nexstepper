@@ -32,6 +32,21 @@ export {
 } from './similarity';
 export type { ResumeTextSource, JobTextSource, TokenSet } from './similarity';
 
+// The sub-criteria behind each dimension — one canonical map, shared by
+// the scorecard drill-down and the chat agent.
+export {
+  CRITERION_DIMENSIONS,
+  criterionRows,
+  weakestCriterionOf,
+  weakestMeasuredCriterion
+} from './criteria';
+export type {
+  CriterionName,
+  CriterionDimension,
+  CriterionMeasurement,
+  CriterionRow
+} from './criteria';
+
 // Dictionaries (re-exported for tests that need to assert dictionary
 // contents + for future features that want to extend them).
 export {

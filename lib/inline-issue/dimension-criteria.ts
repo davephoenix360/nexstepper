@@ -24,7 +24,17 @@
  * clicked. The inline tip in the editor still shows the one you
  * clicked; the popover is where the rewrite happens, so that is where
  * the full picture belongs.
+ *
+ * ## One map, two surfaces
+ *
+ * The chat agent needs the same mapping ("which sub-criterion of
+ * which dimension is the weakest?"), so the map itself now lives in
+ * `lib/scoring/criteria.ts` — the scoring domain — and this file
+ * re-exports it. Two hand-written maps would drift, and a drifted map
+ * means the chat agent answers "your weakest thing is in the Impact
+ * dimension" while the scorecard opens a different bar.
  */
+import { CRITERION_DIMENSIONS } from '@/lib/scoring/criteria';
 import type { SubCriterionKey } from './types';
 
 /**
@@ -33,20 +43,8 @@ import type { SubCriterionKey } from './types';
  * The dimension labels are the scorecard's own — the same strings the
  * bars carry.
  */
-export const CRITERION_TO_DIMENSION: Record<SubCriterionKey, string> = {
-  'ATS Keyword Match': 'Keywords',
-  'ATS Similarity': 'Keywords',
-  'Section Completeness': 'Format',
-  'Optimal Length': 'Format',
-  'Accomplishment Focus': 'Impact',
-  'Action Verb Usage': 'Impact',
-  Tailoring: 'Experience match',
-  'Unique Value': 'Experience match',
-  'Soft Skills': 'Experience match',
-  'Intent Coverage': 'Intent coverage',
-  'Role Fit': 'Role fit',
-  'Seniority Fit': 'Seniority fit'
-};
+export const CRITERION_TO_DIMENSION: Record<SubCriterionKey, string> =
+  CRITERION_DIMENSIONS;
 
 /**
  * Every criterion in the dimension the clicked one belongs to.

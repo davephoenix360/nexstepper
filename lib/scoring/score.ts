@@ -246,6 +246,32 @@ export type ScoreBreakdown = {
     fallback: boolean;
   };
   /**
+   * The Role Fit dimension's own numbers — the title similarity it
+   * measured, and the fallback flag.
+   *
+   * Carried for the same reason `seniorityFit` is: **a criterion
+   * whose number is the engine's neutral default is not a measured
+   * weakness.** With no JD title (or no resume title) to compare
+   * against, Role Fit returns 50 — a value that looks like a
+   * mediocre score but means "we could not measure this". A reader
+   * without this block cannot tell "measured 50" from "could not
+   * measure", and would send the candidate to fix something that is
+   * not broken.
+   *
+   * Optional because score snapshots are PERSISTED — a snapshot
+   * written before this field existed has none. Consumers read it as
+   * `breakdown.roleFit ?? null`.
+   */
+  roleFit?: {
+    /**
+     * Cosine similarity between the JD title and the best-matching
+     * resume title, in [0, 1]. Null when no comparison was possible.
+     */
+    similarity: number | null;
+    /** True when there was no usable title signal. */
+    fallback: boolean;
+  };
+  /**
    * The JD's genuine requirements, as measured by Jev, and which of them
    * the resume does not evidence.
    *
@@ -682,6 +708,10 @@ export function scoreResume(
       jdYearsMin: seniorityFitBreakdown.jdYearsMin,
       gap: seniorityFitBreakdown.gap,
       fallback: seniorityFitBreakdown.fallback
+    },
+    roleFit: {
+      similarity: roleFitBreakdown.similarity,
+      fallback: roleFitBreakdown.fallback
     },
     ...(jevFit && jevRequirements?.evaluation
       ? {

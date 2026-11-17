@@ -29,6 +29,7 @@
     "probe:length-drift": "tsx --conditions=react-server scripts/probe-length-drift.ts",
     "probe:jd-requirements": "tsx --conditions=react-server scripts/probe-jd-requirements-reach.ts",
     "probe:rewrite-target": "tsx --conditions=react-server scripts/probe-rewrite-target.ts",
+    "probe:chat-weakest-criterion": "tsx --conditions=react-server scripts/probe-chat-weakest-criterion.ts",
     "probe:jev-fixture-drift": "tsx --conditions=react-server scripts/refresh-jev-fixture.ts --check",
     "refresh:jev-fixture": "tsx --conditions=react-server scripts/refresh-jev-fixture.ts",
     "diagnose:prod-score": "tsx --conditions=react-server scripts/diagnose-prod-score.ts",

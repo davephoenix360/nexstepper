@@ -179,6 +179,37 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The chat agent could not name the weakest sub-criterion — it had
+  never been told** — The founder asked whether the AI chat sees all
+  the ATS scoring dimensions. It saw the **seven dimension numbers**
+  and nothing below them, while the scorecard's advice is keyed by
+  **criterion** — so a candidate asking "what exactly is weak here?"
+  got *"your Impact score is 77"* and nothing more, while the
+  scorecard beside it named the exact bullets to change. The
+  sub-criterion scores are now in the agent's context (the system
+  prompt **and** the `getAtsScore` tool, through one renderer), and
+  the block states the weakest measured sub-criterion. **The part that
+  is easy to get wrong: three of the twelve criteria can return the
+  engine's neutral default (50) instead of a measurement** — Intent
+  Coverage when v2 intent extraction did not run, Role Fit with no
+  title to compare, Seniority Fit with no years signal. 50 looks like
+  a mediocre score; it is a non-measurement, and ranking by it would
+  send the candidate to fix something that is not broken. So every
+  criterion row now carries a **measurement status**, the weakest is
+  chosen only among the rows that were genuinely measured, and
+  `ScoreBreakdown` carries a `roleFit` block (similarity + fallback
+  flag) so the status is exact for new snapshots. One canonical
+  criterion → dimension map now lives in `lib/scoring/criteria.ts`
+  (re-exported by the inline-issue module). **Verified against the
+  real chat model, on real resumes and real persisted snapshots**
+  (`pnpm probe:chat-weakest-criterion`, SELECT only): on the founder's
+  **91** the engine's weakest is **Soft Skills (17/100)** and the agent
+  named Soft Skills, quoted the scorecard's advice for it, and agreed
+  with the "Start here" line; on the variants it named **Tailoring
+  (0)**; and it never blamed a criterion that could not be measured.
+  Drift memo:
+  `docs/drift/2026-11-17-chat-agent-could-not-name-the-weakest-sub-criterion.md`.
+
 - **"Rewrite with AI" never opened — one wrong path spelling broke the
   whole surface** — The founder reported that clicking the AI-rewrite
   control beside a score dimension *"doesn't actually rewrite with
@@ -2924,6 +2955,49 @@ production runs) got slightly better on both correlation and MAE.
 **The generalisation:** when you find a branch that is always skipped,
 check whether the thing it measures is measured somewhere else before
 you wire it up.
+
+### 14. If the advice is keyed by X, the model must be given X — and a 50 can mean "could not measure"
+
+The scorecard shows SEVEN dimension bars; each bar is made of TWELVE
+sub-criteria. The chat agent's context carried the seven dimension
+numbers and **no criterion scores** — so when a candidate asked "what
+exactly is weak here?", the agent could answer *"your Impact score is
+77"* and nothing more. The advice the scorecard shows is keyed by
+**criterion** ("Accomplishment Focus: …"), so the advice was in the
+prompt but unreachable: the agent had no number to attach it to.
+
+Three of the twelve criteria can return the engine's **neutral default
+(50)** instead of a measurement — Intent Coverage when v2 intent
+extraction did not run, Role Fit when there was no title to compare,
+Seniority Fit when there was no years signal. 50 looks like a
+mediocre score; it is a **non-measurement**. Ranking by the number
+would send the candidate to fix something that is not broken — the
+same class of bug as the neutral 50 three dimensions used to return.
+
+So `lib/scoring/criteria.ts` owns ONE canonical criterion → dimension
+map (re-exported by `lib/inline-issue/dimension-criteria.ts`), every
+criterion row carries a **measurement status**, and the weakest
+sub-criterion is chosen only among the rows that were genuinely
+measured. `ScoreBreakdown` now carries a `roleFit` block (similarity
++ fallback flag) so the status is exact for new snapshots; for older
+ones, a reading that is exactly the neutral constant with no signal
+recorded **is** the neutral constant.
+
+**The generalisation:** a number that means "could not measure" is not
+a number that means "measured badly" — and a model cannot rank what
+it was never given. Check the granularity of what the advice is
+keyed by against the granularity of what the model is shown.
+
+**And the verification is the model's answer, not the prompt's
+contents.** `pnpm probe:chat-weakest-criterion` asks the real chat
+model, against real resumes and real persisted snapshots (SELECT
+only, no tools), and asserts the answer names the engine's own
+weakest criterion. On production it named **Soft Skills (17/100)** on
+the founder's 91 — and did not blame a criterion that could not be
+measured. The offline half is
+`tests/unit/chat/ats-criteria.test.ts` +
+`tests/unit/scoring/criteria.test.ts`; the full-prompt half is
+`tests/unit/ai/weakest-criterion-probe.test.ts` (`RUN_AI_PROBE=1`).
 
 ## Folder structure (current + planned)
 
