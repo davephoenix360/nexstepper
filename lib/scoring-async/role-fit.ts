@@ -181,23 +181,51 @@ export async function roleFitSimilarity(
 }
 
 /**
- * Collect every work-experience title from the resume envelope
- * (each company has 1+ positions). Duplicates are de-duplicated
- * case-insensitively to avoid redundant model calls. Same titles
- * across companies (e.g. "Software Engineer" at 3 startups) collapse
- * to a single embedding.
+ * Collect every title from the resume envelope.
+ *
+ * ## Why the headline is in here
+ *
+ * This used to collect **work position titles only**, and that made the
+ * dimension measure the candidate's *history* rather than their *pitch*.
+ *
+ * Measured with `pnpm probe:role-fit-titles`, against a JD titled
+ * "Senior Backend Engineer":
+ *
+ *   headline "Senior Backend Engineer", work titles "Data Analyst" → 65
+ *   headline "Data Analyst", work titles "Senior Backend Engineer" → 100
+ *
+ * So a candidate whose headline matched the role exactly scored 65, while
+ * one whose *old job title* matched scored 100. The headline
+ * (`basics.label`) is the most targeted line on a resume — it is the one
+ * the candidate edited for this application — and the dimension that
+ * measures title fit ignored it.
+ *
+ * It IS in the ATS keyword blob (`lib/scoring/similarity.ts`), so the two
+ * dimensions were reading different titles. Now they read the same set.
+ *
+ * Duplicates are de-duplicated case-insensitively to avoid redundant
+ * model calls. Same titles across companies (e.g. "Software Engineer" at
+ * 3 startups) collapse to a single embedding.
  */
 function collectResumeTitles(resume: ResumeData): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
+  const push = (value: string | undefined | null): void => {
+    const title = (value ?? '').trim();
+    if (!title) return;
+    const key = title.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(title);
+  };
+
+  // The headline first — it is the candidate's own statement of what
+  // they are applying for, so it is the best single signal available.
+  push(resume.sections.basics.label);
+
   for (const company of resume.sections.work) {
     for (const pos of company.positions) {
-      const t = (pos.title ?? '').trim();
-      if (!t) continue;
-      const key = t.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(t);
+      push(pos.title);
     }
   }
   return out;

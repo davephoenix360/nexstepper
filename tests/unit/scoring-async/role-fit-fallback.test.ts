@@ -144,7 +144,10 @@ describe('roleFitSimilarity', () => {
   it('returns the neutral score when the resume has no work titles', async () => {
     const noTitles = resumeDataSchema.parse({
       sections: {
-        basics: RESUME.sections.basics,
+        // The headline is cleared too — a headline IS a title signal now
+        // (see "compares against the headline" below), so leaving it in
+        // would give this resume a title to match.
+        basics: { ...RESUME.sections.basics, label: '' },
         work: [
           {
             company: 'Acme',
@@ -166,6 +169,68 @@ describe('roleFitSimilarity', () => {
 
     expect(result.value).toBe(NEUTRAL_ROLE_FIT_SCORE);
     expect(result.fallback).toBe(true);
+  });
+
+  it('compares against the headline as well as the work titles', async () => {
+    // ## The bug this pins
+    //
+    // Role Fit collected **work position titles only**. The headline
+    // (`basics.label`) — the line the candidate edited for THIS
+    // application — was ignored by the one dimension that measures title
+    // fit, even though it was in the ATS keyword blob.
+    //
+    // Measured against a JD titled "Senior Backend Engineer":
+    //
+    //   headline "Senior Backend Engineer", work titles "Data Analyst" → 65
+    //   headline "Data Analyst", work titles "Senior Backend Engineer" → 100
+    //
+    // The candidate whose headline matched exactly scored LOWER.
+    const headlineOnly = resumeDataSchema.parse({
+      sections: {
+        basics: { ...RESUME.sections.basics, label: 'Staff Platform Engineer' },
+        work: [
+          {
+            company: 'Acme',
+            location: '',
+            url: '',
+            description: '',
+            positions: [
+              {
+                title: 'Data Analyst',
+                startDate: '',
+                endDate: '',
+                highlights: []
+              }
+            ]
+          }
+        ]
+      }
+    });
+
+    const result = await roleFitSimilarity(
+      headlineOnly,
+      job({ title: 'Staff Platform Engineer', roleFamily: 'Backend Engineer' })
+    );
+
+    expect(semanticSimilarity).toHaveBeenCalledWith(
+      'Staff Platform Engineer',
+      'Staff Platform Engineer'
+    );
+    expect(result.bestMatchingTitle).toBe('Staff Platform Engineer');
+    expect(result.fallback).toBe(false);
+  });
+
+  it('does not compare the headline twice when it repeats a work title', async () => {
+    // `RESUME` has the same string in both places. One embedding, not two.
+    await roleFitSimilarity(
+      RESUME,
+      job({ title: 'Staff Platform Engineer', roleFamily: 'Backend Engineer' })
+    );
+
+    const calls = semanticSimilarity.mock.calls.filter(
+      (call) => call[0] === 'Senior Software Engineer'
+    );
+    expect(calls).toHaveLength(1);
   });
 
   it('degrades to the neutral score when the model call throws', async () => {
