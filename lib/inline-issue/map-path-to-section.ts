@@ -210,24 +210,40 @@ function pathMatchesPrefix(cleanPath: string, prefix: string): boolean {
 }
 
 /**
- * Extract `[N]` from the last *bullet-like* `[N]` segment of the
- * path. A "bullet-like" array is one whose elements are
- * independent rows we can attach a popover to: `highlights`,
- * `responsibilities`, `achievements`, `keywords`.
+ * Extract the index of the last *bullet-like* indexed segment of the
+ * path. A "bullet-like" array is one whose elements are independent
+ * rows we can attach a popover to: `highlights`, `responsibilities`,
+ * `achievements`, `keywords`.
  *
- * Returns `null` for paths where the LAST indexed segment is
- * not a bullet field (e.g. `sections.education[0].degree` is
- * the degree field of education entry 0, NOT a bullet).
+ * Handles BOTH spellings:
  *
- * Returns `null` for paths like `sections.work[0]` (the whole
- * work entry, not a single bullet inside it).
+ *   sections.work.0.positions.0.highlights.0    (dotted — what the
+ *                                                editor actually renders)
+ *   sections.work[0].positions[0].highlights[0] (bracketed — the
+ *                                                JSON-Resume spelling)
+ *
+ * The dotted form is the one that matters. The editor binds
+ * `data-testid="editable-{path}"` with DOTS, so a dotted path is the
+ * only one that resolves to a real element. This used to match the
+ * bracketed form only, which meant the popover opened with
+ * `bulletIndex: null` for every real path — the bullet it was about to
+ * rewrite was not highlighted, and the user could not tell which line
+ * the rewrite would replace.
+ *
+ * Returns `null` for paths where the LAST indexed segment is not a
+ * bullet field (e.g. `sections.education.0.degree` is the degree field
+ * of education entry 0, NOT a bullet).
+ *
+ * Returns `null` for paths like `sections.work.0` (the whole work
+ * entry, not a single bullet inside it).
  */
 function extractBulletIndex(path: string): number | null {
-  const matches = [...path.matchAll(/\.([a-zA-Z_]+)\[(\d+)\]/g)];
+  // `.field[N]` or `.field.N` — the last such segment wins.
+  const matches = [...path.matchAll(/\.([a-zA-Z_]+)(?:\[(\d+)\]|\.(\d+))/g)];
   if (matches.length === 0) return null;
   const last = matches[matches.length - 1];
   const field = last[1];
-  const index = Number(last[2]);
+  const index = Number(last[2] ?? last[3]);
   if (Number.isNaN(index)) return null;
   // Only bullet-shaped arrays produce a useful bulletIndex.
   if (!BULLET_ARRAY_FIELDS.has(field)) return null;

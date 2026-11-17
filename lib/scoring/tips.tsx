@@ -40,7 +40,7 @@
 import type { ReactNode } from 'react';
 import type { JobPosting, ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from './score';
-import { SOFT_SKILLS, STOP_WORDS, WEAK_VERBS } from './dictionaries';
+import { SOFT_SKILLS, SOFT_SKILL_VARIANTS, STOP_WORDS, WEAK_VERBS } from './dictionaries';
 import { jobTokensWithoutStopWords as sharedJobTokensWithoutStopWords } from './jd-tokens';
 import { flattenResumeText } from './similarity';
 import { resumeDataToScoreable } from './resume-adapter';
@@ -366,7 +366,21 @@ export function buildDynamicTips(
 
   if (SOFT_SKILLS.length > 0) {
     const haystack = resumeText.toLowerCase();
-    const missingSoftSkills = SOFT_SKILLS.filter((s) => !haystack.includes(s));
+    // The same variant-aware matcher the SCORE uses
+    // (`lib/scoring/dimensions/alignment.ts`). It used to be a literal
+    // `haystack.includes(phrase)` — so a resume that wrote
+    // "collaboration" was told it was missing "collaborated", and a
+    // resume that wrote "mentored" was told it was missing
+    // "mentorship". The tip and the score disagreed, on screen
+    // together, and the advice was the kind you least want to act on:
+    // adding a skill the candidate demonstrably has.
+    //
+    // Same rule as everywhere else in this codebase: the tip reads the
+    // score's answer.
+    const missingSoftSkills = SOFT_SKILLS.filter((s) => {
+      const forms = SOFT_SKILL_VARIANTS[s] ?? [s];
+      return !forms.some((form) => haystack.includes(form));
+    });
     if (missingSoftSkills.length > 0 && missingSoftSkills.length < SOFT_SKILLS.length) {
       const list = missingSoftSkills.slice(0, MAX_SOFT_SKILLS_IN_TIP);
       out['Soft Skills'] = (

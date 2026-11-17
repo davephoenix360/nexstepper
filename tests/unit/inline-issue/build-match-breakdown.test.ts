@@ -93,23 +93,25 @@ describe('buildMatchBreakdown', () => {
     expect(gapRows.some((r) => r.criterion === 'ATS Coverage')).toBe(true);
   });
 
-  it('Seniority Fit row points at the position title path (non-bullet)', () => {
+  it('Seniority Fit row points at the summary path', () => {
+    // Seniority Fit's fix is to call out adjacent experience, which is
+    // a summary's job — not a job title's.
     const rows = buildMatchBreakdown(SAMPLE_BREAKDOWN);
     const seniority = rows.find((r) => r.criterion === 'Seniority Fit');
     expect(seniority).toBeDefined();
-    expect(seniority?.path).toBe('sections.work[0].positions[0].title');
+    expect(seniority?.path).toBe('sections.basics.summary');
   });
 
   it('Section Completeness row also points at the position title', () => {
     const rows = buildMatchBreakdown(SAMPLE_BREAKDOWN);
     const sc = rows.find((r) => r.criterion === 'Section Completeness');
-    expect(sc?.path).toBe('sections.work[0].positions[0].title');
+    expect(sc?.path).toBe('sections.work.0.positions.0.title');
   });
 
   it('bullet-row criteria point at the first work bullet (with positions[0])', () => {
     const rows = buildMatchBreakdown(SAMPLE_BREAKDOWN);
     const ats = rows.find((r) => r.criterion === 'ATS Coverage');
-    expect(ats?.path).toBe('sections.work[0].positions[0].highlights[0]');
+    expect(ats?.path).toBe('sections.work.0.positions.0.highlights.0');
   });
 
   it('is deterministic — same input produces same output', () => {
@@ -125,7 +127,7 @@ describe('maybeAppendSkillGapEntry', () => {
     const withGap = maybeAppendSkillGapEntry(base, SAMPLE_BREAKDOWN);
     expect(withGap.length).toBe(base.length + 1);
     const gap = withGap.find(
-      (r) => r.path === 'sections.skills[0].keywords[0]'
+      (r) => r.path === 'sections.skills.0.keywords.0'
     );
     expect(gap).toBeDefined();
     expect(gap?.criterion).toBe('Intent Coverage');

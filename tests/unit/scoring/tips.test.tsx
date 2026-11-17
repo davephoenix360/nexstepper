@@ -904,6 +904,66 @@ describe('buildDynamicTips — alignment criteria', () => {
     expect(html).toContain('Your resume is missing');
     expect(html).toMatch(/<strong>[^<]+<\/strong>/);
   });
+
+  it('does not tell a candidate to add a soft skill they already show', () => {
+    // ## The bug this pins
+    //
+    // The tip used a LITERAL `haystack.includes(phrase)` check, while
+    // the SCORE used the variant-aware matcher. So a resume that wrote
+    // "collaboration" was told it was missing "collaborated", and one
+    // that wrote "mentored" was told it was missing "mentorship".
+    //
+    // That is the advice you least want to act on — adding a skill the
+    // candidate demonstrably has — and it contradicted the number next
+    // to it. The same rule as everywhere else here: the tip reads the
+    // score's answer.
+    const resume = makeResume({
+      sections: {
+        basics: {
+          name: 'Jane',
+          label: '',
+          email: '',
+          phone: '',
+          url: '',
+          summary: 'Deep collaboration and mentoring across the org.',
+          location: {
+            address: '',
+            postalCode: '',
+            city: '',
+            countryCode: '',
+            region: ''
+          },
+          profiles: []
+        },
+        work: [
+          {
+            company: 'Acme',
+            location: '',
+            url: '',
+            description: '',
+            positions: [
+              {
+                title: 'Engineer',
+                startDate: '',
+                endDate: '',
+                highlights: ['Built things with the team']
+              }
+            ]
+          }
+        ],
+        skills: [],
+        education: []
+      }
+    });
+
+    const tips = buildDynamicTips(makeBreakdown(), resume, null);
+    const html = tips['Soft Skills'] ? renderTip(tips['Soft Skills']!) : '';
+
+    // "collaboration" and "mentoring" are present in a natural
+    // inflection — neither may be listed as missing.
+    expect(html).not.toContain('collaborated');
+    expect(html).not.toContain('mentorship');
+  });
 });
 
 // ---------------------------------------------------------------------------

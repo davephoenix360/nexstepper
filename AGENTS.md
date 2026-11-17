@@ -147,9 +147,15 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `aff73af` **pushed**; the scoring-field
-audit and its seven fixes (`08c1071` … `abc664c`) are **local and not
-pushed** as of **2026-11-17**.
+**Now (in flight)** — `main` is at `9f1a09d` **pushed and deployed** as of
+**2026-11-17**. The scoring-field audit and its fixes (`08c1071` …
+`9f1a09d`) are live: CI green, the production deploy is Ready, and
+`www.nexstepper.com` serves. The founder's own production resume
+reads **79** on the last stored snapshot and **83** on this checkout —
+every delta is one of these fixes, and it will land when the variant is
+next recomputed. **The next piece of work is the COMMUNICATION pass**
+(the scorecard tells a candidate what a score means and what to do about
+it), not more scoring.
 **Production is LIVE.** All §11 boxes are checked: Vercel deployed,
 **two separate Neon projects** (one prod, one dev — *not* one project
 with branches), migrations `0000`–`0013` applied,
@@ -172,6 +178,31 @@ plan. Drift memo:
 > so to the user; it was wrong.
 
 **Recently shipped (for context, last 7 days)**
+
+- **"Rewrite with AI" never opened — one wrong path spelling broke the
+  whole surface** — The founder reported that clicking the AI-rewrite
+  control beside a score dimension *"doesn't actually rewrite with
+  AI"*. It didn't: the editor binds every field with a **dotted** path
+  (`sections.work.0.positions.0.highlights.0`) and renders
+  `data-testid="editable-{path}"`, while the inline-issue surface
+  emitted the **bracketed** JSON-Resume spelling
+  (`sections.work[0].positions[0].highlights[0]`) that no template
+  renders. So the popover never opened, the user was told *"the bullet
+  here is empty"* about a bullet that was full, and `form.setValue`
+  would not have matched the RHF field either — **three breakages from
+  one wrong spelling**, on every dimension bar. Underneath it, the
+  mapping was wrong too: almost every criterion pointed at the first
+  work bullet, including the ones that read the **summary** (Tailoring)
+  and the **headline** (Role Fit) — so the bar rewrote a bullet while
+  the number beside it was computed from somewhere else. Each criterion
+  now points at the leaf it measures, `extractBulletIndex` reads both
+  spellings (so the popover highlights the right bullet), and
+  `tests/unit/inline-issue/criterion-paths.test.tsx` renders a REAL
+  template and asserts the paths exist — the test that would have
+  caught it. The soft-skills **tip** had the same class of bug (a
+  literal match against a variant-aware score), so a candidate who
+  wrote "collaboration" was told to add "collaborated". Drift memo:
+  `docs/drift/2026-11-17-rewrite-with-ai-never-opened.md`.
 
 - **The scoring engine's accuracy is now MEASURED, and the audit found a
   broken matcher** — The founder asked to focus on making the scoring
@@ -2732,6 +2763,44 @@ shift −0.24 points). The Jev path is separately pinned offline
 scorer is the MOST accurate variant, and the one least directly
 exercised. Keep it that way: measure the production path, not just the
 library behind it.
+
+### 13. Two surfaces that must agree — assert the agreement, in a test that renders the real thing
+
+This codebase keeps finding the same shape of bug in a new costume:
+**two surfaces that must agree, carrying separate lists.**
+
+| Pair | The two lists | How it drifted |
+|---|---|---|
+| the schema and the scorer | `lib/resume-schema` vs the narrow `ResumeTextSource` | 41 of 51 fields invisible to the score |
+| the score and its tip | the variant-aware matcher vs a literal one | the tip said "add collaboration" to someone who wrote "collaboration" |
+| the editor and the inline-issue surface | the paths the templates BIND vs the paths the surface EMITS | **the popover never opened** |
+
+The third one is worth reading twice, because it was the user's
+report: *"the rewrite with AI that we put beside the score dimensions.
+Even clicking that doesn't actually rewrite with AI."*
+
+The editor binds every field with a **dotted** path
+(`sections.work.0.positions.0.highlights.0`) and renders
+`data-testid="editable-{path}"`. The inline-issue surface emitted the
+**bracketed** JSON-Resume spelling
+(`sections.work[0].positions[0].highlights[0]`), which no template
+renders. So `readLeafText` found nothing, the popover never opened,
+the user was told *"The bullet here is empty"* about a bullet that was
+full, and `form.setValue(path, …)` would not have matched the RHF
+field either — **three breakages from one wrong spelling.**
+
+**The rule:** *a path is only useful if the editor renders exactly that
+testid.* A test that pins a function's return value only pins the
+function — it cannot see that the consumer wants a different spelling.
+`tests/unit/inline-issue/criterion-paths.test.tsx` renders a REAL
+template and asserts the paths exist in the DOM. That test fails on
+the old spelling.
+
+**And the target must be the leaf the thing measures.** Rewriting a
+work bullet cannot move a dimension that reads the headline. Each
+criterion now points at the leaf it reads: Tailoring and Seniority Fit
+→ the summary, Role Fit → the headline, the skill criteria → the
+skills block.
 
 ## Folder structure (current + planned)
 
