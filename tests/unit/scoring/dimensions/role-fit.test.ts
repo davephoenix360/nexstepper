@@ -148,14 +148,48 @@ describe('roleFitSimilarity — async wrapper', () => {
   });
 
   it('returns neutral when resume has no work titles', async () => {
+    // The headline is cleared too — a headline IS a title signal now
+    // (the dimension compares the candidate's own statement of what they
+    // are applying for), so leaving it in would give this resume a title
+    // to match and the neutral fallback would not fire.
     const result = await roleFitSimilarity(
       makeResume({
-        sections: { work: [], basics: { ...makeResume().sections.basics } }
+        sections: {
+          work: [],
+          basics: { ...makeResume().sections.basics, label: '' }
+        }
       }),
       makeJob({ title: 'Senior Engineer' })
     );
     expect(result.fallback).toBe(true);
     expect(result.value).toBe(NEUTRAL_ROLE_FIT_SCORE);
+  });
+
+  it('compares the headline even when there are no work titles', async () => {
+    // ## The bug this pins
+    //
+    // Role Fit collected work position titles only, so a candidate whose
+    // HEADLINE matched the role — and who had no work history the
+    // dimension could see — was measured as if they had no title at all.
+    const mockedSimilarity = vi.spyOn(semanticSimilarityModule, 'semanticSimilarity');
+    mockedSimilarity.mockResolvedValueOnce(0.95);
+
+    const result = await roleFitSimilarity(
+      makeResume({
+        sections: {
+          work: [],
+          basics: { ...makeResume().sections.basics, label: 'Senior Backend Engineer' }
+        }
+      }),
+      makeJob({ title: 'Senior Backend Engineer' })
+    );
+
+    expect(mockedSimilarity).toHaveBeenCalledWith(
+      'Senior Backend Engineer',
+      'Senior Backend Engineer'
+    );
+    expect(result.fallback).toBe(false);
+    expect(result.bestMatchingTitle).toBe('Senior Backend Engineer');
   });
 
   it('returns the maximum similarity across all work titles', async () => {

@@ -181,7 +181,7 @@ refresh.
 │  │ Action bar:               │  │ <ScorecardPanel />      │ │
 │  │   [Share] [PDF] [Optimize]│  │   (THIS PLAN)           │ │
 │  │                           │  │                         │ │
-│  │ <EditableResume />        │  │   Overall: 78 / 100     │ │
+│  │ <EditableResume />        │  │   Overall: 79 / 100     │ │
 │  │                           │  │   ▮▮▮▮▮▮▮▮▯▯ Matching   │ │
 │  │ [Save]                    │  │   ▮▮▮▮▮▮▯▯▯▯ Structure │ │
 │  │                           │  │   ...                   │ │

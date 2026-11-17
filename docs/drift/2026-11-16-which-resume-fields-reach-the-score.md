@@ -255,37 +255,143 @@ at all**. Measured: the gates produced nothing until they were moved into
   cases are the ones that are *wrong*, not the ones that are merely
   absent** — findings 1 to 3 above.
 
-## Action items (tiers — the founder picks the tier)
+---
 
-| Tier | Item | Effort |
+# RESOLVED — 2026-11-17
+
+The founder said *"now lets address all the things mentioned"*. All seven
+items above are closed, in seven commits (`08c1071` … `abc664c`).
+
+## What changed, and what it cost
+
+| Fix | Before | After |
 |---|---|---|
-| **P0** | Certification note must consult `sections.certificates` and stop asserting a falsehood | small |
-| **P1** | Exclude the JD's location tokens from the JD vocabulary (or make location readable) — closes the Edmonton bug on the score side | small |
-| **P1** | Add `basics.label` to Role Fit's title set | small |
-| **P2** | Wire the envelope-aware Intent Coverage flattener into production (or delete it and fix the comment) | medium |
-| **P2** | Detect eligibility gates in `job.requirements` as well as the skill lists | medium |
-| **P3** | Decide, deliberately, whether certificates / languages / education courses should count — and write down the answer | design |
-| **P3** | Consider whether "Unique Value" should count projects rather than test for their presence | small |
+| **P0** certification note | "Your resume does not list one" — said to a candidate holding the exact certification | "Your resume lists a matching certification (AWS Solutions Architect Associate)." |
+| **P1** Role Fit | headline "Senior Backend Engineer" + work titles "Data Analyst" → **65** | → **100** (the headline is compared first) |
+| **P1** the JD's own city | candidate in San Francisco lost **2 keyword points** for the job naming its own city | no charge; the JD's location tokens are excluded from the vocabulary, and the candidate's city is evidence |
+| **P2** eligibility vocabulary | a candidate WITH a bachelor's degree **lost 1.91 points** because the JD stated a degree requirement | **gained 1.60 points** — the major is evidence now |
+| **P2** Intent Coverage flattener | the envelope-aware copy was reachable only from the tests | one flattener; production reads what the comment described |
+| **P3** certificates / languages / courses | invisible to the score | readable |
+| **P3** "Unique Value" | presence of a section | substance of an entry |
+
+**And the structural fix underneath them all:** there were **five** copies
+of "the resume's text" — the keyword score, the BM25 signal, the semantic
+signal, the word count and the tip — and they were not equal to each
+other. There is now **one** (`lib/scoring/similarity.ts`), and the resume
+adapter had three copies and now has one
+(`lib/scoring/resume-adapter.ts`).
+
+## The field list, after
+
+### Read, and weighted
+
+| Field | Δ overall |
+|---|---|
+| `basics.summary`, `basics.label` | +3.00 each |
+| `basics.location.city`, `.region` | +1.5 to +3 |
+| `skills[].name`, `skills[].keywords[]` | +3.00 each |
+| `work[].description`, `work[].positions[].title` | +3.00 each |
+| `work[].positions[].highlights[]` | +2.00 |
+| `projects[].name`, `.description`, `.highlights[]`, `.keywords[]`, `.roles[]` | +3.00 each |
+| `education[].degree.degreeLevel`, `.majors[]`, `.minors[]`, `education[].courses[]` | +3.00 each |
+| `certificates[].name` | +3.00 |
+| `languages[].language` | +3.00 |
+| `volunteer[].position`, `.summary`, `.highlights[]` | +3.00 each |
+| `awards[].title`, `.summary` | +3.00 each |
+| `publications[].name`, `.summary` | +3.00 each |
+
+**26 of the 51 probed fields now move the score** — up from 10.
+
+### Still ignored — 25 fields, and why
+
+```
+basics.name, basics.email, basics.phone, basics.url
+basics.location.address, .postalCode, .countryCode
+basics.profiles[].username
+work[].company, work[].location, work[].url
+skills[].level
+education[].institution, .location, .gpa, .url
+volunteer[].organization
+awards[].awarder
+certificates[].issuer
+languages[].fluency
+interests[].name, .keywords[]
+references[].name, .reference
+```
+
+The rule these follow: **a field earns its place by being evidence a JD
+can ask for.** Contact details, proper nouns (an employer, a university,
+an awarder), numbers (a GPA), links and self-assessments ("Expert") are
+not evidence. `interests` and `references` are noise for an ATS score.
+That is a decision, not an oversight.
+
+**Two deliberate non-changes:**
+
+- **The company name is NOT excluded from the JD's keyword vocabulary.**
+  A company name is usually boilerplate ("About Cartwheel: we build…"),
+  so excluding it would be right — but the same string is often a
+  technology (**Stripe, Shopify, Datadog**), and removing it would
+  silently drop a real skill. Left as-is, and the cost is ~0.1 points.
+- **`certificates[].issuer` and `languages[].fluency` stay out.** The
+  certificate's NAME carries the credential ("AWS Solutions Architect
+  Associate"); the issuer is the vendor, and "Fluent" is a
+  self-assessment.
+
+### Still by presence only
+
+- `education[]` — the array being non-empty (worth 1 point of Format).
+  Its CONTENT now counts elsewhere (majors, courses, degree level).
+- `awards[]` / `publications[]` / `projects[]` — the "Unique Value"
+  sub-criterion is still binary. Deliberate: it measures
+  *distinctiveness*, not quantity, and rewarding count would reward
+  padding.
+
+## The demo fixture moved
+
+`pnpm measure:demo-score`, the shipped engine, the real seeded fixture:
+
+| | Overall | Keywords | Format | Impact | Experience match | Intent | Role fit | Seniority |
+|---|---|---|---|---|---|---|---|---|
+| Before (audit) | **78** | 68 | 82 | 74 | 69 | 90 | 84 | 100 |
+| After (audit) | **79** | 71 | 82 | 74 | 69 | 90 | 84 | 100 |
+| Before (now) | **79** | 71 | 86 | 74 | 69 | 90 | 84 | 100 |
+| After (now) | **80** | 74 | 86 | 74 | 69 | 90 | 84 | 100 |
+
+The second posting (Northwind Supply, the refusal beat) moved **57 → 60**.
+
+`docs/plans/demo-video.md` and `docs/brag-output/brag-plan.md` quote the
+older numbers and have to be re-measured before the shoot.
 
 ## How to reproduce
 
 ```bash
-pnpm probe:field-coverage      # the 51-field table + sections + dates + eligibility + city
-pnpm probe:role-fit-titles     # Role Fit's title set (needs the MiniLM model)
+pnpm probe:field-coverage         # the 51-field table + sections + dates + eligibility + city
+pnpm probe:role-fit-titles        # Role Fit's title set (needs the MiniLM model)
+pnpm probe:eligibility-vocabulary # the degree-gate charge
+pnpm measure:demo-score           # the demo fixture before/after
 ```
 
-Both are offline and write nothing.
+All four are offline and write nothing.
 
-## The lesson (added to AGENTS.md as a recurring trap)
+## The lesson, now a trap in AGENTS.md
 
 **A field's presence in the schema is not evidence that the engine reads
-it.** Probe it: plant a marker in one field, re-score, and see whether the
-number moves. The reason this codebase keeps finding these is that the
-*schema* (`lib/resume-schema`) and the *scorer* (`lib/scoring`) are separate
-packages with separate field lists, and the scorer's list is the narrow
-`ResumeTextSource` shape — a deliberate design choice (the engine must not
-depend on the envelope) that quietly costs fields their reach. The two lists
-must now be read together, not one at a time.
+it.** Probe it. The reason this codebase keeps finding these is that the
+*schema* (`lib/resume-schema`) and the *scorer* (`lib/scoring`) are
+separate packages with separate field lists, and the scorer's list is the
+narrow `ResumeTextSource` shape — a deliberate design choice (the engine
+must not depend on the envelope) that quietly costs fields their reach.
+The two lists must now be read together, not one at a time.
 
-The companion lesson: **when a tip and a score disagree, fix BOTH sides.**
-The location bug was fixed in `tips.tsx` and left in `similarity.ts`.
+And the three that follow from it:
+
+- **When a tip and a score disagree, fix BOTH sides.** The location bug
+  was fixed in `tips.tsx` and left in `similarity.ts`.
+- **One grammar, one parser — and ONE flattener.** Five copies of "the
+  resume's text" is four more places to be wrong. There is one now, and
+  the adapter that feeds it has one copy too.
+- **Two halves of one fix must read the same source.** The eligibility
+  notes read the extractor's skill lists; the eligibility vocabulary
+  read `job.requirements`, which is always empty. The two halves
+  disagreed, and the half that never ran cost a candidate with a
+  bachelor's degree 1.91 points.

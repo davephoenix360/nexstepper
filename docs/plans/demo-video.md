@@ -18,17 +18,17 @@
 >
 > | | Overall | Keywords | Format | Impact | Experience match | Intent coverage | Role fit | Seniority fit |
 > |---|---|---|---|---|---|---|---|---|
-> | **Before** | **78** | 68 | 82 | 74 | 69 | 90 | 84 | 100 |
-> | **After** | **79** | **71** | 82 | 74 | 69 | 90 | 84 | 100 |
+> | **Before** | **79** | 71 | 86 | 74 | 69 | 90 | 84 | 100 |
+> | **After** | **80** | **74** | 86 | 74 | 69 | 90 | 84 | 100 |
 >
-> Overall moved **78 → 79** because Keywords moved **68 → 71**. Every
+> Overall moved **79 → 80** because Keywords moved **71 → 74**. Every
 > other dimension was unchanged, and the only edit was the honest one:
 > *"Built the asynchronous transcription pipeline"* → *"Built the
 > **event-driven** transcription pipeline"* — which is what the posting
 > asked for and what the pipeline already was.
 >
 > **The good news: the story got better.** The weakest bar is now
-> **Keywords — 68**, and Keywords is exactly the bar that moves. So the
+> **Keywords — 71**, and Keywords is exactly the bar that moves. So the
 > cold open, the fix, and the payoff now all point at the SAME bar:
 > the product shows you the weakest dimension, names the gap, fixes it
 > in place, and the number moves because of it. That is the whole thesis
@@ -391,7 +391,7 @@ be the one lie in an otherwise honest product.
 
 > **Measured on 2026-11-16, for reference** (`pnpm measure:demo-score`, the
 > shipped engine, the real fixture, Scout's edit only): overall
-> **78 → 79**, Keywords **68 → 71**, every other dimension unchanged, tier
+> **79 → 80**, Keywords **71 → 74**, every other dimension unchanged, tier
 > **Good** throughout. Beat 5's inline rewrite adds a second edit on a
 > different bullet, so the shot's real number may land higher — **measure it
 > on the day**, and use the measured value in the script.
@@ -543,15 +543,15 @@ Follow this in order. It is the whole video as a list of clicks.
   Washington, Docsmith, and the skills block
 - **RIGHT, top:** the **JD panel** — "Senior Backend Engineer, Platform",
   Cartwheel, Seattle, and the posting text below
-- **RIGHT, bottom:** the **ATS scorecard** — big **78**, badge **Good**, the
-  radar chart, and the seven bars: Keywords 68, Format 82, Impact 74,
+- **RIGHT, bottom:** the **ATS scorecard** — big **79**, badge **Good**, the
+  radar chart, and the seven bars: Keywords 71, Format 86, Impact 74,
   Experience match 69, Intent coverage 90, Role fit 84, Seniority fit 100
 - Below the bars, the eligibility list — the bachelor's degree, ticked green
 
-**Say:** "Seventy-eight out of a hundred. A good score — and one dimension is
+**Say:** "Seventy-nine out of a hundred. A good score — and one dimension is
 dragging the whole thing down."
 
-**Hold** so the frame ends on **Keywords — 68**.
+**Hold** so the frame ends on **Keywords — 71**.
 
 ---
 
@@ -654,7 +654,7 @@ something your resume already proves."
 **Check:** **Keywords** moved off 68. **If it hits 100, stop** — Kafka and
 OpenTelemetry are genuinely absent, so it must not reach 100.
 
-> The measured value on 2026-11-16 was **78 → 79**, with Keywords
+> The measured value on 2026-11-17 was **79 → 80**, with Keywords
 > **68 → 71 or 72**. The ±1 is real: the Jev evaluation is a probabilistic
 > judge, so two runs of the same fixture can differ by a point. Read the
 > number off the screen.
@@ -965,7 +965,7 @@ long take. Six recordings also means a botched take costs you one beat.
 
 | Beat | Guidde | Mode | Notes |
 |---|---|---|---|
-| 1 — Cold open | `01-cold-open` | Product Demo | The resume list (master + variant + 78 badge), then click into the variant, let it sit on Keywords 68 |
+| 1 — Cold open | `01-cold-open` | Product Demo | The resume list (master + variant + 78 badge), then click into the variant, let it sit on Keywords 71 |
 | 2 — Setup montage | `02-setup` | Step-by-step + Screen Walkthrough | Import, paste JD, create variant |
 | 3 — The reading | `03-highlight` | Product Demo | Click "Highlight this job's skills", skills go bold, must-haves underline |
 | 4 — Scout | `04-scout` | Product Demo | Open chat, send the prompt, watch the edits land |
@@ -1140,7 +1140,7 @@ you send it until it does, then film that.
 **4. The video overpromises.** A demo that shows a score jumping 47 → 71 when
 the real improvement is 9 points is the kind of thing a reviewer screenshots.
 **Mitigation:** the seeded fixture scores **78**, and every number in the
-script comes off the screen during rehearsal. A believable 78 → 79 beats a
+script comes off the screen during rehearsal. A believable 79 → 80 beats a
 fantasy 47 → 100 — and the score must **not** reach 100, because Kafka and
 OpenTelemetry are genuinely absent from Jordan's history.
 

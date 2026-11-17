@@ -147,7 +147,9 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `554afa1` as of **2026-11-16**.
+**Now (in flight)** — `main` is at `aff73af` **pushed**; the scoring-field
+audit and its seven fixes (`08c1071` … `abc664c`) are **local and not
+pushed** as of **2026-11-17**.
 **Production is LIVE.** All §11 boxes are checked: Vercel deployed,
 **two separate Neon projects** (one prod, one dev — *not* one project
 with branches), migrations `0000`–`0013` applied,
@@ -171,31 +173,35 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
-- **Most of the resume never reaches the score — and the answer is now
-  measured, not asserted** — The founder asked whether we take *all* parts
-  of a resume into account "for example even little things like the
-  location, summary, education courses, certifications". **10 of 51 probed
-  leaf fields move the score.** The ten are the ones you'd guess — summary,
-  headline, skills, work bullets, project text. The 41 that don't include
-  **every part of `basics.location`**, `work[].company`, **all of
-  `education[]` except its array being non-empty** (`institution`,
-  `majors`, `courses[]`, `gpa`), **all of `certificates[]`**,
-  `volunteer[]`, `awards[]` text, `publications[]`, `languages[]`,
-  `interests[]`, `references[]`. Because the engine reads the narrow
-  `ResumeTextSource` shape rather than the envelope, the schema and the
-  scorer have **separate field lists** — and prose about a dimension is not
-  evidence that it reads what it claims. So this is now **measured**:
-  `pnpm probe:field-coverage` plants a marker token in one field at a
-  time, plants the same marker in the JD, and re-scores with the shipped
-  engine — a field that moves the number is read, a field that doesn't is
-  ignored. Three of the gaps are outright **bugs**, not omissions: the
-  certification eligibility note tells a candidate with the exact
-  certification that "your resume does not list one"; the JD's own city is
-  charged against the candidate while their location field can't pay it off
-  (the Edmonton bug — fixed in the tip, never in the score); and Role Fit
-  ignores `basics.label`, so a headline matching the JD scores **65** while
-  an old job title matching it scores **100**. **A field in the schema is
-  not evidence the engine reads it — probe it.** Drift memo:
+- **Most of the resume never reached the score — and now it does** — The
+  founder asked whether we take *all* parts of a resume into account "for
+  example even little things like the location, summary, education
+  courses, certifications". **10 of 51 probed leaf fields moved the
+  score.** The ten were the ones you'd guess — summary, headline, skills,
+  work bullets, project text. The 41 that didn't include **every part of
+  `basics.location`**, `work[].company`, **all of `education[]` except its
+  array being non-empty** (`institution`, `majors`, **`courses[]`**,
+  `gpa`), **all of `certificates[]`**, `volunteer[]`, `awards[]` text,
+  `publications[]`, `languages[]`, `interests[]`, `references[]`.
+  Because the engine reads the narrow `ResumeTextSource` shape rather
+  than the envelope, the schema and the scorer have **separate field
+  lists** — and prose about a dimension is not evidence that it reads
+  what it claims. So this is now **measured**: `pnpm probe:field-coverage`
+  plants a marker token in one field at a time, plants the same marker in
+  the JD, and re-scores with the shipped engine — a field that moves the
+  number is read, a field that doesn't is ignored. The founder then said
+  *"now lets address all the things mentioned"*, and all seven findings
+  are closed (2026-11-17): the certification note no longer tells a
+  candidate with the exact certification that their resume does not list
+  one; Role Fit reads the headline (65 → 100); the JD's own city is no
+  longer a keyword the candidate must evidence (the Edmonton bug, fixed
+  in the tip and never in the score); the eligibility vocabulary reads
+  the same source as the notes, so a candidate **with** a bachelor's
+  degree gains **1.60** points where they used to lose **1.91**; and
+  **26 of 51 fields now move the score**. The structural fix underneath
+  them all: there were **five** copies of "the resume's text" — the
+  keyword score, the BM25 signal, the semantic signal, the word count and
+  the tip — and they were not equal. There is **one** now. Drift memo:
   `docs/drift/2026-11-16-which-resume-fields-reach-the-score.md`.
 
 - **Seniority Fit was measuring nothing — and charging the candidate for
@@ -2587,39 +2593,64 @@ that cannot be wrong — and therefore cannot be right.
 The resume schema (`lib/resume-schema`) and the scorer
 (`lib/scoring`) are **separate packages with separate field lists**.
 The scorer reads the narrow `ResumeTextSource` shape
-(`lib/scoring/similarity.ts:140`) — deliberately, so the engine does
+(`lib/scoring/similarity.ts`) — deliberately, so the engine does
 not depend on the envelope. That design choice quietly costs fields
 their reach.
 
-Measured on 2026-11-16 with `pnpm probe:field-coverage`: **10 of 51
-probed leaf fields move the score.** Ignored entirely: `basics.name`,
-`.email`, `.phone`, `.url`, **all of `basics.location`**,
-`basics.profiles[]`, `work[].company`, `work[].location`, `work[].url`,
-`skills[].level`, `projects[].keywords[]`, `projects[].roles[]`,
-**all of `education[]` except its array being non-empty**
-(`institution`, `majors`, `minors`, **`courses[]`**, `gpa`, `url`),
-**all of `volunteer[]`**, `awards[].title`/`.awarder`/`.summary`,
-**all of `certificates[]`**, `publications[].name`/`.summary`,
-`languages[]`, `interests[]`, `references[]`.
+**Measured on 2026-11-16 with `pnpm probe:field-coverage`: 10 of 51
+probed leaf fields moved the score.** The 41 that did not include
+every part of `basics.location`, `work[].company`, all of
+`education[]` except its array being non-empty (`institution`,
+`majors`, `courses[]`, `gpa`), all of `certificates[]`, all of
+`volunteer[]`, `awards[]` text, `publications[]` text, `languages[]`,
+`interests[]` and `references[]`.
+
+**All of that was fixed on 2026-11-17** — 26 of the 51 now move the
+score. The rule the fix follows, and the rule to keep following:
+
+> **A field earns its place by being evidence a JD can ask for.**
+> Contact details, proper nouns (an employer, a university, an
+> awarder), numbers (a GPA), links and self-assessments ("Expert") are
+> not evidence. `interests` and `references` are noise for an ATS
+> score. That is a decision, not an oversight.
 
 **Probe, do not assume.** Plant a marker token in one field, re-score,
 and see whether the number moves. `scripts/probe-field-coverage.ts`
 does this for all 51 fields; `scripts/probe-role-fit-titles.ts` does it
-for Role Fit.
+for Role Fit; `scripts/probe-eligibility-vocabulary.ts` does it for the
+degree-gate charge.
+
+**One flattener. There were FIVE.** The keyword score, the BM25 signal,
+the semantic signal, the word count and the tip each had their own
+copy of "the resume's text", and they were not equal. There is now
+one — `lib/scoring/similarity.ts` `flattenResumeText` — and the
+resume adapter has one copy too
+(`lib/scoring/resume-adapter.ts`). **Five copies of one thing is four
+more places to be wrong.**
 
 **When a tip and a score disagree, fix BOTH sides.** The location bug
 was fixed in `lib/scoring/tips.tsx` (the tip stopped claiming a city
 was missing) and left in `lib/scoring/similarity.ts` (the score still
 charged the candidate for the JD's own city). Same class of bug, two
-modules, one fix each time.
+modules, one fix each time. The tip's flatten is now the canonical
+text **plus** the fields the engine ignores — it must be a superset,
+or it tells the candidate to add something they already have.
+
+**Two halves of one fix must read the same source.** The eligibility
+NOTES read the intent extractor's skill lists; the eligibility
+VOCABULARY read `job.requirements`, which is **always empty in
+production**. The half that never ran cost a candidate with a
+bachelor's degree **1.91 points** for the JD stating a degree
+requirement.
 
 **A dimension's input set is not its neighbours' input set.** Role Fit
-compares work *position titles* only — `basics.label`, the candidate's
-headline, is excluded (`lib/scoring-async/role-fit.ts:190`) even though
-it is in the ATS keyword blob. Measured: a headline matching the JD
-scores 65; an old job title matching the JD scores 100.
+compared work *position titles* only — `basics.label`, the candidate's
+headline, was excluded even though it was in the ATS keyword blob.
+Measured: a headline matching the JD scored 65; an old job title
+matching the JD scored 100. Fixed 2026-11-17.
 
-Full register: `docs/drift/2026-11-16-which-resume-fields-reach-the-score.md`.
+Full register: `docs/drift/2026-11-16-which-resume-fields-reach-the-score.md`
+(§"RESOLVED" for what changed and what it cost).
 
 ## Folder structure (current + planned)
 
@@ -2936,6 +2967,13 @@ in three places each and all of them were wrong (`970/970 across 78 files`,
 figures; `lib/db/migrations/` is the real range. See
 `docs/drift/2026-11-16-documentation-drift-sweep.md`.
 
+**Never type a demo score either.** `docs/plans/demo-video.md` and
+`brag-output/brag-plan.md` both quote the demo fixture's numbers, and the
+engine moves them: the field-coverage work on 2026-11-17 took the fixture
+from **78 → 79** to **79 → 80** (Keywords 68 → 71 → 74). Re-run
+`pnpm measure:demo-score` and paste what it prints; do not carry a number
+forward from an earlier session.
+
 **`pnpm measure:demo-score`** prints the demo fixture's ATS score from the
 shipped engine — before and after the demo's one edit — without touching a
 database. Use it whenever a document quotes a score; do not re-derive one by
@@ -2947,7 +2985,8 @@ with the shipped engine. Use it whenever a claim is made about what the
 engine reads — the schema and the scorer have separate field lists, so
 "the field exists" is not evidence. See recurring trap #11.
 **`pnpm probe:role-fit-titles`** does the same for Role Fit's title set.
-Both are offline and write nothing.
+**`pnpm probe:eligibility-vocabulary`** measures the degree-gate charge.
+All three are offline and write nothing.
 
 **On `pnpm lint`:** the repo had no linter at all before 2026-11-10. Two rules
 are **warnings on purpose** — `react-hooks/set-state-in-effect` and

@@ -6,8 +6,8 @@
 > The engine has changed since the render. **Role Fit was a constant 50
 > and is now a real measurement** — the fix landed on 2026-11-10, the
 > same day this video was rendered, and it landed *after* the numbers
-> below were measured. The seeded fixture now scores **78**, with Role
-> fit **84** instead of 50, and the honest edit moves it to **79**.
+> below were measured. The seeded fixture now scores **79**, with Role
+> fit **84** instead of 50, and the honest edit moves it to **80**.
 >
 > **Nothing in this document is wrong about the video.** It is a faithful
 > record of a real thing that happened. But it does **not** describe what
@@ -300,7 +300,7 @@ line and thins to silence under the wordmark.
 
 | On screen | Source |
 |---|---|
-| `75` → `76` | measured with the engine **as it stood on 2026-11-10** (`scoreResumeHybridFromEnvelope`) against the real seeded Cartwheel fixture; `scripts/seed-demo.ts` printed "renders 75 from the persisted snapshot". The engine now reads 78 — see the banner at the top of this file. |
+| `75` → `76` | measured with the engine **as it stood on 2026-11-10** (`scoreResumeHybridFromEnvelope`) against the real seeded Cartwheel fixture; `scripts/seed-demo.ts` printed "renders 75 from the persisted snapshot". The engine now reads 79 — see the banner at the top of this file. |
 | `Good` tier badge | `tierLabelFor()` in `components/scorecard/dimension-bar.tsx` (65–79 = Good) |
 | Keywords 68, Format 82, Impact 74, Experience match 69, Intent coverage 90, Role fit 50, Seniority fit 100 | the seeded snapshot's dimension scores, rendered as `Math.round` does |
 | "These requirements from the JD are not evidenced in your resume:" | `buildDynamicTips` — `ATS Keyword Match`, verbatim from the real output |
@@ -326,7 +326,7 @@ renders it faithfully, but no line in this video claims it is a gap or a fix.
 
 > **Since the render:** that limitation is fixed. The hybrid scorer now calls
 > `roleFitSimilarity()`, and the same fixture reads Role fit **84** with an
-> overall of **78**. The bar in this video still reads 50 because that is what
+> overall of **79**. The bar in this video still reads 50 because that is what
 > the app produced on 2026-11-10. See
 > `docs/drift/2026-11-10-one-score-three-surfaces-and-role-fit.md`.
 

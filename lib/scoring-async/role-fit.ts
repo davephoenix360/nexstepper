@@ -221,7 +221,9 @@ function collectResumeTitles(resume: ResumeData): string[] {
 
   // The headline first — it is the candidate's own statement of what
   // they are applying for, so it is the best single signal available.
-  push(resume.sections.basics.label);
+  // Optional-chained: this module reads resumes that came out of the
+  // database, and a row written before `basics` existed has none.
+  push(resume.sections.basics?.label);
 
   for (const company of resume.sections.work) {
     for (const pos of company.positions) {
