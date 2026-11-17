@@ -250,6 +250,28 @@ export type ScoreBreakdown = {
    */
   eligibility?: EligibilityNote[];
   /**
+   * The Seniority Fit dimension's own numbers — the candidate's years,
+   * the JD's minimum, and the gap between them.
+   *
+   * Carried so the tip can say "this role asks for 5 years; your
+   * resume shows 2" using the SCORE's figures, rather than
+   * recomputing them (two computations of one thing is one too many).
+   *
+   * Optional because score snapshots are PERSISTED — a snapshot written
+   * before this field existed has none. Consumers read it as
+   * `breakdown.seniorityFit ?? null`.
+   */
+  seniorityFit?: {
+    /** Total years of experience the engine measured from the work dates. */
+    resumeYears: number;
+    /** The JD's stated minimum years (null when it stated none). */
+    jdYearsMin: number | null;
+    /** resumeYears - jdYearsMin. Negative = under-qualified. */
+    gap: number | null;
+    /** True when there was no usable years signal. */
+    fallback: boolean;
+  };
+  /**
    * The JD's genuine requirements, as measured by Jev, and which of them
    * the resume does not evidence.
    *
@@ -670,6 +692,24 @@ export function scoreResume(
     computedInMs,
     intentCoverageBreakdown,
     eligibility,
+    /**
+     * The Seniority Fit dimension's own numbers.
+     *
+     * Carried so the tip can say "this role asks for 5 years; your
+     * resume shows 2" — the score's OWN figures, not a recomputation.
+     * The same rule as everywhere else here: the tip reads the score's
+     * answer.
+     *
+     * Optional: a snapshot written before this field existed simply
+     * has no `seniorityFit` block, and the tip falls back to its static
+     * copy.
+     */
+    seniorityFit: {
+      resumeYears: seniorityFitBreakdown.resumeYears,
+      jdYearsMin: seniorityFitBreakdown.jdYearsMin,
+      gap: seniorityFitBreakdown.gap,
+      fallback: seniorityFitBreakdown.fallback
+    },
     ...(jevFit && jevRequirements?.evaluation
       ? {
           jevRequirements: {

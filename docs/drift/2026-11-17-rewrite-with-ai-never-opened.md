@@ -112,6 +112,52 @@ wrote "collaboration" was told it was missing "collaborated" — advice
 the candidate should not act on, contradicting the number next to it.
 The tip now reads the score's answer.
 
+---
+
+# Part 2 — The advice was generic, and only appeared when the score was bad
+
+Fixing the popover makes the surface work. It does not make it
+*useful*, which was the other half of the founder's report: *"we don't
+have too good of a communication of like, what a user can do to improve
+a particular score."*
+
+Three of the thirteen criteria had **no dynamic tip at all** — only a
+static, generic line:
+
+| Criterion | The static tip said | Now it says |
+|---|---|---|
+| Role Fit | "Make sure your resume's titles and summary match the job title." | "This role asks for **Senior Backend Engineer**. Your headline reads **Senior Frontend Engineer**. The headline is the first thing they see — make it name the role you're applying for." |
+| Unique Value | "Highlight what makes you different: awards, certifications, notable projects." | "Your resume lists no **projects, awards or publications** — the only things that show you do more than the job description asks. Add one project you built…" |
+| Seniority Fit | "Match the role's seniority level — if the job asks for a senior title, make sure your experience shows it." | "This role asks for **5 years** of experience; your resume shows **2** — **3 years short**. Make your earliest role count…" |
+
+And two tips only appeared when the score was *bad*, so a mediocre
+score got the generic static copy instead of the specific advice:
+
+| Criterion | Old threshold | New |
+|---|---|---|
+| Tailoring | only below 30 | below **80** |
+| ATS Similarity | only below 70 | below **80** |
+
+A summary at 45 ("similar to the job title") is plainly improvable,
+and the specific tip names the words to mirror — advice to a category
+is not.
+
+### The Seniority Fit tip needed the score's numbers
+
+The years are already measured — `SeniorityFitResult` carries
+`resumeYears`, `jdYearsMin` and `gap`. They just were not in the
+breakdown, so the tip could only speak in generalities.
+
+They are now in the breakdown (`breakdown.seniorityFit`), and the tip
+quotes **them**. Not a second computation of the same thing: two
+computations of one thing is one too many, and when they disagree the
+tip and the number beside it contradict each other — which is exactly
+the bug class this whole session has been closing.
+
+The field is optional, because score snapshots are persisted: a
+snapshot written before this change has none, and the tip falls back
+to its static copy.
+
 ## The lesson
 
 **A path is only useful if the editor renders exactly that testid.**
@@ -123,3 +169,7 @@ The generalisation: **when two surfaces must agree (a score and its
 tip, a path and its editor, a note and its vocabulary), assert the
 agreement in a test that renders the real thing.** A test on the
 function's return value only pins the function.
+
+And: **"make it better" is not advice.** Every tip now names the
+specific thing that is wrong and the specific edit that fixes it.
+

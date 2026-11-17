@@ -181,7 +181,9 @@ export function buildDynamicTips(
     if (intentTip) out['Intent Coverage'] = intentTip;
 
     const similarityScore = breakdown.criteriaScores['ATS Similarity'];
-    if (similarityScore < 70) {
+    // The threshold used to be 70 — so a resume at 75 (plainly
+    // improvable) got the generic static tip instead of this one.
+    if (similarityScore < 80) {
       out['ATS Similarity'] = (
         <>
           BM25 similarity is <strong>{Math.round(similarityScore)}/100</strong> —
@@ -342,6 +344,28 @@ export function buildDynamicTips(
     }
   }
 
+  // Seniority Fit — the static tip said "if the job asks for a senior
+  // title, make sure your experience shows it", which cannot be acted
+  // on. The score already measured the years; the tip quotes THEM, so
+  // the advice and the number agree by construction.
+  const seniority = breakdown.seniorityFit;
+  const seniorityScore = breakdown.criteriaScores['Seniority Fit'];
+  if (seniority && !seniority.fallback && seniority.jdYearsMin !== null) {
+    const { resumeYears, jdYearsMin, gap } = seniority;
+    if (gap !== null && gap < 0 && seniorityScore < 100) {
+      const short = Math.abs(gap);
+      out['Seniority Fit'] = (
+        <>
+          This role asks for <strong>{jdYearsMin} years</strong> of experience;
+          your resume shows <strong>{resumeYears}</strong> — {short} year
+          {short === 1 ? '' : 's'} short. Make your earliest role count: widen
+          the date range if you were there longer, and call out the work you
+          did that a recruiter would count as experience.
+        </>
+      );
+    }
+  }
+
   // Alignment (3 sub-criteria).
   const tailoringScore = breakdown.criteriaScores.Tailoring;
   const summary = resume.sections.basics.summary ?? '';
@@ -350,13 +374,69 @@ export function buildDynamicTips(
     const titleKeywords = Array.from(new Set(titleTokens(title)))
       .filter((t) => !summary.toLowerCase().includes(t))
       .slice(0, MAX_TITLE_KEYWORDS_IN_TIP);
-    if (tailoringScore < 30 && titleKeywords.length > 0) {
+    // The threshold used to be 30 — so a summary at 45 (plainly
+    // improvable) got the generic static tip instead of this one. The
+    // advice is actionable whenever there ARE title keywords missing,
+    // which is what the condition below asks.
+    if (tailoringScore < 80 && titleKeywords.length > 0) {
       out['Tailoring'] = (
         <>
           Your summary is <strong>{Math.round(tailoringScore)}%</strong>{' '}
           similar to the job title. Try mirroring these title keywords in
           your summary:{' '}
           <strong>{titleKeywords.join(', ')}</strong>.
+        </>
+      );
+    }
+  }
+
+  // Role Fit — the static tip said "make sure your resume's titles and
+  // summary match the job title", which tells the candidate nothing.
+  // It can say WHICH title the JD wants and what the candidate's own
+  // headline currently says.
+  const roleFitScore = breakdown.criteriaScores['Role Fit'];
+  if (job && title && roleFitScore < 70) {
+    const label = (resume.sections.basics.label ?? '').trim();
+    out['Role Fit'] = (
+      <>
+        This role asks for <strong>{title}</strong>.{' '}
+        {label ? (
+          <>
+            Your headline reads <strong>{label}</strong>.
+          </>
+        ) : (
+          <>Your resume has no headline for a recruiter to read.</>
+        )}{' '}
+        The headline is the first thing they see — make it name the role
+        you&apos;re applying for.
+      </>
+    );
+  }
+
+  // Unique Value — "highlight what makes you different" is advice to a
+  // category. This says whether the resume has ANY of the things the
+  // criterion looks for, and which one is missing.
+  const uniqueValueScore = breakdown.criteriaScores['Unique Value'];
+  if (uniqueValueScore < 100) {
+    const projectCount = (resume.sections.projects ?? []).length;
+    const awardCount = (resume.sections.awards ?? []).length;
+    const publicationCount = (resume.sections.publications ?? []).length;
+    if (projectCount === 0 && awardCount === 0 && publicationCount === 0) {
+      out['Unique Value'] = (
+        <>
+          Your resume lists no <strong>projects, awards or publications</strong> —
+          the only things that show you do more than the job description asks. Add
+          one project you built, even a small one, and say what it does and who
+          used it.
+        </>
+      );
+    } else if (projectCount === 0) {
+      out['Unique Value'] = (
+        <>
+          You have {awardCount} award{awardCount === 1 ? '' : 's'} and{' '}
+          {publicationCount} publication{publicationCount === 1 ? '' : 's'}, but
+          no <strong>project</strong>. A named project with what you built and its
+          outcome is the strongest &quot;more than the description&quot; signal.
         </>
       );
     }

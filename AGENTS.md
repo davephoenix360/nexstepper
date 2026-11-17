@@ -2802,6 +2802,26 @@ criterion now points at the leaf it reads: Tailoring and Seniority Fit
 → the summary, Role Fit → the headline, the skill criteria → the
 skills block.
 
+**"Make it better" is not advice.** Three of the thirteen criteria
+had only a static, generic tip, and two more only produced their
+specific advice when the score was *bad* (Tailoring below 30, ATS
+Similarity below 70) — so a mediocre score got a category where it
+could have had a name and an edit. Every tip now names the specific
+thing that is wrong:
+
+- Role Fit → "This role asks for **Senior Backend Engineer**. Your
+  headline reads **Senior Frontend Engineer**."
+- Unique Value → "Your resume lists no **projects, awards or
+  publications**."
+- Seniority Fit → "This role asks for **5 years**; your resume shows
+  **2** — 3 years short."
+
+And the Seniority Fit tip quotes **the score's own numbers**, which
+now travel in `breakdown.seniorityFit` — not a second computation of
+the same thing. Two computations of one thing is one too many, and
+when they disagree the tip and the number beside it contradict each
+other.
+
 ## Folder structure (current + planned)
 
 ```

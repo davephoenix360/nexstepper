@@ -38,7 +38,11 @@ import type { DeepPartial } from '@/tests/fixtures/types';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
+function makeBreakdown(
+  overrides: Partial<Omit<ScoreBreakdown, 'criteriaScores'>> & {
+    criteriaScores?: Partial<ScoreBreakdown['criteriaScores']>;
+  } = {}
+): ScoreBreakdown {
   return {
     overallScore: 70,
     computedInMs: 5,
@@ -71,7 +75,7 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown 
       'Role Fit': 50,
       'Seniority Fit': 50,
       ...overrides.criteriaScores
-    },
+    } as ScoreBreakdown['criteriaScores'],
     dimensionScores: {
       atsMatching: 60,
       structure: 80,
@@ -564,11 +568,15 @@ describe('buildDynamicTips — JD-aware criteria', () => {
     expect(html).toContain('35/100');
   });
 
-  it('omits ATS Similarity when the score is at/above 70', () => {
+  it('omits ATS Similarity when the score is at/above 80', () => {
+    // The threshold moved from 70 to 80: a resume at 75 is plainly
+    // improvable ("your wording differs from the JD"), and the generic
+    // static tip ("Paraphrase your bullets to match the job
+    // description") says less than the specific one next to it.
     const breakdown = makeBreakdown({
       criteriaScores: {
         'ATS Keyword Match': 80,
-        'ATS Similarity': 70,
+        'ATS Similarity': 80,
         'ATS Coverage': 80,
         'Section Completeness': 100,
         'Optimal Length': 80,
@@ -1162,5 +1170,132 @@ describe('buildDynamicTips — the keyword tip only names words the resume lacks
     const flat = flattenResumeTextForTips(resume);
     expect(flat).toContain('Edmonton');
     expect(flat).toContain('AB');
+  });
+});
+
+/**
+ * The three criteria that used to have ONLY a static, generic tip.
+ *
+ * "Highlight what makes you different: awards, certifications, notable
+ * projects" is advice to a category. A candidate cannot act on it. These
+ * tips say what is actually missing or mismatched, in the candidate's
+ * own terms.
+ */
+describe('buildDynamicTips — the criteria that had only generic advice', () => {
+  it('Role Fit names the title the JD wants and the headline the candidate has', () => {
+    const breakdown = makeBreakdown({
+      criteriaScores: { 'Role Fit': 40 }
+    });
+    const resume = makeResume({
+      sections: {
+        basics: {
+          ...makeResume().sections.basics,
+          label: 'Senior Frontend Engineer'
+        }
+      }
+    });
+    const tips = buildDynamicTips(breakdown, resume, makeJob({ title: 'Senior Backend Engineer' }));
+    const html = renderTip(tips['Role Fit']!);
+    expect(html).toContain('Senior Backend Engineer');
+    expect(html).toContain('Senior Frontend Engineer');
+  });
+
+  it('Role Fit says so when the resume has no headline at all', () => {
+    const breakdown = makeBreakdown({ criteriaScores: { 'Role Fit': 40 } });
+    const resume = makeResume({
+      sections: { basics: { ...makeResume().sections.basics, label: '' } }
+    });
+    const tips = buildDynamicTips(breakdown, resume, makeJob());
+    const html = renderTip(tips['Role Fit']!);
+    expect(html).toContain('no headline');
+  });
+
+  it('Unique Value says the resume has no projects, awards or publications', () => {
+    const breakdown = makeBreakdown({ criteriaScores: { 'Unique Value': 0 } });
+    const resume = makeResume({
+      sections: { projects: [], awards: [], publications: [] }
+    });
+    const tips = buildDynamicTips(breakdown, resume, makeJob());
+    const html = renderTip(tips['Unique Value']!);
+    expect(html).toContain('projects');
+    expect(html).toContain('awards');
+    expect(html).toContain('publications');
+  });
+
+  it('Unique Value names the missing piece when the resume has awards but no project', () => {
+    const breakdown = makeBreakdown({ criteriaScores: { 'Unique Value': 0 } });
+    const resume = makeResume({
+      sections: {
+        projects: [],
+        awards: [
+          {
+            title: 'Engineer of the Year',
+            awarder: 'Acme',
+            date: '2024-01-01',
+            summary: ''
+          }
+        ]
+      }
+    });
+    const tips = buildDynamicTips(breakdown, resume, makeJob());
+    const html = renderTip(tips['Unique Value']!);
+    expect(html).toContain('1 award');
+    expect(html).toContain('project');
+  });
+
+  it('Unique Value says nothing when the resume already has a project', () => {
+    const breakdown = makeBreakdown({ criteriaScores: { 'Unique Value': 100 } });
+    const tips = buildDynamicTips(breakdown, makeResume(), makeJob());
+    expect(tips['Unique Value']).toBeUndefined();
+  });
+
+  it('Tailoring gives the specific tip well above the old 30 threshold', () => {
+    // A summary at 45 is plainly improvable, and the generic static
+    // tip says less than the specific one.
+    const breakdown = makeBreakdown({ criteriaScores: { Tailoring: 45 } });
+    // The title has words the summary does not ('staff', 'platform'),
+    // which is what makes the specific advice possible.
+    const tips = buildDynamicTips(
+      breakdown,
+      makeResume(),
+      makeJob({ title: 'Staff Platform Engineer' })
+    );
+    const html = renderTip(tips.Tailoring!);
+    expect(html).toContain('45%');
+    expect(html).toContain('mirroring these title keywords');
+  });
+
+  it('Seniority Fit quotes the score\'s own years', () => {
+    // The score already measured the years; the tip quotes THEM rather
+    // than recomputing them. Two computations of one thing is one too
+    // many - and when they disagree, the tip and the number beside it
+    // contradict each other.
+    const breakdown = makeBreakdown({
+      criteriaScores: { 'Seniority Fit': 40 },
+      seniorityFit: {
+        resumeYears: 2,
+        jdYearsMin: 5,
+        gap: -3,
+        fallback: false
+      }
+    });
+    const tips = buildDynamicTips(breakdown, makeResume(), makeJob());
+    const html = renderTip(tips['Seniority Fit']!);
+    expect(html).toContain('5 years');
+    expect(html).toContain('3 years short');
+  });
+
+  it('Seniority Fit says nothing when the score found no years signal', () => {
+    const breakdown = makeBreakdown({
+      criteriaScores: { 'Seniority Fit': 50 },
+      seniorityFit: {
+        resumeYears: 0,
+        jdYearsMin: null,
+        gap: null,
+        fallback: true
+      }
+    });
+    const tips = buildDynamicTips(breakdown, makeResume(), makeJob());
+    expect(tips['Seniority Fit']).toBeUndefined();
   });
 });
