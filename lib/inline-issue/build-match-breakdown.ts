@@ -40,6 +40,8 @@ import {
   defaultPathForSkill
 } from '@/lib/inline-issue/criterion-to-path';
 import { mapPathToSection } from '@/lib/inline-issue/map-path-to-section';
+import { pathForHighlightIndex } from '@/lib/scoring/highlight-paths';
+import type { ResumeData } from '@/lib/resume-schema';
 import type { MatchBreakdown, SubCriterionKeyForBreakdown } from '@/lib/db/queries';
 import type { SubCriterionKey, TipKind } from '@/lib/inline-issue/types';
 
@@ -128,7 +130,23 @@ function tipKindFor(criterion: SubCriterionKey): TipKind {
  * same.
  */
 export function buildMatchBreakdown(
-  breakdown: ScoreBreakdown | null | undefined
+  breakdown: ScoreBreakdown | null | undefined,
+  /**
+   * The resume envelope, when the caller has it.
+   *
+   * ## Why
+   *
+   * Without it every bullet-shaped criterion anchors to bullet #1 —
+   * while the advice beside it names three SPECIFIC bullets. So the AI
+   * rewrite could rewrite a line the advice never mentioned.
+   *
+   * With it, the Impact row anchors to the first bullet the advice
+   * names: the breakdown's `jevBullets` are aligned positionally to
+   * the flattened work-bullet list, and `collectHighlightEntries` keeps
+   * that list's coordinates, so an index maps back to the bullet it
+   * came from.
+   */
+  resume?: ResumeData | null
 ): MatchBreakdown {
   if (!breakdown) return [];
   const scores = breakdown.dimensionScores;
@@ -142,11 +160,26 @@ export function buildMatchBreakdown(
     ['Seniority fit', scores.seniorityFit]
   ];
 
+  // The path that addresses a bullet the advice names — for the Impact
+  // dimension, the first bullet Jev judged to be below the
+  // "accomplishment with a result" bar (the same < 1.5 threshold the
+  // tip uses, so the popover opens on a bullet the tip lists).
+  const weakBulletPath = ((): string | null => {
+    const bullets = breakdown.jevBullets;
+    if (!resume || !bullets || bullets.length === 0) return null;
+    const weakIndex = bullets.findIndex((b) => b.impact < 1.5);
+    if (weakIndex < 0) return null;
+    return pathForHighlightIndex(resume, weakIndex);
+  })();
+
   const rows: MatchBreakdown = [];
   for (const [label, score] of dimPairs) {
     const criterion = DIM_TO_CRITERION[label];
     if (!criterion) continue; // safety — shouldn't happen
-    const path = defaultPathForCriterion(criterion);
+    const path =
+      criterion === 'Accomplishment Focus' && weakBulletPath
+        ? weakBulletPath
+        : defaultPathForCriterion(criterion);
     // Sanity: only emit rows whose paths resolve to a real
     // section. If the path is unknown the writer would produce
     // a row that no popover could anchor to — better to skip.

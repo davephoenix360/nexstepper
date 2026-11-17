@@ -292,3 +292,55 @@ specific thing that is wrong and the specific edit that fixes it.
 
 
 
+
+---
+
+# Part 5 — The popover now opens on a bullet the advice names
+
+Found in the founder''s own screenshot: the Impact advice named three
+specific bullets —
+
+> *10 of 29 work bullets describe a task rather than an outcome
+> (Building Launchpad…; Conducted a personal audit…; Designed a
+> discounts API…)*
+
+— while the popover anchored to **bullet #1**, which is not one of them.
+In that resume the first bullet is a *good* one. So the AI rewrite could
+rewrite a line the advice never mentioned.
+
+## Why it was hard
+
+The advice names bullets by their index in a **flattened** list, and a
+flattened index does not say which bullet it is:
+
+```
+work[0].positions[0].highlights[0]
+work[0].positions[0].highlights[1]
+work[0].positions[1].highlights[0]   ← all index 0, 1, 2…
+```
+
+So the fix is to keep the coordinates. `lib/scoring/highlight-paths.ts`
+collects the bullets with the editor path that addresses each one, in
+the same order as the engine''s flattened list — and the alignment is
+pinned by a test that asserts the advice''s list and the path''s list are
+identical, index for index.
+
+The breakdown''s `jevBullets` are already aligned to that list
+positionally, so an index maps straight back to its bullet. The Impact
+row now anchors to the first bullet Jev judged below the
+"accomplishment with a result" bar — **the same < 1.5 threshold the tip
+uses**, so the popover opens on a bullet the tip lists.
+
+It falls back to bullet #1 when there is no weak bullet, when the
+resume was not passed, or when the index is out of range — never to a
+path that does not exist.
+
+## The lesson
+
+**Advice and action must name the same thing.** A tip that says "these
+three bullets" and a button that rewrites the first one are two
+different conversations about the same resume.
+
+The generalisation: **when a surface names specific items, the action it
+triggers must target one of those items.** The index alone is not an
+identity.

@@ -2833,6 +2833,20 @@ handed to the agent, so the chat quotes the scorecard's advice instead
 of writing its own. The `getAtsScore` tool carries it too: the agent
 calls that to measure its own edits, and without the advice it could
 see the number go up but not know what to do next.
+**Advice and action must name the same thing.** The Impact advice said
+"10 of 29 work bullets describe a task rather than an outcome (…three
+named bullets…)" while the popover anchored to **bullet #1** — which
+was not one of them, and in that resume the first bullet is a *good*
+one. So the AI rewrite could rewrite a line the advice never mentioned.
+
+The advice names bullets by their index in a **flattened** list, and a
+flattened index is not an identity. `lib/scoring/highlight-paths.ts`
+keeps the coordinates (the editor path that addresses each bullet), and
+a test asserts the advice''s list and the path''s list are identical,
+index for index. The breakdown''s `jevBullets` are already aligned to
+that list positionally, so the Impact row anchors to the first bullet
+Jev judged below the "accomplishment with a result" bar — the same
+threshold the tip uses, so the popover opens on a bullet the tip lists.
 **Seven bars in a fixed order is an order of layout, not of
 opportunity.** The scorecard now renders a **"Start here"** line
 under the radar: the dimension with the most **recoverable points**,

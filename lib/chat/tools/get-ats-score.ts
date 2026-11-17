@@ -146,7 +146,7 @@ export async function executeGetAtsScore(
       await recordScoreSnapshot(resumeId, userId, {
         matchScore: breakdown.overallScore,
         matchBreakdown: maybeAppendSkillGapEntry(
-          buildMatchBreakdown(breakdown),
+          buildMatchBreakdown(breakdown, data),
           breakdown
         ),
         dynamicTips: tips,

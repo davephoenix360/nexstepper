@@ -152,3 +152,104 @@ describe('maybeAppendSkillGapEntry', () => {
     expect(maybeAppendSkillGapEntry(base, null)).toEqual(base);
   });
 });
+/**
+ * The popover must open on a bullet the ADVICE names.
+ *
+ * ## The bug this pins
+ *
+ * Every bullet-shaped criterion anchored to bullet #1 — the first work
+ * bullet in the resume — while the advice beside it named three SPECIFIC
+ * bullets ("10 of 29 work bullets describe a task rather than an
+ * outcome (Building Launchpad…; Conducted a personal audit…)").
+ *
+ * So the AI rewrite could rewrite a line the advice never mentioned. In
+ * the founder's own resume the first bullet is a good one; the advice
+ * named three others.
+ *
+ * The breakdown's `jevBullets` are aligned positionally to the flattened
+ * work-bullet list, and `collectHighlightEntries` keeps that list's
+ * coordinates — so an index maps back to the bullet it came from.
+ */
+describe('buildMatchBreakdown — the Impact row targets a bullet the advice names', () => {
+  const RESUME = {
+    sections: {
+      work: [
+        {
+          company: 'Acme',
+          positions: [
+            {
+              title: 'Engineer',
+              highlights: [
+                'Shipped the billing service, cutting p99 latency 40%',
+                'Maintained the internal dashboard used by the support team',
+                'Wrote the migration runbook the team still uses'
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  } as never;
+
+  it('points at the weak bullet, not the first one', () => {
+    const breakdown = {
+      ...SAMPLE_BREAKDOWN,
+      // The breakdown's jevBullets are aligned to the flattened
+      // work-bullet list. Bullet 1 (index 1) is the weak one.
+      jevBullets: [
+        { impact: 2, opening: 2 },
+        { impact: 1, opening: 1 },
+        { impact: 2, opening: 2 }
+      ]
+    } as unknown as ScoreBreakdown;
+
+    const rows = buildMatchBreakdown(breakdown, RESUME);
+    const impact = rows.find((r) => r.criterion === 'Accomplishment Focus');
+    expect(impact?.path).toBe('sections.work.0.positions.0.highlights.1');
+    // NOT the first bullet.
+    expect(impact?.path).not.toBe('sections.work.0.positions.0.highlights.0');
+  });
+
+  it('falls back to the default path when there is no weak bullet', () => {
+    const breakdown = {
+      ...SAMPLE_BREAKDOWN,
+      jevBullets: [
+        { impact: 2, opening: 2 },
+        { impact: 2, opening: 2 }
+      ]
+    } as unknown as ScoreBreakdown;
+
+    const rows = buildMatchBreakdown(breakdown, RESUME);
+    const impact = rows.find((r) => r.criterion === 'Accomplishment Focus');
+    expect(impact?.path).toBe('sections.work.0.positions.0.highlights.0');
+  });
+
+  it('falls back to the default path when the resume was not passed', () => {
+    const breakdown = {
+      ...SAMPLE_BREAKDOWN,
+      jevBullets: [{ impact: 1, opening: 1 }]
+    } as unknown as ScoreBreakdown;
+
+    const rows = buildMatchBreakdown(breakdown);
+    const impact = rows.find((r) => r.criterion === 'Accomplishment Focus');
+    expect(impact?.path).toBe('sections.work.0.positions.0.highlights.0');
+  });
+
+  it('never points at a bullet that does not exist', () => {
+    const breakdown = {
+      ...SAMPLE_BREAKDOWN,
+      // More Jev bullets than the resume has — the index is out of
+      // range, so the default path is used rather than a dead path.
+      jevBullets: [
+        { impact: 2, opening: 2 },
+        { impact: 2, opening: 2 },
+        { impact: 2, opening: 2 },
+        { impact: 1, opening: 1 }
+      ]
+    } as unknown as ScoreBreakdown;
+
+    const rows = buildMatchBreakdown(breakdown, RESUME);
+    const impact = rows.find((r) => r.criterion === 'Accomplishment Focus');
+    expect(impact?.path).toBe('sections.work.0.positions.0.highlights.0');
+  });
+});

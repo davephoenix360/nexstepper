@@ -115,7 +115,7 @@ export async function recomputeScoreAction(
     // `defaultPathForCriterion` heuristic when the breakdown is
     // missing (first load + legacy rows).
     const matchBreakdown = maybeAppendSkillGapEntry(
-      buildMatchBreakdown(breakdown),
+      buildMatchBreakdown(breakdown, data),
       breakdown
     );
     // Persist a snapshot so the next page load has authoritative
