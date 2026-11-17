@@ -5,6 +5,8 @@ import {
   type EligibilityRequirement
 } from '../qualifications';
 import { EVIDENCE_COVERED_THRESHOLD } from '../jev-requirements';
+import { flattenResumeText } from '../similarity';
+import { resumeDataToScoreable } from '../resume-adapter';
 
 /**
  * v2 Intent Coverage dimension.
@@ -241,14 +243,23 @@ export function scoreIntentCoverageParams(params: {
 }
 
 /**
- * Envelope-aware convenience wrapper. Adapts `ResumeData` +
- * `JobPosting` (the wide Zod-derived shapes) to the low-level
- * scorer. Used by external callers + tests that hold the envelope.
+ * Envelope-aware convenience wrapper. Adapts `ResumeData` + `JobPosting`
+ * (the wide Zod-derived shapes) to the low-level scorer.
  *
- * Pure / sync. The resume text is flattened inline — fine for
- * one-off score calls but the sync engine uses the optimized
- * `scoreIntentCoverageParams` directly so it can share its
- * `flattenResumeText(resume)` pass with the other dimensions.
+ * The resume text comes from the ONE canonical flattener
+ * (`lib/scoring/similarity.ts`) — the same text the keyword score, the
+ * BM25 signal and the semantic signal read.
+ *
+ * It used to have its own flattener, `flattenResumeTextForIntentCoverage`,
+ * which included education, awards and publications while the scorer read
+ * a narrower copy. That copy was reachable ONLY through this wrapper —
+ * and the only callers of the wrapper were the tests. So production
+ * Intent Coverage was reading a narrower document than its own doc
+ * comment described, and "a JD that names a qualification should be able
+ * to find it in the resume" was not true in production.
+ *
+ * Now it is true: the qualification IS in the resume text the scorer
+ * reads.
  */
 export function scoreIntentCoverage(
   resume: ResumeData,
@@ -258,56 +269,6 @@ export function scoreIntentCoverage(
     mustHaveSkills: job.mustHaveSkills ?? [],
     niceToHaveSkills: job.niceToHaveSkills ?? [],
     implicitSkills: job.implicitSkills ?? [],
-    resumeTextLower: flattenResumeTextForIntentCoverage(resume).toLowerCase()
+    resumeTextLower: flattenResumeText(resumeDataToScoreable(resume)).toLowerCase()
   });
-}
-
-/**
- * Flatten the resume envelope into a single searchable string.
- *
- * Mirrors `flattenResumeText` from `lib/scoring/similarity.ts` closely — same
- * fields, same role-family coverage — but additionally includes education,
- * awards and publications, which the v1 helper omits. A JD that names a
- * qualification should be able to find it in the resume.
- *
- * This duplication used to be a real hazard: the old comment said "if we ever
- * swap tokenization strategies, we update both spots", and the tokenization
- * swap is exactly what produced the `Python/Django` defect. The tokenization
- * itself now lives in the shared `../skill-match` module, so the two copies
- * can only diverge in *which fields* they include — a visible, testable
- * difference rather than a silent one.
- */
-function flattenResumeTextForIntentCoverage(resume: ResumeData): string {
-  const sections = resume.sections;
-  const parts: string[] = [];
-  parts.push(sections.basics.summary ?? '', sections.basics.label ?? '');
-  for (const s of sections.skills) {
-    parts.push(s.name, ...(s.keywords ?? []));
-  }
-  for (const w of sections.work) {
-    parts.push(w.description ?? '');
-    for (const p of w.positions) {
-      parts.push(p.title ?? '');
-      if (p.highlights) parts.push(...p.highlights);
-    }
-  }
-  for (const proj of sections.projects ?? []) {
-    parts.push(proj.name ?? '', proj.description ?? '');
-    if (proj.highlights) parts.push(...proj.highlights);
-  }
-  for (const edu of sections.education ?? []) {
-    parts.push(
-      edu.institution ?? '',
-      edu.degree?.degreeLevel ?? '',
-      ...(edu.degree?.majors ?? []),
-      ...(edu.degree?.minors ?? [])
-    );
-  }
-  for (const a of sections.awards ?? []) {
-    parts.push(a.title ?? '', a.awarder ?? '');
-  }
-  for (const pub of sections.publications ?? []) {
-    parts.push(pub.name ?? '', pub.publisher ?? '');
-  }
-  return parts.filter(Boolean).join(' ');
 }

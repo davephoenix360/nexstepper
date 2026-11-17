@@ -1,5 +1,6 @@
 import { BM25 } from 'fast-bm25';
 
+import { flattenResumeText, flattenJobText } from '../similarity';
 import type { JobTextSource, ResumeTextSource } from '../similarity';
 
 /**
@@ -115,40 +116,20 @@ export function bm25Similarity(
 
 /**
  * Flatten a resume or JD into a single text blob for BM25 indexing.
- * Mirrors the engine's existing flattenResumeText / flattenJobText
- * but is intentionally simpler — we only need the searchable
- * tokens, not the structural breakdown.
+ *
+ * It used to have its own copy of the flatten — which was NOT the same
+ * as the one the keyword score used. This module had a copy, so did
+ * `scoring-async/hybrid-similarity.ts`, `dimensions/structure.ts`,
+ * `dimensions/alignment.ts` and `dimensions/intent-coverage.ts`. The
+ * keyword score and the BM25 signal were therefore matching against
+ * different documents.
+ *
+ * There is now ONE flattener (`lib/scoring/similarity.ts`) and every
+ * signal reads the same text.
  */
 function flattenForBm25(source: ResumeTextSource | JobTextSource): string {
   if ('basics' in source && source.basics) {
-    // ResumeTextSource
-    const resume = source as ResumeTextSource;
-    const parts: string[] = [];
-    parts.push(resume.basics.summary ?? '', resume.basics.label ?? '');
-    for (const skill of resume.skills) {
-      parts.push(skill.name, ...skill.keywords);
-    }
-    for (const job of resume.work) {
-      parts.push(job.summary ?? '');
-      for (const pos of job.positions) {
-        parts.push(pos.title ?? '', ...(pos.highlights ?? []));
-      }
-    }
-    for (const proj of resume.projects ?? []) {
-      parts.push(proj.name ?? '', proj.description ?? '', ...(proj.highlights ?? []));
-    }
-    return parts.filter(Boolean).join(' \n ');
+    return flattenResumeText(source as ResumeTextSource);
   }
-
-  // JobTextSource
-  const job = source as JobTextSource;
-  return [
-    job.title ?? '',
-    job.description ?? '',
-    ...(job.requirements ?? []),
-    ...(job.niceToHaves ?? []),
-    ...(job.benefits ?? [])
-  ]
-    .filter(Boolean)
-    .join(' \n ');
+  return flattenJobText(source as JobTextSource);
 }

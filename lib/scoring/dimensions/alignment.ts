@@ -1,4 +1,4 @@
-import { tokenize } from '../similarity';
+import { flattenResumeText, tokenize } from '../similarity';
 import type { JobTextSource, ResumeTextSource } from '../similarity';
 import { SOFT_SKILLS } from '../dictionaries';
 
@@ -119,25 +119,16 @@ function calcSoftSkills(resume: ResumeTextSource): number {
   return (hits / SOFT_SKILLS.length) * 100;
 }
 
+/**
+ * The text the soft-skill phrases are matched against.
+ *
+ * It used to be its own copy of the flatten, and it read the SKILL
+ * NAMES but not the skill KEYWORDS — so a soft skill listed under
+ * "Skills → Communication" did not count, while the same words in a work
+ * bullet did.
+ *
+ * Now it is THE text. One document, one list of fields, everywhere.
+ */
 function flattenForSoftSkills(resume: ResumeTextSource): string {
-  // Same flatten as `scoreStructure` would use, but we only need
-  // the body — no section completeness here. Just enough text to
-  // substring-match against.
-  const parts: string[] = [
-    resume.basics.summary ?? '',
-    resume.basics.label ?? '',
-    resume.skills.map((s) => s.name).join(' ')
-  ];
-  for (const job of resume.work) {
-    parts.push(job.summary ?? '');
-    for (const pos of job.positions) {
-      parts.push(pos.title ?? '');
-      if (pos.highlights) parts.push(pos.highlights.join(' '));
-    }
-  }
-  for (const proj of resume.projects ?? []) {
-    parts.push(proj.name ?? '', proj.description ?? '');
-    if (proj.highlights) parts.push(proj.highlights.join(' '));
-  }
-  return parts.filter(Boolean).join(' \n ');
+  return flattenResumeText(resume);
 }

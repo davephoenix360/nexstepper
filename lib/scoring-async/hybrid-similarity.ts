@@ -1,4 +1,5 @@
 import { bm25Similarity } from '@/lib/scoring/dimensions/bm25-similarity';
+import { flattenJobText, flattenResumeText } from '@/lib/scoring/similarity';
 import type { JobTextSource, ResumeTextSource } from '@/lib/scoring/similarity';
 import { semanticSimilarity } from './semantic-similarity';
 
@@ -98,38 +99,19 @@ export async function hybridSimilarity(
 
 /**
  * Flatten a resume / JD into a single text blob for embedding.
- * Mirrors the shape `bm25-similarity.ts` uses (`flattenForBm25`)
- * but is implemented independently to keep the async module
- * dependency-light — `bm25-similarity.ts`'s helper is internal
- * (not exported) and we'd rather not couple the two modules.
+ *
+ * It used to be implemented independently of the other flatteners "to
+ * keep the async module dependency-light". That independence was the
+ * problem: this copy, `bm25-similarity.ts`'s copy and
+ * `similarity.ts`'s copy were three different documents, and the
+ * semantic signal was reading a different resume than the keyword score
+ * was.
+ *
+ * There is now ONE flattener and every signal reads the same text.
  */
 function flattenForEmbedding(source: ResumeTextSource | JobTextSource): string {
   if ('basics' in source && source.basics) {
-    const resume = source as ResumeTextSource;
-    const parts: string[] = [];
-    parts.push(resume.basics.summary ?? '', resume.basics.label ?? '');
-    for (const skill of resume.skills) {
-      parts.push(skill.name, ...skill.keywords);
-    }
-    for (const job of resume.work) {
-      parts.push(job.summary ?? '');
-      for (const pos of job.positions) {
-        parts.push(pos.title ?? '', ...(pos.highlights ?? []));
-      }
-    }
-    for (const proj of resume.projects ?? []) {
-      parts.push(proj.name ?? '', proj.description ?? '', ...(proj.highlights ?? []));
-    }
-    return parts.filter(Boolean).join(' \n ');
+    return flattenResumeText(source as ResumeTextSource);
   }
-  const job = source as JobTextSource;
-  return [
-    job.title ?? '',
-    job.description ?? '',
-    ...(job.requirements ?? []),
-    ...(job.niceToHaves ?? []),
-    ...(job.benefits ?? [])
-  ]
-    .filter(Boolean)
-    .join(' \n ');
+  return flattenJobText(source as JobTextSource);
 }

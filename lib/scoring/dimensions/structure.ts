@@ -1,4 +1,4 @@
-import { wordCount } from '../similarity';
+import { flattenResumeText, wordCount } from '../similarity';
 import type { ResumeTextSource } from '../similarity';
 
 /**
@@ -77,32 +77,13 @@ function hasEducation(resume: ResumeTextSource & { education?: unknown }): boole
 }
 
 /**
- * Build the text blob used for word-counting. Differs slightly from
- * `flattenResumeText` in that we DO want to count section headers
- * (because they're user-written prose too). The narrow source has
- * everything we need.
+ * Build the text blob used for word-counting.
+ *
+ * It used to be a second copy of the flatten, and it counted the same
+ * words as nothing else. Now it is THE text — the same document the
+ * keyword score, the BM25 signal and the semantic signal read. A resume
+ * whose length is measured is the same resume that is matched.
  */
 function textForLength(resume: ResumeTextSource): string {
-  // Re-use the flatten helper for consistency. If the resume is
-  // extremely short (e.g. just `basics`), the score degrades
-  // gracefully via `Math.max(0, ...)`.
-  return [
-    resume.basics.summary ?? '',
-    resume.basics.label ?? '',
-    resume.skills.map((s) => `${s.name} ${s.keywords.join(' ')}`).join(' '),
-    resume.work
-      .map(
-        (w) =>
-          `${w.summary ?? ''} ${w.positions
-            .map((p) => `${p.title ?? ''} ${(p.highlights ?? []).join(' ')}`)
-            .join(' ')}`
-      )
-      .join(' '),
-    (resume.projects ?? [])
-      .map(
-        (p) =>
-          `${p.name ?? ''} ${p.description ?? ''} ${(p.highlights ?? []).join(' ')}`
-      )
-      .join(' ')
-  ].join(' ');
+  return flattenResumeText(resume);
 }

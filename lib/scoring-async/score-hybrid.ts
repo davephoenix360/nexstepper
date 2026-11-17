@@ -5,6 +5,7 @@ import {
 } from '@/lib/scoring';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 import { hybridSimilarity } from './hybrid-similarity';
+import { resumeDataToScoreable } from '@/lib/scoring/resume-adapter';
 import { evaluateJevRequirements } from './jev-requirements';
 import { evaluateJevContentQuality } from './jev-content-quality';
 import { roleFitSimilarity, NEUTRAL_ROLE_FIT_SCORE } from './role-fit';
@@ -169,8 +170,8 @@ export async function scoreResumeHybridFromEnvelope(
   // and discriminates internally; we feed each envelope through
   // the typed adapter to land on the right shape.
   const hybridSimilarityValue = await hybridSimilarity(
-    toTextSource(resume),
-    toTextSource(job)
+    resumeDataToScoreable(resume),
+    toJobTextSource(job)
   );
   const newSimilarityScore = hybridSimilarityValue * 100;
 
@@ -270,48 +271,24 @@ function recomputeAtsMatchingDimension(
 }
 
 /**
- * Adapter from the wide `ResumeData` / `JobPosting` envelopes to
- * the narrow `ResumeTextSource` / `JobTextSource` shapes the
- * hybrid similarity helper reads. Mirrors the adapter in
- * `lib/scoring/score.ts` (`resumeDataToScoreable`) but returns
- * only the text-bearing fields (no education/awards/etc.) since
- * the hybrid signal only needs searchable text.
+ * Adapter from the wide `JobPosting` envelope to the narrow
+ * `JobTextSource` shape the hybrid similarity helper reads.
+ *
+ * ## Why the resume side has no adapter here
+ *
+ * This module used to carry its own copy of the resume adapter, with
+ * the comment "mirrors the adapter in `lib/scoring/score.ts`". Two
+ * copies of one adapter is two places for the two to disagree — and
+ * they did: this one carried fewer fields (no education, no awards,
+ * no certificates, no languages, no volunteer), so the hybrid BM25 and
+ * semantic signals were matching against a **narrower resume** than
+ * the keyword score was.
+ *
+ * There is now ONE resume adapter (`lib/scoring/resume-adapter.ts`) and
+ * this module calls it. The job side keeps a local adapter because the
+ * job envelope's own field list is the engine's contract.
  */
-function toTextSource(
-  source: ResumeData | JobPosting
-):
-  | import('@/lib/scoring/similarity').ResumeTextSource
-  | import('@/lib/scoring/similarity').JobTextSource {
-  // Discriminate by shape: ResumeData has `sections`, JobPosting
-  // does not. This is the same shape-discriminator the Zod
-  // schema uses internally.
-  if ('sections' in source) {
-    const resume = source as ResumeData;
-    const sections = resume.sections;
-    return {
-      basics: {
-        summary: sections.basics.summary ?? '',
-        label: sections.basics.label ?? ''
-      },
-      skills: sections.skills.map((s) => ({
-        name: s.name,
-        keywords: s.keywords
-      })),
-      work: sections.work.map((w) => ({
-        summary: w.description ?? '',
-        positions: w.positions.map((p) => ({
-          title: p.title ?? '',
-          highlights: p.highlights ?? []
-        }))
-      })),
-      projects: (sections.projects ?? []).map((p) => ({
-        name: p.name,
-        description: p.description,
-        highlights: p.highlights
-      }))
-    };
-  }
-  const job = source as JobPosting;
+function toJobTextSource(job: JobPosting): import('@/lib/scoring/similarity').JobTextSource {
   return {
     title: job.title ?? '',
     description: job.description ?? '',
