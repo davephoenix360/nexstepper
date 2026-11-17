@@ -1,0 +1,68 @@
+/**
+ * Which criteria belong to which dimension.
+ *
+ * ## Why this exists
+ *
+ * The scorecard renders SEVEN dimension bars, and each bar showed ONE
+ * criterion's advice. The other criteria had nowhere to live:
+ *
+ *   Keywords          → ATS Keyword Match            (ATS Similarity: orphan)
+ *   Format            → Section Completeness          (Optimal Length: orphan)
+ *   Impact            → Accomplishment Focus         (Action Verb Usage: orphan)
+ *   Experience match  → Tailoring                     (Unique Value, Soft Skills: orphans)
+ *   Intent coverage   → Intent Coverage
+ *   Role fit          → Role Fit
+ *   Seniority fit     → Seniority Fit
+ *
+ * Those orphans were not orphan DATA — each one is advice about the
+ * same dimension the bar represents. The Impact bar talked about
+ * bullets that "describe a task rather than an outcome" but never about
+ * the bullets that "open weakly or passively" — both are about the same
+ * bullets.
+ *
+ * So the popover shows **every** criterion tip for the dimension you
+ * clicked. The inline tip in the editor still shows the one you
+ * clicked; the popover is where the rewrite happens, so that is where
+ * the full picture belongs.
+ */
+import type { SubCriterionKey } from './types';
+
+/**
+ * The dimension each criterion belongs to.
+ *
+ * The dimension labels are the scorecard's own — the same strings the
+ * bars carry.
+ */
+export const CRITERION_TO_DIMENSION: Record<SubCriterionKey, string> = {
+  'ATS Keyword Match': 'Keywords',
+  'ATS Similarity': 'Keywords',
+  'Section Completeness': 'Format',
+  'Optimal Length': 'Format',
+  'Accomplishment Focus': 'Impact',
+  'Action Verb Usage': 'Impact',
+  Tailoring: 'Experience match',
+  'Unique Value': 'Experience match',
+  'Soft Skills': 'Experience match',
+  'Intent Coverage': 'Intent coverage',
+  'Role Fit': 'Role fit',
+  'Seniority Fit': 'Seniority fit'
+};
+
+/**
+ * Every criterion in the dimension the clicked one belongs to.
+ *
+ * The clicked criterion comes FIRST — it is the one the user asked
+ * about, and the popover's rewrite is about it.
+ */
+export function siblingCriteria(criterion: SubCriterionKey): SubCriterionKey[] {
+  const dimension = CRITERION_TO_DIMENSION[criterion];
+  const siblings = (Object.entries(CRITERION_TO_DIMENSION) as Array<
+    [SubCriterionKey, string]
+  >)
+    .filter(([, d]) => d === dimension)
+    .map(([c]) => c);
+  return [
+    criterion,
+    ...siblings.filter((c) => c !== criterion)
+  ];
+}

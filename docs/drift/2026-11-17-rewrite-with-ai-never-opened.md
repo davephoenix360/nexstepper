@@ -381,3 +381,45 @@ the rewrite worth paying for.
 The rewrite stays. It is a Pro feature at the highest-intent moment in
 the product: the user has just been told exactly what is wrong and
 where.
+---
+
+# Part 7 — The popover shows the WHOLE dimension
+
+The scorecard renders SEVEN dimension bars, and each bar showed ONE
+criterion's advice. Six criteria had nowhere to live:
+
+| Dimension | The bar showed | The orphans |
+|---|---|---|
+| Keywords | ATS Keyword Match | ATS Similarity |
+| Format | Section Completeness | Optimal Length |
+| Impact | Accomplishment Focus | **Action Verb Usage** |
+| Experience match | Tailoring | Unique Value, Soft Skills |
+| Intent coverage | Intent Coverage | — |
+| Role fit | Role Fit | — |
+| Seniority fit | Seniority Fit | — |
+
+Those orphans were not orphan DATA. Each one is advice about the same
+dimension the bar represents. The **Impact** bar talked about bullets
+that "describe a task rather than an outcome" and never mentioned the
+bullets that "open weakly or passively" — both are about the same
+bullets.
+
+So clicking a bar now opens a popover that carries **every** criterion
+tip for that dimension, the clicked one first:
+
+```
+AI rewrite · Accomplishment Focus
+  4 of 9 work bullets describe a task rather than an outcome (…)
+  1 of 9 bullets opens weakly or passively (…)
+  "Maintained the internal dashboard used by the support team"
+  [three rewrites]   Apply / Regenerate
+```
+
+The inline tip in the editor still shows the one criterion you clicked —
+it is one line, in the flow of the text. The popover is where the
+rewrite happens, so that is where the full picture belongs.
+
+`lib/inline-issue/dimension-criteria.ts` owns the grouping, and the
+mapping is pinned by a test: every criterion is in exactly one
+dimension, the clicked criterion comes first, and no criterion is
+returned twice.

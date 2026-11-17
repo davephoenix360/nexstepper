@@ -46,18 +46,22 @@ export type InlineIssuePopoverProps = {
   /** Current bullet text — displayed at the top of the popover. */
   currentText: string;
   /**
-   * WHY this leaf needs work — the scorecard's own tip for the
-   * criterion.
+   * WHY this leaf needs work — the scorecard's own tips for the WHOLE
+   * dimension the clicked criterion belongs to (clicked criterion
+   * first).
    *
    * The popover used to show the bullet and three rewrites with no
-   * explanation, so the reason lived somewhere else (the inline tip
-   * in the editor). The popover is where the rewrite happens, so it is
-   * where the reason belongs.
+   * explanation, so the reason lived somewhere else (the inline tip in
+   * the editor). And it showed only ONE criterion's advice, while the
+   * criteria that share a dimension had nowhere else to live.
    *
-   * It is the same tip the scorecard and the chat show, so the three
-   * surfaces cannot disagree about what is wrong.
+   * The popover is where the rewrite happens, so it is where the reason
+   * belongs — all of it.
+   *
+   * These are the same tips the scorecard and the chat show, so the
+   * three surfaces cannot disagree about what is wrong.
    */
-  tip?: React.ReactNode;
+  tips?: React.ReactNode[];
   /** Whether the popover is open (controlled). */
   open: boolean;
   /** Called when the popover wants to open / close (Esc, outside-click). */
@@ -85,24 +89,29 @@ export type InlineIssuePopoverProps = {
 };
 
 /**
- * The "why this leaf needs work" block inside the popover.
+ * The "why this leaf needs work" blocks inside the popover.
  *
- * Extracted from the popover body so it can be rendered — and pinned —
+ * Extracted from the popover body so they can be rendered — and pinned —
  * by the static-markup test runner. The popover itself renders through
  * a Radix portal, which does not render in `renderToStaticMarkup`.
  *
- * It is the scorecard's own tip for the criterion, so the popover, the
- * scorecard and the chat cannot disagree about what is wrong.
+ * These are the scorecard's own tips for the dimension, so the popover,
+ * the scorecard and the chat cannot disagree about what is wrong.
  */
-export function InlineIssueReason({ tip }: { tip?: React.ReactNode }) {
-  if (!tip) return null;
+export function InlineIssueReason({ tips }: { tips?: React.ReactNode[] }) {
+  if (!tips || tips.length === 0) return null;
   return (
-    <div
-      className="mt-2 rounded-sm bg-indigo-50 px-2 py-1.5 text-[11px] leading-snug text-indigo-900 line-clamp-4 dark:bg-indigo-950 dark:text-indigo-200"
-      data-testid="inline-issue-tip"
-    >
-      {tip}
-    </div>
+    <>
+      {tips.map((tip, index) => (
+        <div
+          key={index}
+          className="mt-2 rounded-sm bg-indigo-50 px-2 py-1.5 text-[11px] leading-snug text-indigo-900 line-clamp-4 dark:bg-indigo-950 dark:text-indigo-200"
+          data-testid="inline-issue-tip"
+        >
+          {tip}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -110,7 +119,7 @@ export function InlineIssuePopover({
   path,
   criterion,
   currentText,
-  tip,
+  tips,
   open,
   onOpenChange,
   enrichAction,
@@ -244,7 +253,7 @@ export function InlineIssuePopover({
             than an outcome"), and the named bullets follow it. The
             full text is in the editor's inline tip.
         */}
-        <InlineIssueReason tip={tip} />
+        <InlineIssueReason tips={tips} />
 
         <p
           className="mt-2 line-clamp-3 text-[11px] italic text-muted-foreground"

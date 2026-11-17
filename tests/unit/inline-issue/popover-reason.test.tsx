@@ -26,12 +26,12 @@ describe('<InlineIssueReason />', () => {
   it('renders the reason the leaf needs work', () => {
     const html = renderToStaticMarkup(
       <InlineIssueReason
-        tip={
+        tips={[
           <>
             <strong>10 of 29</strong> work bullets describe a task rather than an
             outcome. Say what changed.
           </>
-        }
+        ]}
       />
     );
     expect(html).toContain('data-testid="inline-issue-tip"');
@@ -41,8 +41,24 @@ describe('<InlineIssueReason />', () => {
     expect(html).toContain('<strong>10 of 29</strong>');
   });
 
-  it('renders nothing when there is no tip', () => {
+  it('renders every tip of the dimension', () => {
+    // The criteria that share a dimension had nowhere else to live -
+    // the popover is where the whole picture belongs.
+    const html = renderToStaticMarkup(
+      <InlineIssueReason
+        tips={[
+          <>4 of 9 bullets describe a task rather than an outcome.</>,
+          <>1 of 9 bullets opens weakly or passively.</>
+        ]}
+      />
+    );
+    expect(html.match(/data-testid="inline-issue-tip"/g)?.length).toBe(2);
+    expect(html).toContain('describe a task rather than an outcome');
+    expect(html).toContain('opens weakly or passively');
+  });
+
+  it('renders nothing when there are no tips', () => {
     expect(renderToStaticMarkup(<InlineIssueReason />)).toBe('');
-    expect(renderToStaticMarkup(<InlineIssueReason tip={null} />)).toBe('');
+    expect(renderToStaticMarkup(<InlineIssueReason tips={[]} />)).toBe('');
   });
 });

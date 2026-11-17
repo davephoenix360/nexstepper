@@ -13,6 +13,7 @@ import {
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { MatchBreakdown } from '@/lib/db/queries';
 import { defaultPathForCriterion } from '@/lib/inline-issue/criterion-to-path';
+import { siblingCriteria } from '@/lib/inline-issue/dimension-criteria';
 import { buildSuppressionNotice } from './suppression-notice';
 
 /**
@@ -200,17 +201,24 @@ export function useInlineIssueController({
       criterion: active.criterion,
       currentText: active.currentText,
       /**
-       * WHY this leaf needs work.
+       * WHY this leaf needs work — the scorecard's own tips for the
+       * WHOLE DIMENSION the clicked criterion belongs to, clicked
+       * criterion first.
        *
-       * The popover used to show the bullet and three rewrites with no
-       * explanation — so the user had to look elsewhere (the inline tip
-       * in the editor) for WHY the bullet was flagged. The popover is
-       * where the AI rewrite happens, so it is where the reason belongs.
+       * It used to be one tip (the clicked criterion's). But the six
+       * criteria that share a dimension with another one had nowhere to
+       * live: the Impact bar talked about bullets that "describe a task
+       * rather than an outcome" and never about the bullets that "open
+       * weakly or passively" — both are about the same bullets.
        *
-       * It is the same tip the scorecard and the chat show, so the
-       * three surfaces cannot disagree about what is wrong.
+       * The popover is where the rewrite happens, so it is where the
+       * full picture belongs. It is the same tips the scorecard and the
+       * chat show, so the three surfaces cannot disagree about what is
+       * wrong.
        */
-      tip: dynamicTips?.[active.criterion] ?? null,
+      tips: siblingCriteria(active.criterion)
+        .map((criterion) => dynamicTips?.[criterion])
+        .filter((tip): tip is NonNullable<typeof tip> => Boolean(tip)),
       open: popoverOpen,
       onOpenChange: setPopoverOpen,
       enrichAction,
