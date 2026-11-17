@@ -45,16 +45,47 @@ import type { JobTextSource } from './similarity';
  * See `lib/scoring/qualifications.ts`.
  */
 
-/** The eligibility requirements a JD's own lines state. */
+/**
+ * The eligibility requirements a JD's own lines state.
+ *
+ * ## Where it looks — and why
+ *
+ * It scans FOUR sources:
+ *
+ *   1. `job.requirements` — legacy rows with a parsed bullet list.
+ *   2. `job.niceToHaves` — same.
+ *   3. `job.mustHaveSkills` — the intent extractor's list. **This is the
+ *      one that is populated in production.**
+ *   4. `job.niceToHaveSkills` — same.
+ *
+ * It used to scan only 1 and 2, while the eligibility NOTES read 3 and 4
+ * (`lib/scoring/dimensions/intent-coverage.ts`). Two halves of one fix,
+ * reading two different sources — and the half that read the empty
+ * sources never ran, so the JD's "bachelor's degree" stayed in the
+ * keyword vocabulary and the candidate was marked down for not writing
+ * it. Measured at **1.91 points** for a candidate who HAS the degree.
+ *
+ * Both halves now read the same place, so they cannot disagree.
+ */
 export function jobEligibilityGates(job: JobTextSource): EligibilityRequirement[] {
   const gates: EligibilityRequirement[] = [];
+  const seen = new Set<string>();
   for (const line of [
     ...(job.requirements ?? []),
-    ...(job.niceToHaves ?? [])
+    ...(job.niceToHaves ?? []),
+    ...(job.mustHaveSkills ?? []),
+    ...(job.niceToHaveSkills ?? [])
   ]) {
     if (typeof line !== 'string') continue;
     const gate = detectQualification(line);
-    if (gate) gates.push(gate);
+    if (!gate) continue;
+    // The same requirement can appear in more than one list (the
+    // extractor's must-have list and a parsed bullet). One gate is
+    // enough — the note and the vocabulary must agree.
+    const key = gate.text.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    gates.push(gate);
   }
   return gates;
 }
@@ -71,12 +102,30 @@ export function jobTokensWithoutStopWords(job: JobTextSource): string[] {
   // requirement — otherwise the vocabulary is untouched.
   const excluded = gates.length > 0 ? eligibilityVocabulary(gates) : null;
 
+  // The JD's OWN location is not a requirement the candidate can meet.
+  //
+  // A posting that says "we build our platform in San Francisco" puts
+  // `san` and `francisco` into the keyword vocabulary, and the candidate
+  // was charged for them — while their own location field could not pay
+  // them off, because the location was excluded from the scored text.
+  // The Edmonton bug: fixed in the tip (`lib/scoring/tips.tsx`), never in
+  // the score.
+  //
+  // With the job's location known (from the intent extractor, which
+  // already reads the posting), those tokens are dropped. A city is not
+  // a skill, and nobody should be marked down for the job naming its own
+  // address.
+  const locationTokens = new Set(
+    tokensFromText(job.location ?? '').filter((t) => t.length >= 2)
+  );
+
   const seen = new Set<string>();
   const out: string[] = [];
   const push = (text: string) => {
     for (const t of tokensFromText(text)) {
       if (STOP_WORDS.has(t)) continue;
       if (excluded?.has(t)) continue;
+      if (locationTokens.has(t)) continue;
       if (seen.has(t)) continue;
       seen.add(t);
       out.push(t);

@@ -29,6 +29,7 @@ import {
 import type { JevContentQualityEvaluation } from './jev-content-quality';
 import { flattenJobText, flattenResumeText } from './similarity';
 import type { JobTextSource, ResumeTextSource } from './similarity';
+import { resumeDataToScoreable } from './resume-adapter';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 
 /**
@@ -277,20 +278,15 @@ export type ScoreBreakdown = {
   jevBullets?: Array<{ impact: number; opening: number }>;
 };
 
-export type ScoreableResume = ResumeTextSource & {
-  education?: unknown[];
-  awards?: unknown[];
-  publications?: unknown[];
-  /**
-   * The resume's certificate entries.
-   *
-   * Carried because the eligibility module needs them: a JD that asks for
-   * a certification must be able to see whether the candidate lists one.
-   * Before this, the certification note was a hardcoded "your resume does
-   * not list one" — see `lib/scoring/qualifications.ts`.
-   */
-  certificates?: unknown[];
-};
+/**
+ * The resume shape the engine reads.
+ *
+ * It IS `ResumeTextSource` — the narrow, evidence-only shape from
+ * `lib/scoring/similarity.ts`. There is no second, wider envelope shape
+ * for the scorer: the engine reads the same document everywhere, and
+ * that document is defined in one place.
+ */
+export type ScoreableResume = ResumeTextSource;
 
 export type ScoreableJob = JobTextSource & {
   /** v2 intent-extraction fields (optional; absent on legacy rows). */
@@ -374,44 +370,16 @@ export type PrecomputedJevContentQuality = {
 
 /**
  * Convert a full `ResumeData` envelope (Zod schema shape) into the
- * narrow `ScoreableResume` the scoring engine reads. Lives here so
- * the engine never imports the envelope schema directly — keeps the
- * dependency direction one-way (scoring depends on resume-schema,
- * not the other way around).
+ * narrow `ScoreableResume` the scoring engine reads.
  *
- * Sections under `data.sections.{basics,skills,work,projects,education,...}`
- * are flattened into the engine's narrow shape. Optional sections
- * default to empty arrays / empty objects.
+ * The implementation lives in `lib/scoring/resume-adapter.ts` — its own
+ * file because BOTH the engine and the Intent Coverage dimension need
+ * it, and the dimension importing the engine that imports the dimension
+ * would be a cycle.
+ *
+ * Re-exported here so the engine's public surface is unchanged.
  */
-export function resumeDataToScoreable(resume: ResumeData): ScoreableResume {
-  const sections = resume.sections;
-  return {
-    basics: {
-      summary: sections.basics.summary ?? '',
-      label: sections.basics.label ?? ''
-    },
-    skills: sections.skills.map((s) => ({
-      name: s.name,
-      keywords: s.keywords
-    })),
-    work: sections.work.map((w) => ({
-      summary: w.description ?? '',
-      positions: w.positions.map((p) => ({
-        title: p.title ?? '',
-        highlights: p.highlights ?? []
-      }))
-    })),
-    projects: (sections.projects ?? []).map((p) => ({
-      name: p.name,
-      description: p.description,
-      highlights: p.highlights
-    })),
-    education: sections.education ?? [],
-    awards: sections.awards ?? [],
-    publications: sections.publications ?? [],
-    certificates: sections.certificates ?? []
-  };
-}
+export { resumeDataToScoreable } from './resume-adapter';
 
 /**
  * Whether the JD has v2 intent data available (at least one priority
@@ -822,6 +790,9 @@ export function scoreResumeFromEnvelope(
           requirements: job.requirements ?? [],
           niceToHaves: job.niceToHaves ?? [],
           benefits: job.benefits ?? [],
+          // The job's own location — so its tokens can be excluded from
+          // the keyword vocabulary. See `lib/scoring/jd-tokens.ts`.
+          location: job.location ?? '',
           mustHaveSkills: job.mustHaveSkills ?? [],
           niceToHaveSkills: job.niceToHaveSkills ?? [],
           implicitSkills: job.implicitSkills ?? [],
