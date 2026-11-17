@@ -3,6 +3,9 @@ import 'server-only';
 import type { ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring/score';
 import type { RenderedBreakdownSource } from '@/lib/scoring/snapshot-breakdown';
+import { buildDynamicTips } from '@/lib/scoring/tips';
+import { tipsToPlainText } from '@/lib/scoring/tips-text';
+import { biggestRecoverableWin } from '@/lib/scoring/priority';
 import type { PrintSettings } from '@/lib/print-settings';
 import { printSettingsSummary } from '@/lib/print-settings';
 import { AGENT_DISPLAY_NAME } from '@/lib/brand/agent-mark';
@@ -268,6 +271,28 @@ export function buildResumeContext(data: ResumeData): string {
 }
 
 /**
+ * The scorecard's dynamic tips, as plain text the model can read.
+ *
+ * Built from the SAME `buildDynamicTips` the scorecard renders, so the
+ * advice the chat gives and the advice the scorecard shows cannot
+ * disagree — the chat used to see only the dimension numbers and
+ * improvise, while the scorecard named the exact bullets to change.
+ */
+function buildAtsAdviceText(
+  score: ScoreBreakdown,
+  resume: ResumeData
+): Record<string, string> {
+  try {
+    const tips = buildDynamicTips(score, resume, resume.jobContext ?? null);
+    return tipsToPlainText(tips);
+  } catch {
+    // A tip builder that throws must not take the whole prompt with
+    // it — the agent still has the dimension numbers.
+    return {};
+  }
+}
+
+/**
  * Build a plain-text block summarising the latest ATS score for the
  * resume vs the attached JD, so the chat model can reason against
  * actual numbers instead of inferring them from the resume text.
@@ -278,7 +303,22 @@ export function buildResumeContext(data: ResumeData): string {
  */
 export function buildAtsContext(
   score: ScoreBreakdown,
-  source?: RenderedBreakdownSource | null
+  source?: RenderedBreakdownSource | null,
+  /**
+   * The dynamic tips as PLAIN TEXT — the same advice the scorecard
+   * shows, keyed by criterion.
+   *
+   * ## Why the agent needs them
+   *
+   * Without them the agent saw only the dimension NUMBERS and had to
+   * improvise the advice. The scorecard beside it was saying "10 of 29
+   * work bullets describe a task rather than an outcome (…named
+   * bullets…)" — so the chat was the surface with the vaguer advice.
+   *
+   * The tips are rendered from the scorecard's own tips, so the two
+   * surfaces cannot drift.
+   */
+  tipText?: Record<string, string>
 ): string {
   const dim = score.dimensionScores;
   const ic = score.intentCoverageBreakdown;
@@ -357,13 +397,40 @@ export function buildAtsContext(
           .join('\n')
       : '';
 
+  // The concrete, per-criterion advice — the SAME advice the scorecard
+  // shows. This is what turns "contentQuality: 68" into "10 of 29 work
+  // bullets describe a task rather than an outcome (…named bullets…)".
+  const adviceLines = Object.entries(tipText ?? {});
+  const adviceSection = adviceLines.length
+    ? '\n\nWhat to fix (the scorecard shows this — quote it, do not improvise):\n' +
+      adviceLines.map(([criterion, text]) => `  • ${criterion}: ${text}`).join('\n')
+    : '';
+
+  // Which dimension is worth the candidate's time FIRST.
+  //
+  // The scorecard's "Start here" line ranks by RECOVERABLE POINTS
+  // (`weight × (100 − score)`), not by the raw score — a dimension at
+  // 50 that carries 21% of the score is worth more than one at 50 that
+  // carries 10%. The agent should prioritise the same way, or it will
+  // send the user to the wrong bar.
+  const topWin = biggestRecoverableWin(score.dimensionScores, {
+    useV2Weights: !score.intentCoverageBreakdown?.fallback
+  });
+  const startHere = topWin
+    ? `\n\nStart here: ${topWin.label} is at ${Math.round(topWin.score)}/100 and carries ` +
+      `${Math.round(topWin.weight * 100)}% of the overall score — worth up to ` +
+      `${topWin.points.toFixed(1)} points. Recommend this one first.`
+    : '';
+
   return `=== ATS SCORE (latest, vs current JD) ===
 Overall match: ${score.overallScore} / 100
 
 Dimension scores (0–100, sorted by strength):
-${dimLines}${missedSection}${eligibilitySection}${fallbackNote}${provenanceNote}
+${dimLines}${missedSection}${eligibilitySection}${adviceSection}${startHere}${fallbackNote}${provenanceNote}
 
 Use these numbers to prioritise edits — fixing a 38 in intentCoverage typically lifts the overall match more than tweaking a 78. Don't invent missing skills; only surface gaps the score actually reports.
+
+When the "What to fix" list is present, use IT: it names the specific bullets, keywords and sections to change. Do not replace it with your own general advice — the scorecard is showing the candidate the same list, and the two must agree.
 
 When an eligibility requirement is listed, tell the user what it means for them and what the resume says about it — for example "this role asks for a bachelor's degree and yours completes in June 2027, so you'll meet it by then." Do not tell them to add a degree to their resume.`;
 }
@@ -591,7 +658,12 @@ export function buildSystemPrompt(
   // against, and a neutral fallback is just noise.
   const atsSection =
     atsScore && jobSection
-      ? '\n\n' + buildAtsContext(atsScore, atsScoreSource)
+      ? '\n\n' +
+        buildAtsContext(
+          atsScore,
+          atsScoreSource,
+          buildAtsAdviceText(atsScore, data)
+        )
       : '';
 
   // The first-session analysis, when one exists for this (resume, JD).

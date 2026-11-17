@@ -2,6 +2,7 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
+import { biggestRecoverableWin } from '@/lib/scoring/priority';
 
 /**
  * `getAtsScore` — read the CURRENT ATS score for the resume this chat is
@@ -108,6 +109,20 @@ export async function executeGetAtsScore(
     return { ok: false, error: 'Could not compute a score for this resume.' };
   }
 
+  // The scorecard's own dynamic tips, rendered as plain text.
+  //
+  // Built OUTSIDE the hybrid branch: the advice is worth having even
+  // when the semantic half was unavailable, and it is the same advice
+  // the scorecard is showing the candidate.
+  let tipText: Record<string, string> = {};
+  try {
+    const { buildDynamicTips } = await import('@/lib/scoring/tips');
+    const { tipsToPlainText } = await import('@/lib/scoring/tips-text');
+    tipText = tipsToPlainText(buildDynamicTips(breakdown, data, data.jobContext));
+  } catch {
+    // Advice is a bonus; the numbers are the contract.
+  }
+
   // Persist a snapshot so the scorecard reflects reality after an agent
   // edit. Only for the hybrid path — writing a BM25-only score into the
   // snapshot history would make the scorecard jump to a different number
@@ -144,7 +159,7 @@ export async function executeGetAtsScore(
     }
   }
 
-  return { ok: true, result: formatScoreForModel(breakdown, usedHybrid) };
+  return { ok: true, result: formatScoreForModel(breakdown, usedHybrid, tipText) };
 }
 
 /**
@@ -153,10 +168,17 @@ export async function executeGetAtsScore(
  * Text rather than raw JSON because the model reads this far better as
  * prose+lines, and because it keeps the token cost of the tool result
  * down — tool results are fed back into the conversation.
+ *
+ * `tips` are the scorecard's own dynamic tips, rendered as plain text.
+ * They are the concrete advice ("10 of 29 work bullets describe a task
+ * rather than an outcome (…named bullets…)") — without them the model
+ * sees only the dimension numbers and improvises, which is how the chat
+ * ended up with vaguer advice than the scorecard beside it.
  */
 function formatScoreForModel(
   breakdown: import('@/lib/scoring/score').ScoreBreakdown,
-  usedHybrid: boolean
+  usedHybrid: boolean,
+  tips?: Record<string, string>
 ): string {
   const dim = breakdown.dimensionScores;
   const ic = breakdown.intentCoverageBreakdown;
@@ -185,6 +207,26 @@ function formatScoreForModel(
 
   const weakest = [...dims].sort((a, b) => a[1] - b[1])[0];
 
+  // The concrete advice, as plain text — the same words the scorecard
+  // is showing the candidate right now.
+  const adviceEntries = Object.entries(tips ?? {});
+  const adviceSection = adviceEntries.length
+    ? '\n\nWhat to fix (same advice the scorecard shows — quote it, do not improvise):\n' +
+      adviceEntries.map(([criterion, text]) => `  • ${criterion}: ${text}`).join('\n')
+    : '';
+
+  // Which dimension to fix first — recoverable points, not the raw
+  // score. The scorecard's "Start here" line uses the same measure, so
+  // the agent and the scorecard point at the same bar.
+  const topWin = biggestRecoverableWin(breakdown.dimensionScores, {
+    useV2Weights: !breakdown.intentCoverageBreakdown?.fallback
+  });
+  const startHere = topWin
+    ? `\n\nStart here: ${topWin.label} is at ${Math.round(topWin.score)}/100 and carries ` +
+      `${Math.round(topWin.weight * 100)}% of the overall score — worth up to ` +
+      `${topWin.points.toFixed(1)} points. Recommend this one first.`
+    : '';
+
   // Eligibility requirements are not skill gaps — they get their own
   // block so the assistant can say something useful about them instead
   // of reporting "missing: Bachelor's degree".
@@ -206,7 +248,7 @@ ${missedLines.length ? 'Missing skills:\n' + missedLines.join('\n') : 'Missing s
       ? '\n\nEligibility requirements (not skill gaps — do not tell the user to add these to their resume):\n' +
         eligibilityLines.join('\n')
       : ''
-  }
+  }${adviceSection}${startHere}
 
 Weakest dimension: ${weakest[0]} (${Math.round(weakest[1])}). Fixing that one is worth more than polishing a stronger one.
 ${

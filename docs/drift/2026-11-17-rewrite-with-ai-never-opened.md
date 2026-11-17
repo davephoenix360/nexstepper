@@ -205,19 +205,90 @@ the public surface is unchanged.
 - **Never offer a win when there is nothing to fix.** A resume at 100
   across the board gets no "Start here" line.
 
+---
+
+# Part 4 — The chat agent now gives the SAME advice the scorecard gives
+
+The founder's report had a second half I had not yet acted on:
+
+> *"So ideally this kind of thing like suggestions is what our AI chat
+> agent is meant for the user."*
+
+The advice they quoted —
+
+> *Experience · 10 of 29 work bullets describe a task rather than an
+> outcome (Building Launchpad…; Conducted a personal audit…; Designed a
+> discounts API…). Say what changed, not just what you did.*
+
+— was the **scorecard's** tip. The chat agent never saw it.
+
+## The gap
+
+The chat's ATS context block (`buildAtsContext`) gave the agent the
+dimension NUMBERS:
+
+```
+contentQuality: 68
+```
+
+and nothing else. So when a candidate asked the chat *"how do I improve
+my Impact score?"*, the agent had to **improvise** the advice from a
+number — while the scorecard beside it was naming the exact bullets to
+change.
+
+Two surfaces, one question, two answers. And the chat's answer was the
+invented one.
+
+This is the same defect class as everything else this session: **a
+surface that could see the numbers but not the findings.**
+
+## The fix
+
+The tips are rendered from the scorecard's own tips and handed to the
+agent as plain text:
+
+```
+What to fix (the scorecard shows this — quote it, do not improvise):
+  • Accomplishment Focus: 10 of 29 work bullets describe a task rather
+    than an outcome (Building Launchpad…; Conducted a personal audit…).
+    Say what changed, not just what you did.
+  • Role Fit: This role asks for Senior Backend Engineer. Your headline
+    reads Senior Frontend Engineer.
+
+Start here: Impact is at 68/100 and carries 21% of the overall score —
+worth up to 6.7 points. Recommend this one first.
+```
+
+Both the system prompt (`buildAtsContext`) and the `getAtsScore` tool
+now carry it. The tool's version matters too: the agent calls it to
+**measure its own edits**, and without the advice it could see that the
+number went up but not what to do next.
+
+### One source of truth
+
+`lib/scoring/tips-text.tsx` renders the tips the scorecard renders —
+it does not re-derive them. So the advice cannot drift between the two
+surfaces.
+
+It lives in its own module because `react-dom/server` must not reach a
+client bundle, and `lib/scoring/tips.tsx` is imported by client
+components.
+
+### The "Start here" line
+
+The chat gets the same **recoverable-points** ranking the scorecard
+shows, so the agent and the scorecard point at the same bar. Ranking by
+the raw score would have sent the agent to the wrong one.
+
 ## The lesson
 
-**A path is only useful if the editor renders exactly that testid.**
-Two lists — the paths the surface emits and the paths the editor
-binds — and they were not equal. The same shape as the scoring audit:
-*the schema and the scorer carry separate field lists*.
-
-The generalisation: **when two surfaces must agree (a score and its
-tip, a path and its editor, a note and its vocabulary), assert the
-agreement in a test that renders the real thing.** A test on the
-function's return value only pins the function.
+**A surface that can see the numbers but not the findings is a surface
+that will improvise.** Every surface that reports a score needs the
+*findings* too — the specific bullets, keywords and sections — or it
+will answer a question the score already answered, worse.
 
 And: **"make it better" is not advice.** Every tip now names the
 specific thing that is wrong and the specific edit that fixes it.
+
 
 

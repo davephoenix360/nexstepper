@@ -170,3 +170,59 @@ describe('buildAtsContext', () => {
     expect(out).toMatch(/prioriti[sz]e edits/i);
   });
 });
+
+/**
+ * The advice the chat gives must be the advice the scorecard gives.
+ *
+ * ## The gap this pins
+ *
+ * The chat agent used to see only the dimension NUMBERS — so when a
+ * candidate asked "how do I improve my Impact score?", it improvised
+ * the advice while the scorecard beside it was naming the exact
+ * bullets to fix ("10 of 29 work bullets describe a task rather than
+ * an outcome (…named bullets…)"). Two surfaces, one question, two
+ * answers — and the chat's answer was the invented one.
+ *
+ * The tips are rendered from the scorecard's own tips, so they cannot
+ * drift.
+ */
+describe('buildAtsContext — the concrete advice', () => {
+  it('includes the tips as plain text, keyed by criterion', () => {
+    const out = buildAtsContext(makeScore(), null, {
+      'Accomplishment Focus':
+        '10 of 29 work bullets describe a task rather than an outcome (Building Launchpad…; Conducted a personal audit…). Say what changed, not just what you did.',
+      'Role Fit':
+        'This role asks for Senior Backend Engineer. Your headline reads Senior Frontend Engineer.'
+    });
+    expect(out).toContain('What to fix');
+    expect(out).toContain('10 of 29 work bullets describe a task rather than an outcome');
+    expect(out).toContain('Your headline reads Senior Frontend Engineer');
+  });
+
+  it('tells the model to quote the advice rather than improvise', () => {
+    const out = buildAtsContext(makeScore(), null, { 'Role Fit': 'something' });
+    expect(out).toMatch(/do not improvise/i);
+  });
+
+  it('says which dimension to fix FIRST, by recoverable points', () => {
+    // atsMatching: 0.21 x (100 - 42) = 12.18 — the biggest win.
+    const out = buildAtsContext(makeScore());
+    expect(out).toContain('Start here: Keywords');
+    expect(out).toContain('12.2 points');
+  });
+
+  it('omits the "start here" line when there is nothing to fix', () => {
+    const score = makeScore();
+    score.dimensionScores = {
+      atsMatching: 100,
+      structure: 100,
+      contentQuality: 100,
+      alignment: 100,
+      intentCoverage: 100,
+      roleFit: 100,
+      seniorityFit: 100
+    };
+    const out = buildAtsContext(score);
+    expect(out).not.toContain('Start here:');
+  });
+});

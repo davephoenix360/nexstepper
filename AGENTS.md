@@ -2821,6 +2821,18 @@ the same thing. Two computations of one thing is one too many, and
 when they disagree the tip and the number beside it contradict each
 other.
 
+**A surface that can see the numbers but not the findings is a surface
+that will improvise.** The chat agent's ATS context gave it the
+dimension scores and nothing else — so when a candidate asked "how do I
+improve my Impact score?", it invented the advice while the scorecard
+beside it was naming the exact bullets ("10 of 29 work bullets
+describe a task rather than an outcome (…named bullets…)"). The tips
+are now rendered as plain text (`lib/scoring/tips-text.tsx` — its own
+module because `react-dom/server` must not reach a client bundle) and
+handed to the agent, so the chat quotes the scorecard's advice instead
+of writing its own. The `getAtsScore` tool carries it too: the agent
+calls that to measure its own edits, and without the advice it could
+see the number go up but not know what to do next.
 **Seven bars in a fixed order is an order of layout, not of
 opportunity.** The scorecard now renders a **"Start here"** line
 under the radar: the dimension with the most **recoverable points**,
