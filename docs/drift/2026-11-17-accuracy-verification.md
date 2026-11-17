@@ -520,3 +520,63 @@ tips, and in the type unions — and it never once ran.
 The generalisation: **when you find a branch that is always skipped,
 check whether the thing it measures is measured somewhere else before
 you wire it up.** Intent Coverage already had it.
+---
+
+# Part 10 — Correction: the JD''s requirements DO reach the score
+
+I said the last open item was that *"the JD''s requirement bullets still
+live only in prose"*. That was an overstatement, and it is worth
+correcting in the record — because it changes what should be done.
+
+## Measured
+
+`scripts/probe-jd-requirements-reach.ts` (offline) scores the same
+resume against three versions of one JD:
+
+```
+  baseline (mentions Kafka)    : overall 67, intent 92
+  Kafka removed from the JD    : overall 68, intent 100
+  Kubernetes added to the JD   : overall 66, intent 84
+
+  adding a requirement the resume does NOT cover LOWERS the score by 1 point
+  removing a requirement the resume DOES cover RAISES it by 1 point
+```
+
+So the requirements move the score, in both directions, exactly as they
+should.
+
+## How they get there — three routes
+
+| Route | Carries | Live in production? |
+|---|---|---|
+| `job.description` — the raw posting text, requirements and all | the keyword score + BM25 similarity | **yes** |
+| `job.mustHaveSkills` / `job.niceToHaveSkills` — the extractor''s structured list | Intent Coverage + the eligibility detector | **yes** |
+| `job.requirements` — the JD''s own bullet list | the retired coverage sub-criterion | **no** — empty, no attach path writes one |
+
+The JD''s requirement CONTENT is in the engine twice. What never existed
+is the JD''s own bullet list AS A STRUCTURE — and the one thing that
+read it is exactly what was retired on 2026-11-17.
+
+## So there is nothing left to fix there
+
+Wiring `job.requirements` would buy one thing: the ability to say *"you
+addressed 3 of the 5 responsibilities the JD lists"* instead of *"add
+these missing keywords"*. That is a nicer sentence, not a more accurate
+score — and the sentence is what the retired criterion was for.
+
+The honest options are both **do nothing for now**:
+
+- Leave it retired, and let Intent Coverage carry requirement coverage
+  (it does, with priority weighting and a semantic judgement).
+- Or revive it with the JD''s bullets wired up — which reverses the
+  decision made hours ago and re-introduces a second measure of
+  requirement coverage in the overall score.
+
+The default is the first: **one measure of requirement coverage, and the
+engine''s accuracy record guards it.**
+
+## The lesson
+
+**Check your own claims before writing them down as defects.** This
+session has been about measuring rather than assuming, and it would
+have been a poor end to it to ship an unmeasured claim into the record.

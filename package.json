@@ -27,6 +27,7 @@
     "probe:soft-skill-variants": "tsx --conditions=react-server scripts/probe-soft-skill-variants.ts",
     "probe:hybrid-correlation": "tsx --conditions=react-server scripts/probe-hybrid-correlation.ts",
     "probe:length-drift": "tsx --conditions=react-server scripts/probe-length-drift.ts",
+    "probe:jd-requirements": "tsx --conditions=react-server scripts/probe-jd-requirements-reach.ts",
     "probe:jev-fixture-drift": "tsx --conditions=react-server scripts/refresh-jev-fixture.ts --check",
     "refresh:jev-fixture": "tsx --conditions=react-server scripts/refresh-jev-fixture.ts",
     "diagnose:prod-score": "tsx --conditions=react-server scripts/diagnose-prod-score.ts",
