@@ -20,6 +20,8 @@
     "seed:demo:reset": "tsx --conditions=react-server scripts/seed-demo.ts --reset",
     "preflight:demo-video": "tsx --conditions=react-server scripts/preflight-demo-video.ts",
     "measure:demo-score": "tsx --conditions=react-server scripts/measure-demo-score.ts",
+    "probe:field-coverage": "tsx --conditions=react-server scripts/probe-field-coverage.ts",
+    "probe:role-fit-titles": "tsx --conditions=react-server scripts/probe-role-fit-titles.ts",
     "diagnose:prod-score": "tsx --conditions=react-server scripts/diagnose-prod-score.ts",
     "check:native-tracing": "node scripts/check-native-tracing.mjs"
   },
