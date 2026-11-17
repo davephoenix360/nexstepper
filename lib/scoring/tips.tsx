@@ -59,9 +59,6 @@ export const CRITERIA_TIPS: Record<string, string> = {
   'Intent Coverage':
     'Look at the JD and identify which skills are explicitly required vs. nice-to-have. Address the must-haves first — missing those costs your score 3x more than missing nice-to-haves.',
 
-  'ATS Coverage':
-    'Make sure your resume covers the main requirements: if the JD asks for five things and you only address three, add content that covers the missing ones.',
-
   'Role Fit':
     "Title alignment matters — if the JD asks for a 'Senior Platform Engineer' but your resume titles say 'Backend Engineer', edit them to use the JD's role family vocabulary where it's true to your experience.",
 
@@ -193,25 +190,7 @@ export function buildDynamicTips(
       );
     }
 
-    const uncoveredRequirements = computeUncoveredRequirements(job, resumeText);
-    if (uncoveredRequirements.length > 0) {
-      const total = (job.requirements ?? []).length;
-      const covered = total - uncoveredRequirements.length;
-      const samples = uncoveredRequirements
-        .slice(0, MAX_REQUIREMENTS_IN_TIP)
-        .map(truncateRequirement);
-      const tail = uncoveredRequirements.length > MAX_REQUIREMENTS_IN_TIP
-        ? ` (+${uncoveredRequirements.length - MAX_REQUIREMENTS_IN_TIP} more)`
-        : '';
-      out['ATS Coverage'] = (
-        <>
-          You&apos;re addressing <strong>{covered} of {total}</strong> required
-          responsibilities. Not yet covered:{' '}
-          <strong>{samples.join('; ')}</strong>
-          {tail}.
-        </>
-      );
-    }
+
   }
 
   // Structure (2 sub-criteria).
@@ -564,31 +543,6 @@ export function computeMissingKeywords(
   }
   return missing;
 }
-
-/**
- * For each JD requirement, return the bullet if NONE of its non-stop
- * tokens appear in the resume text. Mirrors the coverage check from
- * `ats-matching.ts > computeCoverageScore` — same token-set
- * membership semantics, no BM25.
- */
-export function computeUncoveredRequirements(
-  job: JobPosting,
-  resumeText: string
-): string[] {
-  const requirements = job.requirements ?? [];
-  if (requirements.length === 0) return [];
-  const resumeTokens = new Set(tokenizeLight(resumeText));
-  const uncovered: string[] = [];
-  for (const req of requirements) {
-    const tokens = tokenizeLight(req).filter((t) => !STOP_WORDS.has(t));
-    if (tokens.length === 0) continue; // vacuously covered
-    if (!tokens.some((t) => resumeTokens.has(t))) {
-      uncovered.push(req);
-    }
-  }
-  return uncovered;
-}
-
 /**
  * List of expected sections that are empty/missing in the resume.
  * Matches the four sections the engine scores (`scoreStructure`):
@@ -747,12 +701,6 @@ function jobTokensWithoutStopWords(job: JobPosting): string[] {
 
 function titleTokens(title: string): string[] {
   return tokenizeLight(title).filter((t) => !STOP_WORDS.has(t));
-}
-
-function truncateRequirement(req: string): string {
-  const trimmed = req.trim();
-  if (trimmed.length <= 60) return trimmed;
-  return trimmed.slice(0, 57) + '...';
 }
 
 /**

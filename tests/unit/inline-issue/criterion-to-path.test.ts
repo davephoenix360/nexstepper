@@ -43,15 +43,9 @@ import {
  */
 
 describe('defaultPathForCriterion', () => {
-  it('ATS Coverage → first work bullet', () => {
-    // The requirements you are not addressing yet belong in your
-    // experience, so a work bullet is the right leaf.
-    expect(defaultPathForCriterion('ATS Coverage')).toBe(
-      'sections.work.0.positions.0.highlights.0'
-    );
-  });
-
   it('ATS Keyword Match → the skills block', () => {
+    // A missing keyword belongs in the skills section, and that is
+    // where the editor's chip editor lives.
     expect(defaultPathForCriterion('ATS Keyword Match')).toBe(
       'sections.skills.0.keywords.0'
     );
@@ -127,11 +121,9 @@ describe('defaultPathForCriterion', () => {
     for (const criterion of [
       'ATS Keyword Match',
       'ATS Similarity',
-      'ATS Coverage',
       'Intent Coverage',
       'Section Completeness',
       'Optimal Length',
-      'Accomplishment Focus',
       'Action Verb Usage',
       'Tailoring',
       'Unique Value',

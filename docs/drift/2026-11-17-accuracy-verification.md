@@ -440,3 +440,83 @@ contentQuality: 70
 
 and would have answered "how do I improve my Impact score?" with
 something it made up. Now it has the answer, named down to the bullet.
+---
+
+# Part 9 — The ATS Coverage sub-criterion is retired
+
+The founder decided: *"I guess we can retire the ATS coverage
+sub-criterion."*
+
+## What it was
+
+"Coverage" measured *of the responsibilities the JD lists, how many does
+the resume mention a token from?* — 20% of the ATS matching dimension.
+
+## Why it was dead
+
+It read `job.requirements`, and **no attach path writes one**. Measured on
+production (Part 7): every variant stores `requirements: 0` and
+`niceToHaves: 0`. The JD''s requirement bullets live only inside the raw
+description prose.
+
+So the dimension re-normalised to 0.75/0.25 and the sub-criterion was
+dead weight — while the **"ATS Coverage" tip could never fire**, which
+is why the Keywords bar was showing the generic *"if the JD asks for five
+things and you only address three…"*.
+
+## Why retire rather than revive
+
+The v2 Intent Coverage dimension already measures requirement coverage —
+with priority weighting (a missing must-have costs 3× a nice-to-have) and
+a semantic (Jev) judgement of what counts as evidence. Reviving the v1
+term would count the same measurement twice in the overall score.
+
+## What changed
+
+- `lib/scoring/dimensions/ats-matching.ts` — two sub-criteria, fixed
+  weights (0.75 keyword / 0.25 similarity). `computeCoverageScore` and
+  `computeCreditedKeywordTokens` are gone.
+- `lib/scoring/score.ts` — `criteriaScores["ATS Coverage"]` is gone.
+- `lib/scoring-async/score-hybrid.ts` — the hybrid recomposition uses the
+  same fixed weights.
+- `lib/scoring/tips.tsx` — the static and dynamic coverage tips are gone,
+  along with `computeUncoveredRequirements`.
+- `lib/inline-issue/types.ts` + `lib/db/queries.ts` — "ATS Coverage" is
+  out of the criterion vocabulary, so the surface cannot target a
+  criterion that does not exist.
+- The Keywords bar now points at the **keyword** criterion and the
+  **skills block** — the advice that names the actual missing tokens and
+  that actually works.
+
+## What it cost, measured
+
+| | before | after |
+|---|---|---|
+| **Production scores** | — | **UNCHANGED** (the branch was already skipped) |
+| corpus sync correlation | 0.9156 | 0.9076 |
+| corpus Jev correlation | 0.9480 | **0.9487** |
+| corpus sync MAE | 13.34 | 13.44 |
+| corpus Jev MAE | 12.66 | **12.16** |
+
+Read carefully, that table says something useful: **the corpus was the
+ONLY place the dead branch was ever live**, and there it helped the sync
+path slightly (−0.008 correlation) while the Jev path — the one
+production runs — got slightly BETTER on both correlation and MAE.
+
+So the retirement gives up a term that only ever existed in a
+synthetic fixture, and improves the path production actually uses.
+
+**Verified against production**: the founder''s stored snapshot and the
+local engine agree dimension for dimension (91 overall; atsMatching 89,
+structure 100, contentQuality 77, alignment 83, intentCoverage 100,
+roleFit 100, seniorityFit 100) — before and after the retirement.
+
+## The lesson
+
+**A sub-criterion that is skipped in production is not a safety net; it
+is a lie in the breakdown.** It appeared in the criteria list, in the
+tips, and in the type unions — and it never once ran.
+
+The generalisation: **when you find a branch that is always skipped,
+check whether the thing it measures is measured somewhere else before
+you wire it up.** Intent Coverage already had it.

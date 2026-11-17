@@ -35,7 +35,6 @@ function makeScore(overrides: Partial<ScoreBreakdown['dimensionScores']> = {}): 
     criteriaScores: {
       'ATS Keyword Match': 40,
       'ATS Similarity': 50,
-      'ATS Coverage': 45,
       'Intent Coverage': 38,
       'Section Completeness': 80,
       'Optimal Length': 75,

@@ -133,7 +133,6 @@ export type ScoreBreakdown = {
     /** ATS Matching sub-criteria. */
     'ATS Keyword Match': number;
     'ATS Similarity': number;
-    'ATS Coverage': number;
     /**
      * v2 sub-criterion — appears in the expanded "Show details + tips"
      * grid when v2 data is available. Falls back to v1 ATS Keyword Match
@@ -642,7 +641,6 @@ export function scoreResume(
     criteriaScores: {
       'ATS Keyword Match': ats.breakdown.keywordScore,
       'ATS Similarity': ats.breakdown.similarityScore,
-      'ATS Coverage': ats.breakdown.coverageScore,
       // v2 Intent Coverage sub-criterion. When v2 data is available
       // we surface the priority-weighted value (the dynamic-tip
       // renderer turns this into the "missing must-have skills"

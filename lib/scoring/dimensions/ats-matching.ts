@@ -9,25 +9,36 @@ import { bm25Similarity } from './bm25-similarity';
 /**
  * ATS-matching dimension (30% of the overall score).
  *
- * Three sub-criteria, weighted as the legacy's `score.ts:371`:
- *   1. `keywordScore`   — 60% — keyword coverage. We extract
+ * TWO sub-criteria:
+ *   1. `keywordScore`   — 75% — keyword coverage. We extract
  *      non-stop-word tokens from the JD, then count how many of
  *      those tokens appear (token-set match, case-insensitive)
  *      in the resume text.
- *   2. `similarityScore` — 20% — Jaccard similarity of the full
- *      resume text vs the full JD text. Replaces the legacy's
+ *   2. `similarityScore` — 25% — BM25 similarity of the full resume
+ *      text vs the full JD text. Replaces the legacy's
  *      `@xenova/transformers` cosine similarity (which we don't
  *      ship in v1 — see plan §"Hard constraints").
- *   3. `coverageScore`   — 20% — for each requirement the JD lists,
- *      does the resume mention ANY of the non-stop tokens from
- *      that requirement? "Coverage" of the listed requirements.
  *
- * Drift from plan §"Acceptance criteria" #4: the plan calls for
- * "treat empty arrays as 'skip this sub-criterion' and re-normalize
- * the dimension weight across the remaining sub-criteria." We do
- * that here — if the JD has zero requirements, `coverageScore` is
- * skipped (treated as 0 for re-normalization) but the other two
- * sub-criteria keep their weights.
+ * ## There was a third sub-criterion, and it is retired
+ *
+ * `coverageScore` measured "of the responsibilities the JD lists, how
+ * many does the resume mention a token from?" — 20% of the dimension.
+ *
+ * It was **always skipped in production**: the JD's requirement list
+ * lives in `job.requirements`, and NO attach path writes one (measured
+ * 2026-11-17 — every variant in production stores `requirements: 0` and
+ * `niceToHaves: 0`; the JD's bullets live only in the raw description
+ * prose). So the dimension re-normalised to 0.75/0.25 and the
+ * sub-criterion was dead weight.
+ *
+ * It is retired rather than revived because the v2 Intent Coverage
+ * dimension already measures requirement coverage — with priority
+ * weighting and a semantic (Jev) judgement of what counts as evidence.
+ * Reviving the v1 term would count the same measurement twice in the
+ * overall score.
+ *
+ * The weights below are therefore UNCHANGED for every production score
+ * — this is the retirement of a dead branch, not a re-weighting.
  *
  * Phase 1 calibration drift: the original implementation used
  * substring containment for the keyword sub-criterion (so
@@ -42,12 +53,11 @@ import { bm25Similarity } from './bm25-similarity';
  */
 
 export type AtsMatchingScore = {
-  /** 0-100. Weighted average of the three sub-criteria, re-normalized. */
+  /** 0-100. Weighted average of the two sub-criteria. */
   value: number;
   breakdown: {
     keywordScore: number;
     similarityScore: number;
-    coverageScore: number;
   };
 };
 
@@ -92,36 +102,32 @@ export function scoreAtsMatching(
   // Same 20% weight in the dimension. Returns [0, 1]; we map
   // to a 0-100 scale to match the other sub-criteria's units.
   const similarityScore = bm25Similarity(resume, job) * 100;
-  // Phase 1: pass the credited-keyword set so the coverage
-  // sub-criterion doesn't double-count hits that already
-  // contributed to `keywordScore`.
-  const creditedTokens = computeCreditedKeywordTokens(job, flatten.resumeText);
-  const coverageScore = computeCoverageScore(
-    job,
-    flatten.resumeText,
-    creditedTokens
-  );
 
-  // Re-normalize weights if a sub-criterion can't be computed.
-  // The plan §"Risks" #4 calls for this. With an empty JD requirements
-  // list, coverage is skipped (treated as `null`) and the other two
-  // share the full 100% of the dimension weight.
-  const weights = { keyword: 0.6, similarity: 0.2, coverage: 0.2 };
-  const skipCoverage =
-    !job.requirements || job.requirements.length === 0;
-
-  const effectiveWeights = skipCoverage
-    ? { keyword: 0.75, similarity: 0.25, coverage: 0 }
-    : weights;
+  // The ATS dimension is TWO sub-criteria: keyword coverage of the JD's
+  // tokens, and BM25 similarity of the two documents.
+  //
+  // There was a third — "coverage of the JD's requirement bullets" —
+  // and it is GONE (2026-11-17). It measured "of the responsibilities
+  // the JD lists, how many does the resume mention a token from?" — and
+  // the JD's requirement list was **always empty in production**,
+  // because no attach path writes one (measured: every variant in
+  // production stores `requirements: 0` and `niceToHaves: 0`). So the
+  // sub-criterion was skipped and the weights re-normalised — which is
+  // why the weights below are what they are.
+  //
+  // It is retired rather than revived because the v2 Intent Coverage
+  // dimension already measures requirement coverage, with priority
+  // weighting and a semantic (Jev) judgement of what counts as
+  // evidence. Reviving the v1 term would count the same measurement
+  // twice in the overall score.
+  const weights = { keyword: 0.75, similarity: 0.25 };
 
   const value =
-    effectiveWeights.keyword * keywordScore +
-    effectiveWeights.similarity * similarityScore +
-    effectiveWeights.coverage * coverageScore;
+    weights.keyword * keywordScore + weights.similarity * similarityScore;
 
   return {
     value,
-    breakdown: { keywordScore, similarityScore, coverageScore }
+    breakdown: { keywordScore, similarityScore }
   };
 }
 
@@ -157,78 +163,6 @@ function computeKeywordScore(job: JobTextSource, resumeText: string): number {
   return (hits / jobTokens.length) * 100;
 }
 
-/**
- * Requirement coverage: for each requirement bullet in the JD, does
- * the resume mention ANY non-stop token from that bullet? Score is
- * the fraction of requirements covered.
- *
- * This is the "did you actually address what they asked for?"
- * check — distinct from the global keyword score, which is more
- * about vocabulary overlap.
- *
- * Phase 1 calibration drift: the original implementation used
- * substring containment AND shared tokens with `computeKeywordScore`,
- * which caused the dimension to double-count token hits (a single
- * token matching both sub-criteria). We now (a) use token-set
- * membership (consistent with `computeKeywordScore`) and (b)
- * dedupe against the keywords that already scored in
- * `computeKeywordScore` so the two sub-criteria measure
- * independent signals. Coverage now counts requirements whose
- * *non-keyword* tokens appear in the resume, plus requirements
- * whose keyword tokens were already credited in
- * `computeKeywordScore`. The net effect: requirements with at
- * least one matching token still get full credit, but a token
- * hitting in both sub-criteria no longer inflates the dimension.
- */
-function computeCoverageScore(
-  job: JobTextSource,
-  resumeText: string,
-  alreadyCreditedTokens: ReadonlySet<string>
-): number {
-  const requirements = job.requirements ?? [];
-  if (requirements.length === 0) return 0;
-  const resumeTokens = tokenize(resumeText);
-  let covered = 0;
-  for (const req of requirements) {
-    const tokens = tokensFromText(req).filter((t) => !STOP_WORDS.has(t));
-    if (tokens.length === 0) {
-      // Requirement was entirely stop words — treat as covered
-      // (vacuously true) so we don't punish the user for an
-      // empty-looking bullet.
-      covered++;
-      continue;
-    }
-    // A requirement "covers" if any of its tokens appear in the
-    // resume, OR if any of its keyword tokens were already
-    // credited by `computeKeywordScore` (the two sub-criteria
-    // are independent signals, but coverage still gets credit
-    // when keywords hit).
-    const matchedByResume = tokens.some((t) => resumeTokens.has(t));
-    const matchedByKeywords = tokens.some((t) =>
-      alreadyCreditedTokens.has(t)
-    );
-    if (matchedByResume || matchedByKeywords) covered++;
-  }
-  return (covered / requirements.length) * 100;
-}
-
-/**
- * Compute the set of JD tokens that the resume matches via the
- * keyword sub-criterion. Used by `computeCoverageScore` to dedupe
- * token hits between the two sub-criteria.
- */
-function computeCreditedKeywordTokens(
-  job: JobTextSource,
-  resumeText: string
-): Set<string> {
-  const jobTokens = jobTokensWithoutStopWords(job);
-  const resumeTokens = tokenize(resumeText);
-  const credited = new Set<string>();
-  for (const token of jobTokens) {
-    if (resumeTokens.has(token)) credited.add(token);
-  }
-  return credited;
-}
 
 /**
  * The JD's non-stop-word token vocabulary.

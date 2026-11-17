@@ -131,13 +131,13 @@ describe('apply-bridge', () => {
       dispatchInlineIssueTip({
         sectionSlug: 'experience',
         sectionTitle: 'Experience',
-        criterion: 'ATS Coverage'
+        criterion: 'ATS Keyword Match'
       });
       expect(handler).toHaveBeenCalledTimes(1);
       expect(handler).toHaveBeenCalledWith({
         sectionSlug: 'experience',
         sectionTitle: 'Experience',
-        criterion: 'ATS Coverage'
+        criterion: 'ATS Keyword Match'
       });
       unsubscribe();
     });
@@ -167,7 +167,7 @@ describe('apply-bridge', () => {
         dispatchInlineIssueTip({
           sectionSlug: 'x',
           sectionTitle: 'X',
-          criterion: 'ATS Coverage'
+          criterion: 'ATS Keyword Match'
         })
       ).not.toThrow();
       (globalThis as { window?: FakeWindow }).window = originalWindow;

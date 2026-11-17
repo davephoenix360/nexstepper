@@ -81,10 +81,6 @@ describe('scoreAtsMatching — well-matched pair', () => {
     expect(result.breakdown.similarityScore).toBeGreaterThan(0);
   });
 
-  it('scores coverage > 50 (most requirements share tokens with the resume)', () => {
-    expect(result.breakdown.coverageScore).toBeGreaterThan(50);
-  });
-
   it('returns a value > 30 (well-matched → high dimension score)', () => {
     expect(result.value).toBeGreaterThan(30);
   });
@@ -98,10 +94,6 @@ describe('scoreAtsMatching — poorly-matched pair', () => {
 
   it('scores keyword coverage low', () => {
     expect(result.breakdown.keywordScore).toBeLessThan(40);
-  });
-
-  it('scores coverage low (Java/Spring/Maven not in the resume)', () => {
-    expect(result.breakdown.coverageScore).toBeLessThan(50);
   });
 
   it('returns a value < 30 (poorly-matched → low dimension score)', () => {
@@ -119,55 +111,45 @@ describe('scoreAtsMatching — edge cases', () => {
     expect(result.breakdown.similarityScore).toBe(0);
   });
 
-  it('skips coverage and re-normalizes weights when JD has no requirements', () => {
-    // 0.6/0.2 with no coverage → keyword gets 0.75, similarity gets 0.25
-    const result = scoreAtsMatching(
-      RESUME,
+  it('uses fixed weights — the coverage sub-criterion is retired', () => {
+    // The coverage sub-criterion ("of the responsibilities the JD lists,
+    // how many does the resume mention a token from?") was retired on
+    // 2026-11-17: it was DEAD in production (the JD envelope's
+    // requirement list is never populated — no attach path writes one),
+    // and the v2 Intent Coverage dimension already measures requirement
+    // coverage. Reviving it would count the same measurement twice.
+    //
+    // The dimension is now two sub-criteria with fixed weights, so the
+    // FORMULA is the same whether or not the JD has a requirements list.
+    // (The VALUES differ — the requirements' tokens are part of the JD
+    // text the keyword score reads.)
+    const cases = [
       {
-        title: 'Engineer',
-        description: 'Build things with TypeScript and React.',
-        // requirements: [] (empty)
+        title: 'with requirements',
+        job: {
+          title: 'Engineer',
+          description: 'Build things with TypeScript and React.',
+          requirements: ['TypeScript', 'React']
+        }
       },
       {
-        resumeText: flattenResumeText(RESUME),
-        jobText: flattenJobText({
+        title: 'without requirements',
+        job: {
           title: 'Engineer',
           description: 'Build things with TypeScript and React.'
-        })
+        }
       }
-    );
-    // coverage should be 0 in the breakdown but excluded from the value
-    expect(result.breakdown.coverageScore).toBe(0);
-    // The value should NOT be artificially lower because coverage is 0
-    // — it should use only keyword + similarity.
-    // keywordScore = some positive number
-    // similarityScore = some positive number
-    // value = 0.75 * keywordScore + 0.25 * similarityScore (no coverage drag)
-    const expected =
-      0.75 * result.breakdown.keywordScore +
-      0.25 * result.breakdown.similarityScore;
-    expect(result.value).toBeCloseTo(expected, 5);
-  });
+    ];
 
-  it('treats a requirement of pure stop words as covered (vacuously true)', () => {
-    const result = scoreAtsMatching(
-      RESUME,
-      {
-        title: 'Engineer',
-        description: 'Build things.',
-        requirements: ['the and or'] // all stop words
-      },
-      {
+    for (const { title, job } of cases) {
+      const result = scoreAtsMatching(RESUME, job, {
         resumeText: flattenResumeText(RESUME),
-        jobText: flattenJobText({
-          title: 'Engineer',
-          description: 'Build things.',
-          requirements: ['the and or']
-        })
-      }
-    );
-    // The single requirement is vacuously covered → coverageScore = 100
-    expect(result.breakdown.coverageScore).toBe(100);
+        jobText: flattenJobText(job)
+      });
+      const expected =
+        0.75 * result.breakdown.keywordScore + 0.25 * result.breakdown.similarityScore;
+      expect(result.value, title).toBeCloseTo(expected, 5);
+    }
   });
 
   it('is deterministic — same input → same output', () => {

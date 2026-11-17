@@ -72,7 +72,7 @@ describe('mapPathToSection', () => {
       // expected bulletIndex, expected tipKind].
       [
         'sections.work[0].highlights[2]',
-        'ATS Coverage',
+        'ATS Keyword Match',
         'experience',
         'Experience',
         2,
@@ -96,7 +96,7 @@ describe('mapPathToSection', () => {
       ],
       [
         'sections.projects[1].highlights[4]',
-        'ATS Coverage',
+        'ATS Keyword Match',
         'projects',
         'Projects',
         4,
@@ -144,13 +144,13 @@ describe('mapPathToSection', () => {
     it('returns null for an unknown prefix', () => {
       const result = mapPathToSection(
         'sections.unknownField.value',
-        'ATS Coverage'
+        'ATS Keyword Match'
       );
       expect(result).toBeNull();
     });
 
     it('returns null for an empty path', () => {
-      const result = mapPathToSection('', 'ATS Coverage');
+      const result = mapPathToSection('', 'ATS Keyword Match');
       expect(result).toBeNull();
     });
 
@@ -159,7 +159,7 @@ describe('mapPathToSection', () => {
       // Zod issue path could.
       const result = mapPathToSection(
         '/sections.work[0].highlights[0]',
-        'ATS Coverage'
+        'ATS Keyword Match'
       );
       expect(result).not.toBeNull();
       expect(result?.sectionSlug).toBe('experience');
@@ -172,7 +172,7 @@ describe('mapPathToSection', () => {
       // labelling a "bullet N of N" hint.
       const result = mapPathToSection(
         'sections.work[0]',
-        'ATS Coverage'
+        'ATS Keyword Match'
       );
       expect(result).not.toBeNull();
       expect(result?.bulletIndex).toBeNull();
@@ -184,7 +184,7 @@ describe('mapPathToSection', () => {
       // the leaf the EditableText refers to.
       const result = mapPathToSection(
         'sections.work[0].positions[2].highlights[1]',
-        'ATS Coverage'
+        'ATS Keyword Match'
       );
       expect(result).not.toBeNull();
       expect(result?.bulletIndex).toBe(1);
@@ -194,7 +194,7 @@ describe('mapPathToSection', () => {
   describe('tipKind selection', () => {
     it.each([
       ['ATS Keyword Match', 'gap'],
-      ['ATS Coverage', 'gap'],
+      ['ATS Keyword Match', 'gap'],
       ['Intent Coverage', 'gap'],
       ['Accomplishment Focus', 'rewrite'],
       ['Action Verb Usage', 'rewrite'],

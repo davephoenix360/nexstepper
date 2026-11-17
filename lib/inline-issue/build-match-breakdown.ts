@@ -57,7 +57,7 @@ import type { SubCriterionKey, TipKind } from '@/lib/inline-issue/types';
  * this table. The order doesn't matter.
  */
 const DIM_TO_CRITERION: Record<string, SubCriterionKey> = {
-  Keywords: 'ATS Coverage',
+  Keywords: 'ATS Keyword Match',
   Format: 'Section Completeness',
   Impact: 'Accomplishment Focus',
   'Experience match': 'Tailoring',
@@ -107,7 +107,6 @@ function weightFromScore(score: number | undefined | null): number {
 function tipKindFor(criterion: SubCriterionKey): TipKind {
   switch (criterion) {
     case 'ATS Keyword Match':
-    case 'ATS Coverage':
     case 'Intent Coverage':
       return 'gap';
     default:

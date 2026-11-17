@@ -31,7 +31,6 @@ import type { ScoreBreakdown } from '@/lib/scoring';
 export type SubCriterionKey =
   | 'ATS Keyword Match'
   | 'ATS Similarity'
-  | 'ATS Coverage'
   | 'Intent Coverage'
   | 'Section Completeness'
   | 'Optimal Length'

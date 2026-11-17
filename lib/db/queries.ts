@@ -1463,7 +1463,6 @@ export type MatchBreakdown = Array<{
 export type SubCriterionKeyForBreakdown =
   | 'ATS Keyword Match'
   | 'ATS Similarity'
-  | 'ATS Coverage'
   | 'Intent Coverage'
   | 'Section Completeness'
   | 'Optimal Length'

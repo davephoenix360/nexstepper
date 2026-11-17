@@ -78,7 +78,7 @@ function renderJake(data: ResumeData): string {
 const CRITERIA = [
   'ATS Keyword Match',
   'ATS Similarity',
-  'ATS Coverage',
+  'ATS Keyword Match',
   'Intent Coverage',
   'Section Completeness',
   'Optimal Length',
@@ -149,7 +149,7 @@ describe('mapPathToSection reads dotted paths', () => {
   it('resolves a dotted bullet path to its section and bullet index', () => {
     const target = mapPathToSection(
       'sections.work.0.positions.0.highlights.0',
-      'ATS Coverage'
+      'ATS Keyword Match'
     );
     expect(target).not.toBeNull();
     expect(target!.sectionSlug).toBe('experience');
@@ -159,7 +159,7 @@ describe('mapPathToSection reads dotted paths', () => {
   it('still resolves the bracketed spelling', () => {
     const target = mapPathToSection(
       'sections.work[0].positions[0].highlights[0]',
-      'ATS Coverage'
+      'ATS Keyword Match'
     );
     expect(target).not.toBeNull();
     expect(target!.sectionSlug).toBe('experience');

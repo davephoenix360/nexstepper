@@ -320,7 +320,6 @@ describe('buildDynamicTips — Intent Coverage v2 branch', () => {
         criteriaScores: {
           'ATS Keyword Match': 60,
           'ATS Similarity': 50,
-          'ATS Coverage': 70,
           'Intent Coverage': 84,
           'Section Completeness': 80,
           'Optimal Length': 80,
@@ -463,7 +462,6 @@ function makeBreakdownStub(
     criteriaScores: {
       'ATS Keyword Match': 60,
       'ATS Similarity': 50,
-      'ATS Coverage': 70,
       'Intent Coverage': 50,
       'Section Completeness': 80,
       'Optimal Length': 80,

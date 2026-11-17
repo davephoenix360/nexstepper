@@ -114,7 +114,7 @@ async function main(): Promise<void> {
     })) * 100;
 
     const keywordScore = baseline.criteriaScores['ATS Keyword Match'];
-    const coverageScore = baseline.criteriaScores['ATS Coverage'];
+    const coverageScore = baseline.criteriaScores['ATS Keyword Match'];
     const hasRequirements = (job.requirements?.length ?? 0) > 0;
     const weights = hasRequirements
       ? { keyword: 0.6, similarity: 0.2, coverage: 0.2 }

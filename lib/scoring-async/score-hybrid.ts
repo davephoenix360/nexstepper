@@ -183,16 +183,12 @@ export async function scoreResumeHybridFromEnvelope(
   // 3. Recompute the atsMatching dimension value using the new
   // similarity score. Mirrors the weighting logic in
   // `lib/scoring/dimensions/ats-matching.ts` so the dimension
-  // arithmetic stays consistent. The dimension weights are
-  // re-normalized when the JD has zero requirements (the sync
-  // engine handles the same edge case identically). We read the
-  // requirement count from the envelope directly - simpler and
-  // exact, no heuristic.
-  const hasRequirements = (job.requirements?.length ?? 0) > 0;
+  // arithmetic stays consistent. The dimension has two sub-criteria
+  // with fixed weights (the coverage sub-criterion was retired on
+  // 2026-11-17).
   const newAtsMatching = recomputeAtsMatchingDimension(
     baseline,
-    newSimilarityScore,
-    hasRequirements
+    newSimilarityScore
   );
 
   // 4. Recompose the overall score from the new atsMatching dimension
@@ -254,19 +250,16 @@ export async function scoreResumeHybridFromEnvelope(
  */
 function recomputeAtsMatchingDimension(
   baseline: ScoreBreakdown,
-  newSimilarityScore: number,
-  hasRequirements: boolean
+  newSimilarityScore: number
 ): number {
   const keywordScore = baseline.criteriaScores['ATS Keyword Match'];
-  const coverageScore = baseline.criteriaScores['ATS Coverage'];
-  const weights = hasRequirements
-    ? { keyword: 0.6, similarity: 0.2, coverage: 0.2 }
-    : { keyword: 0.75, similarity: 0.25, coverage: 0 };
+  // Two sub-criteria, fixed weights. The coverage sub-criterion was
+  // retired on 2026-11-17 (it was dead in production, and the v2 Intent
+  // Coverage dimension already measures requirement coverage).
+  const weights = { keyword: 0.75, similarity: 0.25 };
 
   return (
-    weights.keyword * keywordScore +
-    weights.similarity * newSimilarityScore +
-    weights.coverage * coverageScore
+    weights.keyword * keywordScore + weights.similarity * newSimilarityScore
   );
 }
 

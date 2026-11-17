@@ -50,27 +50,24 @@ import { cn } from '@/lib/utils';
 /**
  * The tip for the Keywords bar.
  *
- * The coverage tip ("you're addressing 3 of 5 required
- * responsibilities") only fires when the JD envelope carries a
- * requirements LIST — and no attach path writes one, so in production it
- * never fires and this bar fell back to the generic static advice ("if
- * the JD asks for five things and you only address three…").
+ * The bar shows the ATS matching dimension, and its advice is the
+ * KEYWORD advice — the JD's tokens the resume does not use.
  *
- * The keyword tip names the actual missing tokens and DOES work in
- * production, so it is the fallback.
+ * It used to show the "ATS Coverage" tip ("you're addressing 3 of 5
+ * required responsibilities"), which could never fire: the JD envelope's
+ * requirement list is empty in production (no attach path writes one),
+ * so the bar fell back to the generic static advice ("if the JD asks
+ * for five things and you only address three…").
  *
- * Same defect class as the missing JD title: a field the engine and the
- * UI read that nothing writes.
+ * The coverage sub-criterion was retired on 2026-11-17 — the v2 Intent
+ * Coverage dimension already measures requirement coverage, so reviving
+ * the v1 term would count the same measurement twice.
  *
  * Extracted so the selection is testable — the tip itself renders inside
  * a Radix tooltip, which does not appear in static markup.
  */
 export function keywordsBarTip(dynamicTips: DynamicTips): ReactNode {
-  return (
-    dynamicTips['ATS Coverage'] ??
-    dynamicTips['ATS Keyword Match'] ??
-    CRITERIA_TIPS['ATS Keyword Match']
-  );
+  return dynamicTips['ATS Keyword Match'] ?? CRITERIA_TIPS['ATS Keyword Match'];
 }
 
 export function ScorecardPanel({
@@ -166,7 +163,7 @@ export function ScorecardPanel({
   });
   /** The criterion each dimension bar opens, so "start here" can open one too. */
   const CRITERION_FOR_DIMENSION: Record<string, SubCriterionKey> = {
-    Keywords: 'ATS Coverage',
+    Keywords: 'ATS Keyword Match',
     Format: 'Section Completeness',
     Impact: 'Accomplishment Focus',
     'Experience match': 'Tailoring',
@@ -270,7 +267,7 @@ export function ScorecardPanel({
           // fires in production. The keyword tip names the actual
           // missing tokens and does work, so it is the fallback.
           tip={keywordsBarTip(dynamicTips)}
-          onIssueClick={dimHandler?.('ATS Coverage')}
+          onIssueClick={dimHandler?.('ATS Keyword Match')}
           showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar

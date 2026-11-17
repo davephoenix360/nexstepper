@@ -282,7 +282,6 @@ const BULLET_ARRAY_FIELDS = new Set([
 function tipKindFor(criterion: SubCriterionKey, _slug: string): TipKind {
   switch (criterion) {
     case 'ATS Keyword Match':
-    case 'ATS Coverage':
     case 'Intent Coverage':
       // Skill-gap criteria — the user hasn't mentioned these
       // terms at all, so the prompt should frame the rewrite

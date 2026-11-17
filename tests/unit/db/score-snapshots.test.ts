@@ -108,11 +108,11 @@ describe('recordScoreSnapshot', () => {
         {
           path: 'sections.work[0].positions[0].highlights[0]',
           weight: 0.75,
-          criterion: 'ATS Coverage',
+          criterion: 'ATS Keyword Match',
           tipKind: 'gap'
         }
       ],
-      dynamicTips: { 'ATS Coverage': 'fine' },
+      dynamicTips: { 'ATS Keyword Match': 'fine' },
       computedInMs: 4
     });
     expect(result).toMatchObject({ id: expect.any(String) });
@@ -133,7 +133,7 @@ describe('recordScoreSnapshot', () => {
     });
     expect(Array.isArray(valuesArg.matchBreakdown)).toBe(true);
     expect(valuesArg.matchBreakdown.length).toBe(1);
-    expect(valuesArg.dynamicTips).toEqual({ 'ATS Coverage': 'fine' });
+    expect(valuesArg.dynamicTips).toEqual({ 'ATS Keyword Match': 'fine' });
   });
 
   it('persists the full breakdown, not just the headline', async () => {

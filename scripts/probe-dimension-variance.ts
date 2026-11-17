@@ -87,7 +87,7 @@ const DIMENSIONS = [
 const CRITERIA = [
   'ATS Keyword Match',
   'ATS Similarity',
-  'ATS Coverage',
+  'ATS Keyword Match',
   'Intent Coverage',
   'Section Completeness',
   'Optimal Length',

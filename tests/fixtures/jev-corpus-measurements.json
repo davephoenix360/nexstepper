@@ -337,7 +337,7 @@
           "opening": 2.6
         }
       ],
-      "syncOverall": 86,
+      "syncOverall": 85,
       "jevOverall": 93,
       "syncContentQuality": 89.28571428571429,
       "jevContentQuality": 91.9464285714286,
@@ -669,8 +669,8 @@
           "opening": 2.84
         }
       ],
-      "syncOverall": 82,
-      "jevOverall": 88,
+      "syncOverall": 81,
+      "jevOverall": 87,
       "syncContentQuality": 85.71428571428572,
       "jevContentQuality": 91.78571428571429,
       "syncIntentCoverage": 98.5,
@@ -997,8 +997,8 @@
           "opening": 2.91
         }
       ],
-      "syncOverall": 81,
-      "jevOverall": 91,
+      "syncOverall": 79,
+      "jevOverall": 90,
       "syncContentQuality": 69.38775510204081,
       "jevContentQuality": 91.44217687074828,
       "syncIntentCoverage": 96,
@@ -1325,8 +1325,8 @@
           "opening": 2.02
         }
       ],
-      "syncOverall": 81,
-      "jevOverall": 89,
+      "syncOverall": 80,
+      "jevOverall": 88,
       "syncContentQuality": 65.3061224489796,
       "jevContentQuality": 85.7482993197279,
       "syncIntentCoverage": 97.5,
@@ -1653,8 +1653,8 @@
           "opening": 1.37
         }
       ],
-      "syncOverall": 75,
-      "jevOverall": 83,
+      "syncOverall": 73,
+      "jevOverall": 82,
       "syncContentQuality": 57.142857142857146,
       "jevContentQuality": 72.96598639455783,
       "syncIntentCoverage": 97.5,
@@ -1973,7 +1973,7 @@
           "opening": 2.9
         }
       ],
-      "syncOverall": 80,
+      "syncOverall": 79,
       "jevOverall": 89,
       "syncContentQuality": 75.51020408163265,
       "jevContentQuality": 98.12244897959184,
@@ -2297,8 +2297,8 @@
           "opening": 2.66
         }
       ],
-      "syncOverall": 79,
-      "jevOverall": 89,
+      "syncOverall": 78,
+      "jevOverall": 88,
       "syncContentQuality": 59.18367346938776,
       "jevContentQuality": 86.30612244897961,
       "syncIntentCoverage": 96,
@@ -2601,7 +2601,7 @@
           "opening": 2.12
         }
       ],
-      "syncOverall": 74,
+      "syncOverall": 73,
       "jevOverall": 86,
       "syncContentQuality": 40.81632653061225,
       "jevContentQuality": 72.6326530612245,
@@ -2913,8 +2913,8 @@
           "opening": 2.91
         }
       ],
-      "syncOverall": 80,
-      "jevOverall": 87,
+      "syncOverall": 79,
+      "jevOverall": 86,
       "syncContentQuality": 73.46938775510205,
       "jevContentQuality": 87.48299319727892,
       "syncIntentCoverage": 95,
@@ -3197,7 +3197,7 @@
           "opening": 1.99
         }
       ],
-      "syncOverall": 76,
+      "syncOverall": 75,
       "jevOverall": 84,
       "syncContentQuality": 59.18367346938776,
       "jevContentQuality": 80.21768707482994,
@@ -3505,7 +3505,7 @@
           "opening": 2.84
         }
       ],
-      "syncOverall": 76,
+      "syncOverall": 75,
       "jevOverall": 81,
       "syncContentQuality": 78.57142857142857,
       "jevContentQuality": 82.78571428571429,
@@ -3787,8 +3787,8 @@
           "opening": 2.3
         }
       ],
-      "syncOverall": 73,
-      "jevOverall": 81,
+      "syncOverall": 71,
+      "jevOverall": 80,
       "syncContentQuality": 51.42857142857143,
       "jevContentQuality": 82.76190476190476,
       "syncIntentCoverage": 84.5,
@@ -4067,8 +4067,8 @@
           "opening": 2.81
         }
       ],
-      "syncOverall": 73,
-      "jevOverall": 78,
+      "syncOverall": 71,
+      "jevOverall": 77,
       "syncContentQuality": 82.85714285714286,
       "jevContentQuality": 90.64761904761906,
       "syncIntentCoverage": 91,
@@ -4342,7 +4342,7 @@
           "opening": 2.4
         }
       ],
-      "syncOverall": 67,
+      "syncOverall": 66,
       "jevOverall": 75,
       "syncContentQuality": 50,
       "jevContentQuality": 82.32142857142858,
@@ -4626,8 +4626,8 @@
           "opening": 1.52
         }
       ],
-      "syncOverall": 64,
-      "jevOverall": 69,
+      "syncOverall": 61,
+      "jevOverall": 68,
       "syncContentQuality": 48.57142857142858,
       "jevContentQuality": 53.44761904761904,
       "syncIntentCoverage": 84.5,
@@ -4913,8 +4913,8 @@
           "opening": 2.9
         }
       ],
-      "syncOverall": 74,
-      "jevOverall": 80,
+      "syncOverall": 72,
+      "jevOverall": 79,
       "syncContentQuality": 69.04761904761905,
       "jevContentQuality": 87.73015873015872,
       "syncIntentCoverage": 89.5,
@@ -5198,8 +5198,8 @@
           "opening": 1.4
         }
       ],
-      "syncOverall": 64,
-      "jevOverall": 65,
+      "syncOverall": 63,
+      "jevOverall": 64,
       "syncContentQuality": 50,
       "jevContentQuality": 66.9761904761905,
       "syncIntentCoverage": 71,
@@ -5492,8 +5492,8 @@
           "opening": 2.89
         }
       ],
-      "syncOverall": 73,
-      "jevOverall": 81,
+      "syncOverall": 72,
+      "jevOverall": 80,
       "syncContentQuality": 78.57142857142857,
       "jevContentQuality": 92.24603174603175,
       "syncIntentCoverage": 98.5,
@@ -5774,8 +5774,8 @@
           "opening": 2.66
         }
       ],
-      "syncOverall": 68,
-      "jevOverall": 79,
+      "syncOverall": 67,
+      "jevOverall": 80,
       "syncContentQuality": 54.761904761904766,
       "jevContentQuality": 82.10317460317462,
       "syncIntentCoverage": 92,
@@ -6057,8 +6057,8 @@
           "opening": 2.27
         }
       ],
-      "syncOverall": 74,
-      "jevOverall": 79,
+      "syncOverall": 72,
+      "jevOverall": 78,
       "syncContentQuality": 69.04761904761905,
       "jevContentQuality": 78.93650793650795,
       "syncIntentCoverage": 97.5,
@@ -6316,8 +6316,8 @@
           "opening": 2.36
         }
       ],
-      "syncOverall": 77,
-      "jevOverall": 79,
+      "syncOverall": 76,
+      "jevOverall": 78,
       "syncContentQuality": 82.85714285714286,
       "jevContentQuality": 82.59047619047618,
       "syncIntentCoverage": 95,
@@ -6601,8 +6601,8 @@
           "opening": 2.1
         }
       ],
-      "syncOverall": 77,
-      "jevOverall": 82,
+      "syncOverall": 76,
+      "jevOverall": 81,
       "syncContentQuality": 69.04761904761905,
       "jevContentQuality": 83.13492063492063,
       "syncIntentCoverage": 97.5,
@@ -6833,8 +6833,8 @@
           "opening": 2.88
         }
       ],
-      "syncOverall": 67,
-      "jevOverall": 73,
+      "syncOverall": 66,
+      "jevOverall": 72,
       "syncContentQuality": 66.66666666666666,
       "jevContentQuality": 79.04761904761905,
       "syncIntentCoverage": 87,
@@ -7063,8 +7063,8 @@
           "opening": 2.22
         }
       ],
-      "syncOverall": 62,
-      "jevOverall": 66,
+      "syncOverall": 61,
+      "jevOverall": 65,
       "syncContentQuality": 33.33333333333333,
       "jevContentQuality": 46.77777777777777,
       "syncIntentCoverage": 83,
@@ -7325,7 +7325,7 @@
           "opening": 2.94
         }
       ],
-      "syncOverall": 68,
+      "syncOverall": 67,
       "jevOverall": 77,
       "syncContentQuality": 64.28571428571429,
       "jevContentQuality": 89.09523809523809,
@@ -7600,8 +7600,8 @@
           "opening": 1.4
         }
       ],
-      "syncOverall": 63,
-      "jevOverall": 60,
+      "syncOverall": 62,
+      "jevOverall": 59,
       "syncContentQuality": 60.714285714285715,
       "jevContentQuality": 48.928571428571445,
       "syncIntentCoverage": 81.5,
@@ -7863,8 +7863,8 @@
           "opening": 1.54
         }
       ],
-      "syncOverall": 63,
-      "jevOverall": 68,
+      "syncOverall": 62,
+      "jevOverall": 67,
       "syncContentQuality": 48.57142857142858,
       "jevContentQuality": 54.94285714285715,
       "syncIntentCoverage": 91,
@@ -8105,8 +8105,8 @@
           "opening": 2.81
         }
       ],
-      "syncOverall": 73,
-      "jevOverall": 75,
+      "syncOverall": 72,
+      "jevOverall": 74,
       "syncContentQuality": 80,
       "jevContentQuality": 84.60000000000001,
       "syncIntentCoverage": 77.5,
@@ -8365,8 +8365,8 @@
           "opening": 2.83
         }
       ],
-      "syncOverall": 73,
-      "jevOverall": 77,
+      "syncOverall": 72,
+      "jevOverall": 76,
       "syncContentQuality": 53.57142857142858,
       "jevContentQuality": 75.48809523809524,
       "syncIntentCoverage": 92.5,
@@ -8624,7 +8624,7 @@
           "opening": 2.87
         }
       ],
-      "syncOverall": 74,
+      "syncOverall": 73,
       "jevOverall": 79,
       "syncContentQuality": 82.85714285714286,
       "jevContentQuality": 90.14285714285717,
@@ -8880,8 +8880,8 @@
           "opening": 1.78
         }
       ],
-      "syncOverall": 66,
-      "jevOverall": 72,
+      "syncOverall": 65,
+      "jevOverall": 71,
       "syncContentQuality": 45.714285714285715,
       "jevContentQuality": 63.12380952380953,
       "syncIntentCoverage": 88,
@@ -9136,8 +9136,8 @@
           "opening": 2.24
         }
       ],
-      "syncOverall": 77,
-      "jevOverall": 75,
+      "syncOverall": 76,
+      "jevOverall": 74,
       "syncContentQuality": 89.28571428571429,
       "jevContentQuality": 78.07142857142858,
       "syncIntentCoverage": 95,
@@ -9619,8 +9619,8 @@
           "opening": 1.49
         }
       ],
-      "syncOverall": 58,
-      "jevOverall": 58,
+      "syncOverall": 59,
+      "jevOverall": 59,
       "syncContentQuality": 71.42857142857143,
       "jevContentQuality": 65.07619047619049,
       "syncIntentCoverage": 61.5,
@@ -10091,8 +10091,8 @@
           "opening": 2.45
         }
       ],
-      "syncOverall": 71,
-      "jevOverall": 75,
+      "syncOverall": 70,
+      "jevOverall": 74,
       "syncContentQuality": 57.142857142857146,
       "jevContentQuality": 69.32380952380953,
       "syncIntentCoverage": 96,
@@ -10307,8 +10307,8 @@
           "opening": 2.3
         }
       ],
-      "syncOverall": 66,
-      "jevOverall": 64,
+      "syncOverall": 65,
+      "jevOverall": 63,
       "syncContentQuality": 60.714285714285715,
       "jevContentQuality": 59.10714285714286,
       "syncIntentCoverage": 89.5,
@@ -10539,8 +10539,8 @@
           "opening": 2.82
         }
       ],
-      "syncOverall": 58,
-      "jevOverall": 63,
+      "syncOverall": 57,
+      "jevOverall": 62,
       "syncContentQuality": 52.38095238095238,
       "jevContentQuality": 76.44444444444444,
       "syncIntentCoverage": 69.5,
@@ -10763,7 +10763,7 @@
         }
       ],
       "syncOverall": 63,
-      "jevOverall": 63,
+      "jevOverall": 61,
       "syncContentQuality": 64.28571428571429,
       "jevContentQuality": 73.69047619047619,
       "syncIntentCoverage": 80,
@@ -11000,8 +11000,8 @@
           "opening": 2.62
         }
       ],
-      "syncOverall": 59,
-      "jevOverall": 62,
+      "syncOverall": 57,
+      "jevOverall": 60,
       "syncContentQuality": 47.61904761904761,
       "jevContentQuality": 62.460317460317476,
       "syncIntentCoverage": 77.5,
@@ -11216,8 +11216,8 @@
           "opening": 2.77
         }
       ],
-      "syncOverall": 60,
-      "jevOverall": 59,
+      "syncOverall": 59,
+      "jevOverall": 57,
       "syncContentQuality": 57.142857142857146,
       "jevContentQuality": 69.04761904761905,
       "syncIntentCoverage": 72,
@@ -11434,8 +11434,8 @@
           "opening": 1.95
         }
       ],
-      "syncOverall": 51,
-      "jevOverall": 51,
+      "syncOverall": 50,
+      "jevOverall": 49,
       "syncContentQuality": 52.38095238095238,
       "jevContentQuality": 55.61904761904762,
       "syncIntentCoverage": 72,
@@ -11649,7 +11649,7 @@
         }
       ],
       "syncOverall": 54,
-      "jevOverall": 48,
+      "jevOverall": 47,
       "syncContentQuality": 78.57142857142857,
       "jevContentQuality": 71.16666666666669,
       "syncIntentCoverage": 64,
@@ -11872,7 +11872,7 @@
         }
       ],
       "syncOverall": 45,
-      "jevOverall": 42,
+      "jevOverall": 41,
       "syncContentQuality": 52.38095238095238,
       "jevContentQuality": 49.95238095238095,
       "syncIntentCoverage": 48,
@@ -12096,8 +12096,8 @@
           "opening": 2.32
         }
       ],
-      "syncOverall": 39,
-      "jevOverall": 37,
+      "syncOverall": 38,
+      "jevOverall": 36,
       "syncContentQuality": 52.38095238095238,
       "jevContentQuality": 46.33333333333334,
       "syncIntentCoverage": 48,
@@ -12334,8 +12334,8 @@
           "opening": 1.1
         }
       ],
-      "syncOverall": 41,
-      "jevOverall": 39,
+      "syncOverall": 40,
+      "jevOverall": 38,
       "syncContentQuality": 33.33333333333333,
       "jevContentQuality": 38.93650793650794,
       "syncIntentCoverage": 61.5,
@@ -12574,8 +12574,8 @@
           "opening": 2.27
         }
       ],
-      "syncOverall": 43,
-      "jevOverall": 41,
+      "syncOverall": 42,
+      "jevOverall": 39,
       "syncContentQuality": 38.095238095238095,
       "jevContentQuality": 47.539682539682545,
       "syncIntentCoverage": 61.5,
@@ -12769,8 +12769,8 @@
           "opening": 2.82
         }
       ],
-      "syncOverall": 56,
-      "jevOverall": 54,
+      "syncOverall": 54,
+      "jevOverall": 52,
       "syncContentQuality": 71.42857142857143,
       "jevContentQuality": 72.79365079365081,
       "syncIntentCoverage": 48,
@@ -13023,8 +13023,8 @@
           "opening": 2.45
         }
       ],
-      "syncOverall": 54,
-      "jevOverall": 50,
+      "syncOverall": 53,
+      "jevOverall": 48,
       "syncContentQuality": 71.42857142857143,
       "jevContentQuality": 75.88888888888889,
       "syncIntentCoverage": 67,
@@ -13275,8 +13275,8 @@
           "opening": 2.51
         }
       ],
-      "syncOverall": 50,
-      "jevOverall": 51,
+      "syncOverall": 51,
+      "jevOverall": 50,
       "syncContentQuality": 47.61904761904761,
       "jevContentQuality": 59.85714285714286,
       "syncIntentCoverage": 51,
@@ -13314,14 +13314,14 @@
       "agreement": 0.9211538461538461
     },
     "correlation": {
-      "sync": 0.9155631734952697,
-      "jev": 0.948043768983892
+      "sync": 0.9075927034915952,
+      "jev": 0.9487446720346521
     },
     "meanAbsoluteError": {
-      "sync": 13.34,
-      "jev": 12.66
+      "sync": 13.44,
+      "jev": 12.16
     },
     "wallClockSeconds": 36.162,
-    "engineRefreshedAt": "2026-11-17T04:43:12.355Z"
+    "engineRefreshedAt": "2026-11-17T15:43:31.015Z"
   }
 }

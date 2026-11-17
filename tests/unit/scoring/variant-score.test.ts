@@ -69,7 +69,6 @@ function makeBreakdown(overallScore: number, keyword: number): ScoreBreakdown {
     criteriaScores: {
       'ATS Keyword Match': keyword,
       'ATS Similarity': 90,
-      'ATS Coverage': 80,
       'Intent Coverage': 90,
       'Section Completeness': 100,
       'Optimal Length': 70,

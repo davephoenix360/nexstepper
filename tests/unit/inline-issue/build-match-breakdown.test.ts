@@ -86,11 +86,11 @@ describe('buildMatchBreakdown', () => {
     }
   });
 
-  it('Intent Coverage and ATS Coverage rows are tipKind=gap', () => {
+  it('Intent Coverage and ATS Keyword Match rows are tipKind=gap', () => {
     const rows = buildMatchBreakdown(SAMPLE_BREAKDOWN);
     const gapRows = rows.filter((r) => r.tipKind === 'gap');
     expect(gapRows.some((r) => r.criterion === 'Intent Coverage')).toBe(true);
-    expect(gapRows.some((r) => r.criterion === 'ATS Coverage')).toBe(true);
+    expect(gapRows.some((r) => r.criterion === 'ATS Keyword Match')).toBe(true);
   });
 
   it('Seniority Fit row points at the summary path', () => {
@@ -108,10 +108,14 @@ describe('buildMatchBreakdown', () => {
     expect(sc?.path).toBe('sections.work.0.positions.0.title');
   });
 
-  it('bullet-row criteria point at the first work bullet (with positions[0])', () => {
+  it('the Keywords row points at the skills block', () => {
+    // A missing keyword belongs in the skills section — that is where
+    // the editor's chip editor lives. (The ATS Coverage sub-criterion
+    // was retired on 2026-11-17, so the Keywords bar now points at the
+    // keyword criterion.)
     const rows = buildMatchBreakdown(SAMPLE_BREAKDOWN);
-    const ats = rows.find((r) => r.criterion === 'ATS Coverage');
-    expect(ats?.path).toBe('sections.work.0.positions.0.highlights.0');
+    const keywords = rows.find((r) => r.criterion === 'ATS Keyword Match');
+    expect(keywords?.path).toBe('sections.skills.0.keywords.0');
   });
 
   it('is deterministic — same input produces same output', () => {
@@ -127,10 +131,10 @@ describe('maybeAppendSkillGapEntry', () => {
     const withGap = maybeAppendSkillGapEntry(base, SAMPLE_BREAKDOWN);
     expect(withGap.length).toBe(base.length + 1);
     const gap = withGap.find(
-      (r) => r.path === 'sections.skills.0.keywords.0'
+      (r) => r.criterion === 'Intent Coverage'
     );
     expect(gap).toBeDefined();
-    expect(gap?.criterion).toBe('Intent Coverage');
+    expect(gap?.path).toBe('sections.skills.0.keywords.0');
     expect(gap?.tipKind).toBe('gap');
   });
 

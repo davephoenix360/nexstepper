@@ -55,7 +55,6 @@ const BREAKDOWN: ScoreBreakdown = {
   criteriaScores: {
     'ATS Keyword Match': 60,
     'ATS Similarity': 50,
-    'ATS Coverage': 70,
     'Section Completeness': 80,
     'Optimal Length': 80,
     'Accomplishment Focus': 80,

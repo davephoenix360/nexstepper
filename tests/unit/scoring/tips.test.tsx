@@ -6,7 +6,6 @@ import {
   collectHighlights,
   computeMissingKeywords,
   computeMissingSections,
-  computeUncoveredRequirements,
   CRITERIA_TIPS,
   flattenResumeTextForTips,
   tokenizeLight,
@@ -26,7 +25,6 @@ import type { DeepPartial } from '@/tests/fixtures/types';
  *
  * Pure-function tests cover:
  *   - computeMissingKeywords (ATS Keyword Match dynamic signal)
- *   - computeUncoveredRequirements (ATS Coverage dynamic signal)
  *   - computeMissingSections (Section Completeness dynamic signal)
  *   - collectHighlights (Action Verb + Accomplishment Focus signals)
  *   - flattenResumeTextForTips (the flattened signal the others read)
@@ -63,7 +61,6 @@ function makeBreakdown(
     criteriaScores: {
       'ATS Keyword Match': 50,
       'ATS Similarity': 60,
-      'ATS Coverage': 50,
       'Intent Coverage': 50,
       'Section Completeness': 100,
       'Optimal Length': 80,
@@ -338,41 +335,6 @@ describe('computeMissingKeywords', () => {
   });
 });
 
-describe('computeUncoveredRequirements', () => {
-  it('returns requirements whose tokens are absent from the resume', () => {
-    const job = makeJob({
-      requirements: [
-        'Kubernetes experience',
-        'Terraform experience',
-        'Go programming language'
-      ]
-    });
-    const resumeText = 'Senior TypeScript engineer with React and Node.';
-    const uncovered = computeUncoveredRequirements(job, resumeText);
-    expect(uncovered).toContain('Kubernetes experience');
-    expect(uncovered).toContain('Terraform experience');
-    expect(uncovered).toContain('Go programming language');
-  });
-
-  it('omits requirements that share ANY token with the resume', () => {
-    const job = makeJob({
-      requirements: [
-        'Kubernetes experience', // missing
-        'TypeScript developer', // hits via 'typescript'
-        'AWS engineer' // hits via 'aws'
-      ]
-    });
-    const resumeText = 'TypeScript engineer with React and AWS.';
-    const uncovered = computeUncoveredRequirements(job, resumeText);
-    expect(uncovered).toEqual(['Kubernetes experience']);
-  });
-
-  it('returns [] when there are no requirements', () => {
-    expect(
-      computeUncoveredRequirements(makeJob({ requirements: [] }), 'whatever')
-    ).toEqual([]);
-  });
-});
 
 describe('computeMissingSections', () => {
   it('returns [] when every section is present', () => {
@@ -549,7 +511,6 @@ describe('buildDynamicTips — JD-aware criteria', () => {
       criteriaScores: {
         'ATS Keyword Match': 50,
         'ATS Similarity': 35,
-        'ATS Coverage': 50,
         'Section Completeness': 100,
         'Optimal Length': 80,
         'Accomplishment Focus': 70,
@@ -577,7 +538,6 @@ describe('buildDynamicTips — JD-aware criteria', () => {
       criteriaScores: {
         'ATS Keyword Match': 80,
         'ATS Similarity': 80,
-        'ATS Coverage': 80,
         'Section Completeness': 100,
         'Optimal Length': 80,
         'Accomplishment Focus': 70,
@@ -592,33 +552,6 @@ describe('buildDynamicTips — JD-aware criteria', () => {
     });
     expect(
       buildDynamicTips(breakdown, makeResume(), makeJob())['ATS Similarity']
-    ).toBeUndefined();
-  });
-
-  it('lists the requirements the resume is not addressing', () => {
-    const resume = makeResume();
-    const job = makeJob({
-      requirements: [
-        'Kubernetes expertise', // missing
-        'Terraform scripting', // missing
-        'TypeScript experience' // hit via summary
-      ]
-    });
-    const tips = buildDynamicTips(makeBreakdown(), resume, job);
-    const html = renderTip(tips['ATS Coverage']!);
-    expect(html).toContain('addressing');
-    expect(html).toContain('Kubernetes expertise');
-    expect(html).toContain('Terraform scripting');
-    expect(html).not.toContain('TypeScript experience');
-  });
-
-  it('omits ATS Coverage when every requirement is covered', () => {
-    const resume = makeResume();
-    const job = makeJob({
-      requirements: ['TypeScript developer', 'AWS engineer']
-    });
-    expect(
-      buildDynamicTips(makeBreakdown(), resume, job)['ATS Coverage']
     ).toBeUndefined();
   });
 });
@@ -836,7 +769,6 @@ describe('buildDynamicTips — alignment criteria', () => {
       criteriaScores: {
         'ATS Keyword Match': 50,
         'ATS Similarity': 40,
-        'ATS Coverage': 50,
         'Section Completeness': 100,
         'Optimal Length': 80,
         'Accomplishment Focus': 70,
@@ -982,7 +914,10 @@ describe('CRITERIA_TIPS', () => {
   it('has an entry for every sub-criterion in ScoreBreakdown.criteriaScores', () => {
     const breakdown = makeBreakdown();
     const keys = Object.keys(breakdown.criteriaScores);
-    expect(keys).toHaveLength(13);
+    // 12 — the "ATS Coverage" sub-criterion was retired on 2026-11-17
+    // (it was dead in production, and Intent Coverage already measures
+    // requirement coverage).
+    expect(keys).toHaveLength(12);
     for (const key of keys) {
       expect(CRITERIA_TIPS).toHaveProperty(key);
       expect(typeof CRITERIA_TIPS[key]).toBe('string');
@@ -1009,7 +944,6 @@ describe('buildDynamicTips — no JD', () => {
     // JD-dependent criteria are absent.
     expect(tips['ATS Keyword Match']).toBeUndefined();
     expect(tips['ATS Similarity']).toBeUndefined();
-    expect(tips['ATS Coverage']).toBeUndefined();
   });
 });
 

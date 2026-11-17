@@ -2903,6 +2903,27 @@ makes it fail, so it is a real guard and not a tautology.
 is the part that goes stale, and it is usually the cheap half to
 re-derive.
 
+**A sub-criterion that is skipped in production is not a safety net; it
+is a lie in the breakdown.** The "ATS Coverage" sub-criterion (20% of the
+ATS matching dimension) measured "of the responsibilities the JD lists,
+how many does the resume mention a token from?" — and it read
+`job.requirements`, which **no attach path writes**. Measured on
+production: every variant stores `requirements: 0`. So the dimension
+re-normalised to 0.75/0.25, the sub-criterion never ran, and the tip
+built on it could never fire — which is why the Keywords bar showed the
+generic *"if the JD asks for five things and you only address three…"*.
+
+Retired on 2026-11-17 rather than revived, because the v2 Intent
+Coverage dimension already measures requirement coverage (priority
+weighted, semantic). **Production scores did not move** — the branch was
+already skipped. The corpus was the only place it was ever live, and
+there it helped the sync path slightly while the Jev path (the one
+production runs) got slightly better on both correlation and MAE.
+
+**The generalisation:** when you find a branch that is always skipped,
+check whether the thing it measures is measured somewhere else before
+you wire it up.
+
 ## Folder structure (current + planned)
 
 ```

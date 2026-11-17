@@ -120,7 +120,6 @@ describe('scoreResumeHybridFromEnvelope', () => {
     const criteria = hybrid.criteriaScores;
     const syncCriteria = sync.criteriaScores;
     expect(criteria['ATS Keyword Match']).toBe(syncCriteria['ATS Keyword Match']);
-    expect(criteria['ATS Coverage']).toBe(syncCriteria['ATS Coverage']);
     expect(criteria['Section Completeness']).toBe(syncCriteria['Section Completeness']);
     expect(criteria['Optimal Length']).toBe(syncCriteria['Optimal Length']);
     expect(criteria['Accomplishment Focus']).toBe(syncCriteria['Accomplishment Focus']);
@@ -165,15 +164,17 @@ describe('scoreResumeHybridFromEnvelope', () => {
     const hybrid = await scoreResumeHybridFromEnvelope(SAMPLE_RESUME, SAMPLE_JOB);
 
     // Recompute the dimension manually using the wrapper's formula:
-    //   atsMatching = 0.6 × keyword + 0.2 × similarity + 0.2 × coverage
+    //   atsMatching = 0.75 × keyword + 0.25 × similarity
+    //
+    // (The coverage sub-criterion was retired on 2026-11-17 — it was
+    // dead in production, and the v2 Intent Coverage dimension already
+    // measures requirement coverage.)
     const expected =
-      0.6 * sync.criteriaScores['ATS Keyword Match'] +
-      0.2 * 100 +
-      0.2 * sync.criteriaScores['ATS Coverage'];
+      0.75 * sync.criteriaScores['ATS Keyword Match'] + 0.25 * 100;
     expect(hybrid.dimensionScores.atsMatching).toBeCloseTo(expected, 5);
   });
 
-  it('uses re-normalized weights (0.75 / 0.25 / 0) when the JD has no requirements', async () => {
+  it('uses the same fixed weights (0.75 / 0.25) whether or not the JD has requirements', async () => {
     mockHybrid.mockResolvedValue(0.5); // similarityScore = 50
     const jdNoReqs = { ...SAMPLE_JOB, requirements: [] } as JobPosting;
 
@@ -186,13 +187,15 @@ describe('scoreResumeHybridFromEnvelope', () => {
 
     const hybrid = await scoreResumeHybridFromEnvelope(SAMPLE_RESUME, jdNoReqs);
 
-    // When JD has zero requirements, the sync engine uses
-    // keyword=0.75, similarity=0.25, coverage=0. The wrapper
-    // MUST mirror that.
+    // The weights are fixed — the coverage sub-criterion is gone, so
+    // there is nothing to re-normalize around.
+    // keywordScore = some positive number
+    // similarityScore = some positive number
+    // value = 0.75 * keywordScore + 0.25 * similarityScore
     const expected =
       0.75 * sync.criteriaScores['ATS Keyword Match'] +
       0.25 * 50 +
-      0 * sync.criteriaScores['ATS Coverage'];
+      0 * sync.criteriaScores['ATS Keyword Match'];
     expect(hybrid.dimensionScores.atsMatching).toBeCloseTo(expected, 5);
   });
 

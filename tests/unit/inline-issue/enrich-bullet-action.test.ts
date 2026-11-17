@@ -151,7 +151,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: 'Built the payments platform'
     });
     expect(result.ok).toBe(false);
@@ -192,7 +192,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: '   '
     });
     expect(result.ok).toBe(false);
@@ -222,7 +222,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: 'Built the payments platform'
     });
     expect(result.ok).toBe(false);
@@ -252,7 +252,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: 'Built the payments platform'
     });
     expect(result.ok).toBe(false);
@@ -280,7 +280,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: 'Built the payments platform'
     });
     expect(result.ok).toBe(false);
@@ -317,7 +317,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: 'Built the payments platform serving 12M users on AWS'
     });
     expect(result.ok).toBe(true);
@@ -369,7 +369,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: 'Built the payments platform'
     });
     expect(result.ok).toBe(true);
@@ -401,7 +401,7 @@ describe('enrichBulletAction', () => {
     const result = await enrichBulletAction({
       resumeId: 'r1',
       path: 'sections.work[0].highlights[0]',
-      criterion: 'ATS Coverage',
+      criterion: 'ATS Keyword Match',
       currentText: 'Built the payments platform'
     });
     expect(result.ok).toBe(false);
