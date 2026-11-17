@@ -173,6 +173,40 @@ plan. Drift memo:
 
 **Recently shipped (for context, last 7 days)**
 
+- **The scoring engine's accuracy is now MEASURED, and the audit found a
+  broken matcher** — The founder asked to focus on making the scoring
+  system accurate and useful, then to verify it actually works. The
+  instrument came from the recurring trap: three dimensions in a row had
+  read as "measured" while measuring nothing, and the tell was always a
+  constant. So `pnpm probe:dimension-variance` scores the 50-entry
+  validation corpus and prints every dimension's **spread** — a
+  criterion that maxes at 33 across 50 real resumes is not a weak
+  signal, it is a broken matcher. It found one: the soft-skill
+  criterion matched a **literal substring**, so every phrase had
+  exactly one accepted spelling. `analytical` did not credit
+  "analysis" (11 of 50 real resumes wrote it), `mentorship` did not
+  credit "mentored" (7 of 50), `collaborated` did not credit
+  "collaboration" (3 of 50). **A resume that demonstrated collaboration
+  by writing "collaboration" was not credited for it** — the same defect
+  class as the ISO-only date parser. Fixed with `SOFT_SKILL_VARIANTS`
+  (surface forms of the same phrase, never synonyms, and every variant
+  list contains the literal phrase so a phrase can only GAIN matches).
+  The variants test caught a bug in its own first draft — `analyt` does
+  **not** match "analysis" — which is the same lesson from the other
+  direction. Soft Skills average 11 → 16; corpus correlation **0.9136 →
+  0.9183**. **And the gap that let the semantic signal be silently zero
+  in production for months while the corpus stayed green is closed:**
+  the corpus validated the SYNC engine, not the HYBRID one production
+  runs. `pnpm probe:hybrid-correlation` measures the production path —
+  r **0.9186** vs the validated **0.9183**, mean shift −0.24 points —
+  and the Jev path is separately pinned offline (AUC 0.923,
+  correlation 0.9472). **The full production scorer is the most
+  accurate variant, and the one the corpus least directly exercised.**
+  Verified against production: the founder's own resume reads **79**
+  stored and **83** on this checkout, and every delta is one of these
+  fixes. Drift memo:
+  `docs/drift/2026-11-17-accuracy-verification.md`.
+
 - **Most of the resume never reached the score — and now it does** — The
   founder asked whether we take *all* parts of a resume into account "for
   example even little things like the location, summary, education
@@ -2652,6 +2686,53 @@ matching the JD scored 100. Fixed 2026-11-17.
 Full register: `docs/drift/2026-11-16-which-resume-fields-reach-the-score.md`
 (§"RESOLVED" for what changed and what it cost).
 
+### 12. A dimension's RANGE is evidence — measure the spread, not the mean
+
+Three dimensions in a row read as "measured" while measuring nothing
+(Role Fit, Seniority Fit, ATS Similarity). The tell was always the
+same: **a constant, or a near-constant, number**. A dimension that
+cannot move cannot be wrong, and therefore cannot be right.
+
+So the check is mechanical: score the 50-entry validation corpus and
+print every dimension's **spread**. A criterion that maxes at 33 across
+50 real resumes is not a weak signal — it is a **broken matcher**.
+
+`pnpm probe:dimension-variance` does this, and prints the corpus's
+Pearson r at the same time (ADR 0005's gate is r > 0.7; it is **0.9183**
+as of 2026-11-17).
+
+**What it found (2026-11-17):** the soft-skill criterion matched a
+LITERAL SUBSTRING, so each phrase had exactly one accepted spelling —
+`analytical` did not credit "analysis", `mentorship` did not credit
+"mentored", `collaborated` did not credit "collaboration". Measured:
+**11 of 50** real resumes wrote "analysis", **7 of 50** wrote
+"mentored", **3 of 50** wrote "collaboration" — and none were credited.
+Fixed with `SOFT_SKILL_VARIANTS` (surface forms of the same phrase,
+never synonyms; every variant list contains the literal phrase, so a
+phrase can only GAIN matches). Soft Skills average 11 → 16, and the
+corpus correlation went **0.9136 → 0.9183**.
+
+**And the matcher question is always the same: what forms does a real
+user write?** Three times this month the engine accepted exactly one
+form of something — ISO dates, one job title, one soft-skill
+spelling — and silently charged the candidate for the others. The
+variants test caught a bug in its own first draft: `analyt` does **not**
+match "analysis" (English spells the noun *analys* and the verb
+*analyz*), so the list carries all three.
+
+**The corpus validated the ENGINE, not the PRODUCT.** The validation
+corpus scores with the SYNC engine; production runs the HYBRID one
+(sync + BM25/MiniLM similarity + Jev). That gap is how the semantic
+signal could be silently zero in production for months while the corpus
+stayed green. `pnpm probe:hybrid-correlation` closes the deterministic
+half: production r **0.9186** vs the validated sync r **0.9183** (mean
+shift −0.24 points). The Jev path is separately pinned offline
+(AUC **0.923**, correlation **0.9472**) in
+`tests/fixtures/jev-corpus-measurements.json` — so the full production
+scorer is the MOST accurate variant, and the one least directly
+exercised. Keep it that way: measure the production path, not just the
+library behind it.
+
 ## Folder structure (current + planned)
 
 ```
@@ -2986,7 +3067,16 @@ engine reads — the schema and the scorer have separate field lists, so
 "the field exists" is not evidence. See recurring trap #11.
 **`pnpm probe:role-fit-titles`** does the same for Role Fit's title set.
 **`pnpm probe:eligibility-vocabulary`** measures the degree-gate charge.
-All three are offline and write nothing.
+**`pnpm probe:dimension-variance`** prints every dimension's SPREAD over
+the validation corpus, plus the corpus's Pearson r — use it when a
+criterion looks weak or a change might have made a matcher narrower. See
+recurring trap #12.
+**`pnpm probe:hybrid-correlation`** measures whether the PRODUCTION
+scorer (the hybrid one) is as accurate as the sync engine the corpus
+validates. Use it after any change to the similarity signal.
+**`pnpm probe:length-drift <resumeId>`** measures the "Optimal Length"
+criterion's calibration against a real resume.
+All are offline and write nothing.
 
 **On `pnpm lint`:** the repo had no linter at all before 2026-11-10. Two rules
 are **warnings on purpose** — `react-hooks/set-state-in-effect` and

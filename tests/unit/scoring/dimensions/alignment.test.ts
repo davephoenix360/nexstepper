@@ -105,10 +105,7 @@ describe('scoreAlignment', () => {
   it('scores 100 on softSkills when all 12 soft-skill phrases are in the resume', () => {
     // Phase 1 calibration drift: the soft-skill list was expanded
     // from 4 to 12 phrases. To max out, the fixture must mention
-    // all 12 (via substring match — `'mentorship'` does NOT
-    // substring-match `'Mentored'`, so the fixture has to write
-    // `'mentorship'` verbatim). We craft a summary that hits
-    // every phrase.
+    // all 12. We craft a summary that hits every phrase.
     const resume: ResumeTextSource = {
       basics: {
         summary:
@@ -120,6 +117,35 @@ describe('scoreAlignment', () => {
     };
     const result = scoreAlignment(resume, {});
     expect(result.breakdown.softSkills).toBe(100);
+  });
+
+  it('credits a soft skill written in its natural inflection', () => {
+    // ## The bug this pins
+    //
+    // The matcher was a LITERAL SUBSTRING match, so each phrase had
+    // exactly one accepted spelling: 'analytical' did not credit
+    // "analysis", 'mentorship' did not credit "mentored", and
+    // 'collaborated' did not credit "collaboration".
+    //
+    // Measured on the 50-entry validation corpus: 11 of 50 resumes
+    // wrote "analysis" / "analytically", 7 of 50 wrote "mentored" /
+    // "mentoring", 3 of 50 wrote "collaboration" / "collaborative" —
+    // and none of them were credited for it. The same defect class as
+    // the ISO-only date parser: the matcher accepts the formats it was
+    // written against, not the formats people use.
+    const resume: ResumeTextSource = {
+      basics: {
+        summary:
+          'Deep collaboration with the platform group, guided by strong analysis and mentoring of new joiners.'
+      },
+      skills: [],
+      work: [],
+      projects: []
+    };
+    const result = scoreAlignment(resume, {});
+    // "collaborat" (collaboration), "analyt" (analysis), "mentor"
+    // (mentoring) — three phrases, none of them the literal spelling.
+    expect(result.breakdown.softSkills).toBeCloseTo(25, 1);
   });
 
   it('scores partial on softSkills when only some of the 12 phrases are present', () => {

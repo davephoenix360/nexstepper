@@ -185,6 +185,86 @@ export const SOFT_SKILLS: readonly string[] = [
 ] as const;
 
 /**
+ * The surface forms each soft-skill phrase is actually written in.
+ *
+ * ## Why this exists
+ *
+ * The matcher was a LITERAL SUBSTRING match against `SOFT_SKILLS`, so
+ * each phrase had exactly one accepted spelling:
+ *
+ *   'collaborated'  matched "collaborated"     but NOT "collaboration"
+ *                    or "collaborative"
+ *   'mentorship'    matched "mentorship"       but NOT "mentored" or
+ *                    "mentoring"
+ *   'analytical'    matched "analytical"       but NOT "analysis"
+ *   'negotiation'   matched "negotiation"      but NOT "negotiated"
+ *   'communication' matched "communication"     but NOT "communicating"
+ *   'cross-functional' matched "cross-functional" but NOT "cross functional"
+ *
+ * A resume that demonstrates collaboration by writing "collaboration"
+ * was not credited for it. That is the same defect class as the
+ * ISO-only date parser: the matcher accepts the formats it was written
+ * against, not the formats people use.
+ *
+ * ## Measured on the 50-entry validation corpus
+ *
+ *   literal matcher  : 1.44 of 12 phrases (12.0% average)
+ *   variant matcher  : 1.88 of 12 phrases (15.7% average)
+ *
+ * and the phrases the literal matcher missed:
+ *
+ *   11 of 50 resumes  wrote "analysis" / "analytically"
+ *    7 of 50 resumes  wrote "mentored" / "mentoring"
+ *    3 of 50 resumes  wrote "collaboration" / "collaborative"
+ *    1 of 50 resumes  wrote "presented" / "presenting"
+ *
+ * ## The rule
+ *
+ * A variant is a **surface form of the same phrase**, not a synonym for
+ * it. Every entry below is a prefix that covers the phrase's own
+ * inflections, so the literal phrase is ALWAYS matched by its own
+ * variant — the behaviour can only ever get more generous, never
+ * different.
+ *
+ * A phrase with no entry is matched literally, exactly as before.
+ */
+export const SOFT_SKILL_VARIANTS: Readonly<Record<string, readonly string[]>> = {
+  // "lead" → leadership / leader / leading. "led" is a different word
+  // and is deliberately not included — it would match "led a team",
+  // which is about leading a team but is not the same phrase.
+  leadership: ['leadership', 'leader', 'leading'],
+  // "collaborat" → collaborated / collaboration / collaborative.
+  collaborated: ['collaborated', 'collaborat'],
+  // "communicat" → communication / communicate / communicating.
+  communication: ['communication', 'communicat'],
+  // The hyphen and the space are both standard; people write both.
+  'cross-functional': ['cross-functional', 'cross functional'],
+  // "people manag" → people management / people managing; plus the
+  // hyphenated form and the inverted phrasing people actually use.
+  'people management': [
+    'people management',
+    'people manag',
+    'people-manager',
+    'managing people'
+  ],
+  // "mentor" → mentorship / mentor / mentored / mentoring.
+  mentorship: ['mentorship', 'mentor'],
+  // "conflict resolut" covers "conflict resolution"; "resolv conflict"
+  // covers "resolving conflicts" / "resolved conflicts", which the
+  // other form does not.
+  'conflict resolution': ['conflict resolution', 'conflict resolut', 'resolv conflict'],
+  // "present" → presentation / presented / presenting.
+  presentation: ['presentation', 'present'],
+  // Four forms, because English spells this word two ways and inflects
+  // it two ways: analy-sis / analy-tical / analy-ze / analy-ses.
+  // "analyt" alone catches "analytical" but NOT "analysis" — which is
+  // the form 11 of the 50 corpus resumes actually wrote.
+  analytical: ['analytical', 'analyt', 'analys', 'analyz'],
+  // "negotiat" → negotiation / negotiated / negotiating.
+  negotiation: ['negotiation', 'negotiat']
+} as const;
+
+/**
  * Stop-word list used by the keyword-matching sub-criterion to strip
  * noise before scoring. Derived from `keyword-extractor`'s English
  * defaults + a few additions ("via", "etc", "using") that were

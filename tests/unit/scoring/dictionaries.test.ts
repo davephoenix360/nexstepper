@@ -4,6 +4,7 @@ import {
   ACTION_VERBS,
   WEAK_VERBS,
   SOFT_SKILLS,
+  SOFT_SKILL_VARIANTS,
   STOP_WORDS
 } from '@/lib/scoring/dictionaries';
 
@@ -113,6 +114,32 @@ describe('SOFT_SKILLS', () => {
     // Lock the size so a future PR that adds another phrase must
     // also justify it. Expand deliberately, not accidentally.
     expect(SOFT_SKILLS).toHaveLength(12);
+  });
+});
+
+describe('SOFT_SKILL_VARIANTS', () => {
+  it('only lists variants for phrases that are in SOFT_SKILLS', () => {
+    for (const phrase of Object.keys(SOFT_SKILL_VARIANTS)) {
+      expect(SOFT_SKILLS).toContain(phrase);
+    }
+  });
+
+  it('always includes the literal phrase in every variant list', () => {
+    // The contract: a variant list may only ADD surface forms. If the
+    // literal phrase is not in its own list, the matcher could STOP
+    // matching a phrase it used to match — the one way this change
+    // could make the score worse.
+    for (const [phrase, variants] of Object.entries(SOFT_SKILL_VARIANTS)) {
+      expect(variants).toContain(phrase);
+    }
+  });
+
+  it('only lists lowercase variants (the haystack is lowercased)', () => {
+    for (const variants of Object.values(SOFT_SKILL_VARIANTS)) {
+      for (const variant of variants) {
+        expect(variant).toBe(variant.toLowerCase());
+      }
+    }
   });
 });
 

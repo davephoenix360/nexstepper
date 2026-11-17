@@ -1,6 +1,6 @@
 import { flattenResumeText, tokenize } from '../similarity';
 import type { JobTextSource, ResumeTextSource } from '../similarity';
-import { SOFT_SKILLS } from '../dictionaries';
+import { SOFT_SKILLS, SOFT_SKILL_VARIANTS } from '../dictionaries';
 
 /**
  * Alignment dimension (14% of the overall v2 score).
@@ -162,13 +162,26 @@ function titleCoverage(summary: string, title: string): number {
  *
  * "substring" means "team" matches "teamwork" and "collaborated" matches
  * "collaborated with".
+ *
+ * ## Each phrase is matched on its SURFACE FORMS, not one spelling
+ *
+ * A literal match meant 'analytical' did not credit "analysis",
+ * 'mentorship' did not credit "mentored", and 'collaborated' did not
+ * credit "collaboration". A resume that demonstrates the skill in the
+ * words people actually use was not credited for it — the same defect
+ * class as the ISO-only date parser.
+ *
+ * `SOFT_SKILL_VARIANTS` lists the inflections per phrase, and every
+ * variant list contains the literal phrase, so a phrase can only ever
+ * gain matches, never lose them.
  */
 function calcSoftSkills(resume: ResumeTextSource): number {
   const haystack = flattenForSoftSkills(resume).toLowerCase();
   if (SOFT_SKILLS.length === 0) return 0;
   let hits = 0;
   for (const skill of SOFT_SKILLS) {
-    if (haystack.includes(skill)) hits++;
+    const forms = SOFT_SKILL_VARIANTS[skill] ?? [skill];
+    if (forms.some((form) => haystack.includes(form))) hits++;
   }
   return (hits / SOFT_SKILLS.length) * 100;
 }
