@@ -27,42 +27,43 @@
  * them. So the advice cannot drift between the two surfaces — which is
  * the whole point (recurring trap #13 in AGENTS.md).
  *
- * Server-only by intent: `react-dom/server` must not reach a client
- * bundle. The tips module itself stays free of it.
+ * ## Why not `react-dom/server`
+ *
+ * The obvious implementation — `renderToStaticMarkup` — is rejected by
+ * Next 16's Turbopack: a module importing `react-dom/server` cannot
+ * sit in the client module graph, and this module is reachable from
+ * both (the scoring module is imported by client components). So this
+ * walks the element tree directly.
+ *
+ * That is not a workaround with a cost: the tips are built from a
+ * small, known vocabulary of nodes — strings, numbers, fragments,
+ * arrays and `<strong>`/`<em>`/`<span>` wrappers around children. A
+ * recursive walk over `props.children` handles all of them, needs no
+ * renderer, and works in a browser as well as on the server.
  */
-import { Fragment, createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { isValidElement, type ReactNode } from 'react';
 
 import type { DynamicTips } from './tips';
 
-const ENTITIES: Array<[RegExp, string]> = [
-  [/&nbsp;/g, ' '],
-  [/&quot;/g, '"'],
-  [/&#x27;/g, "'"],
-  [/&#39;/g, "'"],
-  [/&apos;/g, "'"],
-  [/&lt;/g, '<'],
-  [/&gt;/g, '>'],
-  [/&amp;/g, '&']
-];
-
 /**
- * Render one tip's JSX down to a single line of plain text.
+ * The text of a React node, ignoring the markup.
  *
- * The tags are stripped and the HTML entities decoded, so the model
- * reads "10 of 29 work bullets describe a task rather than an outcome"
- * rather than markup.
+ * Elements contribute their CHILDREN, not their tag: `<strong>AWS</strong>`
+ * contributes "AWS". Whitespace-only strings between elements are
+ * preserved, because the tips use `{' '}` to separate words.
  */
-export function tipToPlainText(tip: React.ReactNode): string {
+export function tipToPlainText(tip: ReactNode): string {
   if (tip === null || tip === undefined || typeof tip === 'boolean') return '';
-  if (typeof tip === 'string' || typeof tip === 'number') return String(tip);
+  if (typeof tip === 'string') return tip;
+  if (typeof tip === 'number') return String(tip);
+  if (Array.isArray(tip)) return tip.map(tipToPlainText).join('');
 
-  const html = renderToStaticMarkup(createElement(Fragment, null, tip));
-  let text = html.replace(/<[^>]*>/g, '');
-  for (const [pattern, replacement] of ENTITIES) {
-    text = text.replace(pattern, replacement);
+  if (isValidElement(tip)) {
+    const props = tip.props as { children?: ReactNode };
+    return tipToPlainText(props.children);
   }
-  return text.replace(/\s+/g, ' ').trim();
+
+  return '';
 }
 
 /**
@@ -73,7 +74,7 @@ export function tipToPlainText(tip: React.ReactNode): string {
 export function tipsToPlainText(tips: DynamicTips): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, tip] of Object.entries(tips)) {
-    const text = tipToPlainText(tip);
+    const text = tipToPlainText(tip).replace(/\s+/g, ' ').trim();
     if (text) out[key] = text;
   }
   return out;
