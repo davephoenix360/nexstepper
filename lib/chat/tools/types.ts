@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { PRINTABLE_PART_SLUG_VALUES } from '@/lib/print/print-slugs';
+
 import { TEMPLATE_IDS } from '../templates';
 
 /**
@@ -401,6 +403,25 @@ export const PRINTABLE_SECTION_SLUGS = [
 export type PrintableSectionSlug = (typeof PRINTABLE_SECTION_SLUGS)[number];
 
 /**
+ * Everything the printed document can exclude: the SECTION slugs plus
+ * the PART slugs.
+ *
+ * One list on the envelope (`data.print.hiddenSections`) holds both —
+ * the user learns one mechanism ("this does not print") and the agent
+ * has one vocabulary to work with.
+ *
+ * The PART slugs live in `lib/print/print-slugs.ts` because the
+ * TEMPLATES need them too (they render the toggle and apply
+ * `print:hidden`), and the templates are not part of the chat layer.
+ */
+export const PRINTABLE_HIDEABLE_SLUGS = [
+  ...PRINTABLE_SECTION_SLUGS,
+  ...PRINTABLE_PART_SLUG_VALUES
+] as const;
+
+export type PrintableHideableSlug = (typeof PRINTABLE_HIDEABLE_SLUGS)[number];
+
+/**
  * Argument shape for the `updatePrintHiddenSections` tool.
  *
  * ADDITIVE and SUBTRACTIVE rather than "replace the whole list": a model
@@ -412,8 +433,8 @@ export type PrintableSectionSlug = (typeof PRINTABLE_SECTION_SLUGS)[number];
  */
 export const updatePrintHiddenSectionsArgsSchema = z
   .strictObject({
-    hide: z.array(z.enum(PRINTABLE_SECTION_SLUGS)).optional(),
-    show: z.array(z.enum(PRINTABLE_SECTION_SLUGS)).optional()
+    hide: z.array(z.enum(PRINTABLE_HIDEABLE_SLUGS)).optional(),
+    show: z.array(z.enum(PRINTABLE_HIDEABLE_SLUGS)).optional()
   })
   .refine((v) => (v.hide?.length ?? 0) + (v.show?.length ?? 0) > 0, {
     message: 'Provide at least one of `hide` or `show`'

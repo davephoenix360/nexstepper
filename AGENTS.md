@@ -147,7 +147,14 @@ The living priority order. Update this list when state changes — and
 write a `docs/drift/` memo if the update is non-trivial (see "Drift
 audit" below).
 
-**Now (in flight)** — `main` is at `c268407` **pushed and deployed**, plus
+**Now (in flight)** — `main` is at `7b62717` **pushed and deployed**, plus
+**one batch committed LOCALLY ONLY** (the print-fidelity batch — the
+printed resume no longer carries the editor's placeholder text in any
+template; empty sub-parts and empty sections no longer print; Jake's
+"Relevant Coursework" is hideable and renders horizontally; the printed
+paper is white in dark mode). **It is not pushed** — see "Recently
+shipped" for what is in it. Before that: `c268407` **pushed and
+deployed**, plus
 one batch committed **locally only** (`e350473`, not pushed): the chat
 agent can now name the weakest sub-criterion — the twelve criterion
 scores are in its context, and the weakest *measured* one is stated.
@@ -184,6 +191,43 @@ plan. Drift memo:
 > so to the user; it was wrong.
 
 **Recently shipped (for context, last 7 days)**
+
+- **The printed resume carried the editor's placeholder text — in every
+  template** — The founder reported three print defects: Jake's "Relevant
+  Coursework" could not be hidden and printed vertically, empty sub-parts
+  printed, and the print background was dark in dark mode. Fixing the
+  first two led to the third, and the third led to the real one. A probe
+  that **simulates the print stylesheet** (removes every `print:hidden` /
+  `.no-print` element) and then reads the surviving text found that the
+  **read-only render printed its placeholders** — and the read-only
+  render is the print path for the **preview page and the public share
+  link**. So a candidate who left their location blank got **"City, State"**
+  on their resume, and one who left their summary blank got the entire
+  placeholder sentence — *"A couple of lines summarizing who you are."* —
+  on the page they sent to employers. **All six templates.** The editor's
+  own print was clean: `EditableText` had hidden its placeholder with
+  `print:hidden` for years, and the read-only branch of `Field` /
+  `FieldArea` / `FieldChips` never got the same treatment — two surfaces
+  printing **different documents** from the same data. The same pass
+  found Classic's eleven hard-coded fallback labels ("Company",
+  "Institution", "Award"), Jake's "Degree" / "Language:" / "Category:",
+  the bare "Minor: " prefix, the ", , " left by empty keyword strings,
+  the "· ·" left by unconditional separator spans in Creative and
+  Executive, and — the worst — **empty section headings** in five of six
+  templates ("Volunteer" with nothing under it), because their section
+  wrapper sat OUTSIDE the renderer and the documented
+  `SmartSection` "render only if children is non-null" contract could
+  never fire on a React element. Also fixed: the **dark-mode print**,
+  which was a specificity bug — Tailwind's `dark` is a CLASS variant, so
+  `dark:bg-zinc-950` compiles to (0,2,0) and beat `print:bg-white` at
+  (0,1,0); the fix is an unlayered `!important` rule. Jake's coursework
+  now has its own hide slug in the same `data.print.hiddenSections` list
+  (one mechanism, not two), auto-hides when empty, and renders
+  horizontally in the editor so the editor and the PDF agree. Emptiness
+  is now decided from the DATA by one shared predicate,
+  `isResumeSectionEmpty`. 37 new tests; verified failing on the old code
+  (14 failures) and passing on the new. Drift memo:
+  `docs/drift/2026-11-24-the-printed-resume-carried-the-editors-placeholder-text.md`.
 
 - **The chat agent could not name the weakest sub-criterion — it had
   never been told** — The founder asked whether the AI chat sees all
@@ -3041,6 +3085,65 @@ if (!skillsPrint) total -= skillsInches;
 This is the same shape as trap #14 in a different place: two conditions
 that both mean "could not measure" must collapse into one decision, or
 the number comes out wrong in the direction that costs the user trust.
+
+### 16. The editor is not the print — and a grey placeholder is not a grey bug
+
+The founder reported three print defects. The third one turned out to be
+the visible edge of a much bigger one, and the bigger one had been live
+in every template for the whole life of the product:
+
+> *"we do not hide them automatically from print when they are empty"*
+
+**What printed.** A candidate who left their location blank got
+**"City, State"** on their resume. One who left their summary blank got
+the entire placeholder sentence — *"A couple of lines summarizing who
+you are."* — on the page they sent to employers. Measured across **all
+six templates**.
+
+**Why.** The printed document is not a separate artefact — it is the same
+DOM under `@media print`, and there are **two** render paths:
+
+| Path | Who uses it | Placeholder handling |
+|---|---|---|
+| editable | the editor's own Print button (`window.print()` on the editor DOM) | `EditableText` wraps its placeholder in `print:hidden` ✓ |
+| read-only (`editable={false}`) | the **preview page** and the **public share link** | rendered the placeholder as ordinary text ✗ |
+
+The editor path was correct. The read-only path was not — and it *looked*
+correct on screen, because the placeholder is grey and reads like an
+editor hint. **The same resume printed from the editor was clean and
+printed from the preview page was not.**
+
+**The generalisation:** the editor and the preview are two surfaces that
+print the same document, so they must agree. Anything that renders only
+in one of them (an affordance, a placeholder, a separator) has to be
+marked `print:hidden` in **both**, and the only way to know is to
+**simulate the print stylesheet and read what is left** — remove every
+element carrying `print:hidden` / `.no-print`, then look at the
+surviving text nodes. `tests/unit/print/print-cleanliness.test.tsx` does
+exactly that, and collects the placeholder literals **from the template
+sources at test time** so a new placeholder is covered automatically.
+
+Two more from the same pass:
+
+- **A section heading is chrome, and chrome always prints.** A section
+  with nothing in it printed a bare heading ("Volunteer" with nothing
+  under it). The fix is not "hide the body" — it is "do not render the
+  section at all". Classic had this rule; the other five templates put
+  their section WRAPPER OUTSIDE the per-section renderer, so the heading
+  was committed to the DOM before the renderer could return `null`.
+- **A parent cannot ask whether a child rendered `null`.** The
+  `SmartSection` contract ("render only if children is non-null") was
+  written down and believed, and could not work — `children` is a React
+  *element*, not a render result. Emptiness has to be decided from the
+  DATA: `isResumeSectionEmpty(data, slug)` in
+  `lib/resume-schema/resume-data.ts`, shared by every section wrapper.
+
+**And the specificity trap that hid the dark-mode leak:** Tailwind v4's
+`dark` is a CLASS variant, so `dark:bg-zinc-950` compiles to
+`.dark\:bg-zinc-950:is(.dark *)` — specificity **(0,2,0)** — and beats
+`print:bg-white` at **(0,1,0)**. The fix was an UNLAYERED `!important`
+rule in the print block (important beats normal regardless of layers),
+not another utility class.
 
 ## Folder structure (current + planned)
 

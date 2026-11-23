@@ -384,6 +384,45 @@
   body {
     background: white !important;
   }
+
+  /*
+    THE PAPER IS ALWAYS WHITE — whatever the app's theme is.
+
+    Why this rule and not a `print:bg-white` utility on each surface:
+    the app's dark variant is a CLASS variant, and the compiled selector
+    is `.dark\:bg-zinc-950:is(.dark *)` — specificity (0,2,0) — while
+    `print:bg-white` compiles to (0,1,0). Same specificity is not the
+    issue here, HIGHER specificity is: in dark mode the dark background
+    beat the print utility, and the preview page and the share link
+    printed on a near-black sheet.
+
+    `!important` settles it without depending on the variant order:
+    an important declaration beats a normal one regardless of layers,
+    and this rule is unlayered, so it also beats anything Tailwind
+    emits inside `@layer utilities`.
+
+    The surfaces are listed explicitly rather than with a wildcard on
+    purpose: `* { background: white !important }` would also flatten
+    the indigo section accents and the chip fills, which the
+    `print-color-adjust: exact` rule above exists to preserve.
+  */
+  html,
+  body,
+  .print-paper,
+  .printable-root,
+  .printable {
+    background: white !important;
+  }
+
+  /*
+    Tell the UA the printed page is a LIGHT page. Without this the
+    canvas colour follows the app's colour scheme, so a dark-mode user
+    can get a dark sheet from the browser's own default even when the
+    page sets a white background.
+  */
+  html {
+    color-scheme: light;
+  }
   /* Chrome bar on the preview route — gone in print. */
   .no-print {
     display: none !important;

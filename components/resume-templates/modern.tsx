@@ -73,6 +73,7 @@ import {
   EMPTY_WORK
 } from '@/lib/resume-schema/defaults';
 import type { ResumeData } from '@/lib/resume-schema';
+import { isResumeSectionEmpty } from '@/lib/resume-schema/resume-data';
 import { useSectionPrint } from '@/components/editable/use-section-print';
 import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
 import { cn } from '@/lib/utils';
@@ -274,6 +275,13 @@ function ModernSection({
   children: React.ReactNode;
 }) {
   const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
+  // THE EMPTY-SECTION RULE — see `SmartSection` for the full
+  // rationale. A heading is chrome and always prints, so a section
+  // with nothing in it would print a bare heading. Emptiness is
+  // decided from the DATA, because the per-section renderers are
+  // passed as React elements and a parent cannot ask whether a
+  // child rendered null.
+  const empty = isResumeSectionEmpty(mode.data, sectionSlug);
   const sectionClassName = cn(
     // No `break-inside-avoid` on the section itself. The earlier
     // `break-inside-avoid print:break-inside-avoid` looked safe but
@@ -286,7 +294,8 @@ function ModernSection({
     // the right combination: it keeps the header glued to its body
     // AND lets the browser split the section between entries when
     // it must, without the giant-blank-page artifact.
-    sectionSlug && hidden && 'print:hidden opacity-60'
+    sectionSlug && hidden && 'print:hidden opacity-60',
+    empty && 'print:hidden'
   );
   return (
     <section className={sectionClassName}>

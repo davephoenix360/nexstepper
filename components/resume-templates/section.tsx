@@ -51,6 +51,8 @@ import * as React from 'react';
 import type { FieldMode } from './field';
 import { useSectionPrint } from '@/components/editable/use-section-print';
 import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
+import { isResumeSectionEmpty } from '@/lib/resume-schema/resume-data';
+import { cn } from '@/lib/utils';
 
 interface SmartSectionProps {
   mode: FieldMode;
@@ -99,11 +101,41 @@ export function SmartSection({
   // opacity-60 is a soft "I'm hidden" cue in the editor only —
   // the bar already shows the explicit "Hidden from print"
   // badge, but the dim makes the affected section scannable.
-  const isEmpty =
-    !mode.editable && (children === null || children === undefined);
-  if (isEmpty) return null;
-  const className =
-    sectionSlug && hidden ? 'print:hidden opacity-60' : undefined;
+  const isEmpty = !mode.editable && (children === null || children === undefined);
+
+  /*
+    THE EMPTY-SECTION RULE.
+
+    A section heading is template CHROME — it always prints. So a
+    section with nothing in it prints a bare heading ("Volunteer"
+    with nothing under it), and that reads like a mistake on the
+    candidate's resume.
+
+    The `children === null` check above cannot catch this: the
+    per-section renderers return `null` for "no data", but they are
+    passed as React ELEMENTS (`<MinimalVolunteer mode={mode} />`),
+    and React does not let a parent ask whether a child rendered
+    null. The heading was already committed by then.
+
+    So emptiness is decided from the DATA instead, by the shared
+    `isResumeSectionEmpty` predicate. It is stricter than "the
+    array is empty": an array holding one entry the candidate never
+    filled in is empty too, because nothing in it would print.
+  */
+  const empty = isResumeSectionEmpty(mode.data, sectionSlug);
+
+  // Read-only: an empty section is not rendered at all — a heading
+  // with nothing under it is a defect on the printed page.
+  if (!mode.editable && empty) return null;
+
+  const className = cn(
+    sectionSlug && hidden && 'print:hidden opacity-60',
+    // Editor: the section stays visible (the user needs its
+    // "+ Add" affordance) but is kept out of the printed
+    // document. This is the rule the Classic template has had
+    // since it shipped (`printHiddenIf(empty)`).
+    empty && 'print:hidden'
+  );
   return (
     <section className={className}>
       <SectionTitle title={title} id={id} sectionSlug={sectionSlug} mode={mode} />

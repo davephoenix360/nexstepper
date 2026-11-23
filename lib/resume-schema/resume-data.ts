@@ -110,6 +110,86 @@ export function isSectionHiddenFromPrint(
 }
 
 /**
+ * The data each SECTION slug reads.
+ *
+ * `summary` is here too even though it is not in
+ * `PRINTABLE_SECTION_SLUGS` (the chat tool's vocabulary): every
+ * template renders it as `sectionSlug="summary"`, so the section
+ * wrappers need to know how to judge it.
+ */
+const SECTION_DATA: Record<string, (data: ResumeData) => unknown> = {
+  summary: (d) => d.sections.basics.summary,
+  experience: (d) => d.sections.work,
+  skills: (d) => d.sections.skills,
+  education: (d) => d.sections.education,
+  projects: (d) => d.sections.projects,
+  awards: (d) => d.sections.awards,
+  certificates: (d) => d.sections.certificates,
+  publications: (d) => d.sections.publications,
+  volunteer: (d) => d.sections.volunteer,
+  languages: (d) => d.sections.languages,
+  interests: (d) => d.sections.interests,
+  references: (d) => d.sections.references
+};
+
+/**
+ * Does this value contain ANY text that would actually print?
+ *
+ * A generic deep scan rather than a per-section rule, because the
+ * shape of a section entry differs across sections (a work entry has
+ * nested `positions[].highlights[]`, an education entry has a nested
+ * `degree`, a skill has `keywords[]`) and a rule per section would
+ * be a rule to keep in sync with the schema.
+ */
+function hasPrintableContent(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some(hasPrintableContent);
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some(
+      hasPrintableContent
+    );
+  }
+  return false;
+}
+
+/**
+ * Is this section EMPTY — i.e. would it print nothing but a heading?
+ *
+ * ## Why the templates need this
+ *
+ * A resume section prints its HEADING unconditionally (the heading is
+ * the template's chrome, not the candidate's content), so a section
+ * with no content prints a bare heading: "Volunteer" with nothing
+ * under it. The user sees it on the printed page and it reads like a
+ * mistake.
+ *
+ * The Classic template has always handled this — its editor path
+ * carries `printHiddenIf(empty)` on the section wrapper and its
+ * read-only path skips the section entirely when the array is empty.
+ * The other five templates did not: their section WRAPPER sits
+ * OUTSIDE the per-section renderer, so when the renderer returned
+ * `null` ("no data in read-only mode") the heading had already been
+ * committed to the DOM.
+ *
+ * This predicate is the shared rule those templates now use. It is
+ * stricter than "the array is empty": an array holding one entry the
+ * candidate never filled in is ALSO empty, because nothing in it
+ * would print.
+ *
+ * Unknown slugs return `false` — never hide a section we do not
+ * understand.
+ */
+export function isResumeSectionEmpty(
+  data: ResumeData,
+  sectionSlug: string | undefined
+): boolean {
+  if (!sectionSlug) return false;
+  const pick = SECTION_DATA[sectionSlug];
+  if (!pick) return false;
+  return !hasPrintableContent(pick(data));
+}
+
+/**
  * Type-safe parse — returns either the validated data or a structured error
  * suitable for surfacing to forms via react-hook-form's `zodResolver`.
  */

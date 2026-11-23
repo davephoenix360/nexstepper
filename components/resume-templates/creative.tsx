@@ -46,6 +46,7 @@ import {
   FieldArea,
   FieldBullets,
   FieldChips,
+  FieldSeparator,
   type FieldMode
 } from './field';
 import { CREATIVE_TEMPLATE_META } from './meta';
@@ -58,9 +59,25 @@ import {
   EMPTY_WORK
 } from '@/lib/resume-schema/defaults';
 import type { ResumeData } from '@/lib/resume-schema';
+import { isResumeSectionEmpty } from '@/lib/resume-schema/resume-data';
 import { useSectionPrint } from '@/components/editable/use-section-print';
 import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
 import { cn } from '@/lib/utils';
+
+/**
+ * The contact strip's values, in the order they appear on the line.
+ *
+ * `FieldSeparator` needs the WHOLE list (not just the two values
+ * around it) so it can tell whether anything earlier on the line
+ * has content — that is what stops a separator from leading the
+ * line when the first value is blank.
+ */
+const CONTACT_PATHS = [
+  'sections.basics.email',
+  'sections.basics.phone',
+  'sections.basics.url',
+  'sections.basics.location.city'
+];
 
 /* -------------------------------------------------------------------------- */
 /*  Root                                                                       */
@@ -138,19 +155,34 @@ function CreativeHeader({
           path="sections.basics.email"
           placeholder="email@example.com"
         />
-        <span className="text-zinc-400">·</span>
+        <FieldSeparator
+          mode={mode}
+          paths={CONTACT_PATHS}
+          index={1}
+          className="text-zinc-400"
+        />
         <Field
           mode={mode}
           path="sections.basics.phone"
           placeholder="(555) 123-4567"
         />
-        <span className="text-zinc-400">·</span>
+        <FieldSeparator
+          mode={mode}
+          paths={CONTACT_PATHS}
+          index={2}
+          className="text-zinc-400"
+        />
         <Field
           mode={mode}
           path="sections.basics.url"
           placeholder="example.com"
         />
-        <span className="text-zinc-400">·</span>
+        <FieldSeparator
+          mode={mode}
+          paths={CONTACT_PATHS}
+          index={3}
+          className="text-zinc-400"
+        />
         <Field
           mode={mode}
           path="sections.basics.location.city"
@@ -198,10 +230,6 @@ function CreativeBody({
 
       <CreativeSection mode={mode} title="Projects" accent={accent} id="section-projects" sectionSlug="projects">
         <CreativeProjects mode={mode} accent={accent} />
-      </CreativeSection>
-
-      <CreativeSection mode={mode} title="Portfolio & Tools" accent={accent} id="section-projects" sectionSlug="projects">
-        <CreativePortfolio mode={mode} />
       </CreativeSection>
 
       <CreativeSection mode={mode} title="Volunteer" accent={accent} id="section-volunteer" sectionSlug="volunteer">
@@ -253,11 +281,19 @@ function CreativeSection({
   // hook is safe in read-only mode — `useSectionPrint` branches to the
   // no-form path when `mode.editable` is false.
   const { hidden } = useSectionPrint(sectionSlug ?? '__no_section__', mode);
-  if (!mode.editable && (children === null || children === undefined)) {
+  // THE EMPTY-SECTION RULE — see `SmartSection` for the full
+  // rationale. A heading is chrome and always prints, so a section
+  // with nothing in it would print a bare heading. Emptiness is
+  // decided from the DATA, because the per-section renderers are
+  // passed as React elements and a parent cannot ask whether a
+  // child rendered null.
+  const empty = isResumeSectionEmpty(mode.data, sectionSlug);
+  if (!mode.editable && (children === null || children === undefined || empty)) {
     return null;
   }
   const sectionClassName = cn(
-    sectionSlug && hidden && 'print:hidden opacity-60'
+    sectionSlug && hidden && 'print:hidden opacity-60',
+    empty && 'print:hidden'
   );
   return (
     <section className={sectionClassName}>
@@ -615,20 +651,6 @@ function CreativeProjects({
       )}
     </div>
   );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Portfolio & Tools (mapped from sections.projects when description          */
-/*  mentions portfolio URL; we reuse projects with a "Portfolio" framing for   */
-/*  the visual section name. Kept simple -- reads the same shape.              */
-/* -------------------------------------------------------------------------- */
-
-function CreativePortfolio({ mode }: { mode: FieldMode }) {
-  // Portfolio section reuses projects; if the user has 0 projects we
-  // already render an empty Projects section above so this stays empty
-  // too. Keeping the dispatch explicit so future changes to projects
-  // don't accidentally duplicate content.
-  return null;
 }
 
 /* -------------------------------------------------------------------------- */

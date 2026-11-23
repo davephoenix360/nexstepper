@@ -67,6 +67,7 @@
 
 import * as React from 'react';
 import type { ElementType } from 'react';
+import { useFormContext, useWatch, type Control } from 'react-hook-form';
 import { EditableText, EditableTextarea } from '@/components/editable/editable-text';
 import { KeywordChips } from '@/components/editable/keyword-chips';
 import { BulletList } from '@/components/editable/bullet-list';
@@ -112,6 +113,119 @@ function arr(v: unknown): string[] {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  FieldSeparator — the "·" between two contact values                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The "·" separator between two values on the same line.
+ *
+ * ## Why this exists
+ *
+ * The Creative and Executive templates render their header contact
+ * strip as a row of `<Field>`s with a literal "·" span between
+ * each pair:
+ *
+ *     <Field path="sections.basics.email" … />
+ *     <span className="text-zinc-400">·</span>
+ *     <Field path="sections.basics.phone" … />
+ *     <span className="text-zinc-400">·</span>
+ *     <Field path="sections.basics.location.city" … />
+ *
+ * The separators were UNCONDITIONAL — they did not know whether the
+ * values on either side of them had anything in them. The empty
+ * `Field` used to render its placeholder text (grey, but text), so
+ * the strip looked complete on screen and the "·" spans were
+ * invisible in the layout. Then the read-only placeholders became
+ * `print:hidden` (see `Field` above) — which is correct, but it
+ * exposed the separator as the only thing left:
+ *
+ *     · (555) 123-4567        ← email is blank, so the separator leads
+ *     · ·                     ← everything is blank
+ *
+ * That is the printed resume. A candidate who left their email blank
+ * got a leading bullet-point on their own contact line.
+ *
+ * ## The rule
+ *
+ * A separator before value N renders only when:
+ *   - value N has content, AND
+ *   - at least one value BEFORE N has content.
+ *
+ * The first clause kills trailing separators ("email · " with nothing
+ * after). The second kills leading ones ("· phone" with nothing
+ * before). Together they also kill the all-empty case, so a blank
+ * contact strip prints nothing at all.
+ *
+ * This mirrors the rule the editable header line already used
+ * (`components/editable/header-lines.tsx`), which had the same
+ * "separator prints alone" bug and fixed it with the same
+ * cumulative "already seen a non-empty value" tracker.
+ */
+export function FieldSeparator({
+  mode,
+  paths,
+  index,
+  className,
+  children = '·'
+}: {
+  mode: FieldMode;
+  /** Every value on the line, in order. */
+  paths: string[];
+  /** Which of them this separator sits in FRONT of. */
+  index: number;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const values = useFieldValues(paths, mode);
+  const current = (values[index] ?? '').trim();
+  const hasEarlier = values
+    .slice(0, index)
+    .some((v) => v.trim().length > 0);
+  if (!current || !hasEarlier) return null;
+  return (
+    <span className={className} aria-hidden="true">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Read a set of field values — live from the form in editor mode,
+ * from the saved envelope in read-only mode.
+ *
+ * This is the same explicit-`mode` branch `useSectionPrint` uses
+ * (see `components/editable/use-section-print.ts`) and for the same
+ * reason: `useFormContext()` THROWS outside a FormProvider, and the
+ * read-only render (preview page, share link) has none. A hook
+ * cannot call `useWatch` conditionally without breaking the rules
+ * of hooks, and it cannot call it unconditionally because that is
+ * exactly what throws in the preview path.
+ */
+function useFieldValues(paths: string[], mode: FieldMode): string[] {
+  /* eslint-disable react-hooks/rules-of-hooks -- conditional is stable per component instance; see the note above */
+  if (mode.editable) {
+    return useFieldValuesFromForm(paths);
+  }
+  return useFieldValuesFromData(paths, mode.data);
+  /* eslint-enable react-hooks/rules-of-hooks */
+}
+
+function useFieldValuesFromForm(paths: string[]): string[] {
+  const form = useFormContext() as unknown as { control: Control };
+  const watched = useWatch({ control: form.control, name: paths });
+  if (!Array.isArray(watched)) {
+    // A single-element array of names can come back as the value
+    // itself rather than an array — normalise.
+    return [str(watched)];
+  }
+  return watched.map(str);
+}
+
+function useFieldValuesFromData(paths: string[], data: ResumeData): string[] {
+  return paths.map((p) => str(read(data, p)));
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Field — single-line text                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -149,13 +263,28 @@ export function Field({
   }
   const value = str(read(mode.data, path));
   if (!value) {
-    // Mirror EditableText's "empty state" behavior but without the
-    // print:hidden wrapper — read-only mode never prints
-    // "Click to add" because the placeholder is only shown when the
-    // user has saved nothing yet. Kept here so the visual width
-    // doesn't collapse.
+    // Mirror EditableText's "empty state" behavior — the placeholder
+    // shows on screen so the preview does not look broken, and the
+    // `print:hidden` wrapper takes it out of the PRINTED document.
+    //
+    // The `print:hidden` is NOT optional, and the reason is the
+    // one the editable path already got right: `EditableText`
+    // wraps its placeholder in `<span class="print:hidden">`, so
+    // the editor's own print output never carried "Click to add" /
+    // "Job title" copy. This read-only branch did NOT have it —
+    // and the read-only render is the print path for the PREVIEW
+    // page and the SHARE link (both render the template with
+    // `editable={false}`), so a candidate who left their location
+    // blank got "City, State" printed on their resume, and one who
+    // left their summary blank got the entire placeholder sentence
+    // — "A couple of lines summarizing who you are and what you're
+    // looking for." — on the page they sent to employers.
+    //
+    // Keeping the placeholder on screen but out of the print keeps
+    // the two surfaces consistent: the editor's PDF and the
+    // preview's PDF now show the same document.
     return (
-      <span className={cn(className, 'text-zinc-400')}>
+      <span className={cn(className, 'text-zinc-400 print:hidden')}>
         {placeholder ?? ''}
       </span>
     );
@@ -206,9 +335,13 @@ export function FieldArea({
   }
   const value = str(read(mode.data, path));
   if (!value) {
-    return React.createElement(readOnlyAs, {
-      className: cn(className, 'text-zinc-400')
-    }, placeholder ?? '');
+    // Same rule as `Field` above: the placeholder is an on-screen
+    // affordance and never belongs in the printed document.
+    return React.createElement(
+      readOnlyAs,
+      { className: cn(className, 'text-zinc-400 print:hidden') },
+      placeholder ?? ''
+    );
   }
   return React.createElement(
     readOnlyAs,
@@ -268,10 +401,28 @@ export function FieldChips({
       />
     );
   }
-  const values = arr(read(mode.data, path));
-  if (values.length === 0) {
+  // Blank chips are dropped BEFORE the join.
+  //
+  // The array can hold empty strings — the editor's KeywordChips
+  // writes one entry per chip the user added, and a user who adds a
+  // chip and then types nothing into it leaves an empty string
+  // behind. `values.join(', ')` then produced ", , , " — three
+  // commas and nothing else, printed on the resume as a row of
+  // separators under the category name.
+  //
+  // The ORIGINAL index is kept, not the index in the filtered list:
+  // the formatting marks are keyed by the ORIGINAL array index
+  // (`path.0`, `path.1`, …), so filtering without re-indexing would
+  // move a bolded keyword onto the wrong chip.
+  const items = arr(read(mode.data, path))
+    .map((v, i) => ({ value: v, index: i }))
+    .filter((item) => item.value.trim().length > 0);
+  if (items.length === 0) {
+    // "Add major" is an EDITOR instruction ("add a major here"),
+    // never resume content. `print:hidden` keeps it out of the
+    // printed document — same rule as `Field` / `FieldArea`.
     return (
-      <span className={cn(className, 'text-zinc-400 text-sm')}>
+      <span className={cn(className, 'text-zinc-400 text-sm print:hidden')}>
         {placeholder ? `Add ${placeholder}` : ''}
       </span>
     );
@@ -279,23 +430,26 @@ export function FieldChips({
   if (variant === 'chips') {
     return (
       <span className={cn('inline-flex flex-wrap gap-1.5', className)}>
-        {values.map((v, i) => (
+        {items.map((item) => (
           <span
-            key={`${v}-${i}`}
+            key={`${item.value}-${item.index}`}
             className={cn(
               'inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10.5pt] text-zinc-700 print:border-zinc-300',
               chipClassName
             )}
             style={chipStyle}
           >
-            <RichText value={v} spans={mode.data.formatting?.[`${path}.${i}`]} />
+            <RichText
+              value={item.value}
+              spans={mode.data.formatting?.[`${path}.${item.index}`]}
+            />
           </span>
         ))}
       </span>
     );
   }
 
-  // Comma-separated, so it wraps like prose and reads as the resume it
+  // Comma-separated, so it wraps like prose and reads like the resume it
   // is. Joined rather than mapped to spans so there is no per-item box
   // for a screen reader to walk and nothing to strip in print.
   //
@@ -305,18 +459,23 @@ export function FieldChips({
   // joined string is kept verbatim — an unmarked list of keywords is
   // still one text node, exactly as it was before this feature.
   const formatting = mode.data.formatting;
-  const anyMarked = values.some((_, i) => (formatting?.[`${path}.${i}`]?.length ?? 0) > 0);
+  const anyMarked = items.some(
+    (item) => (formatting?.[`${path}.${item.index}`]?.length ?? 0) > 0
+  );
 
   if (!anyMarked) {
-    return <span className={className}>{values.join(', ')}</span>;
+    return <span className={className}>{items.map((i) => i.value).join(', ')}</span>;
   }
 
   return (
     <span className={className}>
-      {values.map((v, i) => (
-        <React.Fragment key={`${v}-${i}`}>
+      {items.map((item, i) => (
+        <React.Fragment key={`${item.value}-${item.index}`}>
           {i > 0 && ', '}
-          <RichText value={v} spans={formatting?.[`${path}.${i}`]} />
+          <RichText
+            value={item.value}
+            spans={formatting?.[`${path}.${item.index}`]}
+          />
         </React.Fragment>
       ))}
     </span>

@@ -75,11 +75,11 @@ import {
   Plus,
   X
 } from 'lucide-react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 
 import { useSectionPrint } from '@/components/editable/use-section-print';
 import { PrintPrefsBar } from '@/components/editable/print-prefs-bar';
-import { BulletList } from '@/components/editable/bullet-list';
+import { PRINTABLE_PART_SLUGS } from '@/lib/print/print-slugs';
 
 import { DateRange } from './date-range';
 import {
@@ -108,7 +108,10 @@ import {
   EMPTY_VOLUNTEER,
   EMPTY_WORK
 } from '@/lib/resume-schema/defaults';
-import { isSectionHiddenFromPrint } from '@/lib/resume-schema/resume-data';
+import {
+  isResumeSectionEmpty,
+  isSectionHiddenFromPrint
+} from '@/lib/resume-schema/resume-data';
 import type { Profile, ResumeData } from '@/lib/resume-schema';
 import { cn } from '@/lib/utils';
 import { JAKE_TEMPLATE_META } from './meta';
@@ -574,14 +577,24 @@ function JakeSection({
   // renderer found no data — matches the SmartSection contract.
   const isEmpty =
     !mode.editable && (children === null || children === undefined);
-  if (isEmpty) return null;
+
+  // THE EMPTY-SECTION RULE — see `SmartSection` for the full
+  // rationale. A heading is chrome and always prints, so a section
+  // with nothing in it would print a bare heading. Emptiness is
+  // decided from the DATA, because the per-section renderers are
+  // passed as React elements and a parent cannot ask whether a
+  // child rendered null.
+  const empty = isResumeSectionEmpty(mode.data, sectionSlug);
+
+  if (isEmpty || (!mode.editable && empty)) return null;
 
   return (
     <section
       id={id}
       className={cn(
         'mb-5 last:mb-0',
-        sectionSlug && hidden && 'print:hidden opacity-60'
+        sectionSlug && hidden && 'print:hidden opacity-60',
+        empty && 'print:hidden'
       )}
     >
       <div
@@ -694,7 +707,14 @@ function JakeEducation({ mode }: { mode: FieldMode }) {
 function JakeEducationRow({ mode, index }: { mode: FieldMode; index: number }) {
   const e = mode.data.sections.education[index] ?? EMPTY_EDUCATION;
   const majors = (e.degree.majors ?? []).filter(isSet).join(', ');
-  const minors = (e.degree.minors ?? []).map((m) => `Minor: ${m}`).join(', ');
+  // The minors are filtered BEFORE the "Minor: " prefix is added.
+  // Adding the prefix first meant a minor the candidate had added
+  // but not filled in printed as the bare label "Minor: " on the
+  // resume.
+  const minors = (e.degree.minors ?? [])
+    .filter(isSet)
+    .map((m) => `Minor: ${m}`)
+    .join(', ');
   const degreeText = [isSet(e.degree.degreeLevel) ? e.degree.degreeLevel : '', majors, minors]
     .filter(Boolean)
     .join(', ');
@@ -748,7 +768,21 @@ function JakeEducationRow({ mode, index }: { mode: FieldMode; index: number }) {
               />
             </>
           ) : (
-            degreeText || <span className="text-zinc-400">Degree</span>
+            /*
+              The read-only fallback for a blank degree line.
+
+              "Degree" in grey is a PLACEHOLDER — it tells the user
+              (on screen) that this row wants a degree. It is not
+              resume content, so it must not reach the printed
+              document: a candidate who listed a school without a
+              degree got the word "Degree" on their resume.
+
+              `print:hidden` keeps it on screen and out of the PDF —
+              the same rule `Field` applies to every empty leaf.
+            */
+            degreeText || (
+              <span className="text-zinc-400 print:hidden">Degree</span>
+            )
           )}
         </span>
         <span className="text-[11pt] italic text-zinc-600">
@@ -761,7 +795,24 @@ function JakeEducationRow({ mode, index }: { mode: FieldMode; index: number }) {
           />
         </span>
       </div>
-      <div className="text-[10pt] italic text-zinc-600">
+      {/*
+        The GPA line.
+
+        In the EDITOR it always renders, so the user can click into an
+        empty GPA field. But an empty GPA means the printed page would
+        carry a bare "GPA:" label with nothing after it — a stray label
+        on the candidate's resume. So the wrapper is `print:hidden`
+        when there is no value to print.
+
+        (The Classic template has had this since it shipped; this is
+        the same rule, applied to Jake's sub-part.)
+      */}
+      <div
+        className={cn(
+          'text-[10pt] italic text-zinc-600',
+          mode.editable && !isSet(e.gpa) && 'print:hidden'
+        )}
+      >
         {mode.editable || isSet(e.gpa) ? (
           <>
             <span className="not-italic">GPA: </span>
@@ -780,6 +831,33 @@ function JakeEducationRow({ mode, index }: { mode: FieldMode; index: number }) {
   );
 }
 
+/**
+ * The "Relevant Coursework" block — a PART of the Education section.
+ *
+ * ## Three things this block has to get right
+ *
+ * 1. **It must not print when it is empty.** In the editor the block
+ *    always renders (so the user can click into it), but an empty
+ *    "Relevant Coursework" heading on the printed page is a stray
+ *    label — so the wrapper is `print:hidden` when there are no
+ *    courses.
+ *
+ * 2. **It must be HORIZONTAL in the print.** The editor IS the print
+ *    — the editor's Print button calls `window.print()` on the
+ *    editor's own DOM — so a vertical list in the editor is a vertical
+ *    list in the PDF. The read-only render has always been a
+ *    4-column grid; the editor now uses the SAME grid, so the editor
+ *    and the PDF agree, and the PDF is as compact as it was meant to
+ *    be. (The old editor used a one-per-line bullet list "because it
+ *    is easier to edit" — that convenience cost a printed page a
+ *    third of its height.)
+ *
+ * 3. **The user must be able to hide it.** Coursework is the part of
+ *    the Education section most likely to be irrelevant to a given
+ *    job, and until now the choice was the whole Education section or
+ *    nothing. It now has its own slug in the same hide list the
+ *    sections use (`data.print.hiddenSections`).
+ */
 function JakeCoursework({
   mode,
   educationIndex
@@ -789,24 +867,39 @@ function JakeCoursework({
 }) {
   const path = `sections.education.${educationIndex}.courses`;
   const courses = arr(mode.data, path).filter(isSet);
+  // The print-hide state for this PART — the same mechanism the
+  // sections use, one list on the envelope.
+  const { hidden } = useSectionPrint(PRINTABLE_PART_SLUGS.coursework, mode);
+
+  // Read-only: no courses → nothing to print at all.
   if (!mode.editable && courses.length === 0) return null;
+
+  const empty = courses.length === 0;
   return (
-    <div className="mt-2">
-      <p className="text-[11pt] font-semibold text-zinc-900">
-        Relevant Coursework
-      </p>
+    <div
+      className={cn(
+        'mt-2',
+        (empty || hidden) && 'print:hidden',
+        hidden && 'opacity-60'
+      )}
+      data-testid="jake-coursework"
+      data-hidden={hidden ? 'yes' : 'no'}
+      data-empty={empty ? 'yes' : 'no'}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11pt] font-semibold text-zinc-900">
+          Relevant Coursework
+        </p>
+        {mode.editable ? (
+          <PrintPrefsBar
+            sectionSlug={PRINTABLE_PART_SLUGS.coursework}
+            mode={mode}
+            className="no-print ml-auto"
+          />
+        ) : null}
+      </div>
       {mode.editable ? (
-        // In editor mode the user adds courses one-per-line; the
-        // 4-column grid is purely a read-only presentation choice.
-        // The editor's BulletList component renders each entry as
-        // an <EditableText> with a remove button — much easier to
-        // edit than a 4-col grid input.
-        <BulletList
-          path={path}
-          placeholder="Course (e.g. Data Structures)"
-          emptyText="Add the courses you want to highlight"
-          className="mt-1 list-disc space-y-0.5 pl-5 text-[10.5pt] text-zinc-700 marker:text-zinc-500"
-        />
+        <JakeCourseworkEditor mode={mode} path={path} />
       ) : (
         <ul
           className={cn(
@@ -826,6 +919,112 @@ function JakeCoursework({
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * The editable side of the coursework grid.
+ *
+ * A separate component on purpose: `useFormContext` THROWS outside a
+ * FormProvider, and the read-only render (preview page, share link)
+ * has none. Mounting this child only in editor mode keeps the
+ * read-only path form-free.
+ *
+ * It writes through `setValue` on the nested array path rather than
+ * `useFieldArray`, because the courses array is nested INSIDE the
+ * education field array (`sections.education.{i}.courses`) and RHF's
+ * nested field arrays re-key their children when the parent re-renders.
+ *
+ * It READS through `useWatch` rather than `form.watch(path)`: the
+ * hook subscribes to the value, so adding or removing a course
+ * re-renders this component immediately. `form.watch()` in the render
+ * body is not a subscription the component can rely on for its own
+ * updates.
+ */
+function JakeCourseworkEditor({
+  mode,
+  path
+}: {
+  mode: FieldMode;
+  path: string;
+}) {
+  const form = useFormContext();
+  const watched = useWatch({ control: form.control, name: path });
+  const courses = Array.isArray(watched) ? (watched as string[]) : [];
+
+  function addCourse() {
+    form.setValue(path, [...courses, ''], {
+      shouldDirty: true,
+      shouldTouch: true
+    });
+  }
+
+  function removeCourse(index: number) {
+    form.setValue(
+      path,
+      courses.filter((_, i) => i !== index),
+      { shouldDirty: true, shouldTouch: true }
+    );
+  }
+
+  if (courses.length === 0) {
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10.5pt]">
+        {/* `print:hidden` — the empty-state hint is an editor
+            affordance, not content. */}
+        <span className="italic text-zinc-500 print:hidden">
+          Add the courses you want to highlight
+        </span>
+        <button
+          type="button"
+          onClick={addCourse}
+          className="no-print inline-flex items-center gap-1 rounded border border-dashed border-zinc-300 px-1.5 py-0.5 text-[10pt] text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
+        >
+          <Plus className="size-3" />
+          Course
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <ul
+        className="mt-1 grid grid-cols-4 gap-x-4 gap-y-0.5 text-[10.5pt] text-zinc-700"
+        data-testid="jake-coursework-grid"
+      >
+        {courses.map((c, i) => (
+          <li key={`course-${i}`} className="group flex items-start gap-1.5">
+            <span className="text-zinc-500" aria-hidden={true}>
+              {'\u2022'}
+            </span>
+            <Field
+              mode={mode}
+              path={`${path}.${i}`}
+              as="span"
+              className="inline"
+              placeholder="Course (e.g. Data Structures)"
+            />
+            <button
+              type="button"
+              onClick={() => removeCourse(i)}
+              aria-label={`Remove course ${i + 1}`}
+              className="no-print ml-1 inline-flex size-4 shrink-0 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-100 hover:text-zinc-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none"
+            >
+              <X className="size-3" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={addCourse}
+        className="no-print mt-1 inline-flex items-center gap-1 rounded border border-dashed border-zinc-300 px-1.5 py-0.5 text-[10pt] text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
+      >
+        <Plus className="size-3" />
+        Course
+      </button>
+    </>
   );
 }
 
@@ -1221,7 +1420,19 @@ function JakeSkillRow({ mode, index }: { mode: FieldMode; index: number }) {
             placeholder="Category"
           />
         ) : (
-          <span>{isSet(s.name) ? `${s.name}:` : 'Category:'}</span>
+          <span>
+            {isSet(s.name) ? (
+              `${s.name}:`
+            ) : (
+              /*
+                "Category:" is the LABEL for a category the candidate
+                named — real content ("Frontend: React, …"). With no
+                name it is a placeholder, and a placeholder must not
+                print. See `Field`'s empty state.
+              */
+              <span className="print:hidden">Category:</span>
+            )}
+          </span>
         )}
       </span>
       <FieldChips
@@ -1499,9 +1710,17 @@ function JakeLanguages({ mode }: { mode: FieldMode }) {
           />
         ) : (
           <span>
-            {isSet(mode.data.sections.languages[i]?.language)
-              ? `${mode.data.sections.languages[i]!.language}:`
-              : 'Language:'}
+            {isSet(mode.data.sections.languages[i]?.language) ? (
+              `${mode.data.sections.languages[i]!.language}:`
+            ) : (
+              /*
+                The label is CONTENT when the language is set
+                ("English: Fluent") and a PLACEHOLDER when it is
+                not. A placeholder must not print — see the note on
+                `Field`'s empty state.
+              */
+              <span className="print:hidden">Language:</span>
+            )}
           </span>
         )}
       </span>
@@ -1551,9 +1770,12 @@ function JakeInterests({ mode }: { mode: FieldMode }) {
           />
         ) : (
           <span>
-            {isSet(mode.data.sections.interests[i]?.name)
-              ? `${mode.data.sections.interests[i]!.name}:`
-              : 'Category:'}
+            {isSet(mode.data.sections.interests[i]?.name) ? (
+              `${mode.data.sections.interests[i]!.name}:`
+            ) : (
+              /* Placeholder — see the note on `Field`'s empty state. */
+              <span className="print:hidden">Category:</span>
+            )}
           </span>
         )}
       </span>

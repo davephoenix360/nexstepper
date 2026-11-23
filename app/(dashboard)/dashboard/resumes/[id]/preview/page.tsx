@@ -93,7 +93,7 @@ export default async function ResumePreviewPage({
   const printSettings = coercePrintSettings(result.resume.printSettings);
 
   return (
-    <div className="min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0 dark:bg-zinc-950">
+    <div className="print-paper min-h-screen bg-zinc-100 py-8 print:bg-white print:py-0 dark:bg-zinc-950">
       <div className="mx-auto max-w-[8.5in] px-4 print:max-w-none print:px-0">
         {/*
           Chrome bar — the only thing on screen that's NOT the

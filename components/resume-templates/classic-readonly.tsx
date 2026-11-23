@@ -38,7 +38,10 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 import type { ResumeData } from '@/lib/resume-schema';
-import { isSectionHiddenFromPrint } from '@/lib/resume-schema/resume-data';
+import {
+  isResumeSectionEmpty,
+  isSectionHiddenFromPrint
+} from '@/lib/resume-schema/resume-data';
 import { RichText } from '@/components/rich-text/rich-text';
 import {
   basicsPath,
@@ -110,6 +113,26 @@ function Leaf({
   return <RichText value={value} spans={data.formatting?.[path]} />;
 }
 
+/**
+ * The fallback label for a value the candidate left blank
+ * ("Company", "Institution", "Award", …).
+ *
+ * These are PLACEHOLDERS, not content. This file is the read-only
+ * render — the preview page, the public share link and the printed
+ * PDF all come from it — and the labels used to print, so a
+ * candidate whose company name was blank got the word "Company"
+ * set in the heading style on their resume, and a candidate with no
+ * awards got an "Award" line.
+ *
+ * `print:hidden` keeps the label on screen (so the preview still
+ * shows what the row is) and out of the printed document. This is
+ * the same rule the `Field` primitive applies to every empty leaf
+ * in the other five templates.
+ */
+function Placeholder({ children }: { children: React.ReactNode }) {
+  return <span className="print:hidden">{children}</span>;
+}
+
 function Section({
   title,
   id,
@@ -141,6 +164,12 @@ function Section({
   const isHidden = sectionSlug
     ? isSectionHiddenFromPrint(data, sectionSlug)
     : false;
+  // THE EMPTY-SECTION RULE — see `SmartSection` for the full
+  // rationale. A heading is chrome and always prints, so a section
+  // with nothing in it would print a bare heading. The Classic
+  // EDITOR path has always had this (via `printHiddenIf`); this is
+  // the read-only counterpart.
+  if (isResumeSectionEmpty(data, sectionSlug)) return null;
   return (
     <section
       id={id}
@@ -287,7 +316,7 @@ export function ClassicReadOnly({ data }: Props) {
                     {isSet(w.company) ? (
                       <Leaf data={data} path={workCompanyPath(i)} value={w.company} />
                     ) : (
-                      'Company'
+                      <Placeholder>Company</Placeholder>
                     )}
                   </h3>
                   {isSet(w.location) && (
@@ -322,7 +351,7 @@ export function ClassicReadOnly({ data }: Props) {
                                 value={p.title}
                               />
                             ) : (
-                              'Position'
+                              <Placeholder>Position</Placeholder>
                             )}
                           </p>
                           <DateRange start={p.startDate} end={p.endDate} />
@@ -361,7 +390,7 @@ export function ClassicReadOnly({ data }: Props) {
                     {isSet(p.name) ? (
                       <Leaf data={data} path={entryPath('projects', i, 'name')} value={p.name} />
                     ) : (
-                      'Project'
+                      <Placeholder>Project</Placeholder>
                     )}
                   </h3>
                   <DateRange start={p.startDate} end={p.endDate} />
@@ -406,32 +435,51 @@ export function ClassicReadOnly({ data }: Props) {
         {showSkills && (
           <Section title="Skills" id="section-skills" sectionSlug="skills" data={data}>
             <div className="space-y-[var(--resume-item-gap-tight)]">
-              {sections.skills.map((s, i) => (
-                <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
-                  <span className="font-medium text-zinc-900">
-                    {isSet(s.name) ? (
-                      <Leaf data={data} path={skillNamePath(i)} value={s.name} />
-                    ) : (
-                      'Category'
-                    )}
-                  </span>
-                  {has(s.keywords) && (
-                    <span className="text-zinc-700">
-                      {'— '}
-                      {s.keywords.map((keyword, j) => (
-                        <React.Fragment key={`skill-${i}-kw-${j}`}>
-                          {j > 0 && ', '}
-                          <Leaf
-                            data={data}
-                            path={skillKeywordPath(i, j)}
-                            value={keyword}
-                          />
-                        </React.Fragment>
-                      ))}
+              {sections.skills.map((s, i) => {
+                // Blank keywords are dropped before the join, and
+                // the ORIGINAL index is kept so the formatting
+                // marks stay attached to the right keyword (same
+                // rule as `FieldChips` / `FieldBullets`).
+                const keywords = s.keywords
+                  .map((keyword, j) => ({ value: keyword, index: j }))
+                  .filter((k) => isSet(k.value));
+                return (
+                  <div key={`skill-${i}`} className="flex gap-2 text-[11pt]">
+                    <span className="font-medium text-zinc-900">
+                      {isSet(s.name) ? (
+                        <Leaf data={data} path={skillNamePath(i)} value={s.name} />
+                      ) : (
+                        <Placeholder>Category</Placeholder>
+                      )}
                     </span>
-                  )}
-                </div>
-              ))}
+                    {keywords.length > 0 && (
+                      <span className="text-zinc-700">
+                        {/*
+                          The em-dash separates the category from its
+                          keywords. With no category name it would
+                          LEAD the row, so it is a placeholder there
+                          and stays out of the print.
+                        */}
+                        {isSet(s.name) ? (
+                          '— '
+                        ) : (
+                          <span className="print:hidden">— </span>
+                        )}
+                        {keywords.map((k, j) => (
+                          <React.Fragment key={`skill-${i}-kw-${k.index}`}>
+                            {j > 0 && ', '}
+                            <Leaf
+                              data={data}
+                              path={skillKeywordPath(i, k.index)}
+                              value={k.value}
+                            />
+                          </React.Fragment>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </Section>
         )}
@@ -465,6 +513,11 @@ export function ClassicReadOnly({ data }: Props) {
                 });
               });
               e.degree.minors.forEach((minor, j) => {
+                // A minor the candidate added but never filled in
+                // produced the bare label "Minor: " on the printed
+                // resume — the prefix was added before the value
+                // was checked.
+                if (!isSet(minor)) return;
                 degreeParts.push({
                   path: entryItemPath('education', i, 'degree.minors', j),
                   value: minor,
@@ -486,7 +539,7 @@ export function ClassicReadOnly({ data }: Props) {
                           value={e.institution}
                         />
                       ) : (
-                        'Institution'
+                        <Placeholder>Institution</Placeholder>
                       )}
                     </h3>
                     <DateRange start={e.startDate} end={e.endDate} />
@@ -542,7 +595,7 @@ export function ClassicReadOnly({ data }: Props) {
                         value={v.organization}
                       />
                     ) : (
-                      'Organization'
+                      <Placeholder>Organization</Placeholder>
                     )}
                   </h3>
                   <DateRange start={v.startDate} end={v.endDate} />
@@ -586,7 +639,7 @@ export function ClassicReadOnly({ data }: Props) {
                     {isSet(a.title) ? (
                       <Leaf data={data} path={entryPath('awards', i, 'title')} value={a.title} />
                     ) : (
-                      'Award'
+                      <Placeholder>Award</Placeholder>
                     )}
                   </span>
                   {isSet(a.date) && (
@@ -630,7 +683,7 @@ export function ClassicReadOnly({ data }: Props) {
                     {isSet(c.name) ? (
                       <Leaf data={data} path={entryPath('certificates', i, 'name')} value={c.name} />
                     ) : (
-                      'Certificate'
+                      <Placeholder>Certificate</Placeholder>
                     )}
                   </span>
                   {isSet(c.date) && (
@@ -673,7 +726,7 @@ export function ClassicReadOnly({ data }: Props) {
                         value={p.name}
                       />
                     ) : (
-                      'Publication'
+                      <Placeholder>Publication</Placeholder>
                     )}
                   </span>
                   {isSet(p.releaseDate) && (
@@ -725,7 +778,7 @@ export function ClassicReadOnly({ data }: Props) {
                         value={l.language}
                       />
                     ) : (
-                      'Language'
+                      <Placeholder>Language</Placeholder>
                     )}
                   </span>
                   {isSet(l.fluency) && (
@@ -760,7 +813,7 @@ export function ClassicReadOnly({ data }: Props) {
                         value={it.name}
                       />
                     ) : (
-                      'Category'
+                      <Placeholder>Category</Placeholder>
                     )}
                   </span>
                   {has(it.keywords) && (
