@@ -70,10 +70,91 @@ canvas of its own accord. `!important` settles it without depending on
 the variant order: an important declaration beats a normal one
 regardless of layers.
 
+> **This fix was INCOMPLETE — see "Report 2, take two" below.** The
+> element backgrounds were fixed; the CANVAS was not, because
+> `color-scheme: light` was a normal declaration and lost to an inline
+> style. The founder caught it in production: *"when I change the web
+> app's theme itself to dark mode, the background is still dark."*
+
 The surfaces are listed **explicitly** rather than with a wildcard on
 purpose — `* { background: white !important }` would flatten the indigo
 section accents and the chip fills, which the existing
 `print-color-adjust: exact` rule exists to preserve.
+
+## Report 2, take two — the canvas still came out dark
+
+The founder deployed the batch above and came straight back:
+
+> *"when I set my browser theme to dark mode and I change the web app
+> theme to system (making it dark) the print works well in a white
+> background but when I change the web app's theme itself to dark mode,
+> the background is still dark."*
+
+The first fix painted the elements white. It did not change the CANVAS
+the browser paints the page on — so the UA kept using its dark default.
+
+**Why the two cases behaved differently.** Both `system` and `dark` end
+up with the same `<html>` (`class="dark"`, inline `color-scheme: dark`),
+so they are not two different code paths. The difference was the
+**canvas**: with `system` the browser's own print canvas was light
+(because the OS preference resolved the UA canvas before the app's
+inline style took effect on the first paint), and with an explicit
+`dark` the inline style had already landed on `<html>` when the print
+ran, so the UA used the dark canvas.
+
+**The mechanism.** `components/theme-provider.tsx` writes the colour
+scheme onto the root as an **inline style**:
+
+```ts
+root.style.colorScheme = resolved;   // components/theme-provider.tsx
+```
+
+The print rule I shipped was:
+
+```css
+@media print {
+  html { color-scheme: light; }
+}
+```
+
+A **normal** author declaration. An inline style is also an author-origin
+declaration with normal importance, and inline styles beat normal
+author declarations in the cascade — so the stylesheet rule **LOST**.
+The UA canvas stayed dark and the resume printed on a near-black sheet.
+
+**Fixed** by making it an IMPORTANT declaration:
+
+```css
+@media print {
+  html { color-scheme: light !important; }
+}
+```
+
+An IMPORTANT author declaration beats a NORMAL author declaration,
+inline styles included (CSS Cascade 4) — which is exactly the same
+class of bug as the background rule one level up, but on a different
+cascade axis: the element backgrounds were beaten by **specificity**
+(a class variant utility), the canvas was beaten by **origin +
+importance** (an inline style).
+
+**Verified on the live site**, not in theory. The public share page was
+opened in a real browser and the cascade was measured directly:
+
+| Setup | Computed `color-scheme` |
+|---|---|
+| inline `dark` + normal stylesheet rule | `dark` — the stylesheet lost |
+| inline `dark` + `!important` stylesheet rule | `light` — the stylesheet won |
+| the real `<html>`, before the fix | `dark` |
+| the real `<html>`, after the fix | `light` |
+
+Ruled out along the way: `<meta name="theme-color">` (browser chrome
+only — it does not affect the printed sheet), and every dark element
+painter (already covered by the `!important` white rule).
+
+`tests/unit/print/theme-print-conflict.test.tsx` pins the **cause** —
+that the theme provider writes `color-scheme` as an inline style — so
+the `!important` in `globals.css` cannot be "simplified" back into a
+plain declaration without a test failing.
 
 ## Report 3 — the empty section heading
 
@@ -190,7 +271,7 @@ using the same explicit-`mode` branch `useSectionPrint` uses.
 
 ## The measurement
 
-`tests/unit/print/print-cleanliness.test.tsx` (37 tests) simulates the
+`tests/unit/print/print-cleanliness.test.tsx` (38 tests) simulates the
 print stylesheet with jsdom and asserts on what survives. The
 placeholder literals are collected **from the template sources at test
 time**, so a template that grows a new placeholder is covered
@@ -199,6 +280,14 @@ already knew about.
 
 Verified failing on the old code (14 failures, one per defect class)
 and passing on the new.
+
+The second dark-print defect is pinned by two more tests: one asserts
+the `!important` on the colour-scheme rule
+(`print-cleanliness.test.tsx`), and
+`tests/unit/print/theme-print-conflict.test.tsx` (2 tests) pins the
+**cause** — that the theme provider writes `color-scheme` as an inline
+style — so the `!important` cannot be "simplified" away silently.
+Verified failing without the fix (1 failure) and passing with it.
 
 ## The lesson
 
@@ -237,7 +326,8 @@ Two more worth keeping:
 | `components/resume-templates/section.tsx` | the empty-section rule |
 | `components/resume-templates/{minimal,modern,executive,creative,jake}.tsx` | the empty-section rule; `FieldSeparator`; Jake's coursework |
 | `components/resume-templates/classic-readonly.tsx` | `<Placeholder>`; blank keywords; blank minors |
-| `app/globals.css` | the white-paper rule |
+| `app/globals.css` | the white-paper rule; `color-scheme: light !important` |
 | `app/(dashboard)/…/preview/page.tsx`, `app/r/[token]/page.tsx` | `print-paper` |
 | `lib/chat/tools/types.ts` | the tool accepts part slugs |
-| `tests/unit/print/print-cleanliness.test.tsx` | **new** — 37 tests |
+| `tests/unit/print/print-cleanliness.test.tsx` | **new** — 38 tests |
+| `tests/unit/print/theme-print-conflict.test.tsx` | **new** — 2 tests; pins the inline-style cause |

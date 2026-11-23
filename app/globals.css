@@ -415,13 +415,37 @@
   }
 
   /*
-    Tell the UA the printed page is a LIGHT page. Without this the
-    canvas colour follows the app's colour scheme, so a dark-mode user
-    can get a dark sheet from the browser's own default even when the
-    page sets a white background.
+    Tell the UA the printed page is a LIGHT page.
+
+    Without this the canvas colour follows the app's colour scheme, so
+    a dark-mode user can get a dark sheet from the browser's own
+    default even when the page sets a white background.
+
+    `!important` IS REQUIRED, and it is not decorative.
+
+    The app's theme provider writes the colour scheme onto <html> as
+    an INLINE STYLE:
+
+      root.style.colorScheme = resolved;   // components/theme-provider.tsx
+
+    An inline style is an AUTHOR-origin declaration, and it beats any
+    NORMAL author declaration — including a rule in this stylesheet.
+    So without `!important` this rule LOST, the UA kept `dark`, and
+    the printed page came out on a near-black sheet.
+
+    The cascade that fixes it (CSS Cascade 4): an IMPORTANT author
+    declaration beats a NORMAL author declaration, and an inline
+    style with no `!important` is normal. So this one line now wins
+    over the inline style, and the print canvas is light whatever the
+    app's theme is.
+
+    This is the same trap as the background rule above, one level
+    down: the element backgrounds were beaten by a CLASS-variant
+    utility (specificity), and the canvas was beaten by an INLINE
+    style (origin + importance).
   */
   html {
-    color-scheme: light;
+    color-scheme: light !important;
   }
   /* Chrome bar on the preview route — gone in print. */
   .no-print {

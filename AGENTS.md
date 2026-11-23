@@ -228,6 +228,18 @@ plan. Drift memo:
   `isResumeSectionEmpty`. 37 new tests; verified failing on the old code
   (14 failures) and passing on the new. Drift memo:
   `docs/drift/2026-11-24-the-printed-resume-carried-the-editors-placeholder-text.md`.
+  **Follow-up (same day, caught in production):** the white-paper rule
+  fixed the element backgrounds but NOT the canvas — the print was still
+  dark with the app theme set to `dark`. The cause was a second cascade
+  bug, one axis deeper: `components/theme-provider.tsx` writes the colour
+  scheme as an **inline style** (`root.style.colorScheme = resolved`),
+  and an inline style beats a NORMAL author declaration — so
+  `@media print { html { color-scheme: light } }` LOST. Fixed with
+  `color-scheme: light !important` (an IMPORTANT author declaration
+  beats a NORMAL one, inline included). Verified on the live site in a
+  real browser: inline `dark` + normal rule → computed `dark`; inline
+  `dark` + `!important` rule → computed `light`. 2 more tests
+  (`tests/unit/print/theme-print-conflict.test.tsx`) pin the CAUSE.
 
 - **The chat agent could not name the weakest sub-criterion — it had
   never been told** — The founder asked whether the AI chat sees all
@@ -3144,6 +3156,37 @@ Two more from the same pass:
 `print:bg-white` at **(0,1,0)**. The fix was an UNLAYERED `!important`
 rule in the print block (important beats normal regardless of layers),
 not another utility class.
+
+**And the cascade trap one level deeper (the founder caught this one in
+production):** the white-paper rule fixed the element backgrounds but
+the printed sheet was STILL dark with the app theme set to `dark`. The
+cause was not specificity this time — it was an **inline style**:
+
+```ts
+root.style.colorScheme = resolved;   // components/theme-provider.tsx
+```
+
+The print rule was `html { color-scheme: light }` — a NORMAL author
+declaration. An inline style is also an author-origin declaration with
+normal importance, and **inline styles beat normal author declarations**,
+so the stylesheet rule LOST and the UA kept its dark canvas. Fixed with
+`color-scheme: light !important`: an IMPORTANT author declaration beats
+a NORMAL one, inline styles included (CSS Cascade 4).
+
+**The generalisation: when a print rule "does nothing", ask which
+cascade axis you are on.** There are at least three, and each one has
+its own winner:
+
+| What beat the rule | Axis | The winner | The fix |
+|---|---|---|---|
+| `dark:bg-zinc-950` (class variant) | specificity | (0,2,0) > (0,1,0) | unlayered `!important` |
+| `style="color-scheme: dark"` (inline) | origin + importance | inline (normal) > stylesheet (normal) | `!important` on the rule |
+| Tailwind's `@layer utilities` | layers | unlayered > layered | keep the print block unlayered |
+
+And **paint the CANVAS, not just the elements.** `background: white` on
+`html`/`body`/the wrappers changes what the DOM paints; the UA's print
+canvas is a separate thing that follows `color-scheme`. Both have to be
+set.
 
 ## Folder structure (current + planned)
 

@@ -411,6 +411,23 @@ describe('the printed paper is always white', () => {
     expect(css).toMatch(/@media print[\s\S]*?color-scheme:\s*light/);
   });
 
+  it('makes that colour-scheme rule IMPORTANT — the app sets it inline', () => {
+    // The theme provider writes `color-scheme` onto <html> as an
+    // INLINE STYLE (`root.style.colorScheme = resolved`). An inline
+    // style beats a NORMAL stylesheet declaration, so a plain
+    // `html { color-scheme: light }` inside @media print LOSES and the
+    // printed sheet comes out dark.
+    //
+    // Verified in a real browser: with an inline `color-scheme: dark`
+    // on the element, the computed value is "dark" under a normal
+    // rule and "light" under an `!important` one. So this rule MUST
+    // carry `!important` — a plain declaration is not enough, and
+    // nothing else in the test suite would notice.
+    expect(css).toMatch(
+      /@media print[\s\S]*?color-scheme:\s*light\s*!important/
+    );
+  });
+
   it('marks the preview and share wrappers as print paper', () => {
     for (const file of [
       'app/(dashboard)/dashboard/resumes/[id]/preview/page.tsx',
