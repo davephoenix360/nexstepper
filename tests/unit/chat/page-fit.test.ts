@@ -356,6 +356,90 @@ describe('estimateResumeLength — the levers the agent offers', () => {
     ).toBeUndefined();
   });
 
+  /**
+   * "No skills" and "skills hidden from print" mean the SAME thing to
+   * the printed page — the section does not print. The height must be
+   * given back once, not twice.
+   *
+   * It used to be given back twice, and the two checks sat 30 lines
+   * apart, so the overlap was invisible: a resume with NO skills whose
+   * Skills section was then hidden was estimated at 16.88in when the
+   * printed document was identical to the 18.75in estimate with nothing
+   * hidden. With education it reported **2 pages for a 3-page resume**.
+   *
+   * The agent can reach this state on its own: `updatePrintHiddenSections`
+   * accepts any slug, whether or not the section has content.
+   */
+  it('gives back a section ONCE when it is both empty and hidden', () => {
+    const noSkills = buildMeasurableResume({ roles: 4, bullets: 3, base: 'full' });
+    noSkills.template = 'classic';
+    noSkills.sections.skills = [];
+
+    const visible = estimateResumeLength(
+      noSkills,
+      SETTINGS_BY_PRESET.standard,
+      []
+    )!;
+    const hidden = estimateResumeLength(
+      noSkills,
+      SETTINGS_BY_PRESET.standard,
+      ['skills']
+    )!;
+
+    // The printed document is identical, so the estimate must be too.
+    expect(hidden.totalInches).toBe(visible.totalInches);
+    expect(hidden.pages).toBe(visible.pages);
+  });
+
+  it('gives back a section ONCE when it is both empty and hidden (education)', () => {
+    const noEducation = buildMeasurableResume({
+      roles: 4,
+      bullets: 3,
+      base: 'full'
+    });
+    noEducation.template = 'classic';
+    noEducation.sections.education = [];
+
+    const visible = estimateResumeLength(
+      noEducation,
+      SETTINGS_BY_PRESET.standard,
+      []
+    )!;
+    const hidden = estimateResumeLength(
+      noEducation,
+      SETTINGS_BY_PRESET.standard,
+      ['education']
+    )!;
+
+    expect(hidden.totalInches).toBe(visible.totalInches);
+    expect(hidden.pages).toBe(visible.pages);
+  });
+
+  it('still gives back a POPULATED hidden section (the measured case)', () => {
+    const withSkills = buildMeasurableResume({
+      roles: 4,
+      bullets: 3,
+      base: 'full'
+    });
+    withSkills.template = 'classic';
+
+    const visible = estimateResumeLength(
+      withSkills,
+      SETTINGS_BY_PRESET.standard,
+      []
+    )!;
+    const hidden = estimateResumeLength(
+      withSkills,
+      SETTINGS_BY_PRESET.standard,
+      ['skills']
+    )!;
+
+    // A populated hidden section really does stop printing, so the
+    // height really does go away.
+    expect(hidden.totalInches).toBeLessThan(visible.totalInches);
+    expect(hidden.pages).toBeLessThanOrEqual(visible.pages);
+  });
+
   it('a tighter layout never makes the resume longer', () => {
     const standard = estimateResumeLength(data, SETTINGS_BY_PRESET.standard, [])!;
     const compact = estimateResumeLength(data, SETTINGS_BY_PRESET.compact, [])!;

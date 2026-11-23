@@ -251,13 +251,32 @@ export function estimateResumeLength(
   const breakdown: PageEstimateLine[] = [];
 
   // `fixed` is header + skills + education for a typical resume, measured
-  // with no job history. If the user has no skills or no education, give
-  // those inches back.
+  // with no job history. If the user has no skills or no education — OR has
+  // hidden them from print — give those inches back.
+  //
+  // ## The empty AND hidden case
+  //
+  // "No skills" and "skills hidden from print" mean the SAME thing to the
+  // printed page: the section does not print. The height must therefore be
+  // given back ONCE.
+  //
+  // It used to be given back twice — once for "the section is empty" and
+  // again for "the section is hidden" — and the two checks were 30 lines
+  // apart, so the overlap was invisible in the code. Measured on the
+  // classic template: a resume with NO skills, whose Skills section was
+  // then hidden from print, was estimated at 16.88in (2 pages) when the
+  // printed document was byte-for-byte the same as the 18.75in (2 pages)
+  // estimate with nothing hidden — 1.87in of height that does not exist.
+  // With education it was worse: the same resume was reported as
+  // **2 pages when it prints on 3**.
   const skillsInches = sectionInches.skills ?? 0;
   const educationInches = sectionInches.education ?? 0;
+  const skillsPrint = sectionHasContent(data, 'skills') && !hidden.has('skills');
+  const educationPrint =
+    sectionHasContent(data, 'education') && !hidden.has('education');
   let total = formula.fixed;
-  if (!sectionHasContent(data, 'skills')) total -= skillsInches;
-  if (!sectionHasContent(data, 'education')) total -= educationInches;
+  if (!skillsPrint) total -= skillsInches;
+  if (!educationPrint) total -= educationInches;
 
   breakdown.push({
     label: 'Header, skills and education',
@@ -288,9 +307,9 @@ export function estimateResumeLength(
     breakdown.push({ label, inches: Math.round(inches * 100) / 100 });
   }
 
-  // Sections the user has already hidden do not print.
-  if (hidden.has('skills')) total -= skillsInches;
-  if (hidden.has('education')) total -= educationInches;
+  // Sections the user has already hidden do not print — their height was
+  // already given back above (skills, education) or never added
+  // (the optional sections).
   if (hidden.has('experience')) {
     total -= experienceContent;
     const line = breakdown.find((b) => b.label.startsWith('Experience'));

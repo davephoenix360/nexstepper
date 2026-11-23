@@ -3005,6 +3005,43 @@ measured. The offline half is
 `tests/unit/scoring/criteria.test.ts`; the full-prompt half is
 `tests/unit/ai/weakest-criterion-probe.test.ts` (`RUN_AI_PROBE=1`).
 
+### 15. A rule applied in two places in a function double-counts
+
+The page-count estimator gave back a section's height twice when the
+section was **both empty and hidden from print**:
+
+```ts
+if (!sectionHasContent(data, 'skills')) total -= skillsInches;   // empty
+...
+if (hidden.has('skills')) total -= skillsInches;                 // hidden
+```
+
+Each line is correct on its own — but "the section is empty" and "the
+section is hidden" are two ways of saying the same thing to the printed
+page: **it does not print**. Together they removed 1.87in (≈20% of a
+page) that does not exist, and with education it reported **2 pages
+for a 3-page resume** — the one direction this tool must never fail
+in, because its whole reason to exist is that people used to print,
+find three pages, and come back annoyed.
+
+Thirty lines of separation is enough to hide an overlap from a reader
+and from a reviewer. The agent could reach the state on its own:
+`updatePrintHiddenSections` accepts any slug, whether or not the
+section has content.
+
+**The generalisation:** when a rule can be triggered by more than one
+condition, decide **once** whether the thing happens and branch on that
+decision — do not apply the correction in each place.
+
+```ts
+const skillsPrint = sectionHasContent(data, 'skills') && !hidden.has('skills');
+if (!skillsPrint) total -= skillsInches;
+```
+
+This is the same shape as trap #14 in a different place: two conditions
+that both mean "could not measure" must collapse into one decision, or
+the number comes out wrong in the direction that costs the user trust.
+
 ## Folder structure (current + planned)
 
 ```
