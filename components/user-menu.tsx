@@ -21,9 +21,25 @@ import { authClient } from '@/lib/auth-client';
  * Renders sign-in / get-started buttons for unauthed visitors, and a
  * dropdown (Dashboard link + Send feedback + sign out) for authed ones.
  *
+ * ## `showDashboardButton`
+ *
+ * On the marketing header, "Dashboard" is the ONE action a signed-in
+ * visitor wants — and it was buried two clicks deep, behind the
+ * avatar. The founder moved it out: the button now sits directly to
+ * the LEFT of the user icon, where it is one click and plainly
+ * visible. When that button is on, the dropdown does not repeat the
+ * link.
+ *
+ * With the button off (the dashboard sidebar, where there is no other
+ * way in) the dropdown keeps its Dashboard entry exactly as before.
+ *
  * Surface-agnostic: used by both the marketing and dashboard layouts.
  */
-export function UserMenu() {
+export function UserMenu({
+  showDashboardButton = false
+}: {
+  showDashboardButton?: boolean;
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { data: session } = authClient.useSession();
   const router = useRouter();
@@ -57,36 +73,55 @@ export function UserMenu() {
   }
 
   return (
-    <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-      <DropdownMenuTrigger>
-        <Avatar className="cursor-pointer size-9">
-          <AvatarFallback>{initials || '?'}</AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="flex flex-col gap-1">
-        <DropdownMenuItem className="cursor-pointer">
-          <Link href="/dashboard" className="flex w-full items-center">
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer">
-          <Link href="/feedback" className="flex w-full items-center">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            <span>Send feedback</span>
-          </Link>
-        </DropdownMenuItem>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="flex w-full text-left"
+    <div className="flex items-center gap-2">
+      {showDashboardButton ? (
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          data-testid="dashboard-button"
         >
-          <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Sign out</span>
+          <Link href="/dashboard">
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </Link>
+        </Button>
+      ) : null}
+      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <DropdownMenuTrigger>
+          <Avatar className="cursor-pointer size-9">
+            <AvatarFallback>{initials || '?'}</AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="flex flex-col gap-1">
+          {/* The Dashboard entry moves OUT of the dropdown when the
+              standalone button is shown — one link, one place. */}
+          {!showDashboardButton ? (
+            <DropdownMenuItem className="cursor-pointer">
+              <Link href="/dashboard" className="flex w-full items-center">
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                <span>Dashboard</span>
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem className="cursor-pointer">
+            <Link href="/feedback" className="flex w-full items-center">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              <span>Send feedback</span>
+            </Link>
           </DropdownMenuItem>
-        </button>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full text-left"
+          >
+            <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </button>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

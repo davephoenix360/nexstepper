@@ -56,7 +56,10 @@ export default function MarketingLayout({
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <Suspense fallback={<div className="h-9 w-32" />}>
-              <UserMenu />
+              {/* The Dashboard button sits OUTSIDE the avatar menu —
+                  it is the one action a signed-in visitor wants, and
+                  two clicks deep meant most never found it. */}
+              <UserMenu showDashboardButton />
             </Suspense>
           </div>
         </div>
