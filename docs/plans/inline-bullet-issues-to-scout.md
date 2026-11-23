@@ -469,25 +469,25 @@ Radix Tooltip is already in the UI stack.
 
 ## Acceptance criteria
 
-- [ ] A scored variant with `jevBullets` shows icons only on bullets with
+- [x] A scored variant with `jevBullets` shows icons only on bullets with
       `impact < 1.5` or `opening < 1.5`.
-- [ ] A summary of all flagged bullets is shown once per bullet when two
+- [x] A summary of all flagged bullets is shown once per bullet when two
       criteria flag the same text.
-- [ ] Hover and keyboard focus show the reason and the fix.
-- [ ] Click sends a prompt to Scout immediately; no intermediate AI modal
+- [x] Hover and keyboard focus show the reason and the fix.
+- [x] Click sends a prompt to Scout immediately; no intermediate AI modal
       appears.
-- [ ] Scout applies the change through `replaceWorkHighlight`, changing
+- [x] Scout applies the change through `replaceWorkHighlight`, changing
       only the flagged bullet.
-- [ ] Scout asks for missing facts instead of inventing metrics.
-- [ ] Free users with quota can complete the handoff; users at the limit
+- [x] Scout asks for missing facts instead of inventing metrics.
+- [x] Free users with quota can complete the handoff; users at the limit
       see the normal chat limit message.
-- [ ] After the edit, the resume revision, score snapshot and icon set all
+- [x] After the edit, the resume revision, score snapshot and icon set all
       reflect the new state without a manual page reload.
-- [ ] Scorecard tooltip counts and icon counts agree.
-- [ ] No attention icon appears in print, preview/share, or read-only
+- [x] Scorecard tooltip counts and icon counts agree.
+- [x] No attention icon appears in print, preview/share, or read-only
       rendering.
-- [ ] The dimension-row wand and the old enrich action are gone.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` are green.
+- [x] The dimension-row wand and the old enrich action are gone.
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` are green.
 
 ## Test plan
 
@@ -501,7 +501,7 @@ Radix Tooltip is already in the UI stack.
   - agreement with `buildDynamicTips` and `buildMatchBreakdown`.
 - **Unit — prompt and tool**
   - `tests/unit/chat/bullet-improvement-prompt.test.ts`
-  - `tests/unit/chat/replace-work-highlight.test.ts`
+  - `tests/unit/chat/merge-resume.test.ts` (`replaceWorkHighlight`, lines 434–618)
   - exact prompt content and 4,000-char bound;
   - single-bullet replacement;
   - duplicate-text ambiguity;
@@ -515,12 +515,21 @@ Radix Tooltip is already in the UI stack.
   - no-print class;
   - print simulation removes the icon.
 - **Chat handoff**
-  - extend `tests/unit/chat/` or add `tests/interaction/chat-handoff.test.tsx`
+  - `tests/interaction/chat-handoff-provider.test.tsx`
+  - `tests/interaction/chat-bubble-handoff.test.tsx`
+  - `tests/interaction/use-chat-stream-score-events.test.tsx`
   - opens panel;
   - waits for sessions;
   - queues while streaming;
   - does not re-send on re-render;
-  - respects the quota path.
+  - respects the quota path;
+  - coalesces `resume_updated` + `score_updated` into one refresh.
+- **Retired surface**
+  - `tests/unit/inline-issue/retired-rewrite-surface.test.ts`
+  - no scorecard rewrite CTA;
+  - no Apply half of the bridge;
+  - old action/popover/prompt/probe files gone;
+  - no rewrite analytics event or script.
 - **Manual smoke**
   - Variant with a known weak Impact bullet → icon → hover → click →
     Scout edits only that bullet → marker disappears.

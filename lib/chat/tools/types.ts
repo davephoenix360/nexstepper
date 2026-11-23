@@ -86,6 +86,27 @@ export const addWorkSchema = z.object({
     .describe('Accomplishment bullets. Lead with a metric where you know one.')
 });
 
+/**
+ * Replace exactly one work bullet without echoing the rest of its array.
+ *
+ * `matchCompany` / `matchRole` identify the position, `oldText` must be the
+ * bullet's exact text (trimmed and whitespace-collapsed), and `occurrence`
+ * disambiguates identical bullets within that position. The values come from
+ * the structured `BulletIssue` attached to the editor's attention icon.
+ */
+export const replaceWorkHighlightSchema = z.object({
+  matchCompany: z.string().min(1).describe('Company from the flagged bullet, exactly as shown'),
+  matchRole: z.string().optional().describe('Position title, when the company has several positions'),
+  oldText: z.string().min(1).describe('The flagged bullet’s exact current text'),
+  newText: z.string().min(1).describe('The full replacement text — never a diff'),
+  occurrence: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('Zero-based occurrence among identical bullets in this position')
+});
+
 /** Fields that may be changed on an existing role. */
 export const workUpdateFieldsSchema = z.object({
   role: z.string().min(1).optional().describe('New job title'),
@@ -259,6 +280,7 @@ export const editResumeArgsSchema = z.object({
 
   addWork: z.array(addWorkSchema).optional(),
   updateWork: z.array(updateWorkSchema).optional(),
+  replaceWorkHighlight: z.array(replaceWorkHighlightSchema).optional(),
   removeWork: z.array(removeWorkSchema).optional(),
 
   addEducation: z.array(addEducationSchema).optional(),

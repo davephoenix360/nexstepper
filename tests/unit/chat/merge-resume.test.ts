@@ -431,6 +431,192 @@ describe('buildMergedData — clearSection', () => {
   });
 });
 
+describe('buildMergedData — replaceWorkHighlight', () => {
+  function resumeWithBullets(): ResumeData {
+    const data = blankResumeData();
+    data.sections.basics.summary = 'Untouched summary.';
+    data.sections.work = [
+      {
+        company: 'Northwind',
+        location: '',
+        url: '',
+        description: '',
+        positions: [
+          {
+            title: 'Engineer',
+            startDate: '',
+            endDate: '',
+            highlights: ['worked on the thing', 'Built a service', 'helped with tests']
+          }
+        ]
+      }
+    ];
+    return data;
+  }
+
+  it('replaces one exact bullet and leaves every other field alone', () => {
+    const existing = resumeWithBullets();
+    const snapshot = JSON.stringify(existing);
+
+    const { data, applied, warnings } = buildMergedData(existing, {
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'northwind',
+          matchRole: 'engineer',
+          oldText: 'worked on the thing',
+          newText: 'Reduced checkout latency by 32% by caching pricing lookups.'
+        }
+      ]
+    });
+
+    expect(warnings).toEqual([]);
+    expect(applied).toHaveLength(1);
+    expect(data.sections.work[0].positions[0].highlights).toEqual([
+      'Reduced checkout latency by 32% by caching pricing lookups.',
+      'Built a service',
+      'helped with tests'
+    ]);
+    expect(data.sections.basics.summary).toBe('Untouched summary.');
+    expect(JSON.stringify(existing)).toBe(snapshot);
+  });
+
+  it('collapses whitespace when matching but writes the exact replacement', () => {
+    const existing = resumeWithBullets();
+    existing.sections.work[0].positions[0].highlights[0] = 'worked   on   the thing';
+
+    const { data, warnings } = buildMergedData(existing, {
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'Northwind',
+          oldText: 'worked on the thing',
+          newText: '  Led the migration to 14 services.  '
+        }
+      ]
+    });
+
+    expect(warnings).toEqual([]);
+    expect(data.sections.work[0].positions[0].highlights[0]).toBe(
+      '  Led the migration to 14 services.  '
+    );
+  });
+
+  it('honours occurrence for duplicate bullets without touching the other copy', () => {
+    const existing = resumeWithBullets();
+    existing.sections.work[0].positions[0].highlights = [
+      'helped with tests',
+      'Built a service',
+      'helped with tests'
+    ];
+
+    const { data } = buildMergedData(existing, {
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'Northwind',
+          oldText: 'helped with tests',
+          newText: 'Automated the regression suite.',
+          occurrence: 1
+        }
+      ]
+    });
+
+    expect(data.sections.work[0].positions[0].highlights).toEqual([
+      'helped with tests',
+      'Built a service',
+      'Automated the regression suite.'
+    ]);
+  });
+
+  it('refuses an ambiguous duplicate without an occurrence', () => {
+    const existing = resumeWithBullets();
+    existing.sections.work[0].positions[0].highlights = ['same text', 'same text'];
+
+    const { data, applied, warnings } = buildMergedData(existing, {
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'Northwind',
+          oldText: 'same text',
+          newText: 'A better bullet.'
+        }
+      ]
+    });
+
+    expect(applied).toEqual([]);
+    expect(warnings[0]).toMatch(/appears 2 times/i);
+    expect(data.sections.work[0].positions[0].highlights).toEqual(['same text', 'same text']);
+  });
+
+  it('warns instead of guessing when the company or role is ambiguous', () => {
+    const existing = resumeWithBullets();
+    existing.sections.work.push({
+      ...existing.sections.work[0]!,
+      company: 'Northwind Labs'
+    });
+
+    const ambiguousCompany = buildMergedData(existing, {
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'Northwind',
+          oldText: 'worked on the thing',
+          newText: 'A better bullet.'
+        }
+      ]
+    });
+    expect(ambiguousCompany.applied).toEqual([]);
+    expect(ambiguousCompany.warnings[0]).toMatch(/matched 2 work entries/i);
+
+    const single = resumeWithBullets();
+    single.sections.work[0].positions.push({
+      ...single.sections.work[0].positions[0]!,
+      title: 'Architect'
+    });
+    const ambiguousRole = buildMergedData(single, {
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'Northwind',
+          oldText: 'worked on the thing',
+          newText: 'A better bullet.'
+        }
+      ]
+    });
+    expect(ambiguousRole.applied).toEqual([]);
+    expect(ambiguousRole.warnings[0]).toMatch(/Found 2 positions/i);
+  });
+
+  it('warns and writes nothing when the bullet text is stale', () => {
+    const existing = resumeWithBullets();
+    const { data, applied, warnings } = buildMergedData(existing, {
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'Northwind',
+          oldText: 'a bullet the user already deleted',
+          newText: 'A better bullet.'
+        }
+      ]
+    });
+
+    expect(applied).toEqual([]);
+    expect(warnings[0]).toMatch(/was not found/i);
+    expect(data.sections.work[0].positions[0].highlights[0]).toBe('worked on the thing');
+  });
+
+  it('works alongside other operations without losing either edit', () => {
+    const existing = resumeWithBullets();
+    const { data } = buildMergedData(existing, {
+      setBasics: { summary: 'A new summary.' },
+      replaceWorkHighlight: [
+        {
+          matchCompany: 'Northwind',
+          oldText: 'worked on the thing',
+          newText: 'Led the migration.'
+        }
+      ]
+    });
+
+    expect(data.sections.basics.summary).toBe('A new summary.');
+    expect(data.sections.work[0].positions[0].highlights[0]).toBe('Led the migration.');
+  });
+});
+
 describe('buildMergedData — empty and no-op calls', () => {
   it('reports no applied changes for an empty call', () => {
     const existing = resumeWithWork();

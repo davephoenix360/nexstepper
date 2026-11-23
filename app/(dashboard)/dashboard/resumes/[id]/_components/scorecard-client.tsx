@@ -7,78 +7,34 @@ import type { JobPosting } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from '@/lib/scoring';
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { MatchBreakdown } from '@/lib/db/queries';
-import {
-  InlineIssuePopover,
-  useInlineIssueController,
-  defaultPathForCriterion,
-  defaultPathForSkill
-} from '@/lib/inline-issue';
+import { useInlineIssueController } from '@/lib/inline-issue';
 import type { SubCriterionKey } from '@/lib/inline-issue/types';
-import type { PlanId } from '@/lib/billing';
 
 import { recomputeScoreAction } from '../score-actions';
-import { enrichBulletAction } from './enrich-bullet-action';
 
 /**
  * Client wrapper around <ScorecardPanel> that owns:
  *   1. Recompute (BM25 + semantic hybrid).
- *   2. The inline-issue surface (Free vs Pro split).
+ *   2. The inline explanation surface: a dim-bar or skill-gap click
+ *      scrolls to the measured leaf, pulses its section header and
+ *      renders the scorecard's tip at the point of interest.
  *
- * Plan: docs/plans/ats-scoring.md acceptance criterion #7 +
- * docs/plans/inline-issue-surface.md §"What you'll build" #7.
- *
- * Drift: Phase 3 post-ship engine review consolidated the two-button
- * UX into a single "Recompute" button. `recomputeScoreAction` now
- * calls the hybrid (BM25 + semantic) path internally, so there's no
- * longer a separate semantic action for the UI to call.
- *
- * Drift: Phase 3.5 ships the inline-issue surface. The page Server
- * Component passes:
- *   - the first-render breakdown + dynamic tips
- *   - the variant's resumeId
- *   - the user's plan (`planId: 'free' | 'pro'`)
- *
- * This wrapper:
- *   1. Holds the breakdown + dynamic tips in local state (initial =
- *      the server-rendered value).
- *   2. On Recompute click, calls the hybrid Server Action and
- *      swaps in both the result and the freshly computed tips.
- *   3. Uses `useTransition` so the button can show a spinner
- *      without freezing the surrounding UI.
- *   4. Surfaces error messages inline below the panel (no toast —
- *      we keep the right rail self-contained).
- *   5. Owns the Free/Pro split:
- *      - Free: dim-bar click → scroll + pulse + inline tip.
- *      - Pro:  same + "Rewrite with AI" CTA per dim bar + AI
- *              popover on click.
- *
- * The popover writes back to the editor via the
- * `dispatchInlineIssueApply` window event (see
- * `lib/inline-issue/apply-bridge.ts`). The editor subscribes in
- * its own `useEffect` and updates its own RHF form + triggers
- * its own save. The scorecard never touches the editor's form
- * directly — the bridge keeps the two components decoupled.
- *
- * Drift 2026-09-21: the inline tip itself is now rendered by the
- * editor (via `<InlineIssueTip />` mounted in `editable-resume.tsx`)
- * anchored to the section header — not at the bottom of the
- * scorecard. The scorecard fires `dispatchInlineIssueTip` on every
- * dim-bar click; the editor's component scrolls + pulses + renders
- * the tip in a portal. This split keeps the right rail clean and
- * the tip "at the point of interest" per the user's UX feedback.
+ * AI rewrites no longer live here. Flagged work bullets carry their
+ * own attention icon in the editor and hand off directly to Scout —
+ * see docs/plans/inline-bullet-issues-to-scout.md. Keeping the
+ * explanation path here means every user, on every plan, gets a
+ * useful result from a dim-bar click without a paywall notice.
  *
  * The Recompute button is hidden entirely when there's no JD to
  * score against — matches the visual contract from the earlier
- * slice where the placeholder shows "Recompute" as a disabled
- * affordance.
+ * slice where the placeholder showed a disabled affordance.
  */
 export function ScorecardClient({
   resumeId,
   jobContext,
   initialBreakdown,
   initialDynamicTips = {},
-  initialMatchBreakdown = [],
-  planId
+  initialMatchBreakdown = []
 }: {
   resumeId: string;
   jobContext: JobPosting | null;
@@ -91,20 +47,11 @@ export function ScorecardClient({
    */
   initialDynamicTips?: DynamicTips;
   /**
-   * Server-rendered per-leaf breakdown for the inline-issue
-   * surface. Optional — when omitted, the controller falls back
-   * to the `defaultPathForCriterion` heuristic on every dim-bar
-   * click. Threaded from the page RSC's recompute action so the
-   * breakdown is computed once and reused.
+   * Server-rendered per-leaf breakdown. The controller uses it to pick
+   * the leaf the advice actually NAMES instead of always landing on
+   * the first work bullet.
    */
   initialMatchBreakdown?: MatchBreakdown;
-  /**
-   * Current user's plan (`free` | `pro`). Server-authoritative;
-   * the server-side `requirePro()` re-checks at every action call.
-   * This prop is cosmetic — drives whether the popover opens and
-   * whether the "Rewrite with AI" CTAs render.
-   */
-  planId: PlanId;
 }) {
   const [breakdown, setBreakdown] = useState<ScoreBreakdown | null>(
     initialBreakdown
@@ -128,12 +75,6 @@ export function ScorecardClient({
    * Same trap as `form.reset(initialData)` in
    * `components/editable/editable-resume.tsx` and documented in
    * `AGENTS.md` "Recurring traps" #1.
-   *
-   * Object-identity deps are fine here: the score engine returns a
-   * fresh object on every Server Action, so a real change always
-   * arrives as a new reference. The case where the reference changes
-   * but content is identical (e.g. an unrelated `revalidatePath` that
-   * re-runs the parent RSC) bails out via React's setState bailout.
    */
   useEffect(() => {
     setBreakdown(initialBreakdown);
@@ -145,21 +86,7 @@ export function ScorecardClient({
     setMatchBreakdown(initialMatchBreakdown);
   }, [initialMatchBreakdown]);
 
-  const isPro = planId === 'pro';
-  const controller = useInlineIssueController({
-    enrichAction: enrichBulletAction,
-    resumeId,
-    isPro,
-    dynamicTips,
-    /**
-     * When the server pre-computed a MatchBreakdown, look up the
-     * path there; otherwise fall back to the heuristic. Pass the
-     * whole array so the controller can also pick the
-     * weight-aware "primary leaf" per criterion in a future
-     * slice.
-     */
-    matchBreakdown
-  });
+  const controller = useInlineIssueController({ matchBreakdown });
 
   function handleRecompute() {
     setError(null);
@@ -176,17 +103,10 @@ export function ScorecardClient({
   }
 
   function handleIssueDimClick(input: { criterion: SubCriterionKey }) {
-    // NO explicit path.
-    //
-    // The server's `matchBreakdown` is the authority on WHICH leaf a
-    // criterion targets — it was built with the resume in hand, so it
-    // points at the bullet the advice NAMES (e.g. "2 of 7 work bullets
-    // describe a task rather than an outcome (Applied LLM…; Developed
-    // a C#/.NET…)").
-    //
-    // Passing `defaultPathForCriterion(criterion)` here always landed on
-    // the heuristic's leaf — the FIRST work bullet — so the AI rewrite
-    // kept improving the top bullet instead of one of the named ones.
+    // No explicit path. The server's `matchBreakdown` is the authority
+    // on WHICH leaf a criterion targets — it was built with the resume
+    // in hand, so it points at the bullet the advice NAMES. Passing a
+    // default path here always landed on the first work bullet.
     controller.trigger({ criterion: input.criterion });
   }
 
@@ -196,8 +116,7 @@ export function ScorecardClient({
     criterion: 'Intent Coverage';
   }) {
     // Also no explicit path: the breakdown carries a skill-gap row for
-    // Intent Coverage pointing at the skills block, and the controller's
-    // fallback for that criterion is the same leaf.
+    // Intent Coverage pointing at the skills block.
     controller.trigger({ criterion: input.criterion });
   }
 
@@ -216,54 +135,7 @@ export function ScorecardClient({
         computing={pending}
         onIssueDimClick={handleIssueDimClick}
         onIssueSkillClick={handleIssueSkillClick}
-        showProRewriteCta={isPro}
       />
-
-      {/*
-        Suppression notice — visible feedback when a dim-bar
-        click did NOT open the popover (Free user / empty
-        bullet / unknown path). The user otherwise sees the
-        pulse + inline tip fire normally, which is a confusing
-        "I clicked, something happened, but the AI feature
-        didn't" UX. The notice names the reason so the user
-        always sees a concrete result.
-
-        Only renders when the controller's `notice` is non-null,
-        which happens ~immediately after a suppressed click and
-        auto-clears after 4s (see useInlineIssueController).
-      */}
-      {controller.notice && (
-        <div
-          role="status"
-          aria-live="polite"
-          data-testid="inline-issue-notice"
-          data-tone={controller.notice.tone}
-          data-sequence={controller.notice.sequence}
-          className={
-            controller.notice.tone === 'warn'
-              ? 'rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200'
-              : 'rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs leading-snug text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200'
-          }
-        >
-          {controller.notice.message}
-        </div>
-      )}
-
-      {/*
-        The popover — only for Pro. `controller.popoverProps` is
-        `null` when nothing is active; the inner popover short-
-        circuits to nothing in that case.
-
-        The inline tip itself is no longer mounted here — the
-        editor owns it via `<InlineIssueTip />` (mounted in
-        `components/editable/editable-resume.tsx`). The scorecard
-        publishes a `dispatchInlineIssueTip` event on every
-        trigger; the editor subscribes and renders the tip portal
-        anchored to the affected section header.
-      */}
-      {controller.popoverProps && (
-        <InlineIssuePopover {...controller.popoverProps} />
-      )}
 
       {error && (
         <p

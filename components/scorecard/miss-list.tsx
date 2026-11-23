@@ -60,7 +60,7 @@ export function MissList({
    * Inline-issue surface integration. When provided, each row gets
    * a "Show me" button that triggers `onIssueClick({ skill, bucket })`
    * — the parent (ScorecardClient) scrolls to the Skills section,
-   * pulses it, and (Pro only) opens an AI rewrite popover.
+   * pulses it, and shows the scorecard's inline tip.
    *
    * Plan: docs/plans/inline-issue-surface.md §"User-visible behavior
    * (Free + Pro)" + "What you'll build" #6.

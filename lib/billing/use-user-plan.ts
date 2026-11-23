@@ -3,9 +3,9 @@
  *
  * The server is the trust boundary: `requirePro()` reads the
  * `subscriptions` row directly. This hook exists purely so client
- * components can show/hide Pro-only affordances (e.g. the inline-
- * issue surface's "Rewrite with AI" CTA) without an extra round
- * trip and without a client-side fetch race.
+ * components can show/hide Pro-only affordances (e.g. a Pro badge
+ * on a chat upgrade CTA) without an extra round trip and without a
+ * client-side fetch race.
  *
  * The pattern is:
  *

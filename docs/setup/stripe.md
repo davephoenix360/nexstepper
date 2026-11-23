@@ -66,8 +66,8 @@ The webhook endpoint is registered for `customer.subscription.created`,
 The product's `description` is customer-visible (invoices, the customer
 portal, and Stripe emails), so it is held to the same truthfulness
 standard as the marketing pages: it names the 500K daily chat budget,
-ATS scoring with inline rewrites, and sharing links — **not** reviews,
-collab, or "unlimited" chat, none of which exist or are accurate.
+ATS scoring, and sharing links — **not** reviews, collab, or
+"unlimited" chat, none of which exist or are accurate.
 
 ### Proving the checkout path works before spending real money
 

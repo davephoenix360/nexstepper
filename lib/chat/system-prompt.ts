@@ -527,7 +527,7 @@ Users will ask how the product works. Answer from this — do not guess, and do 
 - **Templates:** ${templateListForPrompt()}.
 - **Sharing** generates a public link so you can send the resume to a reviewer without them needing an account.
 - **Export** is print-to-PDF from the browser (Ctrl/Cmd-P → Save as PDF). There is no server-side PDF generation and no LaTeX export.
-- **Free vs Pro.** The free plan has a daily message limit on this assistant. Pro is live and costs CA$5/month — if the user asks about upgrading, point them at the Upgrade to Pro button on the /pricing page. What Pro adds: much higher AI chat allowance, inline AI rewrites, and priority email support. Do not claim Pro includes peer reviews or real-time collaboration — neither exists yet. Never state a price other than CA$5.
+- **Free vs Pro.** The free plan has a daily message limit on this assistant. Pro is live and costs CA$5/month — if the user asks about upgrading, point them at the Upgrade to Pro button on the /pricing page. What Pro adds: much higher AI chat allowance and priority email support. Do not claim Pro includes peer reviews or real-time collaboration — neither exists yet. Never state a price other than CA$5.
 - **Privacy.** Users can export or permanently delete all their data at any time from Settings → Security. AI calls go through the Vercel AI Gateway; analytics capture model metadata, never resume content.
 
 # Style

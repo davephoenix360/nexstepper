@@ -148,12 +148,13 @@ export function pathToSectionId(path: string): string | null {
  * randomness). Returns `null` when the path doesn't map to a
  * formal section (basics, unknown prefix).
  *
- * `criterion` is passed in so we can set `tipKind` (`gap` vs
- * `rewrite`) based on what the user clicked. Default `rewrite`
- * because most criteria ("ATS Keyword Match", "Accomplishment
- * Focus") signal "the bullet needs to read stronger", not "you
- * haven't said anything here yet". Intent Coverage / skill gaps
- * are the explicit `gap` case.
+ * `criterion` is passed in so we can set the legacy `tipKind`
+ * (`gap` vs `rewrite`) label based on what the user clicked.
+ * Default `rewrite` because most criteria ("ATS Keyword Match",
+ * "Accomplishment Focus") signal "the bullet needs to read
+ * stronger", not "you haven't said anything here yet". Intent
+ * Coverage / skill gaps are the explicit `gap` case. No popover
+ * is opened from this value now; it only labels the Tip event.
  */
 export function mapPathToSection(
   path: string,
@@ -212,8 +213,8 @@ function pathMatchesPrefix(cleanPath: string, prefix: string): boolean {
 /**
  * Extract the index of the last *bullet-like* indexed segment of the
  * path. A "bullet-like" array is one whose elements are independent
- * rows we can attach a popover to: `highlights`, `responsibilities`,
- * `achievements`, `keywords`.
+ * rows an editor affordance can attach to: `highlights`,
+ * `responsibilities`, `achievements`, `keywords`.
  *
  * Handles BOTH spellings:
  *
@@ -225,10 +226,9 @@ function pathMatchesPrefix(cleanPath: string, prefix: string): boolean {
  * The dotted form is the one that matters. The editor binds
  * `data-testid="editable-{path}"` with DOTS, so a dotted path is the
  * only one that resolves to a real element. This used to match the
- * bracketed form only, which meant the popover opened with
- * `bulletIndex: null` for every real path — the bullet it was about to
- * rewrite was not highlighted, and the user could not tell which line
- * the rewrite would replace.
+ * bracketed form only, which meant the old popover resolved with
+ * `bulletIndex: null` for every real path and could not highlight the
+ * line it was about to change.
  *
  * Returns `null` for paths where the LAST indexed segment is not a
  * bullet field (e.g. `sections.education.0.degree` is the degree field
@@ -252,7 +252,7 @@ function extractBulletIndex(path: string): number | null {
 
 /**
  * JSON Resume fields whose `[N]` indexing points at a single
- * bullet row we can attach the popover to. Keep this in sync
+ * bullet row an editor affordance can attach to. Keep this in sync
  * with the bullet field names used across the resume-schema
  * sections (see `lib/resume-schema/sections/*.ts`).
  */
@@ -271,10 +271,10 @@ const BULLET_ARRAY_FIELDS = new Set([
 ]);
 
 /**
- * Pick the tipKind from the criterion the user clicked. Most
- * criteria are "rewrite" (the resume has SOMETHING there, just
- * reads weak). Intent Coverage + skill gaps are "gap" (the
- * resume doesn't say anything at all).
+ * Pick the legacy Tip label from the criterion the user clicked.
+ * Most criteria are labelled "rewrite" (the resume has SOMETHING
+ * there, just reads weak). Intent Coverage + skill gaps are "gap"
+ * (the resume doesn't say anything at all).
  *
  * This is the only place a future session should extend when a
  * new sub-criterion lands.
@@ -284,9 +284,8 @@ function tipKindFor(criterion: SubCriterionKey, _slug: string): TipKind {
     case 'ATS Keyword Match':
     case 'Intent Coverage':
       // Skill-gap criteria — the user hasn't mentioned these
-      // terms at all, so the prompt should frame the rewrite
-      // as "consider adding this skill" rather than "tweak your
-      // existing sentence".
+      // terms at all, so the Tip copy should read as "consider
+      // adding this skill" rather than "tweak your sentence".
       return 'gap';
     default:
       return 'rewrite';

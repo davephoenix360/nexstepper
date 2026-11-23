@@ -123,14 +123,18 @@ describe('the list and the scorecard agree', () => {
   });
 
   it('a recompute revalidates the LIST path, not just the editor', () => {
-    for (const file of [
-      'app/(dashboard)/dashboard/resumes/[id]/score-actions.ts',
+    // The canonical action delegates invalidation to the shared helper so
+    // the Recompute button and any other Server Action cannot forget the
+    // list. The legacy semantic action still calls revalidatePath directly.
+    const action = read('app/(dashboard)/dashboard/resumes/[id]/score-actions.ts');
+    expect(action).toContain('revalidateVariantScorePaths(');
+
+    const helper = read('lib/scoring-async/recompute-variant.ts');
+    expect(helper).toContain("revalidatePath('/dashboard/resumes')");
+
+    const semantic = read(
       'app/(dashboard)/dashboard/resumes/[id]/score-semantic-actions.ts'
-    ]) {
-      const src = read(file);
-      expect(src, `${file} does not revalidate the list`).toContain(
-        "revalidatePath('/dashboard/resumes')"
-      );
-    }
+    );
+    expect(semantic).toContain("revalidatePath('/dashboard/resumes')");
   });
 });

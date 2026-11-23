@@ -1,4 +1,5 @@
 import type { ResumeData, ResumeSections } from '@/lib/resume-schema';
+import { normalizeBulletText } from '@/lib/scoring/bullet-issues';
 import type { EditResumeArgs } from './types';
 
 /**
@@ -231,6 +232,83 @@ export function buildMergedData(existing: ResumeData, args: EditResumeArgs): Mer
 
     applied.push(
       `updated ${edit.matchRole ?? entry.positions[posIdx]?.title ?? 'role'} at ${entry.company}`
+    );
+  }
+
+  // ─── replaceWorkHighlight ─────────────────────────────────────────────────
+  // The single-bullet operation used by the editor's attention icons. Unlike
+  // `updateWork.set.highlights`, it never asks the model to echo the rest of
+  // the array back — one wrong neighbour would silently erase real content.
+  for (const edit of args.replaceWorkHighlight ?? []) {
+    const workCandidates = sections.work
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => includesCI(entry.company, edit.matchCompany));
+    if (workCandidates.length !== 1) {
+      warnings.push(
+        workCandidates.length === 0
+          ? `No work entry matched company "${edit.matchCompany}" for the flagged bullet.`
+          : `Company "${edit.matchCompany}" matched ${workCandidates.length} work entries; supply the exact company.`
+      );
+      continue;
+    }
+
+    const { entry, index: workIdx } = workCandidates[0]!;
+    const positionCandidates = entry.positions
+      .map((position, index) => ({ position, index }))
+      .filter(({ position }) =>
+        edit.matchRole !== undefined
+          ? includesCI(position.title, edit.matchRole)
+          : true
+      );
+    if (positionCandidates.length !== 1) {
+      warnings.push(
+        positionCandidates.length === 0
+          ? `Found ${entry.company} but no position matched role "${edit.matchRole}".`
+          : `Found ${positionCandidates.length} positions at ${entry.company}; supply a more exact role.`
+      );
+      continue;
+    }
+
+    const { position, index: posIdx } = positionCandidates[0]!;
+    const normalizedOld = normalizeBulletText(edit.oldText);
+    const matches = position.highlights
+      .map((text, index) => ({ text, index }))
+      .filter(({ text }) => normalizeBulletText(text) === normalizedOld);
+    let highlightIdx: number | null = null;
+
+    if (edit.occurrence !== undefined) {
+      highlightIdx = matches[edit.occurrence]?.index ?? null;
+      if (highlightIdx === null) {
+        warnings.push(
+          `Found ${matches.length} copies of the flagged bullet at ${entry.company}; occurrence ${edit.occurrence} does not exist.`
+        );
+        continue;
+      }
+    } else if (matches.length === 1) {
+      highlightIdx = matches[0]!.index;
+    } else {
+      warnings.push(
+        matches.length === 0
+          ? `The flagged bullet was not found at ${entry.company}: "${edit.oldText}".`
+          : `The flagged bullet appears ${matches.length} times at ${entry.company}; supply its occurrence.`
+      );
+      continue;
+    }
+
+    const nextHighlights = [...position.highlights];
+    nextHighlights[highlightIdx] = edit.newText;
+    sections.work = sections.work.map((entryAt, i) =>
+      i === workIdx
+        ? {
+            ...entryAt,
+            positions: entryAt.positions.map((positionAt, j) =>
+              j === posIdx ? { ...positionAt, highlights: nextHighlights } : positionAt
+            )
+          }
+        : entryAt
+    );
+    applied.push(
+      `updated one ${entry.company} ${position.title || 'role'} bullet: "${edit.newText.slice(0, 70)}"`
     );
   }
 

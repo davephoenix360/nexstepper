@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Info, Wand2 } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -102,18 +102,10 @@ export function DimensionBar({
   /**
    * Inline-issue surface integration. When provided, the bar row
    * becomes a clickable button that triggers `onIssueClick()` —
-   * the parent (ScorecardClient) decides what to do (Free: pulse
-   * + inline tip. Pro: pulse + inline tip + open the AI popover).
-   *
-   * `showProRewriteCta` is the upgrade-gated "Rewrite with AI"
-   * button. When true, a small Wand icon appears next to the
-   * score number and the click bubbles up to `onIssueClick`.
-   *
-   * Plan: docs/plans/inline-issue-surface.md §"User-visible
-   * behavior (Free + Pro)".
+   * the parent (ScorecardClient) scrolls to the relevant resume
+   * section and shows the measured inline tip for every user.
    */
-  onIssueClick,
-  showProRewriteCta = false
+  onIssueClick
 }: {
   label: string;
   score: number;
@@ -129,8 +121,6 @@ export function DimensionBar({
   tip?: ReactNode;
   /** Click handler for the inline-issue surface (Free + Pro). */
   onIssueClick?: () => void;
-  /** Show the Pro "Rewrite with AI" CTA next to the score. */
-  showProRewriteCta?: boolean;
 }) {
   const safeScore = Math.max(0, Math.min(100, score));
   const tier = tierFor(safeScore);
@@ -196,27 +186,6 @@ export function DimensionBar({
       >
         {Math.round(safeScore)}
       </span>
-      {showProRewriteCta && (
-        /*
-         * The wand ALONE, not a "Rewrite with AI" pill.
-         *
-         * The scorecard lives in a 320px rail, and this row's fixed
-         * parts (a 112px label, a 36px value) plus a text pill left
-         * the BAR — the thing that shows the score — 5.2px wide.
-         * Measured, not estimated. The row is already a button that
-         * opens the AI popover for Pro users, so the pill was a second
-         * label for the same action, and the component's own contract
-         * was "a small Wand icon appears next to the score number".
-         */
-        <span
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-          data-testid={testId ? `${testId}-rewrite-cta` : 'score-dim-rewrite-cta'}
-          title="Rewrite with AI"
-          aria-label="Rewrite with AI"
-        >
-          <Wand2 className="h-3 w-3" aria-hidden />
-        </span>
-      )}
     </>
   );
 

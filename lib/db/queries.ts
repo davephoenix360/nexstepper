@@ -1418,7 +1418,7 @@ export async function deleteApplication(
  * Each entry says "this resume leaf contributed X% weight to the
  * Y sub-criterion". The shape is intentionally minimal — the
  * inline-issue surface (lib/inline-issue/) reads it to drive the
- * per-leaf popovers + dynamic tips. The DB column stays a JSONB
+ * inline tips + scroll targets. The DB column stays a JSONB
  * blob so the shape can evolve without a migration; only the
  * in-process TypeScript shape is tightened here.
  *

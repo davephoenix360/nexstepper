@@ -22,8 +22,11 @@ import { JdPanel } from './_components/jd-panel';
 import { ScorecardClient } from './_components/scorecard-client';
 import { RenameResumeControl } from './_components/rename-resume-button';
 import { ChatBubble } from '@/components/chat/chat-bubble';
+import { ChatHandoffProvider } from '@/components/chat/chat-handoff-provider';
+import { VariantIssuesProvider } from '@/components/editable/variant-issues-context';
 import { AUTO_TAILOR_PROMPT } from '@/lib/chat/suggested-prompts';
 import type { ScoreBreakdown } from '@/lib/scoring';
+import { buildBulletIssues } from '@/lib/scoring/bullet-issues';
 import { resolveVariantScore } from '@/lib/variant-score';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
@@ -160,6 +163,12 @@ export default async function ResumeEditorPage({
     ? buildDynamicTips(breakdown, data, data.jobContext ?? null)
     : {};
 
+  // One resolver feeds both the scorecard's "N of M" copy and the
+  // attention icons in the editor. A recompute refreshes this on the
+  // server, so the provider must derive from the new prop rather than
+  // snapshot it on mount.
+  const bulletIssues = breakdown ? buildBulletIssues(breakdown, data) : [];
+
   // The persisted per-leaf breakdown, so the inline-issue surface has
   // authoritative paths on FIRST render (no need to wait for the user to
   // click Recompute). Empty array when no snapshot has been written yet
@@ -168,29 +177,21 @@ export default async function ResumeEditorPage({
   const initialMatchBreakdown: MatchBreakdown =
     (scoreSnapshot?.matchBreakdown as MatchBreakdown | null) ?? [];
 
-  // Resolve the user's plan for the inline-issue surface (Free vs
-  // Pro split). Server-authoritative — we read the subscription
-  // row directly so a devtools-tampered client can't trick the
-  // scorecard into showing the Pro UI. The same data drives
-  // `requirePro()` at every action call.
+  // Resolve the user's plan for Scout's chat surfacing (daily limit,
+  // model label and Pro auto-tailor). Server-authoritative — a
+  // devtools-tampered client can't grant itself Pro by changing a prop.
+  // AI bullet rewrites are no longer plan-gated; every user gets the
+  // same per-bullet attention icons and the same chat quota path.
   const subscription = await getSubscription();
   const planId: PlanId = isProEffective(subscription) ? 'pro' : 'free';
 
   return (
-    // `printable-root` opts this page into print isolation (see
-    // `docs/plans/print-default-opt-in.md`).
-    //
-    // Without it, the dashboard chrome's own padding and vertical
-    // rhythm sit BETWEEN the page box and the resume, so the printed
-    // PDF gets a wide band of white around the content on top of the
-    // `@page` margin. The share link's print does not have that band,
-    // because it has no chrome — the editor has to opt out of its own.
-    //
-    // With it, everything in this subtree is `visibility: hidden` except
-    // `.printable` (the resume itself), which is repositioned to the page
-    // origin. The `@page` margin becomes the only margin the printed
-    // page has, exactly like the share link.
-    <section className="printable-root flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
+    <ChatHandoffProvider>
+      {/* `printable-root` opts this page into print isolation (see
+          `docs/plans/print-default-opt-in.md`). Without it, the dashboard
+          chrome's padding sits between the page box and the resume, so the
+          PDF gets an extra band of white on top of the `@page` margin. */}
+      <section className="printable-root flex-1 p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
       <header className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <Button asChild variant="link" size="sm" className="px-0 h-auto text-muted-foreground">
@@ -237,13 +238,15 @@ export default async function ResumeEditorPage({
         }
       >
         <div className="min-w-0 flex-1">
-          <EditableResume
-            resumeId={resume.id}
-            initialData={data}
-            initialPrintSettings={printSettings}
-            isMaster={resume.isMaster}
-            initialDynamicTips={dynamicTips}
-          />
+          <VariantIssuesProvider issues={bulletIssues}>
+            <EditableResume
+              resumeId={resume.id}
+              initialData={data}
+              initialPrintSettings={printSettings}
+              isMaster={resume.isMaster}
+              initialDynamicTips={dynamicTips}
+            />
+          </VariantIssuesProvider>
         </div>
 
         {showRightRail && (
@@ -255,7 +258,6 @@ export default async function ResumeEditorPage({
               initialBreakdown={breakdown}
               initialDynamicTips={dynamicTips}
               initialMatchBreakdown={initialMatchBreakdown}
-              planId={planId}
             />
             {/* AI Chat Assistant — visible on variants only */}
             <ChatBubble
@@ -280,6 +282,7 @@ export default async function ResumeEditorPage({
           </div>
         )}
       </div>
-    </section>
+      </section>
+    </ChatHandoffProvider>
   );
 }

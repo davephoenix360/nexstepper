@@ -20,10 +20,10 @@
  * the bullets that "open weakly or passively" — both are about the same
  * bullets.
  *
- * So the popover shows **every** criterion tip for the dimension you
- * clicked. The inline tip in the editor still shows the one you
- * clicked; the popover is where the rewrite happens, so that is where
- * the full picture belongs.
+ * So the full advice for a dimension covers **every** criterion in it.
+ * A single scorecard click still anchors to the clicked criterion, but
+ * consumers that need the whole picture (the chat context and the
+ * attention-icon copy) must not reduce the dimension to one tip.
  *
  * ## One map, two surfaces
  *
@@ -50,7 +50,7 @@ export const CRITERION_TO_DIMENSION: Record<SubCriterionKey, string> =
  * Every criterion in the dimension the clicked one belongs to.
  *
  * The clicked criterion comes FIRST — it is the one the user asked
- * about, and the popover's rewrite is about it.
+ * about and the one the Tip anchor should name.
  */
 export function siblingCriteria(criterion: SubCriterionKey): SubCriterionKey[] {
   const dimension = CRITERION_TO_DIMENSION[criterion];

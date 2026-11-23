@@ -51,10 +51,6 @@ const PRO_FEATURES = [
   // price), and claiming otherwise is a false advertisement the moment
   // a user hits it. Free keeps its honest "20 messages a day".
   'Generous AI chat — 500K tokens a day, resets at midnight',
-  // The one genuinely Pro-only feature that ships. `enrichBulletAction`
-  // returns exactly 3 rewrites, deduped and padded, and refuses
-  // without a JD attached.
-  'Inline AI rewrites — click any weak bullet, get 3 fixes',
   // REMOVED 2026-10-21: "Peer reviews" and "Real-time collaboration".
   // Neither exists. There is no reviews table, no invite flow, and
   // `lib/liveblocks/server.ts` is imported by nothing. Both were

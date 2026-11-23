@@ -16,16 +16,8 @@ vi.mock('@/lib/auth', () => ({
 
 // Mock the DB layer so we can script ownership + data shape.
 const mockGetResume = vi.fn();
-const mockRecordScoreSnapshot = vi.fn();
 vi.mock('@/lib/db/queries', () => ({
-  getResume: (...args: unknown[]) => mockGetResume(...args),
-  recordScoreSnapshot: (...args: unknown[]) =>
-    mockRecordScoreSnapshot(...args)
-}));
-
-// Mock next/cache's revalidatePath (no-op in tests).
-vi.mock('next/cache', () => ({
-  revalidatePath: vi.fn()
+  getResume: (...args: unknown[]) => mockGetResume(...args)
 }));
 
 // Mock next/headers for the auth session lookup.
@@ -33,36 +25,19 @@ vi.mock('next/headers', () => ({
   headers: () => Promise.resolve(new Headers())
 }));
 
-// Mock the hybrid scoring engine so tests run without a live model
-// download. The mock returns a deterministic breakdown matching the
-// ScoreBreakdown shape so the action's return-type assertions hold.
-vi.mock('@/lib/scoring-async/score-hybrid', () => ({
-  scoreResumeHybridFromEnvelope: vi.fn(async () => ({
-    overallScore: 75,
-    dimensionScores: {
-      atsMatching: 70,
-      structure: 80,
-      contentQuality: 75,
-      alignment: 85
-    },
-    criteriaScores: {
-      'ATS Keyword Match': 60,
-      'ATS Similarity': 55,
-      'ATS Coverage': 70,
-      'Section Completeness': 80,
-      'Optimal Length': 80,
-      'Accomplishment Focus': 80,
-      'Action Verb Usage': 70,
-      Tailoring: 50,
-      'Unique Value': 100,
-      'Soft Skills': 50
-    },
-    computedInMs: 3
-  }))
+// Mock the shared recompute helper. The action's job is auth, ownership and
+// delegation; the helper's own suite pins scoring + persistence. Revalidation
+// is split out because Next drops revalidations made after a streamed route
+// handler has returned.
+const mockRecomputeVariantScore = vi.fn();
+const mockRevalidateVariantScorePaths = vi.fn();
+vi.mock('@/lib/scoring-async/recompute-variant', () => ({
+  recomputeVariantScore: (...args: unknown[]) => mockRecomputeVariantScore(...args),
+  revalidateVariantScorePaths: (...args: unknown[]) =>
+    mockRevalidateVariantScorePaths(...args)
 }));
 
 import { recomputeScoreAction } from '@/app/(dashboard)/dashboard/resumes/[id]/score-actions';
-import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
 import type { ResumeData, JobPosting } from '@/lib/resume-schema';
 
 const SAMPLE_RESUME = {
@@ -140,11 +115,19 @@ const SAMPLE_RESUME = {
   } as JobPosting
 } as unknown as ResumeData;
 
+const SCORED = {
+  breakdown: { overallScore: 75 },
+  tips: {},
+  matchBreakdown: []
+};
+
 describe('recomputeScoreAction', () => {
   beforeEach(() => {
     mockSession.mockReset();
     mockGetResume.mockReset();
-    mockRecordScoreSnapshot.mockReset();
+    mockRecomputeVariantScore.mockReset();
+    mockRecomputeVariantScore.mockResolvedValue(SCORED);
+    mockRevalidateVariantScorePaths.mockReset();
   });
 
   it('returns an error when not signed in', async () => {
@@ -225,7 +208,7 @@ describe('recomputeScoreAction', () => {
     if (!result.ok) expect(result.error).toMatch(/job description/i);
   });
 
-  it('calls the hybrid scoring engine (not the sync-only path)', async () => {
+  it('delegates to the one shared recompute path with the loaded envelope', async () => {
     mockSession.mockResolvedValue({ user: { id: 'u1' } });
     mockGetResume.mockResolvedValue({
       resume: {
@@ -250,54 +233,53 @@ describe('recomputeScoreAction', () => {
     });
     const result = await recomputeScoreAction({ resumeId: 'r1' });
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      const { breakdown, tips, matchBreakdown } = result.data;
-      expect(breakdown).toHaveProperty('overallScore');
-      expect(breakdown).toHaveProperty('dimensionScores');
-      expect(breakdown).toHaveProperty('criteriaScores');
-      expect(breakdown).toHaveProperty('computedInMs');
-      expect(breakdown.overallScore).toBeGreaterThanOrEqual(0);
-      expect(breakdown.overallScore).toBeLessThanOrEqual(100);
-      // tips is the per-sub-criterion DynamicTips map — Partial<Record>
-      // so it can be empty when no useful signal exists. We don't
-      // assert content here; the helper's own tests cover that.
-      expect(typeof tips).toBe('object');
-      // matchBreakdown is the per-leaf JSONB the inline-issue
-      // surface reads. The builder emits one row per dim bar
-      // (7) plus an optional skill-gap row, sorted by weight DESC.
-      expect(Array.isArray(matchBreakdown)).toBe(true);
-      expect(matchBreakdown.length).toBeGreaterThanOrEqual(7);
-      for (const row of matchBreakdown) {
-        expect(row).toHaveProperty('path');
-        expect(row).toHaveProperty('weight');
-        expect(row).toHaveProperty('criterion');
-        expect(row).toHaveProperty('tipKind');
-        expect(row.weight).toBeGreaterThanOrEqual(0);
-        expect(row.weight).toBeLessThanOrEqual(1);
-      }
-      // Sorted by weight DESC (stable for tests).
-      for (let i = 1; i < matchBreakdown.length; i++) {
-        expect(matchBreakdown[i - 1].weight).toBeGreaterThanOrEqual(
-          matchBreakdown[i].weight
-        );
-      }
-    }
-    // Confirm the hybrid (not sync-only) engine was invoked.
-    expect(scoreResumeHybridFromEnvelope).toHaveBeenCalled();
-    // Confirm the score snapshot was persisted for the inline-issue
-    // surface to read on the next cold load. The shape contract
-    // (resumeId + userId + score + matchBreakdown + tips +
-    // computedInMs) is locked — `score_snapshots` is
-    // append-only, ordered by createdAt DESC.
-    expect(mockRecordScoreSnapshot).toHaveBeenCalledTimes(1);
-    const persistArgs = mockRecordScoreSnapshot.mock.calls[0];
-    expect(persistArgs[0]).toBe('r1');
-    expect(persistArgs[1]).toBe('u1');
-    expect(persistArgs[2]).toMatchObject({
-      matchScore: 75,
-      computedInMs: 3
+    if (result.ok) expect(result.data).toBe(SCORED);
+    expect(mockRecomputeVariantScore).toHaveBeenCalledTimes(1);
+    expect(mockRecomputeVariantScore).toHaveBeenCalledWith('r1', 'u1', {
+      data: SAMPLE_RESUME,
+      job: SAMPLE_RESUME.jobContext
     });
-    expect(Array.isArray(persistArgs[2].matchBreakdown)).toBe(true);
-    expect(typeof persistArgs[2].dynamicTips).toBe('object');
+    expect(mockRevalidateVariantScorePaths).toHaveBeenCalledWith('r1');
+  });
+
+  it('does not revalidate a failed recompute', async () => {
+    mockSession.mockResolvedValue({ user: { id: 'u1' } });
+    mockGetResume.mockResolvedValue({
+      resume: {
+        id: 'r1',
+        userId: 'u1',
+        name: 'Variant',
+        isMaster: false,
+        currentRevisionId: 'rev-1',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      data: SAMPLE_RESUME
+    });
+    mockRecomputeVariantScore.mockRejectedValueOnce(new Error('embedding unavailable'));
+    await recomputeScoreAction({ resumeId: 'r1' });
+    expect(mockRevalidateVariantScorePaths).not.toHaveBeenCalled();
+  });
+
+  it('preserves the shared helper error as a failed action result', async () => {
+    mockSession.mockResolvedValue({ user: { id: 'u1' } });
+    mockGetResume.mockResolvedValue({
+      resume: {
+        id: 'r1',
+        userId: 'u1',
+        name: 'Variant',
+        isMaster: false,
+        currentRevisionId: 'rev-1',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      data: SAMPLE_RESUME
+    });
+    mockRecomputeVariantScore.mockRejectedValueOnce(new Error('embedding unavailable'));
+    const result = await recomputeScoreAction({ resumeId: 'r1' });
+    expect(result).toEqual({
+      ok: false,
+      error: 'Scoring failed: embedding unavailable'
+    });
   });
 });

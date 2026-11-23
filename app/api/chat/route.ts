@@ -45,6 +45,11 @@ import { executeTool } from '@/lib/chat/execute-tool';
 import { getModel, resolveChatModelPlan, CHAT_MAX_OUTPUT_TOKENS, CHAT_MAX_STEPS } from '@/lib/ai/providers';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
+import { recomputeVariantScore } from '@/lib/scoring-async/recompute-variant';
+import {
+  editResumeHasReplaceWorkHighlight,
+  toolResultSucceeded
+} from '@/lib/chat/score-mutation';
 
 // ─── Resume-kind context ─────────────────────────────────────────────────────
 
@@ -555,6 +560,12 @@ export async function POST(req: NextRequest) {
       // Set when a resume-mutating tool ran, so we can tell the client to
       // revalidate the editor before the stream closes.
       let resumeMutated = false;
+      // A surgical bullet edit changes a measured leaf. Its tool-call id is
+      // remembered here so only a SUCCESSFUL result triggers a recompute —
+      // setting this on the call itself would leave a stale marker after a
+      // no-op or failed edit. The result check is the source of truth.
+      const scoreEditCallIds = new Set<string>();
+      let scoreMutated = false;
 
       try {
         // AI SDK v6: iterate `fullStream` for typed TextStreamPart events.
@@ -577,11 +588,23 @@ export async function POST(req: NextRequest) {
             if (part.toolName === 'editResume' || part.toolName === 'switchTemplate') {
               resumeMutated = true;
             }
+            if (
+              part.toolName === 'editResume' &&
+              editResumeHasReplaceWorkHighlight(part.input)
+            ) {
+              scoreEditCallIds.add(part.toolCallId);
+            }
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ type: 'tool_call', toolCallId: part.toolCallId, toolName: part.toolName, args: part.input })}\n\n`)
             );
           } else if (part.type === 'tool-result') {
             toolResultsJson.push({ id: part.toolCallId, result: part.output });
+            if (
+              scoreEditCallIds.delete(part.toolCallId) &&
+              toolResultSucceeded(part.output)
+            ) {
+              scoreMutated = true;
+            }
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ type: 'tool_result', toolCallId: part.toolCallId, result: part.output })}\n\n`)
             );
@@ -599,6 +622,22 @@ export async function POST(req: NextRequest) {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'resume_updated' })}\n\n`)
           );
+        }
+
+        // A surgical bullet edit changes the measured leaf the attention
+        // icon came from. Persist a fresh full snapshot before `done`, then
+        // tell the client so its coalesced refresh reads the new score and
+        // the icon disappears. A recompute failure must not break the chat
+        // stream — the successful edit is still on disk.
+        if (scoreMutated) {
+          try {
+            await recomputeVariantScore(resumeId, userId);
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'score_updated' })}\n\n`)
+            );
+          } catch (err) {
+            console.error('[api/chat] post-edit score recompute failed', err);
+          }
         }
 
         // Final done marker

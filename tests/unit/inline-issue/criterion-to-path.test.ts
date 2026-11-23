@@ -11,16 +11,14 @@ import {
  * render — gets caught by CI before the regression hits the live
  * editor.
  *
- * The path is consumed by:
- *   1. `useInlineIssueController.readLeafText` — looks up the
- *      EditableText leaf via `[data-testid="editable-{path}"]`.
- *   2. `dispatchInlineIssueApply({ path, text })` — the editor
- *      calls `form.setValue(path, text)` to write the chosen
- *      rewrite back into RHF state.
+ * The path is consumed by `useInlineIssueController` and the editor's
+ * section lookup: a scorecard click sends a Tip event through
+ * `apply-bridge`, and the editor scrolls to the criterion's leaf and
+ * pulses its section. Exact flagged-bullet paths now come from
+ * `buildBulletIssues()`; these defaults cover every other criterion.
  *
- * If the path doesn't match a real EditableText, both halves of the
- * surface silently fail: the popover never opens (no leaf found), and
- * Apply is a no-op even if it did (wrong key for setValue).
+ * If the path doesn't match a real EditableText, the pulse lands on the
+ * wrong section or not at all.
  *
  * ## Two defects this file was pinning
  *
@@ -29,14 +27,15 @@ import {
  * template binds the DOTTED spelling the Classic template's
  * `WorkPositionsNested` component confirms:
  * `sections.work.${i}.positions.${j}.highlights.${k}`. The lookup found
- * nothing, the popover never opened, and the user was told "the bullet
- * here is empty" about a bullet that was full. That is the reported
- * "clicking Rewrite with AI does nothing" bug.
+ * nothing, the old popover never opened, and the user was told "the
+ * bullet here is empty" about a bullet that was full. That is the
+ * reported "clicking Rewrite with AI does nothing" bug. The popover is
+ * retired; the path contract is not.
  *
  * **The target.** Almost every criterion pointed at the first work
  * bullet — including the ones that measure the summary (Tailoring),
  * the headline (Role Fit) and the skills block (Intent Coverage).
- * Rewriting a work bullet does not move those.
+ * Anchoring a work bullet does not explain those criteria.
  *
  * `tests/unit/inline-issue/criterion-paths.test.tsx` proves the paths
  * resolve against a real template render.
@@ -107,8 +106,8 @@ describe('defaultPathForCriterion', () => {
 
   it('Unique Value → the first project', () => {
     // Distinctive content lives in a project, an award or a
-    // certificate. If the resume has no project, there is nothing to
-    // rewrite — and the surface says so.
+    // certificate. If the resume has no project, there is nothing
+    // to anchor — and the tip says so.
     expect(defaultPathForCriterion('Unique Value')).toBe(
       'sections.projects.0.description'
     );
@@ -117,7 +116,7 @@ describe('defaultPathForCriterion', () => {
   it('never returns a bracketed path', () => {
     // The editor renders dotted paths. A bracketed path is a valid
     // JSON-Resume path and renders NOWHERE — which is what broke the
-    // popover.
+    // original inline surface.
     for (const criterion of [
       'ATS Keyword Match',
       'ATS Similarity',

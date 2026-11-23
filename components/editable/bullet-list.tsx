@@ -33,6 +33,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { EditableText } from './editable-text';
+import { BulletAttention } from './bullet-attention';
+import { EMPTY_BULLET_ISSUES, useVariantIssues } from './variant-issues-context';
 
 interface BulletListProps {
   /** Dotted path of the string[] field in RHF form values. */
@@ -53,6 +55,7 @@ export function BulletList({
   className
 }: BulletListProps) {
   const { control } = useFormContext();
+  const { issuesByPath } = useVariantIssues();
   // useFieldArray gives us stable .id for keys — survives removes + reorders.
   const { fields, append, remove } = useFieldArray({ control, name: path });
 
@@ -104,29 +107,37 @@ export function BulletList({
         )}
         data-testid={`bullet-list-${path.replace(/\./g, '-')}`}
       >
-        {fields.map((field, i) => (
-          <li
-            key={field.id}
-            data-testid={`bullet-${path.replace(/\./g, '-')}-${i}`}
-            className="group"
-          >
-            <EditableText
-              path={`${path}.${i}`}
-              placeholder={placeholder}
-              className="inline w-fit"
-            />
-            <button
-              type="button"
-              onClick={() => remove(i)}
-              aria-label={`Remove bullet ${i + 1}`}
-              // no-print: the bullet itself still serializes, but the
-              // ✕ button is editor-only.
-              className="no-print ml-2 inline-flex size-5 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+        {fields.map((field, i) => {
+          const leafPath = `${path}.${i}`;
+          const issues = issuesByPath.get(leafPath) ?? EMPTY_BULLET_ISSUES;
+
+          return (
+            <li
+              key={field.id}
+              data-testid={`bullet-${path.replace(/\./g, '-')}-${i}`}
+              className="group"
             >
-              <X className="size-3" />
-            </button>
-          </li>
-        ))}
+              {issues.length > 0 ? (
+                <BulletAttention path={leafPath} issues={issues} />
+              ) : null}
+              <EditableText
+                path={leafPath}
+                placeholder={placeholder}
+                className="inline w-fit"
+              />
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label={`Remove bullet ${i + 1}`}
+                // no-print: the bullet itself still serializes, but the
+                // ✕ button is editor-only.
+                className="no-print ml-2 inline-flex size-5 items-center justify-center rounded text-zinc-400 opacity-40 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              >
+                <X className="size-3" />
+              </button>
+            </li>
+          );
+        })}
       </ul>
       <Button
         type="button"

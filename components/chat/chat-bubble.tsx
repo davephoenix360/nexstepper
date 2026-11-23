@@ -15,6 +15,7 @@ import {
   feedbackPillBottomWithBubble
 } from '@/lib/ui/floating-actions';
 import { AgentIntroBubble } from './agent-intro-bubble';
+import { useChatHandoff } from './chat-handoff-provider';
 import { markAgentIntroSeen } from '@/lib/chat/agent-intro';
 import { suggestedPrompts } from '@/lib/chat/suggested-prompts';
 
@@ -66,6 +67,10 @@ export function ChatBubble({
   autoPrompt
 }: ChatBubbleProps) {
   const router = useRouter();
+  // Bullet attention icons publish repeatable requests here. Unlike the
+  // one-shot `autoPrompt`, every click is a fresh turn — including clicks
+  // while the panel is already open and after earlier turns.
+  const { currentRequest, consumeHandoff } = useChatHandoff();
   const [isOpen, setIsOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -111,6 +116,33 @@ export function ChatBubble({
 
   const handleIntroHeightChange = useCallback((px: number) => {
     setIntroBubbleHeightPx((current) => (current === px ? current : px));
+  }, []);
+
+  /**
+   * One refresh for every server mutation in a turn.
+   *
+   * A successful bullet edit emits BOTH `resume_updated` (a revision was
+   * written) and `score_updated` (the snapshot was recomputed). Calling
+   * `router.refresh()` from both callbacks produced two RSC round trips
+   * and a visible flicker. SSE events arrive in one read loop, so a
+   * macrotask is enough to collapse them into one refresh.
+   */
+  const refreshScheduledRef = useRef(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefresh = useCallback(() => {
+    if (refreshScheduledRef.current) return;
+    refreshScheduledRef.current = true;
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      refreshScheduledRef.current = false;
+      router.refresh();
+    }, 0);
+  }, [router]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
   }, []);
 
   // Portal target only exists on the client. Wait for mount so SSR
@@ -173,6 +205,15 @@ export function ChatBubble({
    *     create a second session.
    */
   const autoSendFiredRef = useRef(false);
+  /**
+   * Handoff requests are repeatable, so the queue provider removes a
+   * request as soon as we start it. This set is the second line of defence:
+   * React re-renders during a streaming turn (messages, usage, tool state),
+   * and a re-run of the effect below must never send the same turn twice.
+   */
+  const handoffHandledIdsRef = useRef<Set<string>>(new Set());
+  /** Once a handoff has been consumed, the one-shot auto-prompt stands down. */
+  const handoffConsumedRef = useRef(false);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
 
   useEffect(() => {
@@ -261,7 +302,14 @@ export function ChatBubble({
       // server components so the editor behind the chat panel updates —
       // without this the user reads "Done, I rewrote your summary" while
       // looking at the old summary, which is what made the tool feel broken.
-      router.refresh();
+      // Coalesced with score_updated: both events belong to the same edit.
+      scheduleRefresh();
+    },
+    onScoreUpdated: () => {
+      // A successful single-bullet edit recomputed the persisted snapshot.
+      // The attention icons and the scorecard are rendered from server
+      // data, so without a refresh the old marker would outlive its fix.
+      scheduleRefresh();
     },
     onError: (err: string, code?: string, limit?: number | null) => {
       setIsStreaming(false);
@@ -321,9 +369,54 @@ export function ChatBubble({
     [activeSessionId, sendMessage, resumeId, messages]
   );
 
+  /**
+   * Consume bullet-attention handoffs through the SAME send path a typed
+   * message uses: same auth, quota, model chain, SSE persistence and error
+   * handling. No second API route and no plan gate.
+   *
+   * Order matters here. This effect is declared BEFORE the auto-prompt
+   * effect, so a handoff sets `handoffConsumedRef` first and the one-shot
+   * tailoring prompt cannot also fire on that mount.
+   */
+  useEffect(() => {
+    if (!currentRequest) return;
+
+    // Opening the panel also retires the intro bubble — it would sit on
+    // top of a conversation the user just asked for.
+    markAgentIntroSeen();
+    setIsOpen(true);
+
+    // The session list is fetched on open. Sending before it resolves
+    // would use a null session id even when this resume has history.
+    if (!sessionsLoaded) return;
+    // `sendMessage` aborts any in-flight request. Wait for the current
+    // turn to finish instead of killing it; the provider keeps this
+    // request queued until then.
+    if (isStreaming) return;
+
+    if (handoffHandledIdsRef.current.has(currentRequest.id)) {
+      consumeHandoff(currentRequest.id);
+      return;
+    }
+
+    // Mark handled BEFORE awaiting: the re-render at the start of the
+    // send would otherwise run this effect again with the same request.
+    handoffHandledIdsRef.current.add(currentRequest.id);
+    handoffConsumedRef.current = true;
+    consumeHandoff(currentRequest.id);
+    void handleSend(currentRequest.prompt);
+  }, [
+    currentRequest,
+    sessionsLoaded,
+    isStreaming,
+    handleSend,
+    consumeHandoff
+  ]);
+
   // Fire the auto-run once the session list has loaded and we know
   // there is no existing conversation to append to.
   useEffect(() => {
+    if (handoffConsumedRef.current) return;
     if (!autoPrompt || !isOpen || !sessionsLoaded) return;
     if (autoSendFiredRef.current) return;
     if (sessions.length > 0) return; // already has history — do not re-run

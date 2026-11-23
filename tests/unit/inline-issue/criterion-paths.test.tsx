@@ -15,7 +15,7 @@
  *
  * The editor renders `data-testid="editable-{path}"`, so the lookup
  * `[data-testid="editable-sections.work[0].positions[0].highlights[0]"]`
- * found nothing. `readLeafText()` returned an empty string, the
+ * found nothing. `readLeafText()` returned an empty string, the old
  * popover never opened, and the user was told:
  *
  *   "The bullet here is empty — add some content to this section
@@ -23,7 +23,8 @@
  *
  * about a bullet that was full. That is the reported "clicking
  * Rewrite with AI does nothing" bug, and it affected every dimension
- * bar on the scorecard.
+ * bar on the scorecard. That popover is retired; these tests keep the
+ * surviving Tip/pulse anchor honest.
  *
  * ## The rule
  *
@@ -32,8 +33,8 @@
  * drift apart again.
  *
  * They also pin the second defect: the target must be the leaf whose
- * text the criterion actually READS. Rewriting the first work bullet
- * does not move a dimension that measures the summary.
+ * text the criterion actually READS. Anchoring the first work bullet
+ * does not explain a dimension that measures the summary.
  */
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -118,7 +119,8 @@ describe('the inline-issue paths exist in the editor', () => {
 
   it('uses dotted paths, the spelling the editor binds', () => {
     // A bracketed path is a valid JSON-Resume path and renders
-    // nowhere. This is the exact shape that broke the popover.
+    // nowhere. This is the exact shape that broke the original
+    // inline surface.
     for (const criterion of CRITERIA) {
       expect(defaultPathForCriterion(criterion)).not.toMatch(/\[\d+\]/);
     }

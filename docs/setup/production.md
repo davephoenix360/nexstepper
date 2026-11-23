@@ -623,11 +623,11 @@ Do this in an **incognito window** so you exercise the unauthenticated
 | 4 | **Create master resume** (manual or import PDF) | Resume saves, appears in list |
 | 5 | Edit basics + work entries | WYSIWYG editor saves, no 500s |
 | 6 | **Parse a JD** (paste a real job description) | Returns structured `JobPostingData`, attaches to resume |
-| 7 | See **ATS score** | Scorecard renders, 7 dimensions with values, radar chart |
-| 8 | Click a **weak dim bar** (Free tier) | Inline tip appears, no popover (correct Free gating) |
+| 7 | See **ATS score** | Scorecard renders, 7 dimensions with values, radar chart; clicking a weak bar shows an inline tip |
+| 8 | Click a **flagged work bullet's attention icon** (Free tier) | Hover explains the issue and fix; click opens Scout with a bullet-specific prompt, no paywall |
 | 9 | **Upgrade to Pro** (real card, then refund later) | Stripe checkout, return URL, Billing card shows Pro · active |
-| 10 | Click the same dim bar (now Pro) | AI-rewrite popover opens, model returns a rewrite |
-| 11 | **AI chat** — ask "make my summary shorter" | Streams response, tool call fires, persists to history |
+| 10 | Click the same attention icon (now Pro) | Same behavior — bullet guidance is not plan-gated |
+| 11 | **AI chat** — ask Scout to fix the flagged bullet (or "make my summary shorter") | Streams response, `editResume` tool fires, score recomputes, persists to history |
 | 12 | **Download PDF** | `/preview?print=1` opens, print dialog shows correct filename, colors render |
 | 13 | **Share link** — generate `/r/{token}` | Public page renders read-only, token works in a different browser |
 | 14 | **Revoke share** | Token now 404s |
