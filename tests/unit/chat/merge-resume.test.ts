@@ -461,8 +461,7 @@ describe('buildMergedData — replaceWorkHighlight', () => {
     const { data, applied, warnings } = buildMergedData(existing, {
       replaceWorkHighlight: [
         {
-          matchCompany: 'northwind',
-          matchRole: 'engineer',
+          path: 'sections.work.0.positions.0.highlights.0',
           oldText: 'worked on the thing',
           newText: 'Reduced checkout latency by 32% by caching pricing lookups.'
         }
@@ -487,7 +486,7 @@ describe('buildMergedData — replaceWorkHighlight', () => {
     const { data, warnings } = buildMergedData(existing, {
       replaceWorkHighlight: [
         {
-          matchCompany: 'Northwind',
+          path: 'sections.work.0.positions.0.highlights.0',
           oldText: 'worked on the thing',
           newText: '  Led the migration to 14 services.  '
         }
@@ -500,7 +499,7 @@ describe('buildMergedData — replaceWorkHighlight', () => {
     );
   });
 
-  it('honours occurrence for duplicate bullets without touching the other copy', () => {
+  it('uses the path to choose a duplicate bullet without touching the other copy', () => {
     const existing = resumeWithBullets();
     existing.sections.work[0].positions[0].highlights = [
       'helped with tests',
@@ -511,10 +510,9 @@ describe('buildMergedData — replaceWorkHighlight', () => {
     const { data } = buildMergedData(existing, {
       replaceWorkHighlight: [
         {
-          matchCompany: 'Northwind',
+          path: 'sections.work.0.positions.0.highlights.2',
           oldText: 'helped with tests',
-          newText: 'Automated the regression suite.',
-          occurrence: 1
+          newText: 'Automated the regression suite.'
         }
       ]
     });
@@ -526,60 +524,74 @@ describe('buildMergedData — replaceWorkHighlight', () => {
     ]);
   });
 
-  it('refuses an ambiguous duplicate without an occurrence', () => {
+  it('uses the exact path even when the same bullet text appears twice', () => {
     const existing = resumeWithBullets();
     existing.sections.work[0].positions[0].highlights = ['same text', 'same text'];
 
     const { data, applied, warnings } = buildMergedData(existing, {
       replaceWorkHighlight: [
         {
-          matchCompany: 'Northwind',
+          path: 'sections.work.0.positions.0.highlights.1',
           oldText: 'same text',
           newText: 'A better bullet.'
         }
       ]
     });
 
-    expect(applied).toEqual([]);
-    expect(warnings[0]).toMatch(/appears 2 times/i);
-    expect(data.sections.work[0].positions[0].highlights).toEqual(['same text', 'same text']);
+    expect(warnings).toEqual([]);
+    expect(applied).toHaveLength(1);
+    expect(data.sections.work[0].positions[0].highlights).toEqual([
+      'same text',
+      'A better bullet.'
+    ]);
   });
 
-  it('warns instead of guessing when the company or role is ambiguous', () => {
+  it('targets the exact position when roles at one company have overlapping titles', () => {
     const existing = resumeWithBullets();
-    existing.sections.work.push({
-      ...existing.sections.work[0]!,
-      company: 'Northwind Labs'
+    existing.sections.work[0].positions.push({
+      ...existing.sections.work[0].positions[0]!,
+      title: 'Senior Engineer',
+      highlights: ['worked on the thing', 'senior-only bullet']
     });
 
-    const ambiguousCompany = buildMergedData(existing, {
+    const { data, applied, warnings } = buildMergedData(existing, {
       replaceWorkHighlight: [
         {
-          matchCompany: 'Northwind',
+          path: 'sections.work.0.positions.1.highlights.0',
+          oldText: 'worked on the thing',
+          newText: 'Mentored four engineers through their first year.'
+        }
+      ]
+    });
+
+    expect(warnings).toEqual([]);
+    expect(applied).toHaveLength(1);
+    expect(data.sections.work[0].positions[0].highlights).toEqual([
+      'worked on the thing',
+      'Built a service',
+      'helped with tests'
+    ]);
+    expect(data.sections.work[0].positions[1].highlights).toEqual([
+      'Mentored four engineers through their first year.',
+      'senior-only bullet'
+    ]);
+  });
+
+  it('warns instead of guessing when the path no longer exists', () => {
+    const existing = resumeWithBullets();
+    const { data, applied, warnings } = buildMergedData(existing, {
+      replaceWorkHighlight: [
+        {
+          path: 'sections.work.0.positions.3.highlights.0',
           oldText: 'worked on the thing',
           newText: 'A better bullet.'
         }
       ]
     });
-    expect(ambiguousCompany.applied).toEqual([]);
-    expect(ambiguousCompany.warnings[0]).toMatch(/matched 2 work entries/i);
 
-    const single = resumeWithBullets();
-    single.sections.work[0].positions.push({
-      ...single.sections.work[0].positions[0]!,
-      title: 'Architect'
-    });
-    const ambiguousRole = buildMergedData(single, {
-      replaceWorkHighlight: [
-        {
-          matchCompany: 'Northwind',
-          oldText: 'worked on the thing',
-          newText: 'A better bullet.'
-        }
-      ]
-    });
-    expect(ambiguousRole.applied).toEqual([]);
-    expect(ambiguousRole.warnings[0]).toMatch(/Found 2 positions/i);
+    expect(applied).toEqual([]);
+    expect(warnings[0]).toMatch(/no longer exists/i);
+    expect(data.sections.work[0].positions[0].highlights[0]).toBe('worked on the thing');
   });
 
   it('warns and writes nothing when the bullet text is stale', () => {
@@ -587,7 +599,7 @@ describe('buildMergedData — replaceWorkHighlight', () => {
     const { data, applied, warnings } = buildMergedData(existing, {
       replaceWorkHighlight: [
         {
-          matchCompany: 'Northwind',
+          path: 'sections.work.0.positions.0.highlights.0',
           oldText: 'a bullet the user already deleted',
           newText: 'A better bullet.'
         }
@@ -595,7 +607,7 @@ describe('buildMergedData — replaceWorkHighlight', () => {
     });
 
     expect(applied).toEqual([]);
-    expect(warnings[0]).toMatch(/was not found/i);
+    expect(warnings[0]).toMatch(/no longer matches/i);
     expect(data.sections.work[0].positions[0].highlights[0]).toBe('worked on the thing');
   });
 
@@ -605,7 +617,7 @@ describe('buildMergedData — replaceWorkHighlight', () => {
       setBasics: { summary: 'A new summary.' },
       replaceWorkHighlight: [
         {
-          matchCompany: 'Northwind',
+          path: 'sections.work.0.positions.0.highlights.0',
           oldText: 'worked on the thing',
           newText: 'Led the migration.'
         }

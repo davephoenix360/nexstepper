@@ -49,9 +49,9 @@ read path.
 
 4. **Surgical edit, measured result.** The handoff prompt names the exact
    bullet and tells Scout not to invent metrics or call `getAtsScore`. Scout
-   edits through `replaceWorkHighlight`, which targets exact text plus
-   company/role/occurrence and fails on ambiguity rather than guessing. The
-   chat route only recomputes when the **tool result** reports success.
+   edits through `replaceWorkHighlight`, which targets the exact dotted path
+   and uses the original text only as a freshness check. The chat route only
+   recomputes when the **tool result** reports success.
 
 5. **One persistence path, two refresh mechanisms.** The Recompute action and
    the chat route both call `recomputeVariantScore()`, which re-reads the
@@ -77,6 +77,24 @@ read path.
    `pnpm typecheck`, `pnpm test` and `pnpm build` are green.
 
 No migrations, env vars, external services or npm dependencies were added.
+
+## Follow-up fix (2026-11-24)
+
+The first smoke found a real targeting bug before push. The flagged bullet was
+`sections.work.0.positions.1.highlights.1` at **Halcyon Systems**, whose two
+positions are `Senior Software Engineer` and `Software Engineer`. The prompt
+and tool used company/title selectors, and the merge's substring matcher let
+`Software Engineer` match **both** titles, so Scout refused to edit instead of
+changing the flagged bullet. Company/title are now context only:
+`replaceWorkHighlight` accepts an exact dotted `path` (parsed once by
+`parseWorkHighlightPath()`), `oldText` is a staleness check, and the schema
+rejects the legacy selector fields. The tool description and handoff prompt
+state the path rule explicitly. Tests cover the path parser, schema rejection,
+duplicate bullet text, and overlapping role titles at one company.
+
+An existing local chat session that contains the failed old-shape tool call may
+still show misleading history; start a fresh chat session for the re-smoke.
+This changes no stored schema — the branch remains local-only.
 
 ## Drift callouts
 
@@ -121,8 +139,9 @@ No migrations, env vars, external services or npm dependencies were added.
 
 1. Check out `feat/inline-bullet-issues-to-scout` locally and run the manual
    smoke: weak Impact bullet → hover → click → Scout edits only that bullet →
-   marker disappears; repeat as a Free user and at the daily limit; verify
-   editor print and public share show no icon.
+   marker disappears; repeat on the Halcyon-style same-company/overlapping-title
+   case in a fresh chat session, as a Free user and at the daily limit, and
+   verify editor print and public share show no icon.
 2. Push / open a PR only after that check. The branch is currently local-only
    by request.
 3. Do not reintroduce a second AI rewrite control from the old plans. New

@@ -82,3 +82,32 @@ export function pathForHighlightIndex(
   if (!Number.isInteger(index) || index < 0) return null;
   return collectHighlightEntries(resume)[index]?.path ?? null;
 }
+
+export type WorkHighlightCoordinates = {
+  workIndex: number;
+  positionIndex: number;
+  highlightIndex: number;
+};
+
+/**
+ * Parse the dotted editor path back into array coordinates.
+ *
+ * This is the inverse of `collectHighlightEntries()`'s path builder and is
+ * the ONLY targeting input the surgical Scout edit accepts. Company/title
+ * matching is ambiguous when someone held several roles at one employer —
+ * "Software Engineer" is a substring of "Senior Software Engineer" — while
+ * a path addresses one leaf unambiguously.
+ */
+export function parseWorkHighlightPath(
+  path: string
+): WorkHighlightCoordinates | null {
+  const match = /^sections\.work\.(\d+)\.positions\.(\d+)\.highlights\.(\d+)$/.exec(
+    path
+  );
+  if (!match) return null;
+  return {
+    workIndex: Number(match[1]),
+    positionIndex: Number(match[2]),
+    highlightIndex: Number(match[3])
+  };
+}

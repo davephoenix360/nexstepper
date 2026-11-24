@@ -89,22 +89,23 @@ export const addWorkSchema = z.object({
 /**
  * Replace exactly one work bullet without echoing the rest of its array.
  *
- * `matchCompany` / `matchRole` identify the position, `oldText` must be the
- * bullet's exact text (trimmed and whitespace-collapsed), and `occurrence`
- * disambiguates identical bullets within that position. The values come from
- * the structured `BulletIssue` attached to the editor's attention icon.
+ * `path` is the dotted editor path carried by the structured `BulletIssue`
+ * attached to the attention icon. It is the ONLY target: company/title fallback
+ * matching is ambiguous when someone held several roles at one employer
+ * ("Software Engineer" matches "Senior Software Engineer"). `oldText` is an
+ * optimistic-concurrency check so a stale snapshot cannot overwrite a bullet
+ * the candidate has since changed.
  */
 export const replaceWorkHighlightSchema = z.object({
-  matchCompany: z.string().min(1).describe('Company from the flagged bullet, exactly as shown'),
-  matchRole: z.string().optional().describe('Position title, when the company has several positions'),
+  path: z
+    .string()
+    .regex(
+      /^sections\.work\.\d+\.positions\.\d+\.highlights\.\d+$/,
+      'Use the exact dotted path from the flagged bullet data'
+    )
+    .describe('Exact dotted editor path from flagged_bullet_data — copy it unchanged'),
   oldText: z.string().min(1).describe('The flagged bullet’s exact current text'),
-  newText: z.string().min(1).describe('The full replacement text — never a diff'),
-  occurrence: z
-    .number()
-    .int()
-    .nonnegative()
-    .optional()
-    .describe('Zero-based occurrence among identical bullets in this position')
+  newText: z.string().min(1).describe('The full replacement text — never a diff')
 });
 
 /** Fields that may be changed on an existing role. */

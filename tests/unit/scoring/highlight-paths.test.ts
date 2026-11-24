@@ -18,7 +18,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { collectHighlightEntries, pathForHighlightIndex } from '@/lib/scoring/highlight-paths';
+import {
+  collectHighlightEntries,
+  parseWorkHighlightPath,
+  pathForHighlightIndex
+} from '@/lib/scoring/highlight-paths';
 import { collectHighlights } from '@/lib/scoring/tips';
 import { resumeDataSchema } from '@/lib/resume-schema';
 
@@ -167,5 +171,23 @@ describe('pathForHighlightIndex', () => {
     const resume = makeResume();
     expect(pathForHighlightIndex(resume, 99)).toBeNull();
     expect(pathForHighlightIndex(resume, -1)).toBeNull();
+  });
+});
+
+describe('parseWorkHighlightPath', () => {
+  it('round-trips every generated path back to its coordinates', () => {
+    for (const entry of collectHighlightEntries(makeResume())) {
+      expect(parseWorkHighlightPath(entry.path)).toEqual({
+        workIndex: Number(entry.path.split('.')[2]),
+        positionIndex: Number(entry.path.split('.')[4]),
+        highlightIndex: Number(entry.path.split('.')[6])
+      });
+    }
+  });
+
+  it('rejects non-work or malformed paths', () => {
+    expect(parseWorkHighlightPath('sections.projects.0.highlights.0')).toBeNull();
+    expect(parseWorkHighlightPath('sections.work[0].positions[0].highlights[0]')).toBeNull();
+    expect(parseWorkHighlightPath('sections.work.0.positions.0.highlights')).toBeNull();
   });
 });

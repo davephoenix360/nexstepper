@@ -28,7 +28,15 @@ describe('buildBulletImprovementPrompt', () => {
     expect(prompt).toContain('worked on the thing');
     expect(prompt).toContain('Northwind');
     expect(prompt).toContain('Engineer');
-    expect(prompt).toContain('"occurrence":1');
+    expect(prompt).toContain('"path":"sections.work.0.positions.2.highlights.1"');
+  });
+
+  it('tells Scout to target the exact path, never company/title text', () => {
+    const prompt = buildBulletImprovementPrompt(issue());
+    expect(prompt).toMatch(/use the path value exactly/i);
+    expect(prompt).not.toContain('"matchCompany"');
+    expect(prompt).not.toContain('"matchRole"');
+    expect(prompt).not.toContain('"occurrence"');
   });
 
   it('asks for exactly one replaceWorkHighlight operation and leaves recompute to the route', () => {

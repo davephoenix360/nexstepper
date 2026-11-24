@@ -12,7 +12,7 @@
  */
 import type { ResumeData } from '@/lib/resume-schema';
 import type { ScoreBreakdown } from './score';
-import { collectHighlightEntries } from './highlight-paths';
+import { collectHighlightEntries, parseWorkHighlightPath } from './highlight-paths';
 
 /** The only bullet-level criteria surfaced in the editor in v1. */
 export type BulletIssueCriterion =
@@ -64,29 +64,11 @@ const ISSUE_COPY: Record<
 
 /**
  * Trim and collapse whitespace. Used both to count duplicate bullets
- * and by Scout's `replaceWorkHighlight` operation to find the exact
- * target, so the two surfaces cannot disagree about what "equal" means.
+ * and by Scout's `replaceWorkHighlight` operation to verify that the
+ * exactly-addressed bullet has not changed since it was flagged.
  */
 export function normalizeBulletText(text: string): string {
   return text.trim().replace(/\s+/g, ' ');
-}
-
-type WorkCoordinates = {
-  workIndex: number;
-  positionIndex: number;
-  highlightIndex: number;
-};
-
-function coordinatesFromPath(path: string): WorkCoordinates | null {
-  const match = /^sections\.work\.(\d+)\.positions\.(\d+)\.highlights\.(\d+)$/.exec(
-    path
-  );
-  if (!match) return null;
-  return {
-    workIndex: Number(match[1]),
-    positionIndex: Number(match[2]),
-    highlightIndex: Number(match[3])
-  };
 }
 
 /**
@@ -114,7 +96,7 @@ export function buildBulletIssues(
     // Never guess an icon for a bullet that no longer has a path.
     if (!measurement || !entry) break;
 
-    const coordinates = coordinatesFromPath(entry.path);
+    const coordinates = parseWorkHighlightPath(entry.path);
     if (!coordinates) continue;
 
     const workEntry = resume.sections.work?.[coordinates.workIndex];

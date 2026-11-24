@@ -160,7 +160,7 @@ export type BulletIssue = {
   currentText: string;
   company?: string;
   role?: string;
-  occurrence: number;        // among identical normalized texts in this role
+  occurrence: number;        // context only; the dotted path is authoritative
 };
 
 export function buildBulletIssues(
@@ -298,9 +298,11 @@ contain:
 - “change only this bullet”;
 - “do not invent facts or metrics”;
 - “if you need a fact, ask me”;
-- instruction to call `editResume.replaceWorkHighlight` with the exact
-  `oldText`, `matchCompany`, `matchRole` and `occurrence` from the issue;
-- instruction to measure the score again after applying.
+- instruction to call `editResume.replaceWorkHighlight` with the exact `path`
+  and `oldText` from the issue; company/role/occurrence are context, not
+  selectors;
+- instruction that the app recomputes the score automatically and that Scout
+  must not call `getAtsScore` in the handoff turn.
 
 The JD does not need duplicating: the chat system prompt already carries
 the canonical job context and score provenance.
@@ -318,24 +320,27 @@ Add a new operation to `editResume`:
 // lib/chat/tools/types.ts
 replaceWorkHighlight: z.array(
   z.object({
-    matchCompany: z.string().min(1),
-    matchRole: z.string().optional(),
+    path: z.string().regex(/^sections\.work\.\d+\.positions\.\d+\.highlights\.\d+$/),
     oldText: z.string().min(1),
-    newText: z.string().min(1),
-    occurrence: z.number().int().nonnegative().optional()
+    newText: z.string().min(1)
   })
 ).optional()
 ```
 
 `buildMergedData()` implementation:
 
-- find the company case-insensitively, narrow by role when supplied;
-- normalize `oldText` by trim + whitespace collapse;
-- find all highlights in that position with the normalized text;
-- if `occurrence` is supplied, use it; otherwise require exactly one match;
+- parse `path` into `{ workIndex, positionIndex, highlightIndex }`;
+- read that one leaf directly — never match by company or title;
+- normalize `oldText` by trim + whitespace collapse and require it to still
+  match the addressed leaf (freshness check);
 - replace only that element;
 - add an `applied` line naming the change;
-- add a `warnings` line and do nothing when no match or ambiguous.
+- add a `warnings` line and do nothing when the path is gone or text is stale.
+
+Company/title matching was tried first and failed the reported case: one
+company held both `Senior Software Engineer` and `Software Engineer`, so a
+substring selector matched two positions. The dotted path is already carried
+by every measured issue and addresses one leaf unambiguously.
 
 The existing conflict rule stays: `applied.length === 0` means no revision
 is written, and the warning goes back to the model so it can retry rather
@@ -447,9 +452,10 @@ Radix Tooltip is already in the UI stack.
 ## Risks
 
 1. **The model edits the wrong bullet.**
-   - Mitigation: `replaceWorkHighlight` targets exact text plus
-     company/role/occurrence; ambiguous matches fail with a warning; tests
-     assert no other field changes.
+   - Mitigation: `replaceWorkHighlight` targets the exact dotted path; a
+     stale `oldText` fails with a warning; tests cover duplicate bullet text
+     and overlapping role titles at one company, and assert no other field
+     changes.
 2. **The icon comes from a different computation than the tooltip.**
    - Mitigation: one `buildBulletIssues()` resolver feeds both; anti-drift
      tests assert counts and first-target equality.
@@ -501,10 +507,12 @@ Radix Tooltip is already in the UI stack.
   - agreement with `buildDynamicTips` and `buildMatchBreakdown`.
 - **Unit — prompt and tool**
   - `tests/unit/chat/bullet-improvement-prompt.test.ts`
-  - `tests/unit/chat/merge-resume.test.ts` (`replaceWorkHighlight`, lines 434–618)
+  - `tests/unit/chat/tools-schema.test.ts` (`replaceWorkHighlightSchema`)
+  - `tests/unit/chat/merge-resume.test.ts` (`replaceWorkHighlight`)
+  - `tests/unit/scoring/highlight-paths.test.ts` (`parseWorkHighlightPath`)
   - exact prompt content and 4,000-char bound;
-  - single-bullet replacement;
-  - duplicate-text ambiguity;
+  - single-bullet replacement by exact path;
+  - duplicate bullet text and overlapping role titles at one company;
   - no-op writes no revision;
   - other highlights and fields untouched.
 - **Interaction**

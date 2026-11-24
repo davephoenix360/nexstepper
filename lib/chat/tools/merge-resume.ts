@@ -1,5 +1,6 @@
 import type { ResumeData, ResumeSections } from '@/lib/resume-schema';
 import { normalizeBulletText } from '@/lib/scoring/bullet-issues';
+import { parseWorkHighlightPath } from '@/lib/scoring/highlight-paths';
 import type { EditResumeArgs } from './types';
 
 /**
@@ -239,70 +240,44 @@ export function buildMergedData(existing: ResumeData, args: EditResumeArgs): Mer
   // The single-bullet operation used by the editor's attention icons. Unlike
   // `updateWork.set.highlights`, it never asks the model to echo the rest of
   // the array back — one wrong neighbour would silently erase real content.
+  // It also targets by the exact editor path, never by company/title matching:
+  // "Software Engineer" is a substring of "Senior Software Engineer" at the
+  // same company, which made a monitored handoff fail rather than edit.
   for (const edit of args.replaceWorkHighlight ?? []) {
-    const workCandidates = sections.work
-      .map((entry, index) => ({ entry, index }))
-      .filter(({ entry }) => includesCI(entry.company, edit.matchCompany));
-    if (workCandidates.length !== 1) {
+    const coordinates = parseWorkHighlightPath(edit.path);
+    if (!coordinates) {
+      warnings.push(`Invalid flagged bullet path "${edit.path}"; nothing changed.`);
+      continue;
+    }
+
+    const { workIndex, positionIndex, highlightIndex } = coordinates;
+    const entry = sections.work[workIndex];
+    const position = entry?.positions[positionIndex];
+    const currentText = position?.highlights[highlightIndex];
+    if (entry === undefined || position === undefined || currentText === undefined) {
       warnings.push(
-        workCandidates.length === 0
-          ? `No work entry matched company "${edit.matchCompany}" for the flagged bullet.`
-          : `Company "${edit.matchCompany}" matched ${workCandidates.length} work entries; supply the exact company.`
+        `The flagged bullet path "${edit.path}" no longer exists in this resume; nothing changed.`
       );
       continue;
     }
 
-    const { entry, index: workIdx } = workCandidates[0]!;
-    const positionCandidates = entry.positions
-      .map((position, index) => ({ position, index }))
-      .filter(({ position }) =>
-        edit.matchRole !== undefined
-          ? includesCI(position.title, edit.matchRole)
-          : true
-      );
-    if (positionCandidates.length !== 1) {
+    if (normalizeBulletText(currentText) !== normalizeBulletText(edit.oldText)) {
       warnings.push(
-        positionCandidates.length === 0
-          ? `Found ${entry.company} but no position matched role "${edit.matchRole}".`
-          : `Found ${positionCandidates.length} positions at ${entry.company}; supply a more exact role.`
-      );
-      continue;
-    }
-
-    const { position, index: posIdx } = positionCandidates[0]!;
-    const normalizedOld = normalizeBulletText(edit.oldText);
-    const matches = position.highlights
-      .map((text, index) => ({ text, index }))
-      .filter(({ text }) => normalizeBulletText(text) === normalizedOld);
-    let highlightIdx: number | null = null;
-
-    if (edit.occurrence !== undefined) {
-      highlightIdx = matches[edit.occurrence]?.index ?? null;
-      if (highlightIdx === null) {
-        warnings.push(
-          `Found ${matches.length} copies of the flagged bullet at ${entry.company}; occurrence ${edit.occurrence} does not exist.`
-        );
-        continue;
-      }
-    } else if (matches.length === 1) {
-      highlightIdx = matches[0]!.index;
-    } else {
-      warnings.push(
-        matches.length === 0
-          ? `The flagged bullet was not found at ${entry.company}: "${edit.oldText}".`
-          : `The flagged bullet appears ${matches.length} times at ${entry.company}; supply its occurrence.`
+        `The flagged bullet at ${edit.path} no longer matches "${edit.oldText}"; nothing changed.`
       );
       continue;
     }
 
     const nextHighlights = [...position.highlights];
-    nextHighlights[highlightIdx] = edit.newText;
+    nextHighlights[highlightIndex] = edit.newText;
     sections.work = sections.work.map((entryAt, i) =>
-      i === workIdx
+      i === workIndex
         ? {
             ...entryAt,
             positions: entryAt.positions.map((positionAt, j) =>
-              j === posIdx ? { ...positionAt, highlights: nextHighlights } : positionAt
+              j === positionIndex
+                ? { ...positionAt, highlights: nextHighlights }
+                : positionAt
             )
           }
         : entryAt
