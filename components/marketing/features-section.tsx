@@ -97,8 +97,8 @@ export function FeaturesSection() {
           />
           <FeatureCard
             icon={<Zap className="size-5" />}
-            title="Inline AI rewrites"
-            description="Flag a weak bullet, get three alternatives grounded in the job description, and keep the one you like. Pro."
+            title="Bullet-level ATS flags"
+            description="Weak work bullets carry an attention icon with the reason and the fix. Click it and Scout opens with that bullet already in context."
           />
         </div>
       </div>

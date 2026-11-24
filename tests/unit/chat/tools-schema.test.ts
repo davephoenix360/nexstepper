@@ -23,6 +23,7 @@ import {
   getAtsScoreArgsSchema,
   getPrintSettingsArgsSchema,
   PRINTABLE_SECTION_SLUGS,
+  replaceWorkHighlightSchema,
   switchTemplateArgsSchema,
   updatePrintHiddenSectionsArgsSchema,
   updatePrintSettingsArgsSchema,
@@ -100,6 +101,49 @@ describe('editResumeArgsSchema — no identifier the model cannot see', () => {
 
   it('rejects an unknown section slug', () => {
     expect(editResumeArgsSchema.safeParse({ clearSection: ['nonsense'] }).success).toBe(false);
+  });
+});
+
+describe('replaceWorkHighlightSchema — exact path is the only selector', () => {
+  it('accepts the dotted path carried by a BulletIssue', () => {
+    const parsed = replaceWorkHighlightSchema.safeParse({
+      path: 'sections.work.0.positions.1.highlights.2',
+      oldText: 'worked on the thing',
+      newText: 'Led a migration that cut deploy time by 40%.'
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it('refuses company/title selectors and non-work paths', () => {
+    const selectors = {
+      matchCompany: 'Halcyon Systems',
+      matchRole: 'Software Engineer',
+      oldText: 'worked on the thing',
+      newText: 'Led a migration.'
+    };
+
+    expect(replaceWorkHighlightSchema.safeParse(selectors).success).toBe(false);
+    expect(
+      replaceWorkHighlightSchema.safeParse({
+        ...selectors,
+        path: 'sections.work[0].positions[1].highlights[2]'
+      }).success
+    ).toBe(false);
+    expect(
+      replaceWorkHighlightSchema.safeParse({
+        ...selectors,
+        path: 'sections.projects.0.highlights.2'
+      }).success
+    ).toBe(false);
+  });
+
+  it('requires the freshness text and a replacement', () => {
+    expect(
+      replaceWorkHighlightSchema.safeParse({
+        path: 'sections.work.0.positions.1.highlights.2'
+      }).success
+    ).toBe(false);
   });
 });
 

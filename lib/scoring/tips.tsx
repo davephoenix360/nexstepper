@@ -44,6 +44,7 @@ import { SOFT_SKILLS, SOFT_SKILL_VARIANTS, STOP_WORDS, WEAK_VERBS } from './dict
 import { jobTokensWithoutStopWords as sharedJobTokensWithoutStopWords } from './jd-tokens';
 import { flattenResumeText } from './similarity';
 import { resumeDataToScoreable } from './resume-adapter';
+import { buildBulletIssues } from './bullet-issues';
 
 // ---------------------------------------------------------------------------
 // Static fallback tips — always present, plain strings.
@@ -235,20 +236,22 @@ export function buildDynamicTips(
     const jevBullets = breakdown.jevBullets;
 
     if (jevBullets && jevBullets.length === highlights.length) {
-      // Level 2 on the impact rubric is "states a clear accomplishment
-      // with a result or effect"; below that is a duty or an activity.
-      const weakImpact = jevBullets
-        .map((b, i) => ({ b, i }))
-        .filter(({ b }) => b.impact < 1.5);
+      // One resolver feeds both the editor's attention icons and this
+      // tooltip. Counting `jevBullets` here instead would let the two
+      // surfaces drift the moment a threshold changes.
+      const bulletIssues = buildBulletIssues(breakdown, resume);
+      const weakImpact = bulletIssues.filter(
+        (issue) => issue.criterion === 'Accomplishment Focus'
+      );
       if (weakImpact.length > 0) {
         const examples = weakImpact
           .slice(0, MAX_WEAK_VERBS_IN_TIP)
-          .map(({ i }) => highlights[i]!)
-          .filter(Boolean);
+          .map((issue) => issue.currentText);
         out['Accomplishment Focus'] = (
           <>
             <strong>{weakImpact.length} of {highlights.length}</strong> work
-            bullets describe a task rather than an outcome
+            bullets describe a task rather than an outcome — see the marked
+            bullets
             {examples.length > 0 ? (
               <>
                 {' '}
@@ -261,20 +264,17 @@ export function buildDynamicTips(
         );
       }
 
-      // Level 1 on the opening rubric is "a plain active verb with no
-      // particular scope"; below that is passive or a generic action.
-      const weakOpenings = jevBullets
-        .map((b, i) => ({ b, i }))
-        .filter(({ b }) => b.opening < 1.5);
+      const weakOpenings = bulletIssues.filter(
+        (issue) => issue.criterion === 'Action Verb Usage'
+      );
       if (weakOpenings.length > 0) {
         const examples = weakOpenings
           .slice(0, MAX_WEAK_VERBS_IN_TIP)
-          .map(({ i }) => highlights[i]!)
-          .filter(Boolean);
+          .map((issue) => issue.currentText);
         out['Action Verb Usage'] = (
           <>
             <strong>{weakOpenings.length} of {highlights.length}</strong> bullets
-            open weakly or passively
+            open weakly or passively — see the marked bullets
             {examples.length > 0 ? (
               <>
                 {' '}

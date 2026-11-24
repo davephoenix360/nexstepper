@@ -64,11 +64,7 @@ import {
 import { triggerPrint } from '@/lib/print/safe-print';
 import { PrintSettingsVars } from './print-settings-vars';
 import { saveResumeAction, autosaveResumeAction } from '@/app/(dashboard)/dashboard/resumes/actions';
-import {
-  subscribeToInlineIssueApply,
-  InlineIssueTip,
-  pathToSectionId
-} from '@/lib/inline-issue';
+import { InlineIssueTip, pathToSectionId } from '@/lib/inline-issue';
 import type { DynamicTips } from '@/lib/scoring/tips';
 import type { PrintSettings } from '@/lib/print-settings';
 import { useDebouncedAutosave } from './use-debounced-autosave';
@@ -288,37 +284,6 @@ export function EditableResume({
   // preventDefault (handled inside the hook). Disabled while a save
   // is in flight so a second Ctrl+S can't pile on top of the first.
   useSaveShortcut(submit, { disabled: pending });
-
-  // Inline-issue bridge — the scorecard's popover dispatches a
-  // window event when the user clicks Apply (see
-  // `lib/inline-issue/apply-bridge.ts`). We write the rewrite
-  // into our RHF form and trigger the same save pipeline as the
-  // Save button. Plan: docs/plans/inline-issue-surface.md
-  // §"Architecture".
-  //
-  // Cast `form` to a loose record shape because the resolver
-  // cast earlier (`as never`) widens the form's API; this matches
-  // the pattern used by the template picker one effect above.
-  React.useEffect(() => {
-    const looseForm = form as unknown as {
-      setValue: (
-        path: string,
-        value: string,
-        opts?: { shouldDirty?: boolean; shouldTouch?: boolean }
-      ) => void;
-    };
-    return subscribeToInlineIssueApply((event) => {
-      looseForm.setValue(event.path, event.text, {
-        shouldDirty: true,
-        shouldTouch: true
-      });
-      // Save + recompute. We reuse the same submit() so the
-      // server-side validation pipeline runs identically. The
-      // scorecard listens for `revalidatePath` on the variant
-      // route and re-renders the new scores via `router.refresh`.
-      submit();
-    });
-  }, [form, submit]);
 
   // Label for the shortcut shown in the Save button's tooltip. We
   // start with the Win/Linux default to keep SSR + first client

@@ -59,6 +59,10 @@ export const CHAT_TOOLS = {
       'a company has more than one role). To create something new use `addWork` /',
       '`addEducation` / `addProject` / `addSkills`.',
       '',
+      'For a bullet flagged in the editor, use `replaceWorkHighlight` with the exact',
+      '`path` from the user message. It targets one leaf directly — never by company',
+      'or title — so overlapping roles at the same employer cannot be confused.',
+      '',
       '`addSkills` merges keywords into an existing category, so "add Python" keeps',
       'the user\'s other skills.'
     ].join('\n'),

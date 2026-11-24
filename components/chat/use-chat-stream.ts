@@ -71,6 +71,20 @@ export type UseChatStreamOptions = {
    * The parent is expected to call `router.refresh()`.
    */
   onResumeUpdated?: () => void;
+  /**
+   * Called when the server reports that a successful single-bullet edit
+   * was followed by a fresh score snapshot. The parent is expected to
+   * refresh once; `resume_updated` and `score_updated` arrive in the same
+   * turn, so both callbacks may fire for one edit.
+   */
+  onScoreUpdated?: () => void;
+  /**
+   * Called when a successful bullet edit was saved but its score snapshot
+   * recomputation failed. The parent still refreshes the saved edit and
+   * tells the user how to retry; without this event the failure is only in
+   * the server log.
+   */
+  onScoreRefreshFailed?: () => void;
 };
 
 type StreamState = {
@@ -132,7 +146,9 @@ export function useChatStream({
   onDone,
   onError,
   onUsage,
-  onResumeUpdated
+  onResumeUpdated,
+  onScoreUpdated,
+  onScoreRefreshFailed
 }: UseChatStreamOptions) {
   /**
    * Accumulated messages for the current session.
@@ -354,6 +370,19 @@ export function useChatStream({
               // The tool wrote a revision server-side. Revalidate so the
               // editor reflects the edit the assistant just described.
               onResumeUpdated?.();
+              break;
+
+            case 'score_updated':
+              // The persisted snapshot was recomputed after a surgical
+              // bullet edit. The attention icons are derived from that
+              // snapshot, so they must not outlive the fix.
+              onScoreUpdated?.();
+              break;
+
+            case 'score_refresh_failed':
+              // The edit landed but the snapshot did not. The parent still
+              // needs to refresh the saved text and surface the retry path.
+              onScoreRefreshFailed?.();
               break;
 
             case 'done':

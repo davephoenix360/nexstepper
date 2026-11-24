@@ -38,8 +38,7 @@ export function CtaSection({
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
             Unlimited resumes, ATS scoring, and AI chat are free today. Pro
-            adds generous AI chat, inline AI rewrites on any bullet, and
-            priority email support.
+            adds generous AI chat and priority email support.
           </p>
           <div className="mt-8">
             <Button asChild size="lg" className="h-11 px-6 text-base">

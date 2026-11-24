@@ -18,7 +18,7 @@
  * Example usage in a Server Action:
  *
  * ```ts
- * export async function enrichBulletAction(input: unknown) {
+ * export async function exampleProAction(input: unknown) {
  *   try {
  *     await requirePro();
  *   } catch (err) {

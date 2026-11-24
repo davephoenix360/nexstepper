@@ -98,15 +98,16 @@ export default function TermsPage() {
       <p>
         <strong>Free tier.</strong> The Free tier is free of charge and
         includes unlimited resume creation and ATS feedback, plus up to
-        20 AI chat messages per day. Free users do <em>not</em> get access
-        to AI-powered bullet rewrites; that is a Pro feature.
+        20 AI chat messages per day. Free users get the same bullet-level
+        ATS guidance and can ask Scout to make edits within that daily
+        allowance.
       </p>
       <p>
         <strong>Pro tier.</strong> The Pro tier is billed monthly through
         Stripe. The current price is displayed on the{' '}
         <a href="/pricing">Pricing</a> page before you upgrade.
-        Pro includes unlimited chat, AI rewrites, public sharing, and any
-        other Pro-marked feature.
+        Pro includes a much higher AI chat allowance and any other
+        Pro-marked feature.
       </p>
       <p>
         <strong>Billing cycle.</strong> Your subscription renews

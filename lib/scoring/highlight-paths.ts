@@ -9,11 +9,11 @@
  * a weak bullet in the list is known — but the list is flattened, so
  * the index alone does not say WHICH bullet it is.
  *
- * That mattered because the inline-issue popover anchored to
- * `defaultPathForCriterion`, which for every bullet-shaped criterion
- * was **bullet #1** — while the advice beside it named three specific
- * bullets. So the AI rewrite could rewrite a line the advice never
- * mentioned.
+ * That matters because impact/action-verb advice and the Scout handoff
+ * both need to name exactly one bullet. Anchoring every bullet-shaped
+ * criterion to **bullet #1** meant a rewrite could touch a line the
+ * advice never mentioned; the attention icon must set Scout on the
+ * same bullet the marker flags.
  *
  * This module keeps the coordinates, so a bullet's index in the
  * flattened list and the path that addresses it travel together.
@@ -81,4 +81,33 @@ export function pathForHighlightIndex(
 ): string | null {
   if (!Number.isInteger(index) || index < 0) return null;
   return collectHighlightEntries(resume)[index]?.path ?? null;
+}
+
+export type WorkHighlightCoordinates = {
+  workIndex: number;
+  positionIndex: number;
+  highlightIndex: number;
+};
+
+/**
+ * Parse the dotted editor path back into array coordinates.
+ *
+ * This is the inverse of `collectHighlightEntries()`'s path builder and is
+ * the ONLY targeting input the surgical Scout edit accepts. Company/title
+ * matching is ambiguous when someone held several roles at one employer —
+ * "Software Engineer" is a substring of "Senior Software Engineer" — while
+ * a path addresses one leaf unambiguously.
+ */
+export function parseWorkHighlightPath(
+  path: string
+): WorkHighlightCoordinates | null {
+  const match = /^sections\.work\.(\d+)\.positions\.(\d+)\.highlights\.(\d+)$/.exec(
+    path
+  );
+  if (!match) return null;
+  return {
+    workIndex: Number(match[1]),
+    positionIndex: Number(match[2]),
+    highlightIndex: Number(match[3])
+  };
 }

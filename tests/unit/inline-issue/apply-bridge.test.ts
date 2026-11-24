@@ -1,40 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  dispatchInlineIssueApply,
-  subscribeToInlineIssueApply,
-  INLINE_ISSUE_APPLY_EVENT,
   dispatchInlineIssueTip,
   subscribeToInlineIssueTip,
   INLINE_ISSUE_TIP_EVENT
 } from '@/lib/inline-issue/apply-bridge';
 
 /**
- * Tests for the apply-bridge pub/sub.
+ * Tests for the inline-issue tip bridge.
  *
- * The bridge is the scorecard → editor communication channel for
- * the inline-issue surface (see `lib/inline-issue/apply-bridge.ts`).
- * The scorecard calls `dispatchInlineIssueApply({ path, text })`
- * when the user clicks Apply; the editor subscribes via
- * `subscribeToInlineIssueApply()` and writes the rewrite into
- * its RHF form.
+ * The scorecard (right rail) and the editor (left column) are sibling
+ * Client Components with separate state, including the editor's RHF
+ * form. A dim-bar or skill-gap click must make the editor scroll to the
+ * measured leaf, pulse its section header and render the scorecard's
+ * tip — without lifting the form up to the page level.
  *
- * These tests cover the bridge in isolation — the scorecard +
- * editor integration is exercised by the manual smoke test
- * (Plan §"Test plan" #7).
+ * The old Apply half of this bridge carried Pro-only AI rewrites into
+ * the editor. That surface is retired; flagged bullets hand off to
+ * Scout instead. This suite pins the one bridge that remains.
  *
  * We polyfill `window` so the bridge can dispatch + subscribe.
  */
 
-// Minimal window-ish shape — the bridge only touches
-// addEventListener / removeEventListener / dispatchEvent.
 type FakeWindow = {
   addEventListener(name: string, fn: (e: Event) => void): void;
   removeEventListener(name: string, fn: (e: Event) => void): void;
   dispatchEvent(e: Event): boolean;
 };
 
-describe('apply-bridge', () => {
+describe('inline-issue tip bridge', () => {
   let originalWindow: FakeWindow | undefined;
   let listeners: Map<string, Set<(e: Event) => void>>;
 
@@ -70,107 +64,80 @@ describe('apply-bridge', () => {
     }
   });
 
-  it('exports a stable event name', () => {
-    expect(INLINE_ISSUE_APPLY_EVENT).toBe('nexstepper:inline-issue:apply');
+  it('exports a stable tip event name', () => {
+    expect(INLINE_ISSUE_TIP_EVENT).toBe('nexstepper:inline-issue:tip');
   });
 
-  it('dispatch + subscribe round-trips the payload', () => {
+  it('dispatch + subscribe round-trips the tip payload', () => {
     const handler = vi.fn();
-    const unsubscribe = subscribeToInlineIssueApply(handler);
-    dispatchInlineIssueApply({
-      path: 'sections.work[0].highlights[0]',
-      text: 'New bullet text'
+    const unsubscribe = subscribeToInlineIssueTip(handler);
+    dispatchInlineIssueTip({
+      sectionSlug: 'experience',
+      sectionTitle: 'Experience',
+      criterion: 'ATS Keyword Match'
     });
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler).toHaveBeenCalledWith({
-      path: 'sections.work[0].highlights[0]',
-      text: 'New bullet text'
+      sectionSlug: 'experience',
+      sectionTitle: 'Experience',
+      criterion: 'ATS Keyword Match'
     });
     unsubscribe();
   });
 
   it('unsubscribe stops further deliveries', () => {
     const handler = vi.fn();
-    const unsubscribe = subscribeToInlineIssueApply(handler);
-    dispatchInlineIssueApply({ path: 'a', text: '1' });
+    const unsubscribe = subscribeToInlineIssueTip(handler);
+    dispatchInlineIssueTip({
+      sectionSlug: 'work',
+      sectionTitle: 'Experience',
+      criterion: 'Accomplishment Focus'
+    });
+    expect(handler).toHaveBeenCalledTimes(1);
     unsubscribe();
-    dispatchInlineIssueApply({ path: 'a', text: '2' });
+    dispatchInlineIssueTip({
+      sectionSlug: 'work',
+      sectionTitle: 'Experience',
+      criterion: 'Accomplishment Focus'
+    });
+    // The first delivery happened before the unsubscribe; only the
+    // second dispatch must be suppressed.
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it('multiple subscribers each receive the payload', () => {
     const a = vi.fn();
     const b = vi.fn();
-    const unsubA = subscribeToInlineIssueApply(a);
-    const unsubB = subscribeToInlineIssueApply(b);
-    dispatchInlineIssueApply({ path: 'x', text: 'y' });
-    expect(a).toHaveBeenCalledWith({ path: 'x', text: 'y' });
-    expect(b).toHaveBeenCalledWith({ path: 'x', text: 'y' });
+    const unsubA = subscribeToInlineIssueTip(a);
+    const unsubB = subscribeToInlineIssueTip(b);
+    dispatchInlineIssueTip({
+      sectionSlug: 'skills',
+      sectionTitle: 'Skills',
+      criterion: 'Intent Coverage'
+    });
+    expect(a).toHaveBeenCalledWith({
+      sectionSlug: 'skills',
+      sectionTitle: 'Skills',
+      criterion: 'Intent Coverage'
+    });
+    expect(b).toHaveBeenCalledWith({
+      sectionSlug: 'skills',
+      sectionTitle: 'Skills',
+      criterion: 'Intent Coverage'
+    });
     unsubA();
     unsubB();
   });
 
   it('dispatch is a no-op when window is undefined', () => {
-    // Simulate SSR — no window. Should not throw.
     (globalThis as { window?: FakeWindow }).window = undefined;
     expect(() =>
-      dispatchInlineIssueApply({ path: 'x', text: 'y' })
+      dispatchInlineIssueTip({
+        sectionSlug: 'x',
+        sectionTitle: 'X',
+        criterion: 'ATS Keyword Match'
+      })
     ).not.toThrow();
-    // Restore for afterEach.
     (globalThis as { window?: FakeWindow }).window = originalWindow;
-  });
-
-  describe('tip-event bridge', () => {
-    it('exports a stable tip event name', () => {
-      expect(INLINE_ISSUE_TIP_EVENT).toBe('nexstepper:inline-issue:tip');
-    });
-
-    it('dispatch + subscribe round-trips the tip payload', () => {
-      const handler = vi.fn();
-      const unsubscribe = subscribeToInlineIssueTip(handler);
-      dispatchInlineIssueTip({
-        sectionSlug: 'experience',
-        sectionTitle: 'Experience',
-        criterion: 'ATS Keyword Match'
-      });
-      expect(handler).toHaveBeenCalledTimes(1);
-      expect(handler).toHaveBeenCalledWith({
-        sectionSlug: 'experience',
-        sectionTitle: 'Experience',
-        criterion: 'ATS Keyword Match'
-      });
-      unsubscribe();
-    });
-
-    it('tip subscribers do not receive apply events (cross-talk guard)', () => {
-      const tipHandler = vi.fn();
-      const applyHandler = vi.fn();
-      const unsubTip = subscribeToInlineIssueTip(tipHandler);
-      const unsubApply = subscribeToInlineIssueApply(applyHandler);
-      dispatchInlineIssueTip({
-        sectionSlug: 'skills',
-        sectionTitle: 'Skills',
-        criterion: 'Intent Coverage'
-      });
-      expect(tipHandler).toHaveBeenCalledTimes(1);
-      expect(applyHandler).not.toHaveBeenCalled();
-      dispatchInlineIssueApply({ path: 'x', text: 'y' });
-      expect(applyHandler).toHaveBeenCalledTimes(1);
-      expect(tipHandler).toHaveBeenCalledTimes(1); // unchanged
-      unsubTip();
-      unsubApply();
-    });
-
-    it('tip dispatch is a no-op when window is undefined', () => {
-      (globalThis as { window?: FakeWindow }).window = undefined;
-      expect(() =>
-        dispatchInlineIssueTip({
-          sectionSlug: 'x',
-          sectionTitle: 'X',
-          criterion: 'ATS Keyword Match'
-        })
-      ).not.toThrow();
-      (globalThis as { window?: FakeWindow }).window = originalWindow;
-    });
   });
 });

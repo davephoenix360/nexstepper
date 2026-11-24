@@ -79,20 +79,11 @@ export function ScorecardPanel({
    * Inline-issue surface integration — passed straight through to
    * each <DimensionBar>. When provided, each dim bar becomes a
    * button that triggers `onIssueDimClick({ criterion, path })`.
-   * The parent (ScorecardClient) decides what to do (Free: pulse
-   * + inline tip. Pro: pulse + inline tip + AI popover).
-   *
-   * Plan: docs/plans/inline-issue-surface.md §"User-visible behavior".
+   * The parent (ScorecardClient) scrolls to the relevant resume
+   * section and shows the measured inline tip for every user.
    */
   onIssueDimClick,
-  onIssueSkillClick,
-  /**
-   * Whether to show the "Rewrite with AI" CTA next to each dim
-   * bar. The CTAs themselves live in the bar; this just toggles
-   * visibility. Server-side `requirePro()` is the authoritative
-   * gate — this is cosmetic.
-   */
-  showProRewriteCta = false
+  onIssueSkillClick
 }: {
   breakdown?: ScoreBreakdown | null;
   /**
@@ -112,7 +103,6 @@ export function ScorecardPanel({
     bucket: 'mustHave' | 'niceToHave' | 'implicit';
     criterion: 'Intent Coverage';
   }) => void;
-  showProRewriteCta?: boolean;
 }) {
   if (!breakdown) {
     return (
@@ -268,7 +258,6 @@ export function ScorecardPanel({
           // missing tokens and does work, so it is the fallback.
           tip={keywordsBarTip(dynamicTips)}
           onIssueClick={dimHandler?.('ATS Keyword Match')}
-          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Format"
@@ -276,7 +265,6 @@ export function ScorecardPanel({
           testId="score-dim-format"
           tip={dynamicTips['Section Completeness'] ?? CRITERIA_TIPS['Section Completeness']}
           onIssueClick={dimHandler?.('Section Completeness')}
-          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Impact"
@@ -284,7 +272,6 @@ export function ScorecardPanel({
           testId="score-dim-impact"
           tip={dynamicTips['Accomplishment Focus'] ?? CRITERIA_TIPS['Accomplishment Focus']}
           onIssueClick={dimHandler?.('Accomplishment Focus')}
-          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Experience match"
@@ -292,7 +279,6 @@ export function ScorecardPanel({
           testId="score-dim-experience-match"
           tip={dynamicTips['Tailoring'] ?? CRITERIA_TIPS['Tailoring']}
           onIssueClick={dimHandler?.('Tailoring')}
-          showProRewriteCta={showProRewriteCta}
         />
         {/* v2 dimensions — always rendered; fall back to neutral 50
             when no signal is available (legacy rows, failed extractions,
@@ -303,7 +289,6 @@ export function ScorecardPanel({
           testId="score-dim-intent-coverage"
           tip={dynamicTips['Intent Coverage'] ?? CRITERIA_TIPS['Intent Coverage']}
           onIssueClick={dimHandler?.('Intent Coverage')}
-          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Role fit"
@@ -311,7 +296,6 @@ export function ScorecardPanel({
           testId="score-dim-role-fit"
           tip={dynamicTips['Role Fit'] ?? CRITERIA_TIPS['Role Fit']}
           onIssueClick={dimHandler?.('Role Fit')}
-          showProRewriteCta={showProRewriteCta}
         />
         <DimensionBar
           label="Seniority fit"
@@ -319,7 +303,6 @@ export function ScorecardPanel({
           testId="score-dim-seniority-fit"
           tip={dynamicTips['Seniority Fit'] ?? CRITERIA_TIPS['Seniority Fit']}
           onIssueClick={dimHandler?.('Seniority Fit')}
-          showProRewriteCta={showProRewriteCta}
         />
       </ul>
 

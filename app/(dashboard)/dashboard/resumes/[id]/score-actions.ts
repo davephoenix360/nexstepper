@@ -1,24 +1,16 @@
 'use server';
 
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 import { auth } from '@/lib/auth';
-import {
-  getResume,
-  recordScoreSnapshot,
-  type MatchBreakdown
-} from '@/lib/db/queries';
-import { scoreResumeHybridFromEnvelope } from '@/lib/scoring-async/score-hybrid';
-import { buildDynamicTips, type DynamicTips } from '@/lib/scoring/tips';
+import { getResume, type MatchBreakdown } from '@/lib/db/queries';
+import { type DynamicTips } from '@/lib/scoring/tips';
 import type { ScoreBreakdown } from '@/lib/scoring';
 import {
-  buildMatchBreakdown,
-  maybeAppendSkillGapEntry
-} from '@/lib/inline-issue/build-match-breakdown';
-import { trackServer } from '@/lib/posthog/server';
-import { PostHogEvents } from '@/lib/posthog/events';
+  revalidateVariantScorePaths,
+  recomputeVariantScore
+} from '@/lib/scoring-async/recompute-variant';
 
 /**
  * Server Action: re-run the ATS scoring engine for a variant using
@@ -107,48 +99,19 @@ export async function recomputeScoreAction(
   }
 
   try {
-    const breakdown = await scoreResumeHybridFromEnvelope(data, data.jobContext);
-    const tips = buildDynamicTips(breakdown, data, data.jobContext);
-    // Per-leaf MatchBreakdown rows for the inline-issue surface.
-    // The scorecard's controller reads these to anchor the
-    // popovers; the dim bars still fall back to the
-    // `defaultPathForCriterion` heuristic when the breakdown is
-    // missing (first load + legacy rows).
-    const matchBreakdown = maybeAppendSkillGapEntry(
-      buildMatchBreakdown(breakdown, data),
-      breakdown
-    );
-    // Persist a snapshot so the next page load has authoritative
-    // per-leaf paths without re-running the scoring engine.
-    //
-    // The FULL breakdown is persisted too, not just the headline. The
-    // page used to recompute the score with the sync engine on every
-    // render, so the enhanced score flashed on screen and was then
-    // replaced by the older token-based one — the user watched the
-    // number change twice. Persisting the breakdown means the page
-    // renders exactly what this recompute produced.
-    //
-    // Silently no-ops if the resume ownership re-check fails
-    // (defensive — the action already validated above).
-    await recordScoreSnapshot(parsed.data.resumeId, session.user.id, {
-      matchScore: breakdown.overallScore,
-      matchBreakdown,
-      dynamicTips: tips,
-      breakdown,
-      computedInMs: breakdown.computedInMs
+    // One persistence path for both the Recompute button and Scout's
+    // post-edit recompute. Passing the already-loaded envelope avoids a
+    // second read here; the chat route omits `source` because it must
+    // score the revision the model just wrote.
+    const scored = await recomputeVariantScore(resume.id, session.user.id, {
+      data,
+      job: data.jobContext
     });
-    trackServer(session.user.id, PostHogEvents.SCORE_COMPUTED, {
-      resumeId: parsed.data.resumeId,
-      overallScore: breakdown.overallScore,
-      computedInMs: breakdown.computedInMs
-    });
-    revalidatePath(`/dashboard/resumes/${parsed.data.resumeId}`);
-    // The variant LIST also renders a score badge, and it reads the
-    // snapshot this recompute just wrote. Without revalidating it,
-    // the badge keeps the number from before the recompute — which
-    // is exactly the "the score isn't updating" symptom.
-    revalidatePath('/dashboard/resumes');
-    return { ok: true, data: { breakdown, tips, matchBreakdown } };
+    // Server Actions DO get their revalidations flushed. Chat turns do not
+    // (their stream outlives the handler Response), so the shared helper
+    // persists only and each caller owns its own refresh mechanism.
+    revalidateVariantScorePaths(resume.id);
+    return { ok: true, data: scored };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {

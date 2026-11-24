@@ -23,7 +23,7 @@ links, and (planned) peer reviews + real-time collaboration.
 | Import from PDF / DOCX / pasted text | ✅ | `lib/resume-parser/` |
 | JD parser → structured `JobPostingData` | ✅ | `lib/jd-parser/` |
 | ATS scoring v2 — 7 dimensions (Pearson r = 0.907 on 50-row validation corpus) | ✅ | `lib/scoring/`, `docs/plans/ats-scoring-v2.md` |
-| Inline issue surface — dim-bar click → Free tip or Pro AI rewrite | ✅ | `lib/inline-issue/`, `docs/plans/inline-issue-surface.md` |
+| Inline issue surface — dim-bar tips + flagged-bullet handoff to Scout | ✅ | `lib/inline-issue/`, `components/editable/bullet-attention.tsx`, `docs/plans/inline-bullet-issues-to-scout.md` |
 | AI chat assistant — streaming SSE + tool registry + 20-turn/day Free quota | ✅ | `app/api/chat/`, `lib/chat/`, `docs/plans/ai-chat-assistant.md` |
 | Public share link at `/r/{token}` (SHA-256-hashed, 3 revocation modes) | ✅ | `lib/share/`, `app/r/[token]/page.tsx` |
 | PDF export via browser print-to-PDF | ✅ | AGENTS.md Phase handoff |

@@ -8,10 +8,9 @@ import { cn } from "@/lib/utils";
 /**
  * Popover — shadcn new-york style, built on the Radix UI primitive.
  *
- * Used by the inline-issue surface (`lib/inline-issue/inline-issue-popover.tsx`)
- * to anchor AI rewrite suggestions to the affected EditableText leaf. The
- * Radix primitive handles focus trapping, outside-click dismissal, and
- * Escape-to-close out of the box.
+ * A generic anchored overlay for app UI. The Radix primitive handles
+ * focus trapping, outside-click dismissal, and Escape-to-close out of
+ * the box.
  *
  * Conventions (match the rest of the shadcn UI in this repo):
  *  - `data-slot` on every primitive so consumers can target sub-pieces.
@@ -20,8 +19,7 @@ import { cn } from "@/lib/utils";
  *  - `text-balance` on the bubble so the line wraps gracefully.
  *  - `z-50` to sit above sheet/modal overlays but below the toast layer.
  *
- * Why Radix Popover (and not a hand-rolled popover): the inline-issue
- * surface is the only place this primitive is used, and rolling our own
+ * Why Radix Popover (and not a hand-rolled popover): rolling our own
  * focus trap + outside-click handler is exactly the kind of thing that
  * drifts under iterative copy-and-paste. Radix already covers keyboard
  * a11y (Escape, Tab, focus restoration) and we get it without a homegrown

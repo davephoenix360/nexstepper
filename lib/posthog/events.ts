@@ -35,7 +35,6 @@ export const PostHogEvents = {
   // ── Scoring + AI features ───────────────────────────────────────────────
   SCORE_COMPUTED: 'score_computed',
   CHAT_MESSAGE_SENT: 'chat_message_sent',
-  BULLET_ENRICHED: 'bullet_enriched',
   JD_PARSED: 'jd_parsed',
   APPLICATION_CREATED: 'application_created',
   APPLICATION_PARSE_FAILED: 'application_parse_failed',
@@ -123,10 +122,6 @@ export type EventPropsByName = {
     sessionId: string;
     resumeId: string;
     isNewSession: boolean;
-  };
-  [PostHogEvents.BULLET_ENRICHED]: {
-    resumeId: string;
-    modelUsed: string;
   };
   [PostHogEvents.JD_PARSED]: {
     applicationId: string;

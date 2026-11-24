@@ -2,26 +2,20 @@
  * Default path resolver — maps a sub-criterion to the most-relevant
  * EditableText path inside the editor.
  *
- * The inline-issue surface is anchored to specific leaves. When the
- * user clicks a dim bar, we don't ask them to pick a bullet — we
- * pick a "high-leverage" one for them and let the popover's
- * inline `<strong>{currentText}</strong>` preview tell them which
- * one we're targeting. If they don't like the choice, they can
- * dismiss the popover and pick a different bullet by editing it
- * (or by clicking another dim bar that points elsewhere).
+ * The remaining inline-issue surface is a **tip + scroll anchor**: a
+ * scorecard click sends a `Tip` event through `apply-bridge`, and the
+ * editor scrolls to the section and pulses it. The path must still name
+ * a real leaf so the pulse lands on the right place. Flagged work
+ * bullets now carry their own exact dotted path from
+ * `buildBulletIssues()`; this resolver supplies the fallback anchor for
+ * every other criterion.
  *
- * Heuristics (locked answers from the plan):
- *   - ATS / Content / Tailoring criteria → first work bullet. The
- *     summary is too high-leverage to risk; we edit a single
- *     bullet, the user gets the most-likely-helpful candidate.
- *   - Structure / Length criteria → first work entry's position
- *     title (a non-bullet path; popover handles these cleanly).
- *   - Seniority Fit → first work position title (job titles
- *     carry the seniority signal).
- *   - Intent / Role Fit / Soft Skills → first work bullet
- *     (we can't rewrite role framing in a single bullet, but we
- *     CAN strengthen the action verbs so the bullet reads as
- *     more senior / more aligned).
+ * Heuristics (locked answers from the original plan):
+ *   - ATS / Intent criteria → the skills block.
+ *   - Role Fit → the headline.
+ *   - Tailoring / Seniority Fit → the summary.
+ *   - Structure / Length criteria → first work position title.
+ *   - Content / similarity / soft-skill criteria → first work bullet.
  *
  * **Path-shape gotcha — work bullets are nested.** The resume
  * schema wraps bullets inside positions:
@@ -31,14 +25,11 @@
  * The `WorkPositionsNested` editor component + the
  * `workEntrySchema` (lib/resume-schema/sections/work.ts) both
  * confirm the nested shape. If the default path doesn't
- * include `.positions[0]`, the leaf doesn't exist in the DOM
- * and the popover never opens.
+ * include `.positions[0]`, the leaf doesn't exist in the DOM and
+ * the anchor is silent.
  *
  * For multi-position resumes, we use `positions[0]` as the
- * default. A future slice could walk all entries and pick the
- * lowest-scoring bullet; v1 is best-effort.
- *
- * Plan: docs/plans/inline-issue-surface.md §"Pulse target".
+ * default fallback. Exact bullet paths come from the measured issue.
  */
 
 import type { SubCriterionKey } from './types';
@@ -55,10 +46,11 @@ import type { SubCriterionKey } from './types';
  * (`sections.work[0].positions[0].highlights[0]`), which no template
  * ever renders.
  *
- * The consequence was that `readLeafText()` found nothing, the popover
- * never opened, and the user was told *"The bullet here is empty — add
- * some content to this section first"* — about a bullet that was full.
- * That is the "clicking Rewrite with AI does nothing" report.
+ * The consequence was that the editor never rendered a matching
+ * `data-testid`, so the old scorecard rewrite surface could not anchor
+ * to the leaf it claimed to be fixing. That surface is retired; the
+ * test below still renders a real template so the surviving tip/pulse
+ * anchor cannot drift back to the bracketed spelling.
  *
  * The rule: **a path is only useful if the editor renders exactly
  * that testid.** `tests/unit/inline-issue/criterion-paths.test.tsx`
@@ -68,12 +60,12 @@ import type { SubCriterionKey } from './types';
  * ## Which leaf — the one the criterion actually reads
  *
  * A second defect sat behind the first: the target was the first work
- * bullet for almost every criterion. So clicking "Rewrite with AI"
- * beside **Experience match** (Tailoring — which measures the JD
- * title's vocabulary in the *summary*) opened a popover on a work
- * bullet, and beside **Role fit** (which compares the JD title against
- * the candidate's *titles*) it also opened a work bullet — while the
- * headline it never opened was the thing the dimension reads.
+ * bullet for almost every criterion. So an "Experience match" click
+ * (Tailoring — which measures the JD title's vocabulary in the
+ * *summary*) pointed at a work bullet, and a "Role fit" click (which
+ * compares the JD title against the candidate's *titles*) also pointed
+ * at a work bullet — while the headline it never reached was the thing
+ * the dimension reads.
  *
  * Each criterion now points at the leaf whose text moves it.
  */
@@ -100,8 +92,7 @@ export function defaultPathForCriterion(criterion: SubCriterionKey): string {
       return 'sections.basics.summary';
 
     // Distinctive content → the first project. If the resume has no
-    // project, there is nothing to rewrite — and the surface says so
-    // ("the resume may not have content here yet"), which is the truth:
+    // project, there is nothing to anchor — and the tip says so:
     // improving Unique Value means ADDING a project.
     case 'Unique Value':
       return 'sections.projects.0.description';
@@ -125,15 +116,10 @@ export function defaultPathForCriterion(criterion: SubCriterionKey): string {
 }
 
 /**
- * Resolve a default path for a skill name from the MissList. We
- * point at the first keyword slot in the skills section so the
- * popover anchors to a real leaf and the Free pulse can scroll
- * to the Skills section header.
- *
- * v1 doesn't let users add a missing skill via this surface
- * (that's a separate "Add skill" affordance already on the
- * editor). The path is here so the inline pulse + section
- * scroll work consistently for MissList clicks.
+ * Resolve a default path for a skill name from the MissList. The
+ * first keyword slot in the skills section is a real leaf, so the
+ * inline pulse + section scroll land consistently for MissList
+ * clicks. Adding the skill itself is a separate editor affordance.
  *
  * Dotted, like every other path the editor renders — see
  * `defaultPathForCriterion`.

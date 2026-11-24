@@ -1,37 +1,28 @@
 /**
  * Server-side builder for `MatchBreakdown` rows.
  *
- * The inline-issue surface (lib/inline-issue/) drives the
- * per-leaf popovers from a `MatchBreakdown` JSONB column on the
- * `resume_variants` table. The column's TypeScript shape is
- * pinned at `lib/db/queries.ts > MatchBreakdown`:
+ * The surviving inline-issue surface sends scorecard Tip events to the
+ * editor; those rows anchor the pulse to an EditableText leaf. The
+ * column's TypeScript shape is pinned at
+ * `lib/db/queries.ts > MatchBreakdown`:
  *
  *   Array<{
  *     path: string;            // EditableText RHF path
  *     weight: number;          // 0..1 — how much this leaf matters
  *     criterion: SubCriterionKey; // which dim bar to highlight
- *     tipKind: 'gap' | 'rewrite'; // prompt framing hint
+ *     tipKind: 'gap' | 'rewrite'; // legacy label; no popover is opened
  *   }>
  *
  * This module produces that array from a `ScoreBreakdown`
- * (lib/scoring) so the server can populate the column in lock-
- * step with the score it just computed. We emit ONE entry per
- * scored sub-dimension (7 today), pointing at the dimension's
- * most-relevant leaf (the same heuristic
- * `defaultPathForCriterion` uses on the client). The weights are
- * derived from the dimension's raw score so a heavily-weighted
- * leaf gets a `weight` close to 1 and a strong leaf gets a low
- * weight.
+ * (lib/scoring) so the server can persist it in lock-step with the
+ * score it just computed. We emit ONE entry per scored sub-dimension
+ * (7 today), pointing at the dimension's most-relevant leaf. For the
+ * bullet criteria the leaf comes from `buildBulletIssues()`, the same
+ * structured source as the attention icons and the tooltip counts.
  *
- * Why server-side and not client-side? The breakdown is the
- * source of truth that drives the popover's anchor + weight.
- * Computing it server-side means every writer (recompute flow,
- * variant generator, future batch jobs) produces the same shape.
- * The client falls back to the heuristic only when the column is
- * missing (legacy rows + first-load edge cases).
- *
- * Plan: docs/plans/inline-issue-surface.md §"What you'll build" #9
- * + drift memo "MatchBreakdown writer is not wired" action item.
+ * Computing this server-side means every writer produces the same
+ * shape. The client falls back to `defaultPathForCriterion` only when
+ * the column is missing (legacy rows + first-load edge cases).
  */
 
 import type { ScoreBreakdown } from '@/lib/scoring';
@@ -40,21 +31,22 @@ import {
   defaultPathForSkill
 } from '@/lib/inline-issue/criterion-to-path';
 import { mapPathToSection } from '@/lib/inline-issue/map-path-to-section';
-import { pathForHighlightIndex } from '@/lib/scoring/highlight-paths';
+import {
+  buildBulletIssues,
+  firstIssueForCriterion
+} from '@/lib/scoring/bullet-issues';
 import type { ResumeData } from '@/lib/resume-schema';
 import type { MatchBreakdown, SubCriterionKeyForBreakdown } from '@/lib/db/queries';
 import type { SubCriterionKey, TipKind } from '@/lib/inline-issue/types';
 
 /**
- * Per-criterion scoring maps — the inline-issue surface pairs
- * each dim bar with a sub-criterion so we can render the right
- * dynamic tip + pick the right prompt framing. Kept here (not in
- * the components) because it's the writer's input → output map;
- * the components consume the rendered `MatchBreakdown`, not
- * this map.
+ * Per-dimension scoring map — the inline-issue surface pairs each dim
+ * bar with the sub-criterion whose tip and anchor it shows. Kept here
+ * (not in the components) because it's the writer's input → output
+ * map; components consume the rendered `MatchBreakdown`, not this map.
  *
- * If a future dim bar needs a different criterion mapping, edit
- * this table. The order doesn't matter.
+ * If a future dim bar needs a different criterion mapping, edit this
+ * table. The order doesn't matter.
  */
 const DIM_TO_CRITERION: Record<string, SubCriterionKey> = {
   Keywords: 'ATS Keyword Match',
@@ -98,11 +90,13 @@ function weightFromScore(score: number | undefined | null): number {
 }
 
 /**
- * Tip-kind for the criterion — mirrors the
+ * Legacy tip-kind label for the criterion — mirrors the
  * `tipKindFor(criterion, _slug)` in
  * `lib/inline-issue/map-path-to-section.ts`. Kept inline (not
  * imported) so this module stays a pure function of the input
- * shape and doesn't import UI-side helpers.
+ * shape and doesn't import UI-side helpers. No popover is opened
+ * from this value now; `TipKind='rewrite'` is still its historical
+ * name.
  */
 function tipKindFor(criterion: SubCriterionKey): TipKind {
   switch (criterion) {
@@ -123,10 +117,9 @@ function tipKindFor(criterion: SubCriterionKey): TipKind {
  * checks for null, but a future caller might not).
  *
  * The `path` defaults to the inline-issue surface's standard
- * heuristic (`defaultPathForCriterion`). If a future slice wants
- * to score specific leaves per dim (e.g. "lowest-scoring bullet
- * per dim"), swap the lookup here — the output shape stays the
- * same.
+ * heuristic (`defaultPathForCriterion`). Bullet criteria override it
+ * with the exact path from `buildBulletIssues()` so the anchor and the
+ * attention icon agree on the same measured leaf.
  */
 export function buildMatchBreakdown(
   breakdown: ScoreBreakdown | null | undefined,
@@ -136,14 +129,13 @@ export function buildMatchBreakdown(
    * ## Why
    *
    * Without it every bullet-shaped criterion anchors to bullet #1 —
-   * while the advice beside it names three SPECIFIC bullets. So the AI
-   * rewrite could rewrite a line the advice never mentioned.
+   * while the advice beside it names three SPECIFIC bullets. The Tip
+   * event would then pulse a section unrelated to the advice.
    *
    * With it, the Impact row anchors to the first bullet the advice
-   * names: the breakdown's `jevBullets` are aligned positionally to
-   * the flattened work-bullet list, and `collectHighlightEntries` keeps
-   * that list's coordinates, so an index maps back to the bullet it
-   * came from.
+   * names: `buildBulletIssues()` reads `jevBullets`, which are aligned
+   * positionally to the flattened work-bullet list, and
+   * `collectHighlightEntries` keeps that list's coordinates.
    */
   resume?: ResumeData | null
 ): MatchBreakdown {
@@ -160,16 +152,15 @@ export function buildMatchBreakdown(
   ];
 
   // The path that addresses a bullet the advice names — for the Impact
-  // dimension, the first bullet Jev judged to be below the
-  // "accomplishment with a result" bar (the same < 1.5 threshold the
-  // tip uses, so the popover opens on a bullet the tip lists).
-  const weakBulletPath = ((): string | null => {
-    const bullets = breakdown.jevBullets;
-    if (!resume || !bullets || bullets.length === 0) return null;
-    const weakIndex = bullets.findIndex((b) => b.impact < 1.5);
-    if (weakIndex < 0) return null;
-    return pathForHighlightIndex(resume, weakIndex);
-  })();
+  // dimension, the first bullet Jev judged below the "accomplishment
+  // with a result" bar (the same < 1.5 threshold the tip uses, so the
+  // Tip anchor lands on a bullet the tip lists).
+  const weakBulletPath = !resume
+    ? null
+    : firstIssueForCriterion(
+        buildBulletIssues(breakdown, resume),
+        'Accomplishment Focus'
+      )?.path ?? null;
 
   const rows: MatchBreakdown = [];
   for (const [label, score] of dimPairs) {
@@ -180,8 +171,8 @@ export function buildMatchBreakdown(
         ? weakBulletPath
         : defaultPathForCriterion(criterion);
     // Sanity: only emit rows whose paths resolve to a real
-    // section. If the path is unknown the writer would produce
-    // a row that no popover could anchor to — better to skip.
+    // section. An unknown path would produce a Tip event the editor
+    // cannot anchor — better to skip.
     const target = mapPathToSection(path, criterion);
     if (!target) continue;
     rows.push({
@@ -205,9 +196,8 @@ export function buildMatchBreakdown(
  * Insert one extra "skill gap" entry pointing at the first
  * skills keyword slot. The scorecard's `MissList` rows surface
  * specific skill names; the `defaultPathForSkill` path is the
- * anchor we hand the popover. We don't try to map each skill to
- * its own path — the surface is "show me the skills section"
- * rather than "rewrite this specific skill in place".
+ * anchor we hand the editor. We don't try to map each skill to
+ * its own path — the surface is "show me the skills section".
  *
  * Returns `null` (no row added) when the breakdown's intent-
  * coverage signal was the fallback (no v2 signals). This keeps

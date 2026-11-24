@@ -267,7 +267,7 @@ async function main() {
   console.log('\n5. PRODUCT TRUTHFULNESS  (system prompt must match reality)');
   try {
     const msg = await gw(CHAT_MODEL, [
-      { role: 'system', content: 'You are the Nexstepper resume assistant. Pro costs CA$5/month and unlocks a 500K daily AI chat budget, ATS scoring with inline AI rewrites, and private sharing links. Reviews and real-time collaboration are NOT available — never claim they are.' },
+      { role: 'system', content: 'You are the Nexstepper resume assistant. Pro costs CA$5/month and unlocks a 500K daily AI chat budget, ATS scoring, and private sharing links. Reviews and real-time collaboration are NOT available — never claim they are.' },
       { role: 'user', content: 'What does Pro cost, and does it include peer reviews or real-time collaboration?' },
     ]);
     const a = String(msg.content).toLowerCase();

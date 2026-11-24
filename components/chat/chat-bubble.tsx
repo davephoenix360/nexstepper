@@ -15,6 +15,7 @@ import {
   feedbackPillBottomWithBubble
 } from '@/lib/ui/floating-actions';
 import { AgentIntroBubble } from './agent-intro-bubble';
+import { useChatHandoff } from './chat-handoff-provider';
 import { markAgentIntroSeen } from '@/lib/chat/agent-intro';
 import { suggestedPrompts } from '@/lib/chat/suggested-prompts';
 
@@ -66,6 +67,10 @@ export function ChatBubble({
   autoPrompt
 }: ChatBubbleProps) {
   const router = useRouter();
+  // Bullet attention icons publish repeatable requests here. Unlike the
+  // one-shot `autoPrompt`, every click is a fresh turn — including clicks
+  // while the panel is already open and after earlier turns.
+  const { currentRequest, consumeHandoff } = useChatHandoff();
   const [isOpen, setIsOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -111,6 +116,41 @@ export function ChatBubble({
 
   const handleIntroHeightChange = useCallback((px: number) => {
     setIntroBubbleHeightPx((current) => (current === px ? current : px));
+  }, []);
+
+  /**
+   * One refresh for every server mutation in a turn.
+   *
+   * A surgical bullet edit emits BOTH `resume_updated` (a revision was
+   * written) and `score_updated` (the snapshot was recomputed). Calling
+   * `router.refresh()` from both callbacks produced two RSC round trips
+   * and a visible flicker. The server now AWAITS the recompute between
+   * those events, so the refresh is held until the score settles — a
+   * macrotask alone would flush on `resume_updated` and read a stale
+   * snapshot. One macrotask then collapses the settled pair.
+   */
+  const refreshScheduledRef = useRef(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mutationRefreshPendingRef = useRef(false);
+  const scheduleRefresh = useCallback(() => {
+    if (refreshScheduledRef.current) return;
+    refreshScheduledRef.current = true;
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      refreshScheduledRef.current = false;
+      router.refresh();
+    }, 0);
+  }, [router]);
+  const flushPendingMutationRefresh = useCallback(() => {
+    if (!mutationRefreshPendingRef.current) return;
+    mutationRefreshPendingRef.current = false;
+    scheduleRefresh();
+  }, [scheduleRefresh]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
   }, []);
 
   // Portal target only exists on the client. Wait for mount so SSR
@@ -173,7 +213,31 @@ export function ChatBubble({
    *     create a second session.
    */
   const autoSendFiredRef = useRef(false);
+  /**
+   * Handoff requests are repeatable, so the queue provider removes a
+   * request as soon as we start it. This set is the second line of defence:
+   * React re-renders during a streaming turn (messages, usage, tool state),
+   * and a re-run of the effect below must never send the same turn twice.
+   */
+  const handoffHandledIdsRef = useRef<Set<string>>(new Set());
+  /** Once a handoff has been consumed, the one-shot auto-prompt stands down. */
+  const handoffConsumedRef = useRef(false);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  /**
+   * The session whose message history has finished loading. `sessionsLoaded`
+   * only means the session LIST arrived — auto-selecting a session starts a
+   * second request, and sending before that one lands both uses an empty
+   * transcript and lets its late response replace the new turn.
+   */
+  const [historyReadySessionId, setHistoryReadySessionId] = useState<
+    string | null | undefined
+  >(undefined);
+  /**
+   * `onDone` fires before `sendMessage` returns and assigns a new session
+   * id. A queued handoff must wait for the whole `handleSend` call, or it
+   * can be sent against the previous id in the render between those two.
+   */
+  const [sendSettled, setSendSettled] = useState(true);
 
   useEffect(() => {
     if (!autoPrompt) return;
@@ -200,26 +264,40 @@ export function ChatBubble({
   // rapid clicks don't let a stale fetch from an old session overwrite the
   // current session's messages.
   const loadAbortRef = useRef<AbortController | null>(null);
+  /**
+   * A send invalidates any history load in flight. The request itself can
+   * finish, but its response must not overwrite the turn just seeded into
+   * the transcript — checking the session id alone is not enough when the
+   * send stays in that same session.
+   */
+  const historyLoadIdRef = useRef(0);
   useEffect(() => {
     if (!isOpen || !activeSessionId) {
       if (!activeSessionId) setMessages([]);
+      historyLoadIdRef.current += 1;
+      setHistoryReadySessionId(null);
       return;
     }
     // Cancel any in-flight load
     loadAbortRef.current?.abort();
     const ctrl = new AbortController();
     loadAbortRef.current = ctrl;
+    const loadId = ++historyLoadIdRef.current;
     const targetId = activeSessionId;
     setMessages([]); // clear while loading so we don't flash the wrong convo
+    setHistoryReadySessionId(undefined);
+    const historyIsCurrent = () =>
+      !ctrl.signal.aborted &&
+      loadId === historyLoadIdRef.current &&
+      targetId === activeSessionIdRef.current;
     fetch(`/api/chat?resumeId=${resumeId}&sessionId=${targetId}`, {
       signal: ctrl.signal
     })
       .then((r) => r.json())
       .then((data: { messages?: ChatMessageRow[] }) => {
-        if (ctrl.signal.aborted) return;
-        // Drop the result if the user has since switched sessions.
-        if (targetId !== activeSessionIdRef.current) return;
+        if (!historyIsCurrent()) return;
         setMessages(data.messages ?? []);
+        setHistoryReadySessionId(targetId);
       })
       .catch((err) => {
         if (err?.name !== 'AbortError') {
@@ -227,6 +305,7 @@ export function ChatBubble({
           // and the next session click will retry.
           void err;
         }
+        if (historyIsCurrent()) setHistoryReadySessionId(targetId);
       });
   }, [isOpen, activeSessionId, resumeId]);
 
@@ -246,6 +325,9 @@ export function ChatBubble({
     onDone: () => {
       setIsStreaming(false);
       setToolInFlight(false);
+      // Non-scoring edits emit `resume_updated` with no score event. Don't
+      // leave their refresh held forever.
+      flushPendingMutationRefresh();
     },
     onToolCall: () => setToolInFlight(true),
     onToolResult: () => setToolInFlight(false),
@@ -257,14 +339,30 @@ export function ChatBubble({
       );
     },
     onResumeUpdated: () => {
-      // The assistant just wrote a revision to this resume. Revalidate the
-      // server components so the editor behind the chat panel updates —
-      // without this the user reads "Done, I rewrote your summary" while
-      // looking at the old summary, which is what made the tool feel broken.
-      router.refresh();
+      // The assistant just wrote a revision to this resume. Hold the
+      // refresh until the score side of a bullet edit settles (success or
+      // failure), then flush one RSC round trip for the whole turn.
+      mutationRefreshPendingRef.current = true;
+    },
+    onScoreUpdated: () => {
+      // A successful single-bullet edit recomputed the persisted snapshot.
+      // The attention icons and the scorecard are rendered from server
+      // data, so without a refresh the old marker would outlive its fix.
+      mutationRefreshPendingRef.current = false;
+      scheduleRefresh();
+    },
+    onScoreRefreshFailed: () => {
+      // The revision is saved; only the snapshot is stale. Refresh the
+      // edit now and point the user at the scorecard's Recompute control.
+      mutationRefreshPendingRef.current = false;
+      scheduleRefresh();
+      setNotice(
+        'Your edit was saved, but the ATS score could not be refreshed. Use Recompute in the scorecard to try again.'
+      );
     },
     onError: (err: string, code?: string, limit?: number | null) => {
       setIsStreaming(false);
+      flushPendingMutationRefresh();
       if (code === 'RATE_LIMITED') {
         // The server sends the post-consume `limit` (or null for
         // unlimited plans) in the 429 JSON. Fall back to the previous
@@ -293,6 +391,7 @@ export function ChatBubble({
 
   const handleSend = useCallback(
     async (content: string) => {
+      setSendSettled(false);
       setIsStreaming(true);
       // A new turn starts from a clean slate: whatever the previous
       // turn was doing is over.
@@ -301,29 +400,91 @@ export function ChatBubble({
       // attempt that succeeds must not leave a stale "you've used
       // today's allowance" banner sitting above the composer.
       setNotice(null);
+      // A late history response would replace the pair `sendMessage` is
+      // about to seed. Invalidate that load without aborting it.
+      historyLoadIdRef.current += 1;
       // Pass the live transcript so the hook APPENDS to it. Without this the
       // hook seeded its own two-message array and the whole conversation
       // disappeared from the panel the moment you sent anything.
-      const sessionId = await sendMessage(activeSessionId, content, messages);
-      if (sessionId) {
-        setActiveSessionId(sessionId);
-        // Refresh sessions so the new one appears in the sidebar
-        fetch(`/api/chat?resumeId=${resumeId}`)
-          .then((r) => r.json())
-          .then((data: { sessions?: ChatSessionSummary[] }) => {
-            if (data.sessions) setSessions(data.sessions);
-          })
-          .catch(() => {});
-      } else {
-        setIsStreaming(false);
+      try {
+        const sessionId = await sendMessage(activeSessionId, content, messages);
+        if (sessionId) {
+          setActiveSessionId(sessionId);
+          // Refresh sessions so the new one appears in the sidebar
+          fetch(`/api/chat?resumeId=${resumeId}`)
+            .then((r) => r.json())
+            .then((data: { sessions?: ChatSessionSummary[] }) => {
+              if (data.sessions) setSessions(data.sessions);
+            })
+            .catch(() => {});
+        } else {
+          setIsStreaming(false);
+        }
+      } finally {
+        // `onDone` clears `isStreaming` before the await above returns. A
+        // queued handoff must not run in that gap with the OLD session id.
+        setSendSettled(true);
       }
     },
     [activeSessionId, sendMessage, resumeId, messages]
   );
 
+  /**
+   * Consume bullet-attention handoffs through the SAME send path a typed
+   * message uses: same auth, quota, model chain, SSE persistence and error
+   * handling. No second API route and no plan gate.
+   *
+   * Order matters here. This effect is declared BEFORE the auto-prompt
+   * effect, so a handoff sets `handoffConsumedRef` first and the one-shot
+   * tailoring prompt cannot also fire on that mount.
+   */
+  useEffect(() => {
+    if (!currentRequest) return;
+
+    // Opening the panel also retires the intro bubble — it would sit on
+    // top of a conversation the user just asked for.
+    markAgentIntroSeen();
+    setIsOpen(true);
+
+    // The session list is fetched on open. Sending before it resolves
+    // would use a null session id even when this resume has history.
+    if (!sessionsLoaded) return;
+    // Selecting an existing session starts a SECOND request for its
+    // messages. Wait for that one too — otherwise the handoff sends with
+    // an empty transcript and the late history response erases the turn.
+    if (activeSessionId && historyReadySessionId !== activeSessionId) return;
+    // `sendMessage` aborts any in-flight request. Wait for the current
+    // turn to finish instead of killing it; the provider keeps this
+    // request queued until then. `sendSettled` also covers the gap after
+    // `onDone` where the new session id has not been assigned yet.
+    if (isStreaming || !sendSettled) return;
+
+    if (handoffHandledIdsRef.current.has(currentRequest.id)) {
+      consumeHandoff(currentRequest.id);
+      return;
+    }
+
+    // Mark handled BEFORE awaiting: the re-render at the start of the
+    // send would otherwise run this effect again with the same request.
+    handoffHandledIdsRef.current.add(currentRequest.id);
+    handoffConsumedRef.current = true;
+    consumeHandoff(currentRequest.id);
+    void handleSend(currentRequest.prompt);
+  }, [
+    currentRequest,
+    sessionsLoaded,
+    activeSessionId,
+    historyReadySessionId,
+    isStreaming,
+    sendSettled,
+    handleSend,
+    consumeHandoff
+  ]);
+
   // Fire the auto-run once the session list has loaded and we know
   // there is no existing conversation to append to.
   useEffect(() => {
+    if (handoffConsumedRef.current) return;
     if (!autoPrompt || !isOpen || !sessionsLoaded) return;
     if (autoSendFiredRef.current) return;
     if (sessions.length > 0) return; // already has history — do not re-run
