@@ -63,6 +63,16 @@ export type UseChatStreamOptions = {
    */
   onUsage?: (usage: { used: number; limit: number }) => void;
   /**
+   * Called with the server's planned chain label for this turn, read from
+   * the `X-Chat-Model` header. The panel's model line uses this instead of
+   * computing its own "which model am I on?" from a turn counter — a
+   * reload or a plan change can make that arithmetic wrong, while the
+   * header reflects the route's authoritative post-consume count. A
+   * gateway fallback selected after the headers are sent is not reported
+   * here; the header names the selected chain, not a post-hoc model ID.
+   */
+  onModelLabel?: (label: string) => void;
+  /**
    * Called when the server reports that a resume-mutating tool
    * (`editResume` / `switchTemplate`) actually wrote a revision.
    *
@@ -146,6 +156,7 @@ export function useChatStream({
   onDone,
   onError,
   onUsage,
+  onModelLabel,
   onResumeUpdated,
   onScoreUpdated,
   onScoreRefreshFailed
@@ -272,6 +283,13 @@ export function useChatStream({
           onUsage?.({ used, limit });
         }
       }
+
+      // The server names the chain it routed to. This is authoritative for
+      // the allowance: the client must not derive it from its own turn
+      // count, because the route resolves the chain from the atomic
+      // post-consume usage. A later gateway fallback is not visible here.
+      const modelHeader = res.headers.get('X-Chat-Model');
+      if (modelHeader) onModelLabel?.(modelHeader);
 
       if (!res.body) {
         onError?.('No response body');

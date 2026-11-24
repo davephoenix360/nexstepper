@@ -5,6 +5,16 @@
 **Risk:** the fallback chain only engages when the primary is unavailable —
 which is exactly when it has to work.
 
+> **Superseded 2026-11-24 (staged Free turns).** The reliability measurements
+> below still stand, but the product decision they powered does not. Free users
+> now get the Pro chain for their first **20 turns/day** and then continue on
+> the $0 chain — the allowance is informational, not a gate. The Free token cap
+> is **600,000/day** (≈416K for 20 Pro-chain turns plus ≈184K of $0-chain
+> headroom), the enforced turn limit is `unlimited`, and the badge reads
+> `Free · 20 Pro/day`. The section "One more thing … the allowance was a lie"
+> is the historical reason the *old* $0-only chain existed; it is not the
+> current routing policy. The staged-turn decision is recorded in this note.
+
 ## Context
 
 After the ByteString header crash was fixed and shipped

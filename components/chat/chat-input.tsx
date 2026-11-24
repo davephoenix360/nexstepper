@@ -14,13 +14,13 @@ interface ChatInputProps {
    * A server-supplied explanation for why the last send was rejected,
    * rendered above the quota readout.
    *
-   * WHY THIS EXISTS — the quota readout is a turn counter, so it is
-   * `null` on an unlimited-turn Pro plan. The 2026-10-21 token cap can
-   * therefore reject a turn with no visible cause: `rateLimit` stays
-   * null, the composer never disables, and the send looks like it did
-   * nothing at all. That's the "it did something weird" failure mode
-   * this file's siblings were hardened against, so the cap ships with
-   * an explicit notice rather than a silent no-op.
+   * WHY THIS EXISTS — since 2026-11-24 no plan has a turn gate, so
+   * `rateLimit` is null on every successful turn. The daily token cap
+   * can therefore reject a turn with no visible cause: the composer
+   * stays enabled and the send looks like it did nothing at all.
+   * That's the "it did something weird" failure mode this file's
+   * siblings were hardened against, so the cap ships with an explicit
+   * notice rather than a silent no-op.
    */
   notice?: string | null;
 }

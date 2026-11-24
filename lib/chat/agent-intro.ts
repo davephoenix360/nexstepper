@@ -156,9 +156,10 @@ export const AGENT_INTRO_BODY =
  * The extra line a Free user sees, naming their allowance.
  *
  * The number comes from the caller (`PLANS.free.chatMessagesPerDay`),
- * not from a literal here — the badge and the server's gate have to
- * agree, and this is the third place that could disagree.
+ * not from a literal here. It is an informational allowance, not a
+ * gate: chat keeps working on the $0 chain past this many turns, so
+ * the copy says what changes rather than implying the chat stops.
  */
 export function agentIntroAllowanceLine(dailyLimit: number): string {
-  return `Your free plan includes ${dailyLimit} messages a day.`;
+  return `Your free plan includes ${dailyLimit} Pro-model messages a day, then free models.`;
 }

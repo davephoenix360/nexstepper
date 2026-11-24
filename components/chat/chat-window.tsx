@@ -33,13 +33,15 @@ interface ChatWindowProps {
   resumeName: string;
   isPro: boolean;
   /**
-   * The plan's daily turn allowance, or `null` on an unlimited plan.
-   * Rendered in the "Free · N/day" badge.
+   * Free's daily allowance of Pro-model messages, or `null` on Pro.
+   * Informational — chat continues on the $0 chain past this number.
    */
   dailyLimit?: number | null;
   /**
-   * The user-facing name of the model answering this chat, e.g.
-   * "Claude Haiku 5.5". Shown as one quiet line under the messages.
+   * The user-facing name of the model answering RIGHT NOW, e.g.
+   * "Claude Haiku 5.5" or "Beam". Seeded by the server and updated from
+   * `X-Chat-Model` after every turn; shown as one quiet line under the
+   * messages.
    */
   modelLabel?: string | null;
   sessions: ChatSessionSummary[];
@@ -195,7 +197,7 @@ export function ChatWindow({
             <span className="mr-2 flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
               <Crown size={10} />
               Free
-              {dailyLimit !== null ? ` · ${dailyLimit}/day` : ''}
+              {dailyLimit !== null ? ` · ${dailyLimit} Pro/day` : ''}
             </span>
           )}
           {/* Toggle history sidebar — only meaningful when there are sessions to show. */}
@@ -327,7 +329,9 @@ export function ChatWindow({
               >
                 {modelLabel ? `${AGENT_DISPLAY_NAME} · ${modelLabel}` : null}
                 {modelLabel && dailyLimit !== null ? ' · ' : null}
-                {dailyLimit !== null ? `${dailyLimit} messages/day` : null}
+                {dailyLimit !== null
+                  ? `${dailyLimit} Pro messages/day, then free models`
+                  : null}
               </p>
             )}
             <ChatInput

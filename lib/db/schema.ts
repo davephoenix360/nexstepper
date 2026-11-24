@@ -175,11 +175,14 @@ export const PLANS = {
     name: 'Free',
     chatMessagesPerDay: 20,
     /**
-     * Safety net, not a UX limit. 20 turns/day at ~10K input tokens
-     * per turn is ~200K, so the turn limit almost always binds first.
-     * This only catches one pathological giant message.
+     * Safety net, not a UX limit. Free's first 20 turns/day use the Pro
+     * chain (~20.8K measured tokens/turn ≈ 416K), then the $0 chain
+     * (~13K/turn). 600K leaves roughly a dozen fallback turns of
+     * headroom while still bounding worst-case spend. It is a SOFT cap
+     * (see the header comment): `addChatTokens` runs after the stream
+     * drains, so a user can overshoot by about one turn.
      */
-    chatTokensPerDay: 300_000,
+    chatTokensPerDay: 600_000,
     canOptimize: false,
     canCollab: false
   },

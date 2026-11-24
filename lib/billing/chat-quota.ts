@@ -1,4 +1,5 @@
 import type { ChatUsage } from '@/lib/db/schema';
+import type { PlanId } from '@/lib/billing/types';
 
 /**
  * Which daily quota rejected this chat turn, and what the 429 says.
@@ -6,13 +7,17 @@ import type { ChatUsage } from '@/lib/db/schema';
  * ## Why this is a pure function instead of inline route logic
  *
  * `tryConsumeChatTurn` returns `null` for BOTH "out of turns" and
- * "out of tokens". Those are genuinely different events for the user:
- * a Free user who hit 20 messages/day should be told to upgrade; a Pro
- * user who spent their daily token allowance should be told it resets
- * at midnight, not told they ran out of messages when Pro is
- * unlimited. Collapsing them into one message is how a Pro user ends
+ * "out of tokens". Those are genuinely different events: a caller with
+ * a finite turn cap needs `RATE_LIMITED`, while a token-cap rejection
+ * needs `TOKEN_LIMIT_REACHED` with plan-aware wording resets at
+ * midnight. Collapsing them into one message is how a Pro user ends
  * up staring at `limit: null` and "Daily limit reached" with no way to
  * tell whether it's a bug.
+ *
+ * Since 2026-11-24 the chat route passes `Infinity` for turns on BOTH
+ * plans: Free turn 21+ routes to the $0 chain instead of being rejected,
+ * so chat's only active 429 is the token safety cap. The turn branch
+ * stays here for any caller that does impose a finite cap.
  *
  * Keeping the decision pure means it is unit-testable without standing
  * up the whole chat route (auth + resume load + AI SDK), and it gives
@@ -59,11 +64,17 @@ export function decideChatQuotaRejection(input: {
   usage: ChatUsage | null;
   /** The plan's `chatTokensPerDay`. */
   tokenLimit: number;
-  /** The plan's `chatMessagesPerDay`. `Infinity` for Pro. */
+  /** The plan's `chatMessagesPerDay`. `Infinity` when there is no gate. */
   turnLimit: number;
+  /**
+   * The caller's plan. Passed explicitly since 2026-11-24: Free no
+   * longer has a finite turn gate, so "finite turn limit means Free"
+   * is no longer a safe inference at the point the token cap trips.
+   */
+  plan: PlanId;
 }): ChatQuotaDecision {
   const resetsAt = utcToday();
-  const { usage, tokenLimit, turnLimit } = input;
+  const { usage, tokenLimit, turnLimit, plan } = input;
 
   // Token cap wins the tie-break. If a plan is out of BOTH, telling the
   // user about tokens is the more useful message: the turn limit may be
@@ -75,10 +86,9 @@ export function decideChatQuotaRejection(input: {
 
   if (overTokens && usage) {
     // The copy must not tell a Free user they used their "Pro"
-    // allowance. A finite turn limit IS the Free plan (in `PLANS`,
-    // only Free has a finite `chatMessagesPerDay`), so it doubles as
-    // the plan signal here — no extra parameter needed.
-    const planLabel = Number.isFinite(turnLimit) ? 'free' : 'Pro';
+    // allowance. The plan is passed in explicitly by the route: it is
+    // the same value the model chain and this quota were built from.
+    const planLabel = plan === 'free' ? 'free' : 'Pro';
     return {
       reason: 'token_limit',
       body: {

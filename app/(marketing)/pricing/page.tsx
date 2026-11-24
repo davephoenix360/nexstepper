@@ -39,7 +39,9 @@ type Plan = {
  */
 const FREE_FEATURES = [
   'Unlimited resumes',
-  '20 AI chat messages a day',
+  // Since 2026-11-24 the 20 is an allowance of Pro-model turns, not a
+  // stop: chat continues on the $0 chain under a 600K daily token cap.
+  '20 Pro messages/day, then free models',
   'All starter templates',
   'PDF export'
 ];
@@ -49,7 +51,8 @@ const PRO_FEATURES = [
   // Not "unlimited". `PLANS.pro.chatTokensPerDay` bounds spend at
   // 500K tokens/day (~$2.10/mo worst case at the chat model's list
   // price), and claiming otherwise is a false advertisement the moment
-  // a user hits it. Free keeps its honest "20 messages a day".
+  // a user hits it. Free's 20 Pro turns are a separate, finite allowance;
+  // its remaining chat runs on the $0 chain under a 600K token cap.
   'Generous AI chat — 500K tokens a day, resets at midnight',
   // REMOVED 2026-10-21: "Peer reviews" and "Real-time collaboration".
   // Neither exists. There is no reviews table, no invite flow, and

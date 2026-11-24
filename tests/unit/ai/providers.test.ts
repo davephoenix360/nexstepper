@@ -15,11 +15,15 @@ import {
   FREE_CHAT_FALLBACKS,
   FREE_CHAT_GATEWAY_PROVIDER_OPTIONS,
   FREE_CHAT_MODEL,
+  FREE_PRO_TURNS_PER_DAY,
   JD_PARSER_MODEL,
   PARSE_FALLBACKS,
   PARSER_MODEL,
   RESUME_PARSER_MODEL,
+  chatModelLabel,
+  chatModelLabelForTurn,
   getModel,
+  resolveChatModelForTurn,
   resolveChatModelPlan
 } from '@/lib/ai/providers';
 
@@ -227,37 +231,71 @@ describe('live-verified chat tool-call behaviour (2026-11-01)', () => {
   });
 });
 
-describe('the free-tier chat chain (2026-11-01)', () => {
-  it('resolves the full chain for Pro and the $0 chain for Free', () => {
-    const pro = resolveChatModelPlan('pro');
-    expect(pro.model).toBe(CHAT_MODEL);
-    expect([...pro.fallbacks]).toEqual([...CHAT_FALLBACKS]);
-    expect(pro.providerOptions.gateway.order).toEqual([CHAT_MODEL, ...CHAT_FALLBACKS]);
-
-    const free = resolveChatModelPlan('free');
-    expect(free.model).toBe(FREE_CHAT_MODEL);
-    expect([...free.fallbacks]).toEqual([...FREE_CHAT_FALLBACKS]);
-    expect(free.providerOptions.gateway.order).toEqual([
-      FREE_CHAT_MODEL,
-      ...FREE_CHAT_FALLBACKS
-    ]);
+describe('the staged free-tier chat chain (2026-11-24)', () => {
+  it('gives Free the Pro chain for its first 20 turns of the day', () => {
+    // `turnsUsed` is POST-consume: turn 1 arrives as 1, so the boundary
+    // is inclusive at 20. This is what makes the badge's "20 Pro
+    // messages/day" true rather than an approximation.
+    expect(FREE_PRO_TURNS_PER_DAY).toBe(20);
+    for (const turn of [1, 19, 20]) {
+      const plan = resolveChatModelForTurn('free', turn);
+      expect(plan.model).toBe(CHAT_MODEL);
+      expect([...plan.fallbacks]).toEqual([...CHAT_FALLBACKS]);
+      expect(plan.providerOptions.gateway.order).toEqual([CHAT_MODEL, ...CHAT_FALLBACKS]);
+    }
   });
 
-  it('every model on the free chain is a $0 model', () => {
-    // "Free" has to mean $0 on EVERY endpoint the gateway can route to.
-    // `reflection/beam` is the same model but NOT pinned to the free
-    // endpoint — three of its four backends are priced at $0.25–$0.40 in
-    // / $1.00–$1.20 out per 1M, which at the free plan's ceiling is
-    // roughly $1.70–$4 per active free user per month.
+  it('switches Free to the $0 chain from turn 21, with no turn gate', () => {
+    for (const turn of [21, 22, 999]) {
+      const plan = resolveChatModelForTurn('free', turn);
+      expect(plan.model).toBe(FREE_CHAT_MODEL);
+      expect([...plan.fallbacks]).toEqual([...FREE_CHAT_FALLBACKS]);
+      expect(plan.providerOptions.gateway.order).toEqual([
+        FREE_CHAT_MODEL,
+        ...FREE_CHAT_FALLBACKS
+      ]);
+    }
+  });
+
+  it('always gives Pro the full chain, at any turn count', () => {
+    for (const turn of [1, 20, 21, Infinity]) {
+      const plan = resolveChatModelForTurn('pro', turn);
+      expect(plan.model).toBe(CHAT_MODEL);
+      expect([...plan.fallbacks]).toEqual([...CHAT_FALLBACKS]);
+      expect(plan.providerOptions.gateway.order).toEqual([CHAT_MODEL, ...CHAT_FALLBACKS]);
+    }
+  });
+
+  it('keeps the plan-only resolver as the FIRST-turn behavior', () => {
+    // Older callers (labels before a turn is consumed) still need a
+    // plan-only entry point. It must not reintroduce the old "Free is
+    // always $0" answer.
+    expect(resolveChatModelPlan('free')).toBe(resolveChatModelForTurn('free', 1));
+    expect(resolveChatModelPlan('free').model).toBe(CHAT_MODEL);
+    expect(resolveChatModelPlan('pro')).toBe(resolveChatModelForTurn('pro', 1));
+  });
+
+  it('labels the live model from the same boundary', () => {
+    expect(chatModelLabelForTurn('free', 20)).toBe('Claude Haiku 5.5');
+    expect(chatModelLabelForTurn('free', 21)).toBe('Beam');
+    expect(chatModelLabelForTurn('pro', 999)).toBe('Claude Haiku 5.5');
+    expect(chatModelLabel('free')).toBe(chatModelLabelForTurn('free', 1));
+  });
+
+  it('every model on the fallback chain is a $0 model', () => {
+    // Once the paid allowance is spent, "free" has to mean $0 on EVERY
+    // endpoint the gateway can route to. `reflection/beam` is the same
+    // model but NOT pinned to the free endpoint — three of its four
+    // backends are priced at $0.25–$0.40 in / $1.00–$1.20 out per 1M.
     expect([FREE_CHAT_MODEL, ...FREE_CHAT_FALLBACKS].sort()).toEqual([
       'nvidia/nemotron-3.5-lightning-free',
       'reflection/beam-free'
     ]);
   });
 
-  it('no priced model is reachable from the free chain', () => {
-    // These three edit in 5 of 5 attempts on the real agent loop. They
-    // are exactly what the free tier is NOT allowed to reach.
+  it('no priced model is reachable from the fallback chain', () => {
+    // These edit in 5 of 5 attempts on the real agent loop. They are
+    // exactly what the post-allowance chain is NOT allowed to reach.
     for (const priced of [
       'anthropic/claude-haiku-5.5',
       'amazon/nova-micro',
@@ -269,7 +307,7 @@ describe('the free-tier chat chain (2026-11-01)', () => {
     }
   });
 
-  it('the free chain spans two providers so one outage cannot take it down', () => {
+  it('the fallback chain spans two providers so one outage cannot take it down', () => {
     const providers = new Set(
       [FREE_CHAT_MODEL, ...FREE_CHAT_FALLBACKS].map((m) => m.split('/')[0])
     );

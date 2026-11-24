@@ -481,41 +481,41 @@ export const CHAT_GATEWAY_PROVIDER_OPTIONS = {
 };
 
 /**
- * The chat model for FREE users, and its fallback chain.
+ * The chat model chain FREE users fall back to after their daily Pro
+ * allowance, and its fallback chain.
  *
- * ## Why a separate chain
+ * ## Why a separate chain exists
  *
- * A free user must cost us **$0**. The Pro chain is priced per token, so
- * pointing free users at it means paying for their conversations out of
- * the Pro revenue. This chain contains **only** $0 models — every entry
- * is priced at 0 on every endpoint this account can be routed to.
+ * A free user must cost us **$0 once the paid allowance is spent**. The
+ * Pro chain is priced per token; leaving a Free user on it indefinitely
+ * would mean paying for their conversations out of Pro revenue. This
+ * chain contains **only** $0 models — every entry is priced at 0 on
+ * every endpoint this account can be routed to.
  *
  * `reflection/beam` would have been the better model (it edits more often
  * and has 4 endpoints), but it is NOT strictly $0: only its `reflection`
  * endpoint is free, and the gateway may route to baseten / nebius /
- * togetherai at $0.25–$0.40 in / $1.00–$1.20 out per 1M. At the free
- * plan's ceiling (20 turns and 300K tokens a day) that is roughly
- * $1.70–$4 per active free user per MONTH. `reflection/beam-free` is the
- * same model PINNED to the single free endpoint, which is exactly what
- * "free" has to mean.
+ * togetherai at $0.25–$0.40 in / $1.00–$1.20 out per 1M.
+ * `reflection/beam-free` is the same model PINNED to the single free
+ * endpoint, which is exactly what "free" has to mean here.
  *
- * ## What free users get, honestly
+ * ## When this chain is used (2026-11-24 change)
  *
- * Measured on the real agent loop (2026-11-01): the free chain's models
- * edit in **3 of 5** attempts, against the Pro chain's **5 of 5**. When
- * they do not edit, they ask a clarifying question rather than faking a
- * success — the agent's `needs-you` behaviour. So the free tier gets a
- * real agent that sometimes asks a question first, not a crippled one.
+ * The first 20 turns/day are deliberately routed on the **Pro** chain so
+ * a Free user sees the same Scout they are being shown in the marketing
+ * copy. From turn 21 onward — with no turn-limit 429 — they land on this
+ * $0 chain. The single Free safety cap is 600K tokens/day: ~416K for 20
+ * Pro-chain turns plus headroom for roughly a dozen $0 turns. It is a
+ * soft cap (`addChatTokens` runs after the stream drains).
  *
- * It also gets a **cheaper turn**, which is what makes the free tier's
- * daily allowance honest. A chat turn costs ~13K tokens on the free
- * chain (the `reflection` endpoint serves 11–13K of the prompt from
- * cache) against ~20.8K on the Pro chain's primary, which served none.
- * At 20 turns that is ~260K against the free plan's 300K daily token
- * cap — so the TURN limit binds, and "Free · 20/day" is true. On the Pro
- * chain it would have been ~416K, and the cap would have rejected a
- * Free user at ~14 messages a day while the badge said 20. That is the
- * concrete reason the free tier needs its own chain.
+ * ## What the fallback chain gets, honestly
+ *
+ * Measured on the real agent loop (2026-11-01): these models edit in
+ * **3 of 5** attempts, against the Pro chain's **5 of 5**. When they do
+ * not edit, they ask a clarifying question rather than faking a success
+ * — the agent's `needs-you` behaviour. A turn costs ~13K tokens here
+ * (the `reflection` endpoint serves 11–13K of the prompt from cache)
+ * against ~20.8K on the Pro chain's primary.
  *
  * `reflection/beam-free` leads because it is the only $0 model here with
  * a verified schema-exact structured-output record, which the
@@ -551,26 +551,50 @@ export type ChatModelPlan = {
 };
 
 /**
- * Resolve the model chain for a plan.
+ * Free turns/day on the Pro chain before switching to the $0 chain.
  *
- * Free gets a $0-only chain; Pro gets the full chain. The two never mix,
- * because "free" has to mean $0 on every endpoint — a single paid
- * backend reachable from the chain is money we spend on someone else's
- * behalf.
+ * Kept here, next to the two chains, so the resolver, the UI copy and
+ * the tests read one number rather than three copies of `20`.
+ */
+export const FREE_PRO_TURNS_PER_DAY = 20;
+
+/** The Pro chain (the first 20 Free turns/day, and every Pro turn). */
+const PRO_CHAT_MODEL_PLAN: ChatModelPlan = {
+  model: CHAT_MODEL,
+  fallbacks: CHAT_FALLBACKS,
+  providerOptions: CHAT_GATEWAY_PROVIDER_OPTIONS
+};
+
+/** The $0 chain (Free turns 21+/day). */
+const FREE_CHAT_MODEL_PLAN: ChatModelPlan = {
+  model: FREE_CHAT_MODEL,
+  fallbacks: FREE_CHAT_FALLBACKS,
+  providerOptions: FREE_CHAT_GATEWAY_PROVIDER_OPTIONS
+};
+
+/**
+ * Resolve the chat model chain for a plan at a given consumed-turn count.
+ *
+ * `turnsUsed` is POST-consume: the first turn of the day arrives as `1`.
+ * Pro always gets the full chain. Free gets it for turns 1–20 and the
+ * $0-only chain from turn 21 onward. Keeping the boundary in one pure
+ * function means the route, the page and the tests cannot disagree about
+ * which turn flips the model.
+ */
+export function resolveChatModelForTurn(plan: PlanId, turnsUsed: number): ChatModelPlan {
+  if (plan === 'pro' || turnsUsed <= FREE_PRO_TURNS_PER_DAY) return PRO_CHAT_MODEL_PLAN;
+  return FREE_CHAT_MODEL_PLAN;
+}
+
+/**
+ * Resolve the model chain for a plan's FIRST turn of the day.
+ *
+ * Retained as the simple plan-only entry point used where no turn count
+ * is available (e.g. a label for a brand-new session). It delegates to
+ * the per-turn resolver so there is still one decision.
  */
 export function resolveChatModelPlan(plan: PlanId): ChatModelPlan {
-  if (plan === 'pro') {
-    return {
-      model: CHAT_MODEL,
-      fallbacks: CHAT_FALLBACKS,
-      providerOptions: CHAT_GATEWAY_PROVIDER_OPTIONS
-    };
-  }
-  return {
-    model: FREE_CHAT_MODEL,
-    fallbacks: FREE_CHAT_FALLBACKS,
-    providerOptions: FREE_CHAT_GATEWAY_PROVIDER_OPTIONS
-  };
+  return resolveChatModelForTurn(plan, 1);
 }
 
 /**
@@ -588,14 +612,19 @@ const CHAT_MODEL_LABELS: Record<string, string> = {
 };
 
 /**
- * The user-facing name of the model that will answer this plan's chat.
+ * The user-facing name of the model answering at a given turn count.
  *
  * Falls back to the raw model id rather than to nothing, so a model
  * added without a label still shows the user something true.
  */
-export function chatModelLabel(plan: PlanId): string {
-  const { model } = resolveChatModelPlan(plan);
+export function chatModelLabelForTurn(plan: PlanId, turnsUsed: number): string {
+  const { model } = resolveChatModelForTurn(plan, turnsUsed);
   return CHAT_MODEL_LABELS[model] ?? model;
+}
+
+/** The user-facing model name for a plan's first turn of the day. */
+export function chatModelLabel(plan: PlanId): string {
+  return chatModelLabelForTurn(plan, 1);
 }
 
 /**

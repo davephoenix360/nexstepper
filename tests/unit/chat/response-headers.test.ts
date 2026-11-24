@@ -77,7 +77,8 @@ describe('chatResponseHeaders', () => {
     const headers = chatResponseHeaders({
       sessionId: '3f7c1a2b-0000-4000-8000-000000000000',
       turnsUsed: 7,
-      turnLimit: 20
+      turnLimit: 'unlimited',
+      modelLabel: 'Claude Haiku 5.5'
     });
     for (const [name, value] of Object.entries(headers)) {
       expect(value, `value of ${name}`).toMatch(HEADER_VALUE);
@@ -88,41 +89,68 @@ describe('chatResponseHeaders', () => {
     const headers = chatResponseHeaders({
       sessionId: 'abc',
       turnsUsed: 0,
-      turnLimit: 'unlimited'
+      turnLimit: 'unlimited',
+      modelLabel: 'Claude Haiku 5.5'
     });
     for (const name of Object.keys(headers)) {
       expect(name).toMatch(HEADER_NAME);
     }
   });
 
-  it('reports the real turn usage and the plan limit', () => {
+  it('reports the post-consume turn usage and the enforced limit', () => {
     const headers = chatResponseHeaders({
       sessionId: 'abc',
       turnsUsed: 7,
-      turnLimit: 20
+      turnLimit: 'unlimited',
+      modelLabel: 'Claude Haiku 5.5'
     });
     expect(headers['X-Chat-Usage']).toBe('7');
-    expect(headers['X-Chat-Limit']).toBe('20');
-  });
-
-  it('says "unlimited" rather than Infinity on Pro', () => {
-    const headers = chatResponseHeaders({
-      sessionId: 'abc',
-      turnsUsed: 999,
-      turnLimit: 'unlimited'
-    });
+    // Since 2026-11-24 Free turns 21+ are valid on the $0 chain, so the
+    // client must never be handed a finite 20 that disables the composer.
     expect(headers['X-Chat-Limit']).toBe('unlimited');
   });
 
+  it('reports the chain selected for this turn', () => {
+    const pro = chatResponseHeaders({
+      sessionId: 'abc',
+      turnsUsed: 20,
+      turnLimit: 'unlimited',
+      modelLabel: 'Claude Haiku 5.5'
+    });
+    expect(pro['X-Chat-Model']).toBe('Claude Haiku 5.5');
+
+    const fallback = chatResponseHeaders({
+      sessionId: 'abc',
+      turnsUsed: 21,
+      turnLimit: 'unlimited',
+      modelLabel: 'Beam'
+    });
+    expect(fallback['X-Chat-Model']).toBe('Beam');
+  });
+
+  it('sanitises a hostile model label like every other header value', () => {
+    // The label is now dynamic (a model rename can add it), so it must go
+    // through the same guard that killed the X-Title ByteString crash.
+    const headers = chatResponseHeaders({
+      sessionId: 'abc',
+      turnsUsed: 1,
+      turnLimit: 'unlimited',
+      modelLabel: 'Claude • Haiku… 🚀'
+    });
+    expect(headers['X-Chat-Model']).toBe('Claude  Haiku ');
+    expect(headers['X-Chat-Model']).toMatch(HEADER_VALUE);
+  });
+
   it('never throws when handed hostile input — the original crash', () => {
-    // Reproduces the production failure shape: a header value carrying
+    // Reproduces the production failure shape: header values carrying
     // the ellipsis and the bullet that undici refuses to convert.
     expect(() =>
       new Response('', {
         headers: chatResponseHeaders({
           sessionId: '•…',
           turnsUsed: 0,
-          turnLimit: 'unlimited'
+          turnLimit: 'unlimited',
+          modelLabel: 'Claude • Haiku… 🚀'
         })
       })
     ).not.toThrow();
@@ -134,7 +162,8 @@ describe('chatResponseHeaders', () => {
     const headers = chatResponseHeaders({
       sessionId: 'abc',
       turnsUsed: 1,
-      turnLimit: 20
+      turnLimit: 'unlimited',
+      modelLabel: 'Claude Haiku 5.5'
     });
     expect(Object.keys(headers).some((k) => k.toLowerCase().includes('title'))).toBe(false);
   });
@@ -151,6 +180,14 @@ describe('the chat route', () => {
   it('builds its response headers through chatResponseHeaders', () => {
     // One builder, so every value is sanitised by construction.
     expect(ROUTE_SOURCE).toContain('chatResponseHeaders(');
+  });
+
+  it('reports an unlimited enforced turn limit to the client', () => {
+    // Regression guard: sending the displayed 20 allowance here would
+    // disable the composer at turn 20 even though Free turn 21 is valid
+    // on the $0 chain. The allowance is informational UI copy only.
+    expect(ROUTE_SOURCE).toMatch(/chatResponseHeaders\(\{[\s\S]*?turnLimit: 'unlimited'/);
+    expect(ROUTE_SOURCE).toContain('modelLabel: chatModelLabelForTurn(');
   });
 
   it('still persists the auto-title to the database', () => {
