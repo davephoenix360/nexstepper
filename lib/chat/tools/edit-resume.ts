@@ -3,6 +3,7 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { saveResumeRevision } from '@/lib/db/queries';
+import { RevisionConflictError } from '@/lib/db/revision-guard';
 import { buildMergedData } from './merge-resume';
 import type { EditResumeArgs } from './types';
 
@@ -51,7 +52,10 @@ export async function executeEditResume(
 
   try {
     const rev = await saveResumeRevision(resumeId, userId, data, {
-      message: 'Edited via AI chat'
+      message: 'Edited via AI chat',
+      // The merge was computed from this exact revision. If the candidate
+      // saved in the meantime, refuse instead of overwriting their edit.
+      expectedRevisionId: existing.resume.currentRevisionId
     });
     if (!rev) return { ok: false, error: 'Failed to save revision' };
 
@@ -76,6 +80,12 @@ export async function executeEditResume(
     // can either repair them itself or tell the user precisely which
     // field is blocking them. This is the difference between a tool
     // failure and a repair loop.
+    if (err instanceof RevisionConflictError) {
+      return {
+        ok: false,
+        error: `${err.message} Do not retry with the old data: read the resume again first, then re-apply only the change the user asked for.`
+      };
+    }
     const issues = extractZodIssues(err);
     if (issues) {
       return {

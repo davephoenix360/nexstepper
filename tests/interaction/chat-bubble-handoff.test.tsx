@@ -133,9 +133,15 @@ describe('ChatBubble bullet-attention handoff', () => {
     await userEvent.click(ask);
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
 
+    // `onDone` arrives before `sendMessage` resolves and assigns the new
+    // session id. The queued handoff must still wait.
+    await act(async () => {
+      (mocks.options?.onDone as (() => void) | undefined)?.();
+    });
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+
     await act(async () => {
       finishFirst?.();
-      (mocks.options?.onDone as (() => void) | undefined)?.();
     });
 
     await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(2));
@@ -143,6 +149,54 @@ describe('ChatBubble bullet-attention handoff', () => {
       'Improve this bullet',
       'Improve this bullet'
     ]);
+  });
+
+  it('waits for existing-session history before sending a handoff', async () => {
+    let resolveHistory: ((value: { messages: unknown[] }) => void) | null = null;
+    const history = new Promise<{ messages: unknown[] }>((resolve) => {
+      resolveHistory = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) =>
+        Promise.resolve({
+          ok: true,
+          json: async () =>
+            input.includes('sessionId=')
+              ? history
+              : {
+                  sessions: [
+                    {
+                      id: 'existing-session',
+                      title: 'Prior turn',
+                      updatedAt: new Date().toISOString()
+                    }
+                  ]
+                }
+        })
+      )
+    );
+    mocks.sendMessage.mockResolvedValue('existing-session');
+
+    renderChat();
+    await userEvent.click(screen.getByRole('button', { name: 'ask scout' }));
+
+    await waitFor(() => {
+      expect(typeof mocks.options?.onResumeUpdated).toBe('function');
+    });
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+
+    const oldMessage = { id: 'old-1', role: 'user', content: 'Earlier question' };
+    await act(async () => {
+      resolveHistory?.({ messages: [oldMessage] });
+    });
+
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+    expect(mocks.sendMessage).toHaveBeenCalledWith(
+      'existing-session',
+      'Improve this bullet',
+      [oldMessage]
+    );
   });
 
   it('uses the normal rate-limit notice instead of a second paywall', async () => {
@@ -191,6 +245,35 @@ describe('ChatBubble bullet-attention handoff', () => {
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
     // Let the scheduled macrotask flush so a second refresh would be
     // visible before the assertion ends the test.
+    await act(async () => {});
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushes the saved-edit refresh when score recompute fails', async () => {
+    renderChat();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Open Scout, the AI assistant' })
+    );
+
+    await waitFor(() => {
+      expect(typeof mocks.options?.onScoreRefreshFailed).toBe('function');
+    });
+
+    await act(async () => {
+      (mocks.options?.onResumeUpdated as () => void)();
+    });
+    // The revision event alone must not refresh against a stale snapshot.
+    await act(async () => {});
+    expect(mocks.refresh).not.toHaveBeenCalled();
+
+    await act(async () => {
+      (mocks.options?.onScoreRefreshFailed as () => void)();
+    });
+
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('chat-window').textContent).toContain(
+      'Your edit was saved'
+    );
     await act(async () => {});
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });

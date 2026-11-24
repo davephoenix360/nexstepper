@@ -27,9 +27,10 @@
 
 import * as React from 'react';
 import { Plus, X } from 'lucide-react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
+import { normalizeBulletText } from '@/lib/scoring/bullet-issues';
 import { cn } from '@/lib/utils';
 
 import { EditableText } from './editable-text';
@@ -58,6 +59,10 @@ export function BulletList({
   const { issuesByPath } = useVariantIssues();
   // useFieldArray gives us stable .id for keys — survives removes + reorders.
   const { fields, append, remove } = useFieldArray({ control, name: path });
+  // Live values, not the persisted snapshot text. A measured issue becomes
+  // stale the moment the user edits that bullet locally; hiding it here keeps
+  // the icon honest until the next recompute produces a fresh measurement.
+  const watchedBullets = useWatch({ control, name: path }) as unknown;
 
   function handleAdd() {
     append('');
@@ -109,7 +114,22 @@ export function BulletList({
       >
         {fields.map((field, i) => {
           const leafPath = `${path}.${i}`;
-          const issues = issuesByPath.get(leafPath) ?? EMPTY_BULLET_ISSUES;
+          const liveText = Array.isArray(watchedBullets)
+            ? watchedBullets[i]
+            : undefined;
+          const measuredIssues =
+            issuesByPath.get(leafPath) ?? EMPTY_BULLET_ISSUES;
+          // An edit to the leaf invalidates the persisted measurement. Keep
+          // the icon off until recompute measures the new text; a stale
+          // handoff would target changed text and fail its freshness check.
+          const issues =
+            typeof liveText === 'string'
+              ? measuredIssues.filter(
+                  (issue) =>
+                    normalizeBulletText(liveText) ===
+                    normalizeBulletText(issue.currentText)
+                )
+              : EMPTY_BULLET_ISSUES;
 
           return (
             <li

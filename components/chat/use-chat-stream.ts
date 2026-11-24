@@ -78,6 +78,13 @@ export type UseChatStreamOptions = {
    * turn, so both callbacks may fire for one edit.
    */
   onScoreUpdated?: () => void;
+  /**
+   * Called when a successful bullet edit was saved but its score snapshot
+   * recomputation failed. The parent still refreshes the saved edit and
+   * tells the user how to retry; without this event the failure is only in
+   * the server log.
+   */
+  onScoreRefreshFailed?: () => void;
 };
 
 type StreamState = {
@@ -140,7 +147,8 @@ export function useChatStream({
   onError,
   onUsage,
   onResumeUpdated,
-  onScoreUpdated
+  onScoreUpdated,
+  onScoreRefreshFailed
 }: UseChatStreamOptions) {
   /**
    * Accumulated messages for the current session.
@@ -369,6 +377,12 @@ export function useChatStream({
               // bullet edit. The attention icons are derived from that
               // snapshot, so they must not outlive the fix.
               onScoreUpdated?.();
+              break;
+
+            case 'score_refresh_failed':
+              // The edit landed but the snapshot did not. The parent still
+              // needs to refresh the saved text and surface the retry path.
+              onScoreRefreshFailed?.();
               break;
 
             case 'done':

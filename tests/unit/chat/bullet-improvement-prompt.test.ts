@@ -68,8 +68,27 @@ describe('buildBulletImprovementPrompt', () => {
     expect(prompt).not.toContain('"role"');
   });
 
-  it('stays inside the chat route message limit even for a huge bullet', () => {
-    const prompt = buildBulletImprovementPrompt(issue({ currentText: 'x'.repeat(9000) }));
+  it('refuses an oversized bullet instead of truncating the operation and rules', () => {
+    const hugeText = 'x'.repeat(9000);
+    const prompt = buildBulletImprovementPrompt(issue({ currentText: hugeText }));
+
     expect(prompt.length).toBeLessThanOrEqual(BULLET_IMPROVEMENT_PROMPT_LIMIT);
+    expect(prompt).toMatch(/too long/i);
+    expect(prompt).toMatch(/do not call editResume/i);
+    expect(prompt).toMatch(/do not call getAtsScore/i);
+    // A refusal must not carry a half-built JSON operation or the huge text.
+    expect(prompt).not.toContain(hugeText);
+    expect(prompt).not.toContain('"oldText"');
+    expect(prompt).not.toContain('recomputed automatically');
+  });
+
+  it('keeps the complete operation and post-edit rules when the bullet fits', () => {
+    const prompt = buildBulletImprovementPrompt(issue());
+
+    expect(prompt).toContain('<flagged_bullet_data>{');
+    expect(prompt).toContain('</flagged_bullet_data>');
+    expect(prompt).toContain('"newText":"<your improved full bullet>"');
+    expect(prompt).toMatch(/after the edit tool succeeds/i);
+    expect(prompt).toMatch(/if the edit tool fails/i);
   });
 });

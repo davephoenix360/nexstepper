@@ -26,10 +26,12 @@ let sendMessageRef: SendMessage | null = null;
 function Probe({
   onResumeUpdated,
   onScoreUpdated,
+  onScoreRefreshFailed,
   onDone
 }: {
   onResumeUpdated: () => void;
   onScoreUpdated: () => void;
+  onScoreRefreshFailed: () => void;
   onDone: (finishReason: string | null) => void;
 }) {
   const { sendMessage } = useChatStream({
@@ -38,6 +40,7 @@ function Probe({
     onMessage: () => undefined,
     onResumeUpdated,
     onScoreUpdated,
+    onScoreRefreshFailed,
     onDone
   });
   sendMessageRef = sendMessage;
@@ -84,11 +87,13 @@ describe('useChatStream score events', () => {
 
     const onResumeUpdated = vi.fn();
     const onScoreUpdated = vi.fn();
+    const onScoreRefreshFailed = vi.fn();
     const onDone = vi.fn();
     render(
       <Probe
         onResumeUpdated={onResumeUpdated}
         onScoreUpdated={onScoreUpdated}
+        onScoreRefreshFailed={onScoreRefreshFailed}
         onDone={onDone}
       />
     );
@@ -104,6 +109,42 @@ describe('useChatStream score events', () => {
     expect(sessionId).toBe('session-1');
     expect(onResumeUpdated).toHaveBeenCalledTimes(1);
     expect(onScoreUpdated).toHaveBeenCalledTimes(1);
+    expect(onScoreRefreshFailed).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledWith('stop');
+  });
+
+  it('surfaces score_refresh_failed when the saved edit could not be rescored', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      sseResponse([
+        { type: 'resume_updated' },
+        { type: 'score_refresh_failed' },
+        { type: 'done', finishReason: 'stop' }
+      ])
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const onResumeUpdated = vi.fn();
+    const onScoreUpdated = vi.fn();
+    const onScoreRefreshFailed = vi.fn();
+    const onDone = vi.fn();
+    render(
+      <Probe
+        onResumeUpdated={onResumeUpdated}
+        onScoreUpdated={onScoreUpdated}
+        onScoreRefreshFailed={onScoreRefreshFailed}
+        onDone={onDone}
+      />
+    );
+
+    await act(async () => {
+      const send = sendMessageRef;
+      if (!send) throw new Error('useChatStream did not expose sendMessage');
+      await send('session-1', 'Improve this bullet', []);
+    });
+
+    expect(onResumeUpdated).toHaveBeenCalledTimes(1);
+    expect(onScoreUpdated).not.toHaveBeenCalled();
+    expect(onScoreRefreshFailed).toHaveBeenCalledTimes(1);
     expect(onDone).toHaveBeenCalledWith('stop');
   });
 });

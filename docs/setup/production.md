@@ -627,7 +627,7 @@ Do this in an **incognito window** so you exercise the unauthenticated
 | 8 | Click a **flagged work bullet's attention icon** (Free tier) | Hover explains the issue and fix; click opens Scout with a bullet-specific prompt, no paywall |
 | 9 | **Upgrade to Pro** (real card, then refund later) | Stripe checkout, return URL, Billing card shows Pro · active |
 | 10 | Click the same attention icon (now Pro) | Same behavior — bullet guidance is not plan-gated |
-| 11 | **AI chat** — ask Scout to fix the flagged bullet (or "make my summary shorter") | Streams response, `editResume` tool fires, score recomputes, persists to history |
+| 11 | **AI chat** — ask Scout to fix the flagged bullet with `replaceWorkHighlight` | Streams response; one path-targeted `editResume` operation fires; score recomputes and persists; editor refreshes with the bullet changed and its marker cleared. A summary-only edit refreshes the editor but does not recompute the score. |
 | 12 | **Download PDF** | `/preview?print=1` opens, print dialog shows correct filename, colors render |
 | 13 | **Share link** — generate `/r/{token}` | Public page renders read-only, token works in a different browser |
 | 14 | **Revoke share** | Token now 404s |

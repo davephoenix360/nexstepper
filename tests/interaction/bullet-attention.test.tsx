@@ -8,7 +8,7 @@
  */
 
 import * as React from 'react';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { ChatHandoffProvider, useChatHandoff, type ChatHandoffRequest } from '@/components/chat/chat-handoff-provider';
@@ -147,6 +147,57 @@ describe('BulletAttention', () => {
     expect(lastRequest!.prompt).toContain('replaceWorkHighlight');
     expect(lastRequest!.prompt).toContain('Northwind');
     expect(lastRequest!.prompt.length).toBeLessThanOrEqual(4000);
+  });
+
+  it('hides the icon as soon as the measured bullet is edited locally', async () => {
+    const userSession = user();
+    mount();
+
+    expect(screen.getByTestId(`bullet-issue-${PATH}`)).toBeTruthy();
+
+    await userSession.click(screen.getByTestId(`editable-${PATH}`));
+    const input = screen.getByTestId(`editable-${PATH}`) as HTMLInputElement;
+    await userSession.clear(input);
+    await userSession.type(input, 'changed in the editor');
+    await userSession.keyboard('{Enter}');
+
+    // The persisted snapshot has not been recomputed, so its measurement no
+    // longer describes the leaf under this icon. Do not offer a stale handoff.
+    expect(screen.queryByTestId(`bullet-issue-${PATH}`)).toBeNull();
+    expect(screen.getByTestId(`editable-${PATH}`).textContent).toContain(
+      'changed in the editor'
+    );
+  });
+
+  it('hides the icon when the measured bullet is removed', async () => {
+    const userSession = user();
+    mount();
+
+    expect(screen.getByTestId(`bullet-issue-${PATH}`)).toBeTruthy();
+
+    await userSession.click(screen.getByLabelText('Remove bullet 1'));
+
+    // The next bullet has moved into index 0; the old path now names different
+    // text and must not inherit a measurement taken of the removed bullet.
+    expect(screen.queryByTestId(`bullet-issue-${PATH}`)).toBeNull();
+    expect(screen.getByTestId(`editable-${PATH}`).textContent).toContain(
+      'Built a service'
+    );
+  });
+
+  it('hides the icon when bullets are reordered under the measured path', () => {
+    const { form } = mount();
+
+    expect(screen.getByTestId(`bullet-issue-${PATH}`)).toBeTruthy();
+
+    act(() => {
+      form.current!.setValue(
+        'sections.work.0.positions.0.highlights',
+        ['Built a service', 'helped with the deployment']
+      );
+    });
+
+    expect(screen.queryByTestId(`bullet-issue-${PATH}`)).toBeNull();
   });
 
   it('is editor chrome and disappears when the print stylesheet is simulated', () => {

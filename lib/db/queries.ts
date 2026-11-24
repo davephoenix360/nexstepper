@@ -31,6 +31,7 @@ import {
   type Subscription,
   type User
 } from './schema';
+import { buildRevisionGuard, RevisionConflictError } from './revision-guard';
 import { auth } from '@/lib/auth';
 import {
   blankResumeData,
@@ -532,14 +533,14 @@ export async function saveResumeRevision(
   resumeId: string,
   userId: string,
   rawData: unknown,
-  options?: { message?: string }
+  options?: { message?: string; expectedRevisionId?: string | null }
 ): Promise<ResumeRevision> {
   // Validate BEFORE touching the DB — fail fast on bad input.
   const parsed = resumeDataSchema.parse(rawData);
 
   // Ownership check (also covers the resume-existing case).
   const [row] = await db
-    .select({ id: resumes.id })
+    .select({ id: resumes.id, currentRevisionId: resumes.currentRevisionId })
     .from(resumes)
     .where(and(eq(resumes.id, resumeId), eq(resumes.userId, userId)))
     .limit(1);
@@ -548,7 +549,32 @@ export async function saveResumeRevision(
     throw new Error(`Resume ${resumeId} not found or not owned by user`);
   }
 
+  if (
+    options?.expectedRevisionId !== undefined &&
+    row.currentRevisionId !== options.expectedRevisionId
+  ) {
+    throw new RevisionConflictError();
+  }
+
   return db.transaction(async (tx) => {
+    // Re-check under a row write lock. The first read is outside the
+    // transaction, so a candidate's own save can land between it and the
+    // insert below — without this guard the AI would overwrite that edit.
+    if (options?.expectedRevisionId !== undefined) {
+      const [guard] = await tx
+        .update(resumes)
+        .set({ updatedAt: new Date() })
+        .where(
+          buildRevisionGuard({
+            resumeId,
+            userId,
+            expectedRevisionId: options.expectedRevisionId
+          })
+        )
+        .returning({ id: resumes.id });
+      if (!guard) throw new RevisionConflictError();
+    }
+
     const revisionId = crypto.randomUUID();
 
     const [rev] = await tx

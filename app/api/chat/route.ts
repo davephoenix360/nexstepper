@@ -637,6 +637,13 @@ export async function POST(req: NextRequest) {
             );
           } catch (err) {
             console.error('[api/chat] post-edit score recompute failed', err);
+            // The revision is on disk, but the snapshot is stale. Tell the
+            // client so it can refresh the saved edit and explain how to
+            // retry the score — silence here leaves the attention icon
+            // looking unchanged with no clue why.
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'score_refresh_failed' })}\n\n`)
+            );
           }
         }
 
