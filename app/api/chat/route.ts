@@ -42,7 +42,13 @@ import { coercePrintSettings } from '@/lib/print-settings';
 import { resolveVariantScore } from '@/lib/variant-score';
 import { CHAT_TOOLS } from '@/lib/chat/tools';
 import { executeTool } from '@/lib/chat/execute-tool';
-import { getModel, resolveChatModelPlan, CHAT_MAX_OUTPUT_TOKENS, CHAT_MAX_STEPS } from '@/lib/ai/providers';
+import {
+  getModel,
+  resolveChatModelForTurn,
+  chatModelLabelForTurn,
+  CHAT_MAX_OUTPUT_TOKENS,
+  CHAT_MAX_STEPS
+} from '@/lib/ai/providers';
 import { trackServer } from '@/lib/posthog/server';
 import { PostHogEvents } from '@/lib/posthog/events';
 import { recomputeVariantScore } from '@/lib/scoring-async/recompute-variant';
@@ -256,26 +262,30 @@ export async function POST(req: NextRequest) {
       { status: 503 }
     );
   }
-  const freeLimit = PLANS[plan].chatMessagesPerDay;
-  const unlimited = !Number.isFinite(freeLimit);
+  // Since 2026-11-24 neither plan has a TURN gate. Free's first 20
+  // turns/day use the Pro chain and turn 21+ uses the $0 chain; Pro was
+  // already unlimited. The one enforced quota is the per-plan token cap,
+  // and it stays inside the same atomic `ON CONFLICT ... WHERE` as the
+  // turn increment so concurrent turns cannot all slip past it.
+  // `Infinity` omits the turn predicate in `tryConsumeChatTurn`.
+  const displayedAllowance = PLANS[plan].chatMessagesPerDay;
   const tokenLimit = PLANS[plan].chatTokensPerDay;
-  const usage = await tryConsumeChatTurn(userId, freeLimit, tokenLimit);
+  const usage = await tryConsumeChatTurn(userId, Number.POSITIVE_INFINITY, tokenLimit);
   if (!usage) {
-    // Zero rows back means one of the two `ON CONFLICT ... WHERE`
-    // predicates failed — we're at or over quota on turns or tokens.
-    // We don't have a row to read `resetsAt` from, so the decision
-    // helper recomputes today's UTC date, matching what the `date`
-    // column is keyed on.
+    // Zero rows back means the token `ON CONFLICT ... WHERE` predicate
+    // failed — the user is over their daily spend cap. We don't have a row
+    // to read `resetsAt` from, so the decision helper recomputes today's
+    // UTC date, matching what the `date` column is keyed on.
     //
-    // The two limits are genuinely different events and the copy has to
-    // distinguish them: on an unlimited-turn Pro plan, "Daily limit
-    // reached / limit: null" reads as a bug rather than as a spend cap
-    // doing its job. This read is on the rejection path only (rare), so
-    // the extra query never touches the hot path.
+    // The plan is passed EXPLICITLY: Free no longer has a finite turn
+    // limit that could be used to infer it, and the copy must not tell a
+    // Free user they spent their "Pro" allowance. This read is on the
+    // rejection path only (rare), so it never touches the hot path.
     const decision = decideChatQuotaRejection({
       usage: await getTodayChatUsage(userId),
       tokenLimit,
-      turnLimit: freeLimit
+      turnLimit: displayedAllowance,
+      plan
     });
     return NextResponse.json(decision.body, { status: 429 });
   }
@@ -512,16 +522,18 @@ export async function POST(req: NextRequest) {
 
   // ── Stream response ────────────────────────────────────────────────────────
   //
-  // The model chain depends on the PLAN. Free users get a $0-only chain
-  // (`resolveChatModelPlan`) so their conversations cost us nothing; Pro
-  // gets the full chain. The gateway `order` means a model that is
-  // unavailable on this account degrades to the next one instead of
-  // failing the turn.
+  // The chain depends on the plan AND the post-consume turn count. Free
+  // turns 1–20 get the Pro chain; turn 21+ gets the $0-only chain, with
+  // no turn-limit rejection in between. Pro always gets the full chain.
+  // `turnsUsed` is the value returned by the atomic increment above, so
+  // every concurrent request resolves from the same authoritative count.
+  // The gateway `order` means a model unavailable on this account
+  // degrades to the next one instead of failing the turn.
   //
   // CHAT_MODEL's paid siblings, not PARSER_MODEL. The parser needs
   // strict-JSON structured output on a huge schema; the chat needs
   // multi-turn instruction following and tool calling.
-  const chatPlan = resolveChatModelPlan(plan);
+  const chatPlan = resolveChatModelForTurn(plan, usage.turnsUsed);
   const model = getModel(chatPlan.model, {
     distinctId: userId,
     sessionId,
@@ -693,7 +705,13 @@ export async function POST(req: NextRequest) {
     headers: chatResponseHeaders({
       sessionId,
       turnsUsed: usage.turnsUsed,
-      turnLimit: unlimited ? 'unlimited' : freeLimit
+      // No plan has a turn rejection any more. Reporting the displayed
+      // 20 allowance here would make the client disable the composer at
+      // turn 20 even though turn 21 is valid on the $0 chain.
+      turnLimit: 'unlimited',
+      // Names the selected chain, not a gateway fallback chosen after the
+      // stream starts — headers are already on the wire by then.
+      modelLabel: chatModelLabelForTurn(plan, usage.turnsUsed)
     })
   });
 }

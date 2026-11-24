@@ -95,13 +95,17 @@ describe('the copy', () => {
     expect(AGENT_INTRO_BODY).toMatch(/missing/i);
   });
 
-  it('names the allowance from the number it is given', () => {
+  it('names the paid-model allowance and what happens after it', () => {
+    // Since 2026-11-24 the 20 turns are an informational allowance, not
+    // a gate: chat continues on the $0 chain. The copy must say both
+    // halves or a Free user expects the composer to stop at turn 20.
     expect(agentIntroAllowanceLine(20)).toBe(
-      'Your free plan includes 20 messages a day.'
+      'Your free plan includes 20 Pro-model messages a day, then free models.'
     );
     // The number comes from the caller, not from a literal here — the
-    // badge, the bubble and the server's gate have to agree.
-    expect(agentIntroAllowanceLine(5)).toContain('5 messages');
+    // badge and the bubble have to agree.
+    expect(agentIntroAllowanceLine(5)).toContain('5 Pro-model messages');
+    expect(agentIntroAllowanceLine(5)).toContain('then free models');
   });
 });
 

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true }
 };
 
-const LAST_UPDATED = '2026-09-24';
+const LAST_UPDATED = '2026-11-24';
 
 const toc = [
   { id: 'acceptance', label: '1. Acceptance' },
@@ -97,16 +97,16 @@ export default function TermsPage() {
       <h2 id="subscription">5. Subscriptions + billing</h2>
       <p>
         <strong>Free tier.</strong> The Free tier is free of charge and
-        includes unlimited resume creation and ATS feedback, plus up to
-        20 AI chat messages per day. Free users get the same bullet-level
-        ATS guidance and can ask Scout to make edits within that daily
-        allowance.
+        includes unlimited resume creation and ATS feedback, plus 20
+        Pro-model chat messages per day, then continued chat on free models
+        subject to a daily usage cap. Free users get the same bullet-level
+        ATS guidance and can ask Scout to make edits throughout.
       </p>
       <p>
         <strong>Pro tier.</strong> The Pro tier is billed monthly through
         Stripe. The current price is displayed on the{' '}
         <a href="/pricing">Pricing</a> page before you upgrade.
-        Pro includes a much higher AI chat allowance and any other
+        Pro includes ongoing access to the Pro model chain and any other
         Pro-marked feature.
       </p>
       <p>
@@ -273,6 +273,7 @@ export default function TermsPage() {
       <ul>
         <li><strong>2026-09-24</strong> — initial version (generated from Termly open templates).</li>
         <li><strong>2026-09-24</strong> — added §3 &ldquo;Open-source + hosted&rdquo; scope, §8 hosted-vs-self-host AI disclaimer, §9 trademark clause.</li>
+        <li><strong>2026-11-24</strong> — clarified §5: the Free tier includes 20 Pro-model chat messages per day, then continued chat on free models subject to a daily usage cap.</li>
       </ul>
 
       <h2 id="governing-law">14. Governing law</h2>

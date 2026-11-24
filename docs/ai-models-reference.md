@@ -58,8 +58,10 @@ npx --yes vercel@latest ai-gateway models endpoints <model-id> --format json
 | parser fallbacks | `reflection/beam-free` → `amazon/nova-micro` → `openai/gpt-4o-mini` | $0 → $0.04 → $0.15 | 1M / 128K / 128K | all verified schema-exact |
 | **chat** (agentic assistant, Pro) | `anthropic/claude-haiku-5.5` | $0.10 / $0.50 | 1M | frontier reasoning, 4 real endpoints, verified tools + schemas |
 | chat fallbacks (Pro) | `amazon/nova-micro` → `zai/glm-5.3-flash` → `reflection/beam-free` → `nvidia/nemotron-3.5-lightning-free` | $0.04 → $0.06 → $0 → $0 | 1M each | ordered by **measured edit reliability**, not price (2026-11-01) |
-| **chat** (agentic assistant, Free) | `reflection/beam-free` | $0 / $0 | 1M | $0-only chain — a free user must cost us nothing |
-| chat fallbacks (Free) | `nvidia/nemotron-3.5-lightning-free` | $0 / $0 | 1M | the only other strictly-$0 model that can edit |
+| **chat** (agentic assistant, Free turns 1–20/day) | `anthropic/claude-haiku-5.5` | $0.10 / $0.50 | 1M | staged allowance — Free's first 20 messages use the Pro chain |
+| chat fallbacks (Free turns 1–20/day) | same as Pro | — | — | ordered by measured edit reliability |
+| **chat** (agentic assistant, Free turns 21+/day) | `reflection/beam-free` | $0 / $0 | 1M | $0-only continuation chain after the Pro allowance |
+| chat fallbacks (Free turns 21+/day) | `nvidia/nemotron-3.5-lightning-free` | $0 / $0 | 1M | the only other strictly-$0 model that can edit |
 
 Constants live in `lib/ai/providers.ts`. That file's header carries a
 standing re-verify rule — read it before trusting any comment in it.
@@ -167,20 +169,25 @@ probe's file header now says so.
 - **`stealth/glyph-cluster` 403s** — it requires purchased credits, so a
   "$0" model that a free account cannot call is not free.
 
-### The free tier
+### The free tier (updated 2026-11-24)
 
-Free users get a **$0-only** chain — `reflection/beam-free` →
-`nvidia/nemotron-3.5-lightning-free` — because a free user must cost us
-nothing. `reflection/beam` would edit more reliably but is **not**
-strictly $0: only its `reflection` endpoint is free, and the gateway may
-route to baseten / nebius / togetherai at $0.25–$0.40 in / $1.00–$1.20
-out per 1M. At the free plan's ceiling (20 turns and 300K tokens a day)
-that is roughly **$1.70–$4 per active free user per month**, which is not
-free.
+Free users now get **staged routing**: turns 1–20/day use the Pro chain
+(`anthropic/claude-haiku-5.5` → the measured Pro fallbacks), and turn 21+
+continues on a **$0-only** chain — `reflection/beam-free` →
+`nvidia/nemotron-3.5-lightning-free`. The 20 is an allowance, not a gate;
+chat keeps working past it under the **600K daily token cap** and the
+enforced turn limit sent to the client is `unlimited`. The badge reads
+`Free · 20 Pro/day` so the switch is visible before it happens.
 
-The honest trade: free users get a real agent that edits in **3 of 5**
-attempts against the Pro chain's **5 of 5**, and asks a clarifying
-question the rest of the time.
+`reflection/beam` remains excluded from the post-allowance chain: it is
+**not** strictly $0. Only its `reflection` endpoint is free, and the
+gateway may route to baseten / nebius / togetherai at $0.25–$0.40 in /
+$1.00–$1.20 out per 1M.
+
+The honest trade after the allowance: the $0 chain is a real agent that
+edits in **3 of 5** attempts against the Pro chain's **5 of 5**, and asks
+a clarifying question the rest of the time. Before the allowance, Free
+users get the same 5-of-5 chain as Pro.
 
 ## Cost model
 
@@ -230,6 +237,15 @@ backstop behind the per-user cap.
 | anything `*_meta/mixedbread` etc. | no verified capability on this account |
 
 ## Changelog
+
+### 2026-11-24 — Staged Free chat turns
+Free turns 1–20/day now use the Pro chain; turn 21+ continues on the $0 chain
+instead of hitting a turn limit. The Free token cap moved from 300K to 600K/day
+to cover ≈416K of Pro-chain allowance plus $0-chain headroom, the enforced
+`X-Chat-Limit` is `unlimited`, and Scout shows the live model switching from
+`Claude Haiku 5.5` to `Beam`. The badge reads `Free · 20 Pro/day`. The 2026-11-01
+$0-only decision is superseded by this product choice; its tool-call
+reliability measurements still stand.
 
 ### 2026-11-01 — The chat chain re-measured on the real agent loop
 The "forced `tool_choice`" verification turned out to prove the wrong

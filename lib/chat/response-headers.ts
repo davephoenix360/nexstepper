@@ -67,8 +67,25 @@ export type ChatResponseHeaderInput = {
   sessionId: string;
   /** Turns this user has consumed today. */
   turnsUsed: number;
-  /** The plan's daily turn allowance, or `'unlimited'` on Pro. */
+  /**
+   * The ENFORCED daily turn limit, or `'unlimited'`. Since 2026-11-24
+   * Free has no turn rejection — turns 21+ route to the $0 chain — so
+   * both plans report `'unlimited'` here. The 20-message Pro allowance
+   * is an informational badge seeded from `PLANS`, not a gate; sending
+   * it as the enforced limit would disable the composer at turn 20.
+   */
   turnLimit: number | 'unlimited';
+  /**
+   * The user-facing label of the chain the route selected for this turn,
+   * e.g. "Claude Haiku 5.5" or "Beam". Resolved BEFORE the stream starts
+   * from the post-consume turn count, so the client can show the right
+   * allowance without deriving it from a stale counter. The gateway's
+   * `order` can choose a fallback after headers are sent, so this names
+   * the planned route, not an after-the-fact model ID. Passed through
+   * `safeHeaderValue` so a model rename can never reintroduce the
+   * 2026-11-01 ByteString 500.
+   */
+  modelLabel: string;
 };
 
 /**
@@ -89,6 +106,11 @@ export function chatResponseHeaders(input: ChatResponseHeaderInput): Record<stri
     // decremented, so the number the user saw was always the
     // full allowance regardless of how much they'd used.
     'X-Chat-Usage': safeHeaderValue(String(input.turnsUsed)),
-    'X-Chat-Limit': safeHeaderValue(String(input.turnLimit))
+    'X-Chat-Limit': safeHeaderValue(String(input.turnLimit)),
+    // The live model line. The client reads this instead of computing
+    // "which model am I on?" from its own turn count, so a reload or a
+    // plan change cannot leave the panel showing the wrong allowance.
+    // It names the planned chain, not a fallback chosen after headers.
+    'X-Chat-Model': safeHeaderValue(input.modelLabel)
   };
 }

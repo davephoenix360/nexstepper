@@ -8,6 +8,7 @@ import {
   getResume,
   getShareStatus,
   getSubscription,
+  getTodayChatUsage,
   countVariantsByMasterId
 } from '@/lib/db/queries';
 import type { MatchBreakdown } from '@/lib/db/queries';
@@ -31,7 +32,7 @@ import { resolveVariantScore } from '@/lib/variant-score';
 import { buildDynamicTips } from '@/lib/scoring/tips';
 import { isProEffective, type PlanId } from '@/lib/billing';
 import { PLANS } from '@/lib/db/schema';
-import { chatModelLabel } from '@/lib/ai/providers';
+import { chatModelLabelForTurn } from '@/lib/ai/providers';
 import { coercePrintSettings } from '@/lib/print-settings';
 
 /**
@@ -184,6 +185,12 @@ export default async function ResumeEditorPage({
   // same per-bullet attention icons and the same chat quota path.
   const subscription = await getSubscription();
   const planId: PlanId = isProEffective(subscription) ? 'pro' : 'free';
+  // Seed the live model line from today's authoritative usage so a
+  // reload after the 20-turn switch does not briefly claim Claude while
+  // the route is already serving Beam. The first turn of the day sees
+  // `turnsUsed === 0`; post-consume responses always carry the header.
+  const todayUsage = await getTodayChatUsage(user.id);
+  const initialModelLabel = chatModelLabelForTurn(planId, (todayUsage?.turnsUsed ?? 0) + 1);
 
   return (
     <ChatHandoffProvider>
@@ -264,16 +271,16 @@ export default async function ResumeEditorPage({
               resumeId={resume.id}
               resumeName={resume.name}
               isPro={planId === 'pro'}
-              // The daily allowance comes from PLANS, not from a string
-              // baked into the chat UI. The badge used to hard-code
-              // "20/day", which meant the number on screen could drift
-              // from the number the server actually enforces.
+              // The displayed allowance comes from PLANS, not from a
+              // string baked into the chat UI. It is informational: Free
+              // keeps chatting past 20 turns on the $0 chain, so this is
+              // the Pro-model allowance, not a hard turn gate.
               dailyLimit={
                 Number.isFinite(PLANS[planId].chatMessagesPerDay)
                   ? PLANS[planId].chatMessagesPerDay
                   : null
               }
-              modelLabel={chatModelLabel(planId)}
+              modelLabel={initialModelLabel}
               hasJobContext={Boolean(data.jobContext)}
               autoPrompt={
                 autoTailor && planId === 'pro' ? AUTO_TAILOR_PROMPT : undefined

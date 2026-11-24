@@ -29,6 +29,16 @@ import { sendEmail, FROM_ADDRESS } from './resend';
  * notice you cannot take back.
  *
  * See `scripts/send-subprocessor-notice.cjs` for the send path.
+ *
+ * ## Current state (2026-11-24)
+ *
+ * Free chat now starts on the Pro chain for 20 turns/day and continues on
+ * the $0 chain under a 600K daily token cap. That routing change introduced
+ * **no new model provider and no new data category** — every provider below
+ * was already disclosed in the 2026-10-21 notice — so it does not need its
+ * own 30-day subprocessor email. The roles in the table have been refreshed
+ * so a future send describes what actually happens today, but the subject
+ * and body remain the historical notice that was sent on 2026-10-21.
  */
 
 /**
@@ -58,13 +68,13 @@ function escapeHtml(s: string): string {
  * are the same disclosure in two places, and they drifted once already.
  */
 export const AI_SUBPROCESSORS_2026_10_21 = [
-  { name: 'Anthropic', model: 'anthropic/claude-haiku-5.5', role: 'AI chat assistant' },
+  { name: 'Anthropic', model: 'anthropic/claude-haiku-5.5', role: 'AI chat assistant (Pro, and Free turns 1–20/day)' },
   { name: 'Mistral', model: 'mistral/mistral-nemo', role: 'Resume / job-description parsing' },
-  { name: 'Reflection AI', model: 'reflection/beam-free', role: 'Fallback model' },
+  { name: 'Reflection AI', model: 'reflection/beam-free', role: 'AI chat assistant (Free turns 21+/day) and fallback model' },
   { name: 'Amazon', model: 'amazon/nova-micro', role: 'Fallback model' },
   { name: 'OpenAI', model: 'openai/gpt-4o-mini', role: 'Fallback model (parsing only)' },
   { name: 'Z.ai', model: 'zai/glm-5.3-flash', role: 'Fallback model' },
-  { name: 'NVIDIA', model: 'nvidia/nemotron-3.5-lightning-free', role: 'Fallback model' }
+  { name: 'NVIDIA', model: 'nvidia/nemotron-3.5-lightning-free', role: 'Fallback model on both chat chains' }
 ] as const;
 
 export function buildSubprocessorNoticeHtml({

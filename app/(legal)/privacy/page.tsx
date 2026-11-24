@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true }
 };
 
-const LAST_UPDATED = '2026-11-02';
+const LAST_UPDATED = '2026-11-24';
 
 const toc = [
   { id: 'summary', label: 'Summary' },
@@ -231,12 +231,12 @@ export default function PrivacyPage() {
           <code>lib/ai/providers.ts</code>):
           <ul>
             <li><strong>Mistral</strong> (<code>mistral/mistral-nemo</code>) — primary for structured extraction (JD/resume parsing, formatting, scoring intent).</li>
-            <li><strong>Anthropic</strong> (<code>anthropic/claude-haiku-5.5</code>) — primary for the AI chat assistant on the Pro plan, which can read your resume and propose edits to it.</li>
-            <li><strong>Reflection</strong> (<code>reflection/beam-free</code>) — primary for the AI chat assistant on the Free plan, and a fallback for the Pro plan. Every entry on the Free plan&apos;s chain is priced at $0.</li>
+            <li><strong>Anthropic</strong> (<code>anthropic/claude-haiku-5.5</code>) — primary for the AI chat assistant on the Pro plan and on a Free user&apos;s first 20 messages each day, which can read your resume and propose edits to it.</li>
+            <li><strong>Reflection</strong> (<code>reflection/beam-free</code>) — primary for the AI chat assistant after a Free user&apos;s first 20 messages each day, and a fallback on the Pro chain. Every entry on that post-allowance Free chain is priced at $0.</li>
             <li><strong>Amazon</strong> (<code>amazon/nova-micro</code>) — first fallback for the Pro chat chain and second fallback for structured extraction.</li>
             <li><strong>OpenAI</strong> (<code>openai/gpt-4o-mini</code>) — last fallback for structured extraction only.</li>
             <li><strong>Z.ai</strong> (<code>zai/glm-5.3-flash</code>) — second fallback for the Pro chat chain.</li>
-            <li><strong>NVIDIA</strong> (<code>nvidia/nemotron-3.5-lightning-free</code>) — final fallback for the chat assistant on both plans.</li>
+            <li><strong>NVIDIA</strong> (<code>nvidia/nemotron-3.5-lightning-free</code>) — final fallback for the chat assistant on both chains.</li>
             <li>
               <strong>TypeSafe</strong> (<code>typesafe-ai/jev</code>) — the
               decision model behind the enhanced ATS score. It receives your
@@ -415,6 +415,7 @@ export default function PrivacyPage() {
         <li><strong>2026-09-24</strong> — added §11 &ldquo;Open-source + self-hosting&rdquo; scope clarification (the Nexstepper hosted service and your self-hosted instance have separate data-controller relationships).</li>
         <li><strong>2026-09-25</strong> — expanded §4 PostHog entry into three sub-capabilities (product analytics, AI observability, session replay) and clarified that AI observability runs in privacy mode so prompts and responses are never sent to PostHog.</li>
         <li><strong>2026-11-02</strong> — added Vercel Web Analytics (page views and visitors) to §1 and §4. It sets no cookie and stores no identifier on your device — the visitor hash is derived from the request and discarded after 24 hours — and it loads only if you allow analytics, the same as PostHog. §1 now names both analytics providers.</li>
+        <li><strong>2026-11-24</strong> — clarified §4 that Free users&apos; first 20 chat messages each day use the Pro model chain and later messages use the $0 model chain. No new recipient, data category, or purpose.</li>
       </ul>
 
       <h2 id="contact">13. Contact</h2>

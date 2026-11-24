@@ -5,15 +5,19 @@ import { PLANS } from '@/lib/db/schema';
 import type { ChatUsage } from '@/lib/db/schema';
 
 /**
- * Pins the daily chat quota behaviour added 2026-10-21.
+ * Pins the daily chat quota behaviour.
  *
- * The bug these guard against: `tryConsumeChatTurn` returns `null` for
- * BOTH "out of turns" and "out of tokens", and the single surface that
- * shows quota to the user (`ChatInput`'s "N / M messages remaining")
- * is a TURN counter — so it is `null` on an unlimited-turn Pro plan.
- * Before this split, a Pro user who exhausted the daily token cap got
+ * The bug these guard against: `tryConsumeChatTurn` returns `null` when
+ * the token `ON CONFLICT ... WHERE` predicate fails, and the only quota
+ * surface in the UI is a TURN readout — which no plan has any more
+ * (Free's turns 21+ route to the $0 chain). Before the 2026-10-21 split,
+ * a Pro user who exhausted the daily token cap got
  * `code: 'RATE_LIMITED', limit: null`, i.e. "Daily limit reached" with
  * nothing on screen and no explanation.
+ *
+ * Since 2026-11-24 the plan is passed EXPLICITLY: it used to be inferred
+ * from a finite `chatMessagesPerDay`, which stopped working the moment
+ * Free stopped having a turn gate.
  */
 
 function usage(tokensUsed: number): ChatUsage {
@@ -30,7 +34,8 @@ describe('decideChatQuotaRejection', () => {
     const d = decideChatQuotaRejection({
       usage: usage(PLANS.pro.chatTokensPerDay),
       tokenLimit: PLANS.pro.chatTokensPerDay,
-      turnLimit: PLANS.pro.chatMessagesPerDay
+      turnLimit: PLANS.pro.chatMessagesPerDay,
+      plan: 'pro'
     });
     expect(d.reason).toBe('token_limit');
     expect(d.body).toMatchObject({
@@ -44,14 +49,13 @@ describe('decideChatQuotaRejection', () => {
     // The copy used to say "You've used today's Pro AI allowance" to
     // everyone. A Free user who hits the token cap was told they had
     // used a Pro allowance they do not have — which reads as a bug in
-    // the product rather than as their own limit.
-    //
-    // A finite turn limit IS the Free plan (only Free has a finite
-    // `chatMessagesPerDay`), so it doubles as the plan signal.
+    // the product rather than as their own limit. The plan is now an
+    // explicit argument, not an inference from the turn limit.
     const free = decideChatQuotaRejection({
       usage: usage(PLANS.free.chatTokensPerDay),
       tokenLimit: PLANS.free.chatTokensPerDay,
-      turnLimit: PLANS.free.chatMessagesPerDay
+      turnLimit: PLANS.free.chatMessagesPerDay,
+      plan: 'free'
     });
     expect(free.body.error).toContain('free AI allowance');
     expect(free.body.error).not.toContain('Pro AI allowance');
@@ -59,15 +63,34 @@ describe('decideChatQuotaRejection', () => {
     const pro = decideChatQuotaRejection({
       usage: usage(PLANS.pro.chatTokensPerDay),
       tokenLimit: PLANS.pro.chatTokensPerDay,
-      turnLimit: PLANS.pro.chatMessagesPerDay
+      turnLimit: PLANS.pro.chatMessagesPerDay,
+      plan: 'pro'
     });
     expect(pro.body.error).toContain('Pro AI allowance');
   });
 
-  it('reports the turn limit when turns are exhausted but tokens are not', () => {    const d = decideChatQuotaRejection({
+  it('uses the explicit plan, even when the turn limit is finite', () => {
+    // Regression guard: the OLD implementation inferred Free from
+    // `Number.isFinite(turnLimit)`. A Pro caller passing a finite limit
+    // must still get Pro wording.
+    const d = decideChatQuotaRejection({
+      usage: usage(PLANS.pro.chatTokensPerDay),
+      tokenLimit: PLANS.pro.chatTokensPerDay,
+      turnLimit: 20,
+      plan: 'pro'
+    });
+    expect(d.body.error).toContain('Pro AI allowance');
+    expect(d.body.error).not.toContain('free AI allowance');
+  });
+
+  it('reports the turn limit when turns are exhausted but tokens are not', () => {
+    // This branch is unreachable from the route today (no plan has a
+    // turn gate), but the decision helper still owns the fallback.
+    const d = decideChatQuotaRejection({
       usage: usage(10), // far under the Pro token cap
       tokenLimit: PLANS.pro.chatTokensPerDay,
-      turnLimit: PLANS.pro.chatMessagesPerDay
+      turnLimit: PLANS.pro.chatMessagesPerDay,
+      plan: 'pro'
     });
     expect(d.reason).toBe('turn_limit');
     expect(d.body).toMatchObject({ code: 'RATE_LIMITED', limit: null });
@@ -80,7 +103,8 @@ describe('decideChatQuotaRejection', () => {
     const d = decideChatQuotaRejection({
       usage: usage(PLANS.pro.chatTokensPerDay),
       tokenLimit: PLANS.pro.chatTokensPerDay,
-      turnLimit: Infinity
+      turnLimit: Infinity,
+      plan: 'pro'
     });
     expect(d.reason).toBe('token_limit');
   });
@@ -91,20 +115,22 @@ describe('decideChatQuotaRejection', () => {
     const d = decideChatQuotaRejection({
       usage: null,
       tokenLimit: PLANS.pro.chatTokensPerDay,
-      turnLimit: 20
+      turnLimit: 20,
+      plan: 'pro'
     });
     expect(d.reason).toBe('turn_limit');
     expect(d.body).toMatchObject({ code: 'RATE_LIMITED', limit: 20 });
   });
 
-  it('surfaces a finite Free turn limit and never Infinity', () => {
+  it('surfaces a finite turn limit and never Infinity', () => {
+    // The displayed allowance passed by the route. It is informational —
+    // turn 21 is still a valid turn, just on the $0 chain.
     const d = decideChatQuotaRejection({
       usage: usage(0),
       tokenLimit: PLANS.free.chatTokensPerDay,
-      turnLimit: PLANS.free.chatMessagesPerDay
+      turnLimit: PLANS.free.chatMessagesPerDay,
+      plan: 'free'
     });
-    // Narrow explicitly rather than via `d.body.code` — TS does not
-    // propagate a discriminant on the parent through a nested property.
     if (d.reason !== 'turn_limit') throw new Error(`expected turn_limit, got ${d.reason}`);
     expect(d.body).toMatchObject({ limit: PLANS.free.chatMessagesPerDay });
     expect(d.body.limit).not.toBe(Infinity);
@@ -114,7 +140,8 @@ describe('decideChatQuotaRejection', () => {
     const d = decideChatQuotaRejection({
       usage: usage(0),
       tokenLimit: PLANS.free.chatTokensPerDay,
-      turnLimit: 20
+      turnLimit: 20,
+      plan: 'free'
     });
     expect(d.body.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
@@ -130,42 +157,28 @@ describe('PLANS quota shape', () => {
     expect(Number.isFinite(PLANS.pro.chatTokensPerDay)).toBe(true);
   });
 
-  it('Free has a finite token cap as a safety net', () => {
+  it('Free has a finite token cap as the only enforced quota', () => {
     expect(Number.isFinite(PLANS.free.chatTokensPerDay)).toBe(true);
+    // No turn gate: the route passes Infinity to `tryConsumeChatTurn`.
+    expect(PLANS.free.chatMessagesPerDay).toBe(20);
   });
 
-  it('Free token cap does not bite before the turn limit for normal use', () => {
-    // The assumption here used to be "~10K tokens per turn", which was
-    // never measured. It is now: a chat turn on the FREE chain costs
-    // ~13K tokens (median of 6 turns measured against the real agent
-    // loop on 2026-11-01 — `reflection/beam-free`, the free chain's
-    // primary, serves ~11–13K of the prompt from cache).
-    //
-    // 20 turns × 13K ≈ 260K, under the 300K cap, so the TURN limit is
-    // what an ordinary Free user hits — which is what the "20/day"
-    // badge says. The token cap stays a safety net for one
-    // pathological giant message.
-    const MEASURED_TOKENS_PER_TURN = 13_000;
-    expect(PLANS.free.chatTokensPerDay).toBeGreaterThan(
-      PLANS.free.chatMessagesPerDay * MEASURED_TOKENS_PER_TURN
-    );
-  });
-
-  it('the PRO chain would bite the Free token cap — which is why Free gets its own chain', () => {
-    // The same measurement on the Pro chain's primary
-    // (`anthropic/claude-haiku-5.5`) is ~20.8K tokens per turn, and
-    // that endpoint served 0 cached tokens in the same run.
-    //
-    // 20 turns × 20.8K ≈ 416K — OVER the Free 300K cap. A Free user
-    // on the Pro chain would therefore have been rejected at ~14
-    // messages a day, while the UI badge said "Free · 20/day" and the
-    // composer said "N / 20 messages remaining today". This is why the
-    // free tier is routed to its own $0 chain, and it is why the free
-    // chain's measured cost is the number the cap has to clear.
+  it('Free token cap clears the 20 Pro-chain turns plus fallback headroom', () => {
+    // Measured 2026-11-01: ~20.8K tokens/turn on the Pro chain's primary
+    // (0 cached), ~13K on the $0 chain (`reflection/beam-free` serves
+    // 11–13K from cache). Free's first 20 turns now use the Pro chain,
+    // so a 300K cap would have rejected them around turn 14. The cap is
+    // 600K: ~416K for the allowance plus ~184K for a dozen $0 turns.
     const PRO_CHAIN_TOKENS_PER_TURN = 20_833;
-    expect(PLANS.free.chatTokensPerDay).toBeLessThan(
+    const FALLBACK_CHAIN_TOKENS_PER_TURN = 13_000;
+    expect(PLANS.free.chatTokensPerDay).toBeGreaterThan(
       PLANS.free.chatMessagesPerDay * PRO_CHAIN_TOKENS_PER_TURN
     );
+    expect(PLANS.free.chatTokensPerDay).toBeGreaterThan(
+      PLANS.free.chatMessagesPerDay * PRO_CHAIN_TOKENS_PER_TURN +
+        FALLBACK_CHAIN_TOKENS_PER_TURN
+    );
+    expect(PLANS.free.chatTokensPerDay).toBe(600_000);
   });
 
   it('Pro token cap keeps worst-case AI spend under half a $5 subscription', () => {

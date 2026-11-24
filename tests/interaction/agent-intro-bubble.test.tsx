@@ -74,7 +74,7 @@ describe('the agent introduction bubble', () => {
     expect(bubble.textContent).toMatch(/ATS score/i);
   });
 
-  it('tells a Free user what their allowance is', async () => {
+  it('tells a Free user what their paid-model allowance is, and that chat continues', async () => {
     render(
       <AgentIntroBubble
         agentOpen={false}
@@ -84,9 +84,9 @@ describe('the agent introduction bubble', () => {
       />
     );
     await advancePastTheDelay();
-    expect(screen.getByTestId('agent-intro-bubble').textContent).toContain(
-      '20 messages a day'
-    );
+    const bubble = screen.getByTestId('agent-intro-bubble');
+    expect(bubble.textContent).toContain('20 Pro-model messages a day');
+    expect(bubble.textContent).toContain('then free models');
   });
 
   it('says nothing about an allowance on Pro', async () => {

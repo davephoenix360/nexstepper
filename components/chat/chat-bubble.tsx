@@ -89,19 +89,28 @@ export function ChatBubble({
   const [toolInFlight, setToolInFlight] = useState(false);
   // Quota readout state. Seeded to `null` (unknown) rather than a
   // fabricated `{ limit: 20, used: 0 }` — the server is the only
-  // authority on the real count, and it reports it via the
-  // `X-Chat-Usage` / `X-Chat-Limit` response headers after every turn.
-  // Before this, the readout always showed the full allowance because
-  // the local `used` counter was never incremented (plan:
-  // docs/plans/chat-hardening-and-cta.md §Q4).
+  // authority, and since 2026-11-24 it reports `'unlimited'` for every
+  // plan (turns 21+ on Free are valid on the $0 chain), so this stays
+  // null and the composer is never disabled by the old 20-turn count.
   const [rateLimit, setRateLimit] = useState<{ limit: number; used: number } | null>(
     isPro ? null : null
   );
   // Server-supplied rejection reason for the last send (e.g. the daily
-  // token cap). Separate from `rateLimit` because the readout is a TURN
-  // counter and is `null` on an unlimited-turn Pro plan — so without
+  // token cap). Separate from `rateLimit` because no plan has a turn
+  // gate any more, so the readout is null on successful turns — without
   // this the cap would reject a send with nothing on screen.
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * The model answering RIGHT NOW. Seeded from the server (which reads
+   * today's usage) and updated from `X-Chat-Model` after every turn, so
+   * the live line flips from Claude to Beam at exactly the same point
+   * the route changes chains. A local turn counter cannot know about a
+   * gateway fallback or a reload — the header can.
+   */
+  const [liveModelLabel, setLiveModelLabel] = useState<string | null>(modelLabel);
+  useEffect(() => {
+    setLiveModelLabel(modelLabel);
+  }, [modelLabel]);
 
   /**
    * The introduction bubble's measured height, or 0 when it is down.
@@ -338,6 +347,7 @@ export function ChatBubble({
         Number.isFinite(usage.limit) ? { limit: usage.limit, used: usage.used } : null
       );
     },
+    onModelLabel: (label) => setLiveModelLabel(label),
     onResumeUpdated: () => {
       // The assistant just wrote a revision to this resume. Hold the
       // refresh until the score side of a bullet edit settles (success or
@@ -579,7 +589,7 @@ export function ChatBubble({
           resumeName={resumeName}
           isPro={isPro}
           dailyLimit={dailyLimit}
-          modelLabel={modelLabel}
+          modelLabel={liveModelLabel}
           sessions={sessions}
           activeSessionId={activeSessionId}
           messages={messages}
